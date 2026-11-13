@@ -751,6 +751,7 @@ func Descriptors() []usecase.Descriptor {
 		suggestionservice.MakeEntries{}.Descriptor(),
 		suggestionservice.AskWorkspace{}.Descriptor(),
 		work.AiTranslate{}.Descriptor(),
+		work.AskQuery{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),
 		identity.LocateOidcFlow{}.Descriptor(),

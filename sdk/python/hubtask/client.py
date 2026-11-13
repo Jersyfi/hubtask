@@ -2951,6 +2951,10 @@ class Client:
         """One search over every kind of object the caller may read"""
         return self._call("POST", "/search:all", {}, None, {}, body, "json", "application/json", "json")
 
+    def ask_query(self, body: "AskQueryRequest") -> "AskedQuery":
+        """Write a Hubtask query from a question in words"""
+        return self._call("POST", "/query:ask", {}, None, {}, body, "json", "application/json", "json")
+
     def reindex_search(self) -> "SearchReindex":
         """Bring the workspace's search documents current"""
         return self._call("POST", "/search:reindex", {}, None, {}, None, "none", None, "json")

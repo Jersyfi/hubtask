@@ -612,6 +612,9 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// one feature, one name, whichever of the two a client reads. It is also the honest
 			// scope: what a person loses is suggestions, not "AI".
 			"ai_suggestions": ai.Completion,
+			// Whether POST /query:ask can answer the caller (Q-6): a question in words beside the
+			// query is drawn only where it can, so without AI nothing of it appears (P-14).
+			"query_from_words": ai.Completion,
 			// Whether the caller's workspace can search by meaning (ADR-0050).
 			//
 			// Both halves, because either alone is not the feature. The store is read from the

@@ -45,6 +45,7 @@ var restDoors = map[string]restDoor{
 	"approveTimesheet":      {UseCase: "ApproveTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"archiveContainer":      {UseCase: "ArchiveContainer", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"archiveWorkItem":       {UseCase: "ArchiveWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"askQuery":              {UseCase: "AskQuery", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"askWorkspace":          {UseCase: "AskWorkspace", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"assignWorkItem":        {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachMedia":           {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1035,6 +1036,13 @@ func (c *RestController) ArchiveContainer(w http.ResponseWriter, r *http.Request
 // ArchiveWorkItem answers POST /items/{itemId}:archive by the generated mapping.
 func (c *RestController) ArchiveWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.ArchiveWorkItemParams) {
 	c.door(w, r, restDoors["archiveWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
+}
+
+// AskQuery answers POST /query:ask by the generated mapping.
+func (c *RestController) AskQuery(w http.ResponseWriter, r *http.Request) {
+	var body openapi.AskQueryJSONRequestBody
+	var answer openapi.AskedQuery
+	c.door(w, r, restDoors["askQuery"], usecase.Input{}, nil, &body, &answer)
 }
 
 // AskWorkspace answers POST /ask by the generated mapping.

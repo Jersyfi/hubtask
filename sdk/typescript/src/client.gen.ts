@@ -3713,6 +3713,11 @@ export class HubtaskClient {
     return this.call("POST", "/search:all", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Write a Hubtask query from a question in words */
+  askQuery(body: NonNullable<operations["askQuery"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["askQuery"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/query:ask", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Bring the workspace's search documents current */
   reindexSearch(options: CallOptions = {}): Promise<operations["reindexSearch"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/search:reindex", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

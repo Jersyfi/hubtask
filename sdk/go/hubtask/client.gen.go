@@ -1399,6 +1399,21 @@ func (e ApprovalState) Valid() bool {
 	}
 }
 
+// Defines values for AskedQuerySource.
+const (
+	AskedQuerySourceAI AskedQuerySource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AskedQuerySource enum.
+func (e AskedQuerySource) Valid() bool {
+	switch e {
+	case AskedQuerySourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -13502,6 +13517,27 @@ type ArticleSuggestionList struct {
 	} `json:"data"`
 }
 
+// AskQueryRequest A question in words, in any language the provider reads.
+type AskQueryRequest struct {
+	// Question What the person wants to find, as they would say it.
+	Question string `json:"question"`
+}
+
+// AskedQuery The question as a Hubtask query, with the provenance every AI output carries. Not a record and not a result: no entry was read to write it.
+type AskedQuery struct {
+	Model         string    `json:"model"`
+	ProducedAt    time.Time `json:"produced_at"`
+	PromptId      string    `json:"prompt_id"`
+	PromptVersion string    `json:"prompt_version"`
+
+	// Query The query in the `field: value` spelling, in its canonical form.
+	Query  string           `json:"query"`
+	Source AskedQuerySource `json:"source"`
+}
+
+// AskedQuerySource defines model for AskedQuery.Source.
+type AskedQuerySource string
+
 // Assignment Who the entry is assigned to.
 type Assignment struct {
 	// AccountId The account to assign. It has to hold a membership on the path above the entry; one that does not is refused with the same answer as an account that does not exist.
@@ -14567,10 +14603,11 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `query_from_words`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
+	// `query_from_words` says that `POST /query:ask` can answer the caller: it follows `ai_suggestions`, and a client without it draws no question field beside the query.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -23307,7 +23344,7 @@ type QueryKey struct {
 	// Objects The kinds of object the key asks about.
 	Objects []string `json:"objects"`
 
-	// Product The product the key's prefix belongs to (`desk`, `cf`); absent for the keys of every kind.
+	// Product The product the key's prefix belongs to (`desk`, `plan`, `cf`); absent for the keys of every kind.
 	Product *string `json:"product,omitempty"`
 
 	// Value What kind of value the key takes, which decides the suggestions a client offers.
@@ -31896,6 +31933,9 @@ type SubmitPublicFormJSONRequestBody = PublicFormSubmission
 
 // AnswerSatisfactionLinkJSONRequestBody defines body for AnswerSatisfactionLink for application/json ContentType.
 type AnswerSatisfactionLinkJSONRequestBody = SatisfactionLinkAnswer
+
+// AskQueryJSONRequestBody defines body for AskQuery for application/json ContentType.
+type AskQueryJSONRequestBody = AskQueryRequest
 
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
@@ -41817,6 +41857,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
 	AnswerSatisfactionLink(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AskQueryWithBody Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQueryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AskQuery Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQuery(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadQuotas The workspace's quota standing
 	//
@@ -63449,6 +63507,44 @@ func (c *Client) AnswerSatisfactionLinkWithBody(ctx context.Context, token strin
 // Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
 func (c *Client) AnswerSatisfactionLink(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewAnswerSatisfactionLinkRequest(c.Server, token, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AskQueryWithBody Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *Client) AskQueryWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAskQueryRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AskQuery Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *Client) AskQuery(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAskQueryRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -100911,6 +101007,46 @@ func NewAnswerSatisfactionLinkRequestWithBody(server string, token string, conte
 	return req, nil
 }
 
+// NewAskQueryRequest calls the generic AskQuery builder with application/json body
+func NewAskQueryRequest(server string, body AskQueryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAskQueryRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAskQueryRequestWithBody constructs an http.Request for the AskQuery method, with any body, and a specified content type
+func NewAskQueryRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/query:ask")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadQuotasRequest constructs an http.Request for the ReadQuotas method
 func NewReadQuotasRequest(server string) (*http.Request, error) {
 	var err error
@@ -119050,6 +119186,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /public/satisfaction/{token} (the `AnswerSatisfactionLink` operationId).
 	AnswerSatisfactionLinkWithResponse(ctx context.Context, token string, body AnswerSatisfactionLinkJSONRequestBody, reqEditors ...RequestEditorFn) (*AnswerSatisfactionLinkResult, error)
+
+	// AskQueryWithBodyWithResponse Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQueryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AskQueryResult, error)
+
+	// AskQueryWithResponse Write a Hubtask query from a question in words
+	//
+	// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /query:ask (the `AskQuery` operationId).
+	AskQueryWithResponse(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*AskQueryResult, error)
 
 	// ReadQuotasWithResponse The workspace's quota standing
 	//
@@ -155063,6 +155217,61 @@ func (r AnswerSatisfactionLinkResult) ContentType() string {
 	return ""
 }
 
+type AskQueryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AskedQuery
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AskQueryResult) GetJSON200() *AskedQuery {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AskQueryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r AskQueryResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r AskQueryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AskQueryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AskQueryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AskQueryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadQuotasResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -179488,6 +179697,36 @@ func (c *ClientWithResponses) AnswerSatisfactionLinkWithResponse(ctx context.Con
 		return nil, err
 	}
 	return ParseAnswerSatisfactionLinkResult(rsp)
+}
+
+// AskQueryWithBodyWithResponse Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *ClientWithResponses) AskQueryWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AskQueryResult, error) {
+	rsp, err := c.AskQueryWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAskQueryResult(rsp)
+}
+
+// AskQueryWithResponse Write a Hubtask query from a question in words
+//
+// Asks the workspace's AI provider to write the question as a Hubtask query, and answers the query as text in the `field: value` spelling - read by the same parser `POST /items:query` uses and written back in its canonical form, so it holds only keys this installation answers. **Nothing is run and nothing is stored**: the person sees the query, changes it and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest` is true; every way of not getting an answer - no provider, no consent, a spent budget, a slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person who keeps their own content out of AI is refused the same way. The audit records that a query was asked for, never the question. A `POST` because the question is content.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /query:ask (the `AskQuery` operationId).
+func (c *ClientWithResponses) AskQueryWithResponse(ctx context.Context, body AskQueryJSONRequestBody, reqEditors ...RequestEditorFn) (*AskQueryResult, error) {
+	rsp, err := c.AskQuery(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAskQueryResult(rsp)
 }
 
 // ReadQuotasWithResponse The workspace's quota standing
@@ -207316,6 +207555,46 @@ func ParseAnswerSatisfactionLinkResult(rsp *http.Response) (*AnswerSatisfactionL
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAskQueryResult parses an HTTP response from a AskQueryWithResponse call
+func ParseAskQueryResult(rsp *http.Response) (*AskQueryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AskQueryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AskedQuery
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 

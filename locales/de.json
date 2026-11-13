@@ -14620,6 +14620,8 @@
   "query.bracket_unclosed": "Eine vor Zeichen {at} geöffnete Klammer ist nicht geschlossen. Ergänze {suggestion}.",
   "query.flag_in_group": "is: {value} erweitert die ganze Suche und kann nicht in einer Gruppe oder nach einem Minus stehen (Zeichen {at}).",
   "query.kind_in_group": "type: bestimmt, was die ganze Suche findet, und kann nicht in einer Gruppe oder nach einem Minus stehen (Zeichen {at}).",
+  "query.question_required": "Stelle zuerst eine Frage in Worten.",
+  "query.question_too_long": "Eine Frage darf höchstens {max} Zeichen lang sein.",
   "query.kind_not_here": "Diese Liste enthält Einträge, darum lässt sich type: {kind} hier nicht fragen.",
   "query.sort_in_group": "sort: ordnet die ganze Suche und kann nicht in einer Gruppe oder nach einem Minus stehen (Zeichen {at}).",
   "query.sort_not_here": "Eine Anzahl hat keine Reihenfolge. Lass sort: in dieser Suche weg.",

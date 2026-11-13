@@ -3499,6 +3499,10 @@ func run() error {
 			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
 		}.Descriptor(),
+		work.AskQuery{
+			Providers: budgetedAi, Prompts: aiPrompts, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
+		}.Descriptor(),
 		work.ListWorkItems{
 			Gate:  entryGate,
 			Items: items, ItemLabels: itemLabels, Containers: containers,

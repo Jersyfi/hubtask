@@ -141,6 +141,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.summary_asked` | AiSummarizeThread | `ai_suggestion` | NOTICE | Every time |
 | `ai.template_asked` | AiGenerateTemplate | `ai_suggestion` | NOTICE | Every time |
 | `ai.translation_asked` | AiTranslate | `item` | NOTICE | Every time |
+| `ai.query_asked` | AskQuery | `tenant` | INFO | Every time; never the question |
 
 ## Approval
 

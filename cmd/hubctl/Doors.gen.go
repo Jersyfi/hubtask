@@ -2374,6 +2374,11 @@ var generatedCommands = []door{
 			{Name: "portfolioId", Kind: "uuid", Help: "A portfolio", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
+	{Group: "query", Verb: "ask", OperationID: "askQuery", Method: "POST", Path: "/query:ask", Summary: "Write a Hubtask query from a question in words",
+		Body: []doorParam{
+			{Name: "question", Kind: "string", Help: "What the person wants to find, as they would say it", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"model", "produced_at", "prompt_id", "prompt_version", "query"}},
 	{Group: "queue", Verb: "ls", OperationID: "listHubQueues", Method: "GET", Path: "/hubs/{hubId}/queues", Summary: "A hub's queues with their counts",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

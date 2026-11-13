@@ -20496,6 +20496,39 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /query:ask:
+    post:
+      tags: [suggestions]
+      operationId: askQuery
+      x-hubtask-rest: generated
+      x-hubtask-cli: "query ask"
+      summary: Write a Hubtask query from a question in words
+      description: >
+        Asks the workspace's AI provider to write the question as a Hubtask query, and answers the
+        query as text in the `field: value` spelling - read by the same parser `POST /items:query`
+        uses and written back in its canonical form, so it holds only keys this installation
+        answers. **Nothing is run and nothing is stored**: the person sees the query, changes it
+        and runs it themselves. Offered where `features.query_from_words` in `GET /meta/manifest`
+        is true; every way of not getting an answer - no provider, no consent, a spent budget, a
+        slow model, an answer that is not a query - is `503` with `ai.unavailable`, and a person
+        who keeps their own content out of AI is refused the same way. The audit records that a
+        query was asked for, never the question. A `POST` because the question is content.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AskQueryRequest" }
+      responses:
+        "200":
+          description: The query, for the person to see and change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AskedQuery" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /search:reindex:
     post:
       tags: [items]
@@ -26561,6 +26594,34 @@ components:
         version:
           type: integer
           description: The optimistic lock, as everywhere else.
+
+    AskQueryRequest:
+      type: object
+      required: [question]
+      description: A question in words, in any language the provider reads.
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: What the person wants to find, as they would say it.
+
+    AskedQuery:
+      type: object
+      description: >
+        The question as a Hubtask query, with the provenance every AI output carries. Not a
+        record and not a result: no entry was read to write it.
+      required: [query, source, model, prompt_id, prompt_version, produced_at]
+      properties:
+        query:
+          type: string
+          description: >
+            The query in the `field: value` spelling, in its canonical form.
+        source: { type: string, enum: [AI] }
+        model: { type: string }
+        prompt_id: { type: string }
+        prompt_version: { type: string }
+        produced_at: { type: string, format: date-time }
 
     AiTranslateRequest:
       type: object
@@ -41601,7 +41662,7 @@ components:
         product:
           type: string
           description: >
-            The product the key's prefix belongs to (`desk`, `cf`); absent for the keys of
+            The product the key's prefix belongs to (`desk`, `plan`, `cf`); absent for the keys of
             every kind.
         objects:
           type: array
@@ -41847,7 +41908,7 @@ components:
             The keys are open, and a key that is absent is not a promise in either direction - it
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
-            `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
+            `backup_targets`, `ai_suggestions`, `query_from_words`, `semantic_search`, `natural_ordering`,
             `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`,
             `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has
             an address there) and `encryption` (the installation holds an encryption key, so a
@@ -41870,6 +41931,9 @@ components:
             both can be written (`PATCH /containers/{containerId}/structure`,
             `PATCH /tenant/structure`). It does not say that entries already obey `levels` and
             `fields`; a client offers only what they allow either way.
+
+            `query_from_words` says that `POST /query:ask` can answer the caller: it follows
+            `ai_suggestions`, and a client without it draws no question field beside the query.
 
             `ai_suggestions` and `semantic_search` are the same two names `degraded_features`
             uses in `/meta/health`, so a client reading either

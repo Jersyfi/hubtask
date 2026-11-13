@@ -389,6 +389,19 @@ class Suggestion(TypedDict, total=False):
     dropped_nodes: int
     version: Required[int]
 
+class AskQueryRequest(TypedDict, total=False):
+    """A question in words, in any language the provider reads."""
+    question: Required[str]
+
+class AskedQuery(TypedDict, total=False):
+    """The question as a Hubtask query, with the provenance every AI output carries. Not a record and not a result: no entry was read to write it."""
+    query: Required[str]
+    source: Required[Literal["AI"]]
+    model: Required[str]
+    prompt_id: Required[str]
+    prompt_version: Required[str]
+    produced_at: Required[str]
+
 class AiTranslateRequest(TypedDict, total=False):
     """Which language to read the entry in."""
     target_locale: str

@@ -1497,6 +1497,10 @@ func (pending) AiTranslate(w http.ResponseWriter, r *http.Request, _ openapi.Ite
 	notAvailable(w, r)
 }
 
+func (pending) AskQuery(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 // AiSummarizeThread and AiSummarizeContainer are overridden by RestController, for the reason
 // given at CreateContainer.
 func (pending) AiSummarizeThread(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {

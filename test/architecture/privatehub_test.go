@@ -39,7 +39,9 @@ const (
 var privateHubExemptions = map[string]string{
 	// Reads through GetWorkItem; TestAiRunByOthersKeepsAPrivateHubFromOutsiders runs it, outside
 	// the table because its answer names no identifier.
-	"AiTranslate":                  asksOnItsPath,
+	"AiTranslate": asksOnItsPath,
+	// Reads no hub at all: the question and the query's keys go to the provider, nothing else.
+	"AskQuery":                     "reads nothing of a hub",
 	"ExportView":                   asksOnItsPath,
 	"ExportItems":                  asksOnItsPath,
 	"GetRecurrence":                asksOnItsPath,

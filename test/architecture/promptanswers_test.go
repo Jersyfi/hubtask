@@ -34,6 +34,9 @@ func TestEveryPromptAsksForExactlyWhatTheCodeKeeps(t *testing.T) {
 	for id, keys := range work.TranslationAnswerKeys() {
 		allowed[id] = keys
 	}
+	for id, keys := range work.QueryAnswerKeys() {
+		allowed[id] = keys
+	}
 
 	for _, id := range store.IDs() {
 		prompt, err := store.Get(id)

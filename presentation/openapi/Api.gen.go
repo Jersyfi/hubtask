@@ -1393,6 +1393,21 @@ func (e ApprovalState) Valid() bool {
 	}
 }
 
+// Defines values for AskedQuerySource.
+const (
+	AskedQuerySourceAI AskedQuerySource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AskedQuerySource enum.
+func (e AskedQuerySource) Valid() bool {
+	switch e {
+	case AskedQuerySourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditActorType.
 const (
 	AuditActorTypeAIAGENT        AuditActorType = "AI_AGENT"
@@ -13496,6 +13511,27 @@ type ArticleSuggestionList struct {
 	} `json:"data"`
 }
 
+// AskQueryRequest A question in words, in any language the provider reads.
+type AskQueryRequest struct {
+	// Question What the person wants to find, as they would say it.
+	Question string `json:"question"`
+}
+
+// AskedQuery The question as a Hubtask query, with the provenance every AI output carries. Not a record and not a result: no entry was read to write it.
+type AskedQuery struct {
+	Model         string    `json:"model"`
+	ProducedAt    time.Time `json:"produced_at"`
+	PromptId      string    `json:"prompt_id"`
+	PromptVersion string    `json:"prompt_version"`
+
+	// Query The query in the `field: value` spelling, in its canonical form.
+	Query  string           `json:"query"`
+	Source AskedQuerySource `json:"source"`
+}
+
+// AskedQuerySource defines model for AskedQuery.Source.
+type AskedQuerySource string
+
 // Assignment Who the entry is assigned to.
 type Assignment struct {
 	// AccountId The account to assign. It has to hold a membership on the path above the entry; one that does not is refused with the same answer as an account that does not exist.
@@ -14561,10 +14597,11 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `query_from_words`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open`, `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has an address there) and `encryption` (the installation holds an encryption key, so a secret a workspace keeps - a webhook's signing secret, a backup target's or a connector's credentials - can be stored; without one, a client does not offer the form that would be refused).
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
+	// `query_from_words` says that `POST /query:ask` can answer the caller: it follows `ai_suggestions`, and a client without it draws no question field beside the query.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -23301,7 +23338,7 @@ type QueryKey struct {
 	// Objects The kinds of object the key asks about.
 	Objects []string `json:"objects"`
 
-	// Product The product the key's prefix belongs to (`desk`, `cf`); absent for the keys of every kind.
+	// Product The product the key's prefix belongs to (`desk`, `plan`, `cf`); absent for the keys of every kind.
 	Product *string `json:"product,omitempty"`
 
 	// Value What kind of value the key takes, which decides the suggestions a client offers.
@@ -31891,6 +31928,9 @@ type SubmitPublicFormJSONRequestBody = PublicFormSubmission
 // AnswerSatisfactionLinkJSONRequestBody defines body for AnswerSatisfactionLink for application/json ContentType.
 type AnswerSatisfactionLinkJSONRequestBody = SatisfactionLinkAnswer
 
+// AskQueryJSONRequestBody defines body for AskQuery for application/json ContentType.
+type AskQueryJSONRequestBody = AskQueryRequest
+
 // ResolveReferencesJSONRequestBody defines body for ResolveReferences for application/json ContentType.
 type ResolveReferencesJSONRequestBody ResolveReferencesJSONBody
 
@@ -34640,6 +34680,9 @@ type ServerInterface interface {
 	// AnswerSatisfactionLink Say how satisfied you were, by the link of a resolution mail
 	// (POST /public/satisfaction/{token})
 	AnswerSatisfactionLink(w http.ResponseWriter, r *http.Request, token string)
+	// AskQuery Write a Hubtask query from a question in words
+	// (POST /query:ask)
+	AskQuery(w http.ResponseWriter, r *http.Request)
 	// ReadQuotas The workspace's quota standing
 	// (GET /quotas)
 	ReadQuotas(w http.ResponseWriter, r *http.Request)
@@ -58348,6 +58391,20 @@ func (siw *ServerInterfaceWrapper) AnswerSatisfactionLink(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// AskQuery operation middleware
+func (siw *ServerInterfaceWrapper) AskQuery(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AskQuery(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadQuotas operation middleware
 func (siw *ServerInterfaceWrapper) ReadQuotas(w http.ResponseWriter, r *http.Request) {
 
@@ -64620,6 +64677,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/glance/open-entries", wrapper.ListMyOpenEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/glance:search", wrapper.SearchEverywhere)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:all", wrapper.SearchAll)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/query:ask", wrapper.AskQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/boards:repair", wrapper.RepairBoards)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:switch", wrapper.SwitchBoard)
