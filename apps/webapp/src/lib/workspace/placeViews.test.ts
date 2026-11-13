@@ -14,9 +14,10 @@ const ids = (views: readonly { id: string }[]) => views.map((view) => view.id);
 test('a collection draws one view bar: list, board, timeline, time and its saved views (UC-WRK-36 check 9)', () => {
   const saved = [{ id: 'v1', name: 'My open ones' }];
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, saved })), ['list', 'board', 'timeline', 'time', 'view:v1']);
-  // Its former *Plan* is the *Timeline* view where the plan is on, the timeline layout where it is off.
+  // Its *Timeline* has one address, the plan's schedule where the plan is on and the timeline
+  // presentation where it is off - no layout of the collection's screen (§6.3, E-16).
   assert.equal(collectionViews({ id: 'c', modulesOn: ALL }).find((view) => view.id === 'timeline')?.href, '/collections/c/timeline');
-  assert.equal(collectionViews({ id: 'c', modulesOn: [] }).find((view) => view.id === 'timeline')?.href, '/collections/c?layout=timeline');
+  assert.equal(collectionViews({ id: 'c', modulesOn: [] }).find((view) => view.id === 'timeline')?.href, '/collections/c/timeline');
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: [], layouts: ['LIST_COLLAPSED'] })), ['list']);
   assert.equal(collectionViews({ id: 'c', modulesOn: ALL, saved }).at(-1)?.href, '/collections/c?view=v1');
 });

@@ -449,7 +449,7 @@ export function paneFor(
 ): PaneResolution {
   const itemId = route.query['item'];
   const collectionId = route.params['id'];
-  if (route.name !== 'collection' || !itemId || !collectionId) return { kind: 'none' };
+  if ((route.name !== 'collection' && route.name !== 'collection-timeline') || !itemId || !collectionId) return { kind: 'none' };
   if (!options.isLarge) return { kind: 'redirect', path: `/items/${encodeURIComponent(itemId)}` };
   return { kind: 'pane', collectionId, itemId };
 }

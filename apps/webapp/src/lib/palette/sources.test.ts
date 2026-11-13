@@ -234,6 +234,8 @@ test('a collection named in the palette offers its views as Go to, by what its h
     { kind: 'route', path: '/collections/c1/time' },
   ]);
   assert.equal(offers[0]?.label, 'app.place_tabs.go_to {"place":"Kitchen","tab":"app.view.TIMELINE"}');
-  assert.deepEqual(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['KNOWLEDGE'], t), [], 'pages are a hub\'s view, not a collection\'s');
+  // Pages are a hub's view, not a collection's; its Timeline is a page of its own with or without
+  // the plan (§6.3, E-16).
+  assert.deepEqual(ids(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['KNOWLEDGE'], t)), ['go-to:c1:timeline']);
   assert.deepEqual(placeTabOffers(placed(ARCHIVED, HOUSE), workspaceOn, workspaceOn, t), [], 'an archived collection is not offered');
 });

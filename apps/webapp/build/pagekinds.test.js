@@ -30,7 +30,7 @@ const KINDS = {
   StandalonePage: 'standalone',
 };
 
-const DISPATCHERS = ['App.svelte', 'views/AdministrationArea.svelte', 'views/InstanceArea.svelte', 'lib/frame/parts.ts'];
+const DISPATCHERS = ['App.svelte', 'views/CollectionTimeline.svelte', 'views/AdministrationArea.svelte', 'views/InstanceArea.svelte', 'lib/frame/parts.ts'];
 
 /** The views a route draws: every `views/…View.svelte` a dispatcher names. */
 function routedViews() {

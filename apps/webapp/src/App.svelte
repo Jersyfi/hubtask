@@ -104,6 +104,7 @@
     PortalArticleView: () => import('./views/PortalArticleView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
+    CollectionTimeline: () => import('./views/CollectionTimeline.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
     BacklogView: () => import('./views/BacklogView.svelte'),
     ReleaseView: () => import('./views/ReleaseView.svelte'),
@@ -605,7 +606,17 @@
     {#key route.params.id}
       <LazyView load={views.HubDeskView} props={{ hubId: route.params.id ?? '', queue: route.query['queue'], onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
-  {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies' || route.name === 'collection-timeline'}
+  {:else if route.name === 'collection-timeline'}
+    {#key route.params.id}
+      <LazyView load={views.CollectionTimeline} props={{
+        collectionId: route.params.id ?? '',
+        openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
+        viewAsked: route.query['view'],
+        onnavigate: (path: string) => router.navigate(path),
+        onreplace: (path: string) => router.replace(path),
+      }} />
+    {/key}
+  {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies'}
     {#key route.params.id}
       <LazyView load={views.PlanView} props={{ planId: route.params.id, part: route.name === 'hub-plan-table' ? 'table' : route.name === 'hub-plan-dependencies' ? 'dependencies' : 'schedule', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}

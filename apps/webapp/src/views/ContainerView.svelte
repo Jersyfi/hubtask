@@ -152,10 +152,16 @@
     layoutAsked?: string;
     /** A saved view the address opens (`?view=`), a view of the bar too. */
     viewAsked?: string;
+    /**
+     * Drawn at the collection's *Timeline* address (`CollectionTimeline`): the timeline is no
+     * layout of the collection's own screen (§6.3, E-16), so only this address draws it.
+     */
+    isTimeline?: boolean;
     onnavigate: (path: string) => void;
+    onreplace?: (path: string) => void;
   }
 
-  const { id: idAsked, openItemId, layoutAsked, viewAsked, onnavigate }: Props = $props();
+  const { id: idAsked, openItemId, layoutAsked, viewAsked, isTimeline = false, onnavigate, onreplace = onnavigate }: Props = $props();
   // The id as a derived value: `LazyView` spreads a new props object on every change of address,
   // and an effect reading the prop itself would re-run on a `?layout=` or `?item=` - its cleanup
   // emptying the selection the screen keeps across its views (design-system.md §11.9).
@@ -164,8 +170,10 @@
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
 
+  /** The address the pane opens over: the collection's, or its *Timeline*'s. */
+  const screenPath = $derived(isTimeline ? `/collections/${id}/timeline` : `/collections/${id}`);
   function openBeside(itemId: string) {
-    onnavigate(`/collections/${id}?item=${encodeURIComponent(itemId)}`);
+    onnavigate(`${screenPath}?item=${encodeURIComponent(itemId)}`);
   }
 
   /**
@@ -197,7 +205,7 @@
    */
   function closePane() {
     const rowId = openItemId;
-    onnavigate(`/collections/${id}`);
+    onnavigate(screenPath);
     queueMicrotask(() => {
       if (document.activeElement && document.activeElement !== document.body) return;
       document.querySelector<HTMLElement>(`[data-row="${rowId}"] a`)?.focus();
@@ -282,9 +290,10 @@
    * the list is offered; everything this client draws while the manifest is not yet read.
    */
   const choosable = $derived(
-    offeredLayouts.length === 0
+    (offeredLayouts.length === 0
       ? DRAWABLE
-      : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))),
+      : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))))
+      .filter((each) => isTimeline === (each === 'TIMELINE')),
   );
 
   /** What the collection offers and opens with, as one key, so a re-read that changes neither leaves the layout alone. */
@@ -300,6 +309,10 @@
       choosable: string[];
     };
     untrack(() => {
+      if (isTimeline) {
+        layout = 'TIMELINE';
+        return;
+      }
       layout = openingLayout({
         store: deviceStore(),
         accountId: account,
@@ -309,6 +322,13 @@
         drawable: read.choosable,
       });
     });
+  });
+
+  /** The collection's *Timeline* address, keeping a saved view the reader is in. */
+  const timelinePath = (viewId: string | undefined) => `/collections/${idAsked}/timeline${viewId ? `?view=${encodeURIComponent(viewId)}` : ''}`;
+  // `?layout=timeline` of old links and bookmarks: the timeline's own address now.
+  $effect(() => {
+    if (!isTimeline && layoutAsked === 'timeline') untrack(() => onreplace(timelinePath(viewAsked)));
   });
 
   // A view of the bar the address names wins over the remembered layout, once what may be chosen is read.
@@ -330,7 +350,9 @@
   function keepingOpen(path: string): string {
     const open = new URLSearchParams(location.search).get('item');
     const url = new URL(path, location.origin);
-    if (!open || url.pathname !== location.pathname) return path;
+    // The collection's screen and its *Timeline* draw the same pane (§6.3).
+    const sameScreen = [`/collections/${id}`, `/collections/${id}/timeline`];
+    if (!open || !sameScreen.includes(url.pathname) || !sameScreen.includes(location.pathname)) return path;
     url.searchParams.set('item', open);
     return `${url.pathname}${url.search}`;
   }
@@ -339,7 +361,19 @@
   let lastList = $state<string | undefined>(undefined);
 
   /** A layout the person chose: drawn, and kept for them on this device. */
-  function chooseLayout(chosen: string) {
+  function chooseLayout(chosen: string, isOpening = false) {
+    // The timeline is its own address, and the list and the board are the collection's (§6.3).
+    // A saved view opening in the other one replaces the address, so *Back* does not bounce.
+    const go = isOpening ? onreplace : onnavigate;
+    if (!isTimeline && chosen === 'TIMELINE') {
+      go(timelinePath(viewAsked));
+      return;
+    }
+    if (isTimeline && chosen !== 'TIMELINE') {
+      if (isListLayout(chosen)) rememberLayout(deviceStore(), actor.account?.id, id, chosen);
+      go(`/collections/${idAsked}?${isOpening && viewAsked ? `view=${encodeURIComponent(viewAsked)}` : `layout=${viewOfLayout(chosen)}`}`);
+      return;
+    }
     layout = chosen;
     if (isListLayout(chosen)) lastList = chosen;
     rememberLayout(deviceStore(), actor.account?.id, id, chosen);
@@ -998,7 +1032,7 @@
     lanesBy = typeof grouping?.['lanes_by'] === 'string' ? grouping['lanes_by'] : '';
     if (typeof grouping?.['date_field'] === 'string') dateField = grouping['date_field'];
     showsLimits = grouping?.['limits'] !== false;
-    chooseLayout(appliedLayout);
+    chooseLayout(appliedLayout, true);
     if (arrangement && listOffer) {
       const list = grouping?.['list'];
       const done = grouping?.['done'];

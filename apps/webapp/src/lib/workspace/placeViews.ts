@@ -93,11 +93,11 @@ export function collectionViews(input: CollectionInput): readonly CollectionView
   const has = (layout: string) => layouts.includes(layout);
   const list: CollectionView = { id: 'list', code: 'app.view.LIST_COLLAPSED', icon: 'square-check', href: `${base}?layout=list` };
   const board: CollectionView[] = has('KANBAN') ? [{ id: 'board', code: 'app.view.KANBAN', icon: 'columns-3', href: `${base}?layout=board` }] : [];
-  const timeline: CollectionView[] = on('PLANNING')
+  // One address for the timeline (§6.3, E-16): the plan's schedule where the plan is on, else the
+  // timeline presentation - no layout of the collection's own screen.
+  const timeline: CollectionView[] = on('PLANNING') || has('TIMELINE')
     ? [{ id: 'timeline', code: 'app.view.TIMELINE', icon: 'calendar', href: `${base}/timeline` }]
-    : has('TIMELINE')
-      ? [{ id: 'timeline', code: 'app.view.TIMELINE', icon: 'calendar', href: `${base}?layout=timeline` }]
-      : [];
+    : [];
   const sprint: CollectionView[] = on('PLANNING') && input.runsSprints
     ? [
         { id: 'sprint', ...(input.sprintName ? { name: input.sprintName } : { code: 'app.nav.view_sprint' }), icon: 'repeat', href: `${base}/sprint` },
