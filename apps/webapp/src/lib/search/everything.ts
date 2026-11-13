@@ -220,7 +220,7 @@ export function ordered(hits: readonly Hit[], order: Order, locale: string): Hit
 }
 
 /** A hit's tile: the product's colour and mark, which identify and mean nothing (WB-2). */
-export function tileOf(hit: Hit): { readonly icon: string; readonly product?: 'pages' | 'whiteboards' | 'goals' | 'assets' | 'desk'; readonly color?: string } {
+export function tileOf(hit: Pick<Hit, 'kind' | 'state' | 'on'>): { readonly icon: string; readonly product?: 'pages' | 'whiteboards' | 'goals' | 'assets' | 'desk'; readonly color?: string } {
   const on = hit.kind === 'FILE' || hit.kind === 'COMMENT' ? (hit.on?.kind ?? 'ENTRY') : hit.kind;
   const mark = hit.kind === 'FILE' ? 'paperclip' : hit.kind === 'COMMENT' ? 'message-square' : undefined;
   switch (on) {

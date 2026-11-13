@@ -27,8 +27,10 @@
     Button,
     Checkbox,
     EmptyState,
+    Icon,
     Kbd,
     PageHeader,
+    ProductTile,
     QueryLine,
     Skeleton,
     Stack,
@@ -36,6 +38,7 @@
     WorkPage,
     canCopy,
     lineText,
+    type IconName,
     type QueryToken,
   } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
@@ -55,6 +58,7 @@
     requestOf,
     scopesOf,
     sinceOf,
+    tileOf,
     wordsForUnknownKeys,
     type Answer,
     type Hit,
@@ -785,7 +789,14 @@
           <h2>{t('app.search.facet_kind')}</h2>
           {#each scopes as scope (scope.id)}
             <button type="button" class="facet" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; chosenAuthor = undefined; }}>
-              <span>{t('app.palette.scope', { kind: scope.id })}</span><span class="n">{scope.count}{scope.more ? '+' : ''}</span>
+              <!-- Each kind with its product's tile, as the scene draws the facet (search 3). -->
+              {#if scope.id === 'ALL'}
+                <Icon name="search" size="sm" />
+              {:else}
+                {@const tile = tileOf({ kind: scope.id as Kind, state: null, on: null })}
+                <ProductTile icon={tile.icon as IconName} product={tile.product} color={tile.color} size="sm" />
+              {/if}
+              <span class="name">{t('app.palette.scope', { kind: scope.id })}</span><span class="n">{scope.count}{scope.more ? '+' : ''}</span>
             </button>
           {/each}
         </section>
@@ -1001,6 +1012,7 @@
   .facet {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: var(--sp-100);
     padding: var(--sp-050) var(--sp-100);
     border: 0;
@@ -1014,6 +1026,7 @@
   }
 
   .facet:hover { background: var(--bg-surface-hover); }
+  .facet .name { flex: 1 1 auto; text-align: start; }
 
   .facet[aria-pressed='true'] { background: var(--bg-surface-pressed); font-weight: var(--fw-semibold); }
 
