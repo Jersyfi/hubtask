@@ -1624,7 +1624,10 @@
   .phone-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .format { display: inline-flex; flex-wrap: wrap; gap: var(--sp-025); }
   /* The bar shows while the description is being written (E-3); read, the text stands alone. */
-  :global(#entry-description:not(:focus-within)) .format { display: none; }
+  /* The ✦ beside it takes the focus on press: were the bar to come then, a narrow line would wrap,
+     move the ✦ from under the pointer and lose the click. */
+  :global(#entry-description:not(:focus-within)) .format,
+  :global(#entry-description:has([data-ai] :focus)) .format { display: none; }
 
   .cover-image { inline-size: 100%; max-block-size: var(--sp-1600); object-fit: cover; border-radius: var(--r-lg); }
 
