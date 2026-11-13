@@ -4069,6 +4069,8 @@
   "app.agents.held_count": "{count} warten",
   "app.agents.budget_zero": "Eine Null im Budget lässt ihn nichts tun; ändere das Budget, damit er handeln kann.",
   "app.agents.budget_line": "Bis zu {tokens} Tokens am Tag · {actions} Handlungen pro Stunde · {runs} gleichzeitig",
+  "app.agents.budget_fact": "{tokens} Token am Tag · {share} % genutzt",
+  "app.agents.budget_none": "Kein Budget",
   "app.agents.tab_runs": "Läufe",
   "app.agents.empty_title": "Hier arbeitet noch kein Agent",
   "app.agents.empty_body": "Ein Agent schlägt vor, eine Person entscheidet. Beginne mit einer Rolle, die Hubtask mitbringt; sie startet als Entwurf, den jemand anderes freigibt.",

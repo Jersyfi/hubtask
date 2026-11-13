@@ -9,7 +9,7 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge, Button, DataTable, EmptyState, RecordPage, Select, Skeleton, Stack,
+    Badge, Breadcrumb, Button, DataTable, EmptyState, ObjectHead, RecordPage, Select, Skeleton, Stack, StateLozenge,
     type DataColumn, type RecordList, type DataRowMenu, type SelectOption,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentActionList, AgentCaseList, AgentJobList, AgentModelList, AgentRequestList, AgentRunList } from '@hubtask/sync-engine';
@@ -31,6 +31,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -91,9 +92,11 @@
 
   const presses = $derived(agent ? lifecyclePresses(agent, viewer) : []);
   const waiting = $derived(pendingRead.state.status === 'ready' ? (heldCounts(pendingRead.state.data.data).get(key) ?? 0) : 0);
+  // The head's next step (WB-1): putting it live, else approving it; the other presses stay in ⋯.
+  const nextPress = $derived(presses.find((each) => each === 'activate') ?? presses.find((each) => each === 'approve'));
   const menuItems = $derived([
     ...(waiting > 0 ? [{ id: 'held', label: t('app.agents.held_count', { count: String(waiting) }) }] : []),
-    ...presses.filter((each) => each !== 'retire').map((each) => ({ id: each, label: t(`app.agents.press.${each}`) })),
+    ...presses.filter((each) => each !== 'retire' && each !== nextPress).map((each) => ({ id: each, label: t(`app.agents.press.${each}`) })),
   ]);
   function onMenu(item: string) {
     if (!agent) return;
@@ -101,18 +104,22 @@
     else void act(() => agents.press(agent.id, item as LifecyclePress), t(`app.agents.pressed.${item}`, { name: agent.name }));
   }
 
-  const facts = $derived(
+  const meta = $derived(agent ? [t('app.agents.acts_for', { name: nameOf(agent.owner_id) }), modelName(agent.model_id)].join(' · ') : undefined);
+  const statusLabel = $derived(
     agent
-      ? [
-          t(`app.agents.kind.${agent.kind}`),
-          t('app.agents.acts_for', { name: nameOf(agent.owner_id) }),
-          modelName(agent.model_id),
-          ...(one.state.status === 'ready' && one.state.data.usage
-            ? [t('app.agents.usage', { actions: one.state.data.usage.actions_this_hour ?? 0, tokens: one.state.data.usage.tokens_today ?? 0 })]
-            : []),
-        ].join(' · ')
-      : undefined,
+      ? agent.needs_approval && agent.status !== 'DRAFT' && agent.status !== 'RETIRED'
+        ? `${t(`app.agents.status.${agent.status}`)} · ${t('app.agents.needs_approval')}`
+        : t(`app.agents.status.${agent.status}`)
+      : '',
   );
+  // The budget as the head's fact: a day's tokens and how much of it today used (the scene's line).
+  const budgetFact = $derived.by(() => {
+    if (!agent) return undefined;
+    const perDay = agent.budget.tokens_per_day ?? 0;
+    if (perDay === 0) return t('app.agents.budget_none');
+    const today = one.state.status === 'ready' ? (one.state.data.usage?.tokens_today ?? 0) : 0;
+    return t('app.agents.budget_fact', { tokens: grouped(perDay), share: String(Math.min(100, Math.round((100 * today) / perDay))) });
+  });
 
   const about = $derived(
     agent
@@ -212,13 +219,12 @@
     kind: t('app.agents.record_kind'),
     title,
     back: { label: t('app.agents.title'), href: base, onnavigate: () => onnavigate(base) },
-    status: agent
-      ? { label: agent.needs_approval && agent.status !== 'DRAFT' && agent.status !== 'RETIRED' ? `${t(`app.agents.status.${agent.status}`)} · ${t('app.agents.needs_approval')}` : t(`app.agents.status.${agent.status}`), tone: statusTone(agent.status) }
-      : undefined,
-    facts,
+    status: agent ? { label: statusLabel, tone: statusTone(agent.status) } : undefined,
+    facts: meta,
     edit: agent && administers && agent.status !== 'RETIRED' ? { label: t('app.agents.edit'), icon: 'pencil', onclick: () => agent && (drafting = { agent }) } : undefined,
     menu: agent && menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: onMenu } : undefined,
   }}
+  head={agent ? agentHead : undefined}
   lists={agent ? lists : []}
   facts={about}
   danger={agent && presses.includes('retire')
@@ -321,6 +327,34 @@
     {/if}
   {/snippet}
 </RecordPage>
+
+{#snippet agentHead()}
+  {#if agent}
+    {@const shown = agent}
+    <!-- One head for every object (WB-1): its state, putting it live as the next step, changing it
+         beside, the budget as its fact; the other presses in ⋯, retiring in the danger zone. -->
+    <ObjectHead
+      objectKey={{ label: t('app.agents.record_kind'), icon: 'zap', product: 'agents' }}
+      type={{ label: t(`app.agents.kind.${shown.kind}`) }}
+      {meta}
+      title={shown.name}
+      titleLabel={t('app.agents.record_kind')}
+      next={nextPress ? { label: t(`app.agents.press.${nextPress}`), onclick: () => onMenu(nextPress) } : undefined}
+      secondary={administers && shown.status !== 'RETIRED' ? { label: t('app.agents.edit'), onclick: () => (drafting = { agent: shown }) } : undefined}
+      person={{ name: nameOf(shown.owner_id), src: accounts.pictureOf(shown.owner_id) }}
+      trail={viewport.isCompact ? undefined : agentTrail}
+      menu={menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: onMenu } : undefined}
+    >
+      {#snippet status()}<StateLozenge tone={statusTone(shown.status)} label={statusLabel} />{/snippet}
+      {#snippet facts()}{#if budgetFact}<span data-budget-fact>{budgetFact}</span>{/if}{/snippet}
+    </ObjectHead>
+  {/if}
+{/snippet}
+
+{#snippet agentTrail()}
+  <Breadcrumb label={t('app.goals.trail')} trail={[{ id: 'agents', label: t('app.agents.title'), href: base }, { id: 'agent', label: title }]}
+    expandLabel={t('app.goals.expand_trail')} onnavigate={() => onnavigate(base)} />
+{/snippet}
 
 {#snippet notHere()}
   <FailureNote problem={failureOf(one.state) ?? ''} />

@@ -35,6 +35,8 @@
       edit?: PageAction;
       menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void };
     };
+    /** A work object's `ObjectHead` in place of `RecordHead` (WB-1); `record.back` still goes to the bar. */
+    head?: Snippet;
     strip?: Snippet;
     /** The object's own lists, in order. */
     lists?: readonly RecordList[];
@@ -46,7 +48,7 @@
     refused?: Snippet;
   }
 
-  const { record, strip, lists = [], list, facts, danger, refused }: Props = $props();
+  const { record, head: objectHead, strip, lists = [], list, facts, danger, refused }: Props = $props();
 
   // On a phone the way back to the list is the bar's (the navigation concept §9): handed over,
   // and not drawn a second time in the head.
@@ -60,7 +62,7 @@
 
 <PageFrame kind="record" {refused}>
   {#snippet top()}
-    <RecordHead {...head} />
+    {#if objectHead}{@render objectHead()}{:else}<RecordHead {...head} />{/if}
   {/snippet}
   {#snippet children()}
     {#if strip}{@render strip()}{/if}
