@@ -32,7 +32,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, DataTable, Dialog, Icon, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, VisuallyHidden, WorkPage,
+    Banner, Button, Checkbox, DataTable, Dialog, Icon, IconButton, StateLozenge, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, VisuallyHidden, WorkPage,
     type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineColumn, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { QueryKey } from '@hubtask/query';
@@ -211,6 +211,10 @@
   });
   const found = $derived(lineRead?.ok ? new Set(items.onTimeline(planId).map((each) => each.id)) : undefined);
   const assigneeOf = $derived(new Map(items.onTimeline(planId).map((each) => [each.id, each.assignee_id ?? undefined])));
+  $effect(() => {
+    const ids = [...assigneeOf.values()];
+    untrack(() => accounts.resolve(ids));
+  });
   const shownRows = $derived.by(() => {
     const kept = keptRows(rows.map((row) => ({ ...row, parentId: row.entry.parent_id ?? undefined, isDone: row.entry.done })), found, setup.done);
     const byStart = (a: (typeof kept)[number], b: (typeof kept)[number]) =>
@@ -238,7 +242,7 @@
     if (row.kind === 'milestone') return slip > 0 ? t('app.planning.note_milestone_late', { date: shortDay(row.due, 'short'), days: String(slip) }) : shortDay(row.due, 'short');
     if (!isGantt) return undefined;
     if (setup.bars.critical && row.isCritical) return slip > 0 ? t('app.planning.note_critical_late', { days: String(slip) }) : t('app.planning.critical_named');
-    if (setup.bars.slack && row.entry.total_float_days > 0 && row.kind !== 'summary') return t('app.planning.note_slack', { days: String(row.entry.total_float_days) });
+    if (setup.bars.slack && row.entry.total_float_days > 0 && row.kind === undefined && !row.entry.done) return t('app.planning.note_slack', { days: String(row.entry.total_float_days) });
     return undefined;
   }
   const initialsOf = (id: string | undefined) => (accounts.nameOf(id ?? '') ?? '').split(/\s+/u).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
@@ -252,6 +256,10 @@
   const titleOf = (id: string) => byId.get(id)?.title ?? t('app.planning.unseen');
   const proposed = $derived(schedule ? proposedMoves(schedule) : []);
   let accepted = $state<string[]>([]);
+  /** What is proposed is drawn as a band while the switch is on (scene gantt 2). */
+  let showsProposals = $state(true);
+  /** The table's *review one by one*: the column of moves to choose appears. */
+  let isReviewing = $state(false);
   const broken = $derived(new Set((schedule?.conflicts ?? []).map((each) => `${each.predecessor_id}>${each.successor_id}`)));
 
   // A due date alone is drawn as a point, so a bar carried moves the due and invents no start.
@@ -270,7 +278,7 @@
       baseline: isGantt ? row.baseline : undefined,
       isLocked: !mayWrite || row.entry.external || row.entry.summary || row.entry.done,
       isDone: setup.bars.progress && row.entry.done,
-      slack: isGantt && setup.bars.slack && !row.isCritical ? slackEnd(row.due, row.entry.total_float_days) : undefined,
+      slack: isGantt && setup.bars.slack && !row.isCritical && !row.entry.done && row.kind === undefined ? slackEnd(row.due, row.entry.total_float_days) : undefined,
       note: noteOf(row),
       tone: toneOf(row),
     })),
@@ -516,11 +524,10 @@
     { id: 'finish', label: t('app.planning.col_finish'), priority: 2 },
     { id: 'duration', label: t('app.planning.col_duration'), align: 'end', priority: 3 },
     { id: 'float', label: t('app.planning.col_float'), align: 'end', priority: 3 },
-    { id: 'critical', label: t('app.planning.col_critical'), priority: 3 },
     ...(comparison ? [{ id: 'slip', label: t('app.planning.col_slip'), align: 'end' as const, priority: 3 as const }] : []),
     { id: 'mode', label: t('app.planning.col_mode'), priority: 2 },
     { id: 'milestone', label: t('app.planning.col_milestone'), priority: 2 },
-    { id: 'move', label: t('app.planning.col_move'), priority: 2 },
+    ...(isReviewing || accepted.length > 0 ? [{ id: 'move', label: t('app.planning.col_move'), priority: 2 as const }] : []),
   ]);
   const dependencyColumns = $derived<DataColumn[]>([
     { id: 'waiting', label: t('app.planning.col_waiting'), priority: 1 },
@@ -588,10 +595,6 @@
         }),
   );
 
-  /** What is proposed is drawn as a band while the switch is on (scene gantt 2). */
-  let showsProposals = $state(true);
-  /** The table's *review one by one*: the column of moves to choose appears. */
-  let isReviewing = $state(false);
 
   const queryKeys = $derived<readonly QueryKey[]>(
     ((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')),
@@ -644,7 +647,7 @@
   const panelOpener = $derived(changed > 0 ? t('app.planning.view_changed', { count: String(changed) }) : t('app.viewcfg.button'));
 </script>
 
-{#snippet headFigure()}<span data-head-figure>{#each head as part, index (part.code)}{#if index > 0} · {/if}<span class={part.isWarning ? 'warn' : undefined} data-head-part={part.code}>{t(part.code, part.params)}</span>{/each}</span>{/snippet}
+{#snippet headFigure()}<span data-head-figure>{#each head as part, index (part.code)}{#if index > 0}{' · '}{/if}<span class={part.isWarning ? 'warn' : undefined} data-head-part={part.code}>{t(part.code, part.params)}</span>{/each}</span>{/snippet}
 <WorkPage toolbar={schedule && !refusal && (rows.length > 0 || undated.length > 0) ? toolbar : undefined}>
   {#snippet top()}
   {#if place?.type === 'COLLECTION'}
@@ -862,7 +865,7 @@
     {:else if column === 'duration'}{row.kind === 'milestone' ? '' : t('app.planning.days_short', { days: String(row.entry.duration_days) })}
     {:else if column === 'float'}{row.kind === 'summary' ? '' : t('app.planning.days_short', { days: String(row.entry.total_float_days) })}
     {:else if column === 'slip'}{@const slip = slipOf(id)}{slip ? (slip > 0 ? `+${slip}` : String(slip)) : '–'}
-    {:else if column === 'assignee'}{@const who = assigneeOf.get(id)}{#if who && row.kind !== 'summary'}<span class="initials" title={accounts.nameOf(who)}>{initialsOf(who)}</span>{/if}
+    {:else if column === 'assignee'}{@const who = assigneeOf.get(id)}{#if who && row.kind !== 'summary' && initialsOf(who)}<span class="initials" title={accounts.nameOf(who)}>{initialsOf(who)}</span>{/if}
     {/if}
   {/if}
 {/snippet}
@@ -879,25 +882,24 @@
   <DataTable label={t('app.planning.table')} {columns} {rows} key={(row: PlanRow) => row.id} rowLabel={(row: PlanRow) => row.title}>
     {#snippet cell(row: PlanRow, column: DataColumn)}
       {#if column.id === 'entry'}
-        <span class="what" data-depth={String(Math.min(row.depth, 4))}>
+        <span class="what" data-depth={String(Math.min(row.depth, 4))} data-done={row.entry.done ? '' : undefined}>
+          {#if row.entry.milestone}<span class="diamond" aria-hidden="true">◆</span>{/if}
           <a href={`/items/${row.id}`}>{row.title}</a>
           {#if row.entry.external}<span class="note">{t('app.planning.outside')}</span>{/if}
-          {#if row.entry.summary}<span class="note">{t('app.planning.summary')}</span>{/if}
-          {#if row.entry.done}<span class="note">{t('app.planning.done')}</span>{/if}
+          {#if row.entry.done}<StateLozenge label={t('app.planning.done')} tone="success" size="sm" />{/if}
+          {#if row.isCritical}<StateLozenge label={t('app.planning.critical')} tone="danger" size="sm" />{/if}
         </span>
       {:else if column.id === 'start'}
-        {dayLabel(row.start)}{#if row.entry.moved}<span class="note">{t('app.planning.proposed')}</span>{/if}
+        {#if row.entry.moved}<span class="moved" title={t('app.planning.proposed')}>{dayLabel(row.start)}</span><span class="note">{t('app.planning.proposed')}</span>{:else}{dayLabel(row.start)}{/if}
       {:else if column.id === 'finish'}
         {dayLabel(row.due)}
       {:else if column.id === 'duration'}
-        <span class="number">{row.entry.duration_days}</span>
+        <span class="number">{row.entry.milestone ? '–' : row.entry.duration_days}</span>
       {:else if column.id === 'float'}
-        <span class="number">{row.entry.total_float_days}</span>
-      {:else if column.id === 'critical'}
-        {row.isCritical ? t('app.planning.critical') : ''}
+        <span class="number" data-tight={row.entry.total_float_days <= 0 ? '' : undefined}>{row.entry.milestone ? '–' : t('app.planning.days_short', { days: String(row.entry.total_float_days) })}</span>
       {:else if column.id === 'slip'}
         {@const slip = slipOf(row.id)}
-        <span class="number">{slip === undefined || slip === null ? '—' : slip > 0 ? `+${slip}` : String(slip)}</span>
+        <span class="number" data-late={slip && slip > 0 ? '' : undefined}>{slip === undefined || slip === null || slip === 0 ? '–' : slip > 0 ? `+${t('app.planning.days_short', { days: String(slip) })}` : String(slip)}</span>
       {:else if column.id === 'mode'}
         {#if mayWrite && !row.entry.external}
           {@const chosenMode = modeDraft[row.id] ?? row.entry.mode}
@@ -1155,7 +1157,10 @@
   .plain { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-050); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; }
-  .what { display: inline-block; }
+  .what { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
+  .what[data-done] a { color: var(--text-secondary); }
+  .diamond { color: var(--accent-signature); font-size: var(--fs-065); }
+  .moved { color: var(--text-brand); font-weight: var(--fw-semibold); }
   .what[data-depth='1'] { padding-inline-start: var(--sp-150); }
   .what[data-depth='2'] { padding-inline-start: var(--sp-300); }
   .what[data-depth='3'] { padding-inline-start: var(--sp-400); }

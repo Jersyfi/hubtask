@@ -1304,7 +1304,7 @@
   .cell[data-filled]:has(.note) { position: relative; overflow: visible; }
   .note {
     position: absolute;
-    inset-inline-start: calc(100% + var(--sp-100));
+    inset-inline-start: calc(100% + var(--sp-300));
     color: var(--text-secondary);
     font-size: var(--fs-075);
     white-space: nowrap;
