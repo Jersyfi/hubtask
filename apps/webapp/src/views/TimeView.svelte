@@ -490,7 +490,7 @@
         <!-- Handing in, with what happens next (scene time): the week goes for approval and is locked. -->
         <div class="hand-in" data-hand-in>
           <p>{t('app.time.hand_in_next')}</p>
-          <Button icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
+          <Button tone="primary" icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
             onclick={() => void act(() => time.submit(monday), t('app.time.handed_in', { minutes: minutesText(sheet?.minutes ?? 0) }))}>{t('app.time.hand_in_week')}</Button>
         </div>
       {/if}
@@ -593,7 +593,7 @@
     {/if}
   {:else if column.id === 'entry'}
     {#if row.isTotal}<span class="strong">{t('app.time.col_total')}</span>
-    {:else if row.entryId && isLinked}<a href={`/items/${row.entryId}`}>{row.title || t('app.time.entry_unreadable')}</a>
+    {:else if row.entryId && isLinked}<a class="clip" href={`/items/${row.entryId}`} title={row.title || undefined}>{row.title || t('app.time.entry_unreadable')}</a>
     {:else if row.entryId}{row.title || t('app.time.entry_unreadable')}{:else}{t('app.time.no_entry')}{/if}
   {:else if column.id === 'kind'}{row.workType ? kindName(row.workType) : ''}
   {:else if column.id === 'total'}<span class="number strong">{minutesText(row.total)}</span>
