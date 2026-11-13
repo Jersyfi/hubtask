@@ -445,3 +445,15 @@ export function phasesOf(
     state: each === running ? 'now' : each.done ? 'done' : 'later',
   }));
 }
+
+/**
+ * What needs attention in the inventory across hubs (scene homeassets): each hub's problems in the
+ * order its health lists them, the hubs in the order given, at most `limit`.
+ */
+export function attentionAcross<P extends { readonly ci_id: string }>(
+  healthAt: Readonly<Record<string, { readonly problems: readonly P[] } | undefined>>,
+  hubIds: readonly string[],
+  limit: number,
+): (P & { readonly hubId: string })[] {
+  return hubIds.flatMap((hubId) => (healthAt[hubId]?.problems ?? []).map((problem) => ({ ...problem, hubId }))).slice(0, limit);
+}

@@ -929,5 +929,10 @@ test('chromium 1280 px: the plans\' and the assets\' hub rows say each hub\'s st
   const assets = page.getByRole('region', { name: 'In your hubs' }).locator('li').filter({ hasText: HUB.name });
   await assets.locator('[data-hub-line]').waitFor({ timeout: 10_000 });
   assert.match(await assets.locator('[data-hub-line]').innerText(), /42 configuration items · 2 need attention/u);
+  // What needs attention across the hubs, each with its hub (scene homeassets).
+  const attention = page.locator('[data-attention] [data-attention-ci]');
+  await attention.first().waitFor({ timeout: 10_000 });
+  assert.equal(await attention.count(), 2);
+  assert.match(await attention.first().innerText(), new RegExp(HUB.name));
   assert.deepEqual(failures, []);
 });

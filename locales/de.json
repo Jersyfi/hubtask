@@ -7319,6 +7319,7 @@
   "app.product_home.inventory": "Inventar über deine Hubs",
   "app.product_home.held_in": "{count} in {hub}",
   "app.product_home.inventory_by_class": "Nach Klasse",
+  "app.product_home.attention": "Braucht Aufmerksamkeit",
   "app.product_home.releases_due": "Anstehende Releases",
   "app.product_home.band_sprints": "{count, plural, =0 {Kein Sprint läuft} one {# Sprint läuft} other {# Sprints laufen}}",
   "app.product_home.band_releases": "{count, plural, =0 {kein Release fällig} one {# Release fällig} other {# Releases fällig}}",

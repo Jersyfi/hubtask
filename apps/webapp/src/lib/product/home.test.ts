@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -302,4 +302,9 @@ test('a plan\'s phases are its top-level entries by start, the one running today
   // Between phases the first not done is the one now.
   assert.deepEqual(phasesOf([entry('plan', '2026-11-01', '2026-11-07', true), entry('open', '2026-12-01', '2026-12-05')], '2026-11-13').map((each) => each.state), ['done', 'now']);
   assert.deepEqual(phasesOf([], '2026-11-13'), []);
+});
+
+test('what needs attention is each hub\'s problems in turn, at most as many as shown', () => {
+  const healthAt = { h1: { problems: [{ ci_id: 'a' }, { ci_id: 'b' }] }, h2: { problems: [{ ci_id: 'c' }] } };
+  assert.deepEqual(attentionAcross(healthAt, ['h2', 'h1', 'h3'], 2).map((each) => [each.hubId, each.ci_id]), [['h2', 'c'], ['h1', 'a']]);
 });

@@ -7319,6 +7319,7 @@
   "app.product_home.inventory": "Inventory across your hubs",
   "app.product_home.held_in": "{count} in {hub}",
   "app.product_home.inventory_by_class": "By class",
+  "app.product_home.attention": "Needs attention",
   "app.product_home.releases_due": "Releases to come",
   "app.product_home.band_sprints": "{count, plural, =0 {No sprint running} one {# sprint running} other {# sprints running}}",
   "app.product_home.band_releases": "{count, plural, =0 {no release due} one {# release due} other {# releases due}}",

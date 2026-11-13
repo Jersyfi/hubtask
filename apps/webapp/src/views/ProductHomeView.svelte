@@ -22,7 +22,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { phasesOf, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { attentionAcross, phasesOf, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -40,7 +40,7 @@
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
-  import { classesPath, classWord, healthPath } from '../lib/data/cmdb.svelte.ts';
+  import { classesPath, classWord, cmdb, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
   import DeskHome from '../lib/servicedesk/DeskHome.svelte';
 
@@ -205,6 +205,17 @@
   const classOf = (key: string) => classWord(key, ownClasses, (code) => (messages.has(code) ? t(code) : undefined));
   const heldIn = (held: (typeof byClass)[number]) =>
     held.hubs.map((each) => t('app.product_home.held_in', { count: String(each.total), hub: hubName(each.hubId) })).join(' · ');
+  /** *For you* on the inventory: what needs attention across hubs, each item by its name. */
+  const ATTENTION_SHOWN = 5;
+  const attention = $derived(module === 'ASSETS' && currentTab === homeViews[0]?.id ? attentionAcross(healthAt, assetHubs, ATTENTION_SHOWN) : []);
+  let ciNames = $state<Record<string, string>>({});
+  $effect(() => {
+    const unknown = attention.map((each) => each.ci_id).filter((id) => !(id in ciNames));
+    untrack(() => {
+      for (const id of unknown) void cmdb.read(id).then((ci) => { if (ci) ciNames = { ...ciNames, [id]: ci.name }; });
+    });
+  });
+
   /** The hubs the home lists: on the assets' home those that hold an inventory (§2.2). */
   const hubsListed = $derived(module === 'ASSETS' ? hubsWithAssetsFirst(hubsWith, healthAt) : hubsWith);
   /** What a hub's row says of it beside its name (§2.2): the plan's next release, the hub's inventory. */
@@ -470,6 +481,25 @@
           {#if inventory.wanting > 0}<p class="why">{t('app.assets.attention_why')}</p>{/if}
         </Stack>
       </section>
+      {#if attention.length > 0}
+        <section aria-labelledby="product-attention" data-attention>
+          <Stack gap="100">
+            <h2 class="heading" id="product-attention">{t('app.product_home.attention')}</h2>
+            <ul class="hubs">
+              {#each attention as problem (problem.hubId + problem.ci_id)}
+                <li data-attention-ci={problem.ci_id}>
+                  <ListRow href={`/cis/${problem.ci_id}`} onactivate={() => onnavigate(`/cis/${problem.ci_id}`)} label={ciNames[problem.ci_id] ?? t('app.assets.unknown_ci')}>
+                    {#snippet leading()}<Icon name="triangle-alert" size="sm" />{/snippet}
+                    <span class="name">{ciNames[problem.ci_id] ?? t('app.assets.unknown_ci')}</span>
+                    <span class="purpose">{problem.kinds.map((kind) => t(`app.assets.kind.${kind}`)).join(', ')}</span>
+                    {#snippet trailing()}<span class="card-from">{hubName(problem.hubId)}</span>{/snippet}
+                  </ListRow>
+                </li>
+              {/each}
+            </ul>
+          </Stack>
+        </section>
+      {/if}
       {#if byClass.length > 0}
         <section aria-labelledby="product-classes">
           <Stack gap="100">
