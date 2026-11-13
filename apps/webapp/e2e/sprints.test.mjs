@@ -397,3 +397,36 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
+
+// Scene plansprints: the hub's Sprints tab gathers every collection's sprints.
+test('chromium: 1280 px — the hub\'s sprints: running with its burndown, planned against the velocity, closed committed against done', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close, unstubbed } = await open(browser, `/hubs/${HUB.id}/plan/sprints`);
+  t.after(close);
+
+  // A running sprint is a card: its goal, days left, done of committed, entries, velocity and burndown.
+  const card = page.locator(`[data-running-sprint="${RUNNING.id}"]`);
+  await card.waitFor({ timeout: 15_000 });
+  await card.getByText('Goal: The worktop is in').waitFor({ timeout: 5_000 });
+  await card.locator('dd', { hasText: '5 of 8 Points' }).waitFor({ timeout: 5_000 });
+  assert.equal(await card.locator('[data-burndown] polyline').count(), 2, 'the burndown draws ideal and remaining');
+  assert.equal(await card.getByRole('img', { name: `Burndown of ${RUNNING.name}` }).count(), 1);
+
+  // A planned one stands against the velocity of its collection, with the way into its backlog.
+  const next = page.locator(`[data-planned-sprint="${NEXT.id}"]`);
+  await next.locator('[data-load]').getByText('0 of ≈ 5 Points planned').waitFor({ timeout: 5_000 });
+  await next.getByRole('button', { name: 'Plan in the backlog' }).click();
+  await page.waitForURL(`**/collections/${COLLECTION.id}/backlog`, { timeout: 5_000 });
+  await page.goBack();
+
+  // The closed ones: committed against done, the velocity named once.
+  const closed = page.locator(`[data-closed-sprint="${CLOSED.id}"]`);
+  await closed.waitFor({ timeout: 10_000 });
+  assert.deepEqual((await closed.locator('td').allInnerTexts()).slice(2, 4), ['8', '5']);
+  assert.equal(await closed.getByRole('img', { name: '8 committed, 5 done' }).count(), 1);
+  await page.getByText('Velocity: 5 Points a sprint').waitFor({ timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
