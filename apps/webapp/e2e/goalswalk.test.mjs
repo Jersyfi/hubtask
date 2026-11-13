@@ -313,6 +313,11 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
   // On a phone the head keeps its next step and its ⋯ - a portfolio has no status sheet to hold them.
   assert.ok(await page.getByRole('button', { name: 'Add project' }).first().isVisible(), 'the next step is gone on a phone');
   assert.ok(await page.getByRole('button', { name: 'More' }).first().isVisible(), 'the ⋯ is gone on a phone');
+  // A Dialog M is full screen on a phone, its primary in the bar (page-system §5.1).
+  await page.getByRole('button', { name: 'Add project' }).first().click();
+  const adding = page.getByRole('dialog', { name: 'Add project' });
+  assert.ok(await adding.getByRole('button', { name: 'Save' }).isVisible(), 'the primary is not in the bar on a phone');
+  await adding.getByRole('button', { name: 'Cancel' }).first().click();
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 

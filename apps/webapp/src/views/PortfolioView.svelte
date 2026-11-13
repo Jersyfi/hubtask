@@ -331,7 +331,7 @@
 {/snippet}
 
 {#if isChanging}
-  <Dialog size="m" bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.save'), onclick: () => void saveChange(), disabledReason: draft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined }}>
     <Stack gap="150">
       <Input label={t('app.portfolios.col_name')} bind:value={draft.name} maxlength={200} />
       <Textarea label={t('app.portfolios.description')} bind:value={draft.description} maxlength={10000} />
@@ -340,13 +340,12 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isChanging = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" disabledReason={draft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isAdding}
-  <Dialog size="m" bind:isOpen={isAdding} title={project.editing ? t('app.portfolios.change_project_title') : t('app.portfolios.add_project')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isAdding} title={project.editing ? t('app.portfolios.change_project_title') : t('app.portfolios.add_project')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.goals.save'), onclick: () => void saveProject(), disabledReason: project.id === '' ? t('app.portfolios.pick_project') : undefined }}>
     <Stack gap="150">
       {#if !project.editing}
         <Select label={t('app.portfolios.col_project')} bind:value={project.id} placeholder={t('app.portfolios.pick_project')} options={projectChoices} />
@@ -357,32 +356,29 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isAdding = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" disabledReason={project.id === '' ? t('app.portfolios.pick_project') : undefined} onclick={() => void saveProject()}>{t('app.goals.save')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isReporting}
-  <Dialog size="m" bind:isOpen={isReporting} title={t('app.portfolios.report')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isReporting} title={t('app.portfolios.report')} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.portfolios.send_report'), onclick: () => void saveReport(), disabledReason: report.summary.trim() === '' ? t('app.portfolios.summary_needed') : undefined }}>
     <Stack gap="150">
       <Select label={t('app.portfolios.col_health')} bind:value={report.status} options={HEALTH.filter((each) => each !== 'NONE').map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
       <Textarea label={t('app.portfolios.summary')} hint={t('app.portfolios.summary_hint')} bind:value={report.summary} maxlength={10000} />
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isReporting = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" disabledReason={report.summary.trim() === '' ? t('app.portfolios.summary_needed') : undefined} onclick={() => void saveReport()}>{t('app.portfolios.send_report')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isDeleting && portfolio}
-  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.portfolios.delete'), onclick: () => void remove(), tone: 'danger' }}>
     <Stack gap="150">
       <p class="quiet">{t('app.portfolios.delete_hint')}</p>
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="danger" onclick={() => void remove()}>{t('app.portfolios.delete')}</Button>
     {/snippet}
   </Dialog>
 {/if}

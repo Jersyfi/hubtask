@@ -325,7 +325,7 @@
 </WorkPage>
 
 {#if isPlanning}
-  <Dialog size="m" bind:isOpen={isPlanning} title={editing ? t('app.releases.edit') : t('app.releases.plan')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isPlanning} title={editing ? t('app.releases.edit') : t('app.releases.plan')} dismissLabel={t('app.links.cancel')} primary={{ label: editing ? t('app.releases.save') : t('app.releases.plan'), onclick: plan }}>
     <Stack gap="150">
       <Input label={t('app.releases.name')} bind:value={draft.name} maxlength={120} isRequired error={nameError} />
       <Textarea label={t('app.releases.description')} bind:value={draft.description} maxlength={2000} />
@@ -334,13 +334,12 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isPlanning = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" onclick={plan}>{editing ? t('app.releases.save') : t('app.releases.plan')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isReleasing && chosen}
-  <Dialog size="m" bind:isOpen={isReleasing} title={t('app.releases.publish_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isReleasing} title={t('app.releases.publish_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.releases.publish'), onclick: publish }}>
     <Stack gap="150">
       <p class="quiet">{t('app.releases.publish_hint')}</p>
       {#if detail}<p>{t('app.releases.counts', { done: String(detail.done_count), open: String(detail.open_count) })}</p>{/if}
@@ -351,20 +350,18 @@
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isReleasing = false)}>{t('app.links.cancel')}</Button>
-      <Button tone="primary" onclick={publish}>{t('app.releases.publish')}</Button>
     {/snippet}
   </Dialog>
 {/if}
 
 {#if isDeleting && chosen}
-  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.releases.delete_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.releases.delete_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.releases.delete'), onclick: remove, tone: 'danger' }}>
     <Stack gap="150">
       <p>{t('app.releases.delete_cost', { count: String(detail?.entries.length ?? 0) })}</p>
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
     </Stack>
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.releases.keep')}</Button>
-      <Button tone="danger" icon="trash" onclick={remove}>{t('app.releases.delete')}</Button>
     {/snippet}
   </Dialog>
 {/if}
