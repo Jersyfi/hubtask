@@ -122,6 +122,7 @@
     BulkOperation,
     BulkResult,
     SavedView,
+    StateMode,
     TransportError,
     WorkItem,
   } from '@hubtask/sync-engine';
@@ -233,8 +234,16 @@
   const modulesOn = $derived(modulesHere(manifest.value?.modules_on, placeModules));
   const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
 
-  // The workflow the collection runs for its tasks, where it runs one: the board is then one
-  // column per status (UC-FLW-03 check 2), and the head names it with a link to where it is
+  /** The collection's level for its tasks: a list, board columns or a workflow (build-plan §5). */
+  let stateMode = $state<StateMode | undefined>(undefined);
+  $effect(() => {
+    const wanted = id;
+    if (container?.type !== 'COLLECTION') return;
+    return untrack(() => containers.levelOf(wanted, (level) => (stateMode = level)));
+  });
+
+  // The workflow the collection runs for its tasks, where it runs one: the board's columns then
+  // show its statuses (build-plan §5), and the head names it with a link to where it is
   // defined (UC-FLW-02 check 5). Read only where the module is on: elsewhere the server refuses the
   // read, and every collection would log the refusal (run R3 at 10⁷ entries).
   const workflowsOn = $derived(typesShown(placeManifest));
@@ -1406,7 +1415,7 @@
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
-              level={container.state_mode}
+              level={stateMode}
               workflow={boardShape}
               showsKey={arrangement?.fields.includes('key') ?? false}
             />
@@ -1438,6 +1447,8 @@
               {sortDir}
               onsort={sortByColumn}
               sortable={sortFields}
+              {stateMode}
+              workflow={boardShape}
             />
           {/if}
         </div>

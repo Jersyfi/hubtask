@@ -42,11 +42,14 @@
     type RankCommand,
   } from '@hubtask/design-system/components';
   import FailureState from '../frame/FailureState.svelte';
-  import type { BulkResult, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
+  import type { BulkResult, EffectiveStructure, StateMode, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
   import { partition, type Sections } from './simplelist.ts';
   import { DUE_BANDS, dueBandOf, groupRows, type ListArrangement, type ListField } from './listview.ts';
   import { buckets } from '../data/buckets.svelte.ts';
+  import { statusLabel } from '../data/workflows.ts';
+  import StateChip from './StateChip.svelte';
+  import { chipOf, type Chip } from './statechip.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { classify, edgeInset, HOLD_MS as GESTURE_HOLD_MS, startsAtEdge, swipeThreshold, type Point } from './swipe.ts';
@@ -183,6 +186,13 @@
     onsort?: (field: string) => void;
     /** The fields the installation can sort by, so only those heads are buttons. */
     sortable?: readonly string[];
+    /**
+     * The collection's level for its tasks (build-plan §5): at COLUMNS a task's row shows its column
+     * chip, at WORKFLOW its status chip, both in the checkbox's place; at NONE the checkbox completes.
+     */
+    stateMode?: StateMode;
+    /** The workflow the collection runs, for the status chip's names and steps. */
+    workflow?: WorkflowShape;
   }
 
   const {
@@ -211,7 +221,31 @@
     sortable = [],
     rowLimit,
     isAddedInPlace = false,
+    stateMode,
+    workflow,
   }: Props = $props();
+
+  // A column chip reads the board's columns (an engine subscription, shared with the board's own).
+  $effect(() => {
+    if (stateMode !== 'COLUMNS') return;
+    const wanted = collectionId;
+    return untrack(() => buckets.open(wanted));
+  });
+  /** The state chip of a task's row at L1 and L2, or nothing where the checkbox completes. */
+  function chipFor(entry: WorkItem): Chip | undefined {
+    if (entry.type !== 'TASK') return undefined;
+    return chipOf(stateMode, entry, buckets.of(collectionId), workflow, {
+      noColumn: stateMode === 'WORKFLOW' ? t('app.board.unmapped') : t('app.board.unbucketed'),
+      statusName: (key) => {
+        const status = workflow?.statuses.find((each) => each.key === key);
+        return status ? statusLabel(status, t) : key;
+      },
+      stepName: (_key, name, to) => {
+        const status = workflow?.statuses.find((each) => each.key === to);
+        return name ?? (status ? statusLabel(status, t) : to);
+      },
+    });
+  }
   let isAllRowsShown = $state(false);
   /** Where `rowLimit` cuts the rows: before the first top-level row past the limit. */
   const cutAt = $derived.by(() => {
@@ -1611,6 +1645,10 @@
           </span>
         </span>
       {/snippet}
+      {#snippet chipCell()}
+        {@const rowChip = chipFor(row.item)}
+        {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+      {/snippet}
       <!-- One row in every list (L1): a simple list's line is the same row, without the twist,
            because nothing is inside it - and a press on it opens it as everywhere (L6). -->
       <TaskRow
@@ -1643,6 +1681,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={rowEnd}
+        state={chipFor(row.item) ? chipCell : undefined}
         isOneLine={root !== undefined}
       />
 

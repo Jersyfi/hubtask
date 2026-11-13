@@ -3448,6 +3448,8 @@
   "app.board.title": "Board",
   "app.board.no_buckets": "No columns in this collection yet. A column is a step the entries move through.",
   "app.board.unbucketed": "No column",
+  "app.entries.state_menu": "Where {title} stands",
+  "app.entries.state_chip": "{title}: {state}. Change",
   "app.board.unmapped": "Without column",
   "app.board.wip": "WIP {count} / {limit}",
   "app.board.unfold": "Show {name}",

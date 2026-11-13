@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// The list, board and workflow model (build-plan §5) on screen: the state control by level on the
+// list row and the card - L0 a checkbox, L1 a column chip, L2 a status chip -; at L2 the columns
+// name the statuses they show, the statuses no column shows stand folded in *Ohne Spalte*; a drop
+// several steps reach asks which (`CHOOSE`); a column a carried card may not enter dims with its
+// reason; the done column stands folded.
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+
+import { chromium } from 'playwright';
+
+import { serve } from './serve.mjs';
+import { BUCKETS, COLLECTION, ITEMS, MANIFEST, PERMISSIONS, signedIn, stub, chooseView } from './fixture.mjs';
+
+const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const served = await serve(DIST);
+test.after(() => served.close());
+
+const WORKFLOW = {
+  key: 'team', name: 'Team', system: false, hub_id: null, version: 1,
+  published: {
+    initial: 'open',
+    statuses: [
+      { key: 'open', name: 'Open', category: 'TODO' },
+      { key: 'doing', name: 'Doing', category: 'IN_PROGRESS' },
+      { key: 'review', name: 'Review', category: 'IN_PROGRESS' },
+      { key: 'parked', name: 'Parked', category: 'TODO' },
+      { key: 'done', name: 'Done', category: 'DONE' },
+    ],
+    steps: [
+      { key: 'start', name: 'Start', from: ['open'], to: 'doing' },
+      { key: 'ask', name: 'Ask for review', from: ['open'], to: 'review' },
+      { key: 'finish', name: 'Finish', from: ['doing', 'review'], to: 'done' },
+    ],
+  },
+};
+
+/** The fixture's collection at a level, with every write recorded and `:drop` answered by `drop`. */
+async function at(browser, level, { width = 1280, view = 'List', drop } = {}) {
+  const written = [];
+  const tab = await signedIn(browser, width, 900);
+  const columns = level === 'WORKFLOW'
+    ? [{ ...BUCKETS[0], statuses: ['open'] }, { ...BUCKETS[1], statuses: ['doing', 'review'] }, { ...BUCKETS[2], statuses: ['done'] }]
+    : BUCKETS.map((bucket) => ({ ...bucket, statuses: [] }));
+  const entries = ITEMS.map((item, n) => ({ ...item, bucket_id: n === 3 && level === 'WORKFLOW' ? null : BUCKETS[n % 2].id, ...(level === 'WORKFLOW' ? { status: n === 3 ? 'parked' : 'open' } : {}) }));
+  await tab.context.unroute('**/api/v1/**');
+  await tab.context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, '');
+    if (request.method() !== 'GET') written.push({ method: request.method(), path, body: request.postDataJSON() });
+    if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: { ...COLLECTION, state_mode: level } });
+    if (level === 'WORKFLOW' && request.method() === 'GET' && path === '/meta/capabilities') {
+      return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'], workspace_permissions: PERMISSIONS.OWNER } });
+    }
+    if (level === 'WORKFLOW' && /\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}/buckets`) return route.fulfill({ json: columns });
+    if (request.method() === 'GET' && path === '/workflows' && level === 'WORKFLOW') {
+      return route.fulfill({ json: { data: [WORKFLOW], scheme: [{ container_id: COLLECTION.id, entry_type: null, workflow: WORKFLOW.key }] } });
+    }
+    if (request.method() === 'POST' && path.endsWith(':drop') && drop) return route.fulfill({ json: drop(request.postDataJSON(), entries) });
+    // The entries as they stand at this level: their column and, under the workflow, their status.
+    const byId = new Map(entries.map((each) => [each.id, each]));
+    const placed = (value) => Array.isArray(value)
+      ? value.map(placed)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(Object.entries(byId.has(value.id) ? { ...value, bucket_id: byId.get(value.id).bucket_id, status: byId.get(value.id).status } : value).map(([key, each]) => [key, placed(each)]))
+        : value;
+    return stub(new Proxy(route, { get: (target, name) => name === 'fulfill' ? (answer) => target.fulfill(answer?.json ? { ...answer, json: placed(answer.json) } : answer) : target[name].bind(target) }));
+  });
+  await tab.page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  await chooseView(tab.page, view);
+  return { ...tab, written, entries };
+}
+
+test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing a column drops it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, written, context } = await at(browser, 'COLUMNS');
+  t.after(() => context.close());
+  const row = page.locator(`[data-row="${ITEMS[0].id}"]`);
+  const chip = row.locator('[data-state-chip]');
+  await chip.waitFor({ timeout: 15_000 });
+  assert.match((await chip.textContent()) ?? '', new RegExp(BUCKETS[0].name));
+  assert.equal(await row.getByRole('checkbox').count(), 0, 'a checkbox beside the column chip');
+  await chip.click();
+  const choices = await page.getByRole('menuitem').allTextContents();
+  assert.deepEqual(choices.map((each) => each.trim()), BUCKETS.map((bucket) => bucket.name));
+  await page.getByRole('menuitem', { name: BUCKETS[2].name }).click();
+  await page.waitForTimeout(300);
+  const drop = written.find((each) => each.path === `/items/${ITEMS[0].id}:drop`);
+  assert.equal(drop?.body?.bucket_id, BUCKETS[2].id);
+  assert.equal(written.filter((each) => each.path.endsWith(':complete')).length, 0, 'the client completed it itself');
+});
+
+test('chromium: L2 - the status chip lists the steps; the board names its statuses and folds Ohne Spalte', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context } = await at(browser, 'WORKFLOW');
+  t.after(() => context.close());
+  const chip = page.locator(`[data-row="${ITEMS[0].id}"] [data-state-chip]`);
+  await chip.waitFor({ timeout: 15_000 });
+  assert.match((await chip.textContent()) ?? '', /Open/);
+  await chip.click();
+  assert.deepEqual((await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Start', 'Ask for review']);
+  await page.keyboard.press('Escape');
+
+  await chooseView(page, 'Board');
+  const doing = page.locator(`[data-column-zone="${BUCKETS[1].id}"]`);
+  await doing.waitFor({ timeout: 15_000 });
+  assert.equal((await doing.locator('.statuses').textContent())?.trim(), 'Doing · Review');
+  const unmapped = page.locator('[data-column-zone="none"]');
+  assert.equal(await unmapped.locator('[data-folded]').count(), 1, 'Ohne Spalte is not folded');
+  assert.match((await unmapped.textContent()) ?? '', /Without column/);
+  assert.equal(await page.locator(`[data-column-zone="${BUCKETS[2].id}"] [data-folded]`).count(), 1, 'the done column is not folded');
+});
+
+test('chromium: L2 - a drop several steps reach asks which, and sends the one chosen', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const drop = (body, entries) => {
+    const item = entries.find((each) => each.id === ITEMS[0].id);
+    return body.step
+      ? { outcome: 'STEP_TAKEN', steps: [{ key: body.step, name: null, to: 'review' }], item: { ...item, status: 'review', bucket_id: body.bucket_id, version: item.version + 1 } }
+      : { outcome: 'CHOOSE', steps: [{ key: 'start', name: 'Start', to: 'doing' }, { key: 'ask', name: 'Ask for review', to: 'review' }], item };
+  };
+  const { page, written, context } = await at(browser, 'WORKFLOW', { view: 'Board', drop });
+  t.after(() => context.close());
+  const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
+  await card.waitFor({ timeout: 15_000 });
+  await card.click({ button: 'right' });
+  await page.getByRole('menuitem', { name: `Move ${ITEMS[0].title} to ${BUCKETS[1].name}`, exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.match((await dialog.textContent()) ?? '', /Which step should/);
+  await dialog.getByRole('button', { name: /Ask for review/ }).click();
+  await page.waitForTimeout(300);
+  const drops = written.filter((each) => each.path === `/items/${ITEMS[0].id}:drop`);
+  assert.deepEqual(drops.map((each) => each.body), [{ bucket_id: BUCKETS[1].id }, { bucket_id: BUCKETS[1].id, step: 'ask' }]);
+});
+
+test('chromium: L1 - Alt and an arrow carry a card into the next column by keyboard (WCAG 2.5.7)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, written, context } = await at(browser, 'COLUMNS', { view: 'Board' });
+  t.after(() => context.close());
+  const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
+  await card.waitFor({ timeout: 15_000 });
+  await card.getByRole('link').first().focus();
+  await page.keyboard.press('Alt+ArrowRight');
+  await page.waitForTimeout(300);
+  const drop = written.find((each) => each.path === `/items/${ITEMS[0].id}:drop`);
+  assert.equal(drop?.body?.bucket_id, BUCKETS[1].id);
+});

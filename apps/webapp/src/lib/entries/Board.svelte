@@ -56,6 +56,8 @@
   import { isSwipe, swipeThreshold } from './swipe.ts';
   import { goesOverLimit } from './wip.ts';
   import { NO_COLUMN, columnRefusals, unmappedStatuses } from './boardlevel.ts';
+  import StateChip from './StateChip.svelte';
+  import { chipOf } from './statechip.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -245,6 +247,12 @@
     const status = workflow?.statuses.find((each) => each.key === key);
     return status ? statusLabel(status, t) : key;
   }
+  /** How the card's state chip names a column, a status and a step - the list row's words. */
+  const chipNames = $derived({
+    get noColumn() { return isWorkflow ? t('app.board.unmapped') : t('app.board.unbucketed'); },
+    statusName,
+    stepName: (_key: string, name: string | null | undefined, to: string) => name ?? statusName(to),
+  });
   /** The statuses no column shows (*Ohne Spalte*), folded, never hidden (build-plan §5). */
   const unmapped = $derived(isWorkflow && isBucketBoard ? unmappedStatuses(columns, workflow?.statuses.map((each) => each.key) ?? []) : []);
 
@@ -1030,6 +1038,8 @@
                     {/if}
                   {/snippet}
                   {#snippet footer()}
+                    {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(level, card, columns, workflow, chipNames) : undefined}
+                    {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />
                     {#if card.counts && card.counts.parts > 0}

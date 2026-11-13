@@ -3431,6 +3431,8 @@
   "app.board.title": "Board",
   "app.board.no_buckets": "Noch keine Spalten in dieser Sammlung. Eine Spalte ist ein Schritt, den die Einträge durchlaufen.",
   "app.board.unbucketed": "Keine Spalte",
+  "app.entries.state_menu": "Wo {title} steht",
+  "app.entries.state_chip": "{title}: {state}. Ändern",
   "app.board.unmapped": "Ohne Spalte",
   "app.board.wip": "WIP {count} / {limit}",
   "app.board.unfold": "{name} aufklappen",
