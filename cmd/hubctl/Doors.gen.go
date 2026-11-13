@@ -1385,6 +1385,14 @@ var generatedCommands = []door{
 			{Name: "connectionId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
+	{Group: "find", Verb: "all", OperationID: "searchAll", Method: "POST", Path: "/search:all", Summary: "One search over every kind of object the caller may read",
+		Body: []doorParam{
+			{Name: "hub_id", Kind: "uuid", Help: "Only this hub's objects; people are not narrowed", Required: false},
+			{Name: "kinds", Kind: "strings", Help: "The kinds to search, in the order the answer groups them; omitted is every kind", Required: false},
+			{Name: "q", Kind: "string", Help: "The words; every word must occur", Required: true},
+			{Name: "size", Kind: "integer", Help: "At most this many hits per kind", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "kind", "state"}},
 	{Group: "glance", Verb: "open", OperationID: "listMyOpenEntries", Method: "GET", Path: "/glance/open-entries", Summary: "My open entries, for another product's dashboard",
 		Query: []doorParam{
 			{Name: "cursor", Kind: "string", Help: "", Required: false},

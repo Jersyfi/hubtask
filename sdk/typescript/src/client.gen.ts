@@ -3703,6 +3703,11 @@ export class HubtaskClient {
     return this.call("POST", "/glance:search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** One search over every kind of object the caller may read */
+  searchAll(body: NonNullable<operations["searchAll"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["searchAll"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/search:all", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Bring the workspace's search documents current */
   reindexSearch(options: CallOptions = {}): Promise<operations["reindexSearch"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/search:reindex", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

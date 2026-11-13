@@ -2463,6 +2463,37 @@ class PortalRequestDetail(TypedDict, total=False):
     sla: Required[list["EntrySlaGoal"]]
     merged_into: "PortalMergedRequest" | Any
 
+class SearchAllRequest(TypedDict, total=False):
+    q: Required[str]
+    kinds: list["SearchKind"]
+    hub_id: str
+    size: int
+
+SearchKind = Literal["ENTRY", "PAGE", "WHITEBOARD", "GOAL", "DASHBOARD", "ASSET", "PERSON", "FILE", "COMMENT"]
+
+class SearchAllAnswer(TypedDict, total=False):
+    data: Required[list["SearchAllHit"]]
+    facets: Required[list["SearchFacet"]]
+
+class SearchFacet(TypedDict, total=False):
+    kind: Required["SearchKind"]
+    count: Required[int]
+    more: Required[bool]
+
+class SearchAllHit(TypedDict, total=False):
+    """One object as a hit row draws it."""
+    kind: Required["SearchKind"]
+    id: Required[str]
+    title: Required[str]
+    hub_id: Required[str | None]
+    collection_id: Required[str | None]
+    tile: Required[str | None]
+    snippet: Required[str | None]
+    state: Required[str | None]
+    key: Required[str | None]
+    updated_at: Required[str | None]
+    on: Required[Any | dict[str, Any]]
+
 class GlancePage(TypedDict, total=False):
     data: Required[list["GlanceLine"]]
     next_cursor: Required[str | None]

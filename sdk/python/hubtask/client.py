@@ -2943,6 +2943,10 @@ class Client:
         """One search across entries and pages, for another product's search box"""
         return self._call("POST", "/glance:search", {}, None, {}, body, "json", "application/json", "json")
 
+    def search_all(self, body: "SearchAllRequest") -> "SearchAllAnswer":
+        """One search over every kind of object the caller may read"""
+        return self._call("POST", "/search:all", {}, None, {}, body, "json", "application/json", "json")
+
     def reindex_search(self) -> "SearchReindex":
         """Bring the workspace's search documents current"""
         return self._call("POST", "/search:reindex", {}, None, {}, None, "none", None, "json")

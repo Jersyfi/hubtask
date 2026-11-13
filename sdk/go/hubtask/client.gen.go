@@ -9259,6 +9259,66 @@ func (e SavedViewShareSharing) Valid() bool {
 	}
 }
 
+// Defines values for SearchAllHitOnKind.
+const (
+	SearchAllHitOnKindENTRY      SearchAllHitOnKind = "ENTRY"
+	SearchAllHitOnKindPAGE       SearchAllHitOnKind = "PAGE"
+	SearchAllHitOnKindWHITEBOARD SearchAllHitOnKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchAllHitOnKind enum.
+func (e SearchAllHitOnKind) Valid() bool {
+	switch e {
+	case SearchAllHitOnKindENTRY:
+		return true
+	case SearchAllHitOnKindPAGE:
+		return true
+	case SearchAllHitOnKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchKind.
+const (
+	SearchKindASSET      SearchKind = "ASSET"
+	SearchKindCOMMENT    SearchKind = "COMMENT"
+	SearchKindDASHBOARD  SearchKind = "DASHBOARD"
+	SearchKindENTRY      SearchKind = "ENTRY"
+	SearchKindFILE       SearchKind = "FILE"
+	SearchKindGOAL       SearchKind = "GOAL"
+	SearchKindPAGE       SearchKind = "PAGE"
+	SearchKindPERSON     SearchKind = "PERSON"
+	SearchKindWHITEBOARD SearchKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchKind enum.
+func (e SearchKind) Valid() bool {
+	switch e {
+	case SearchKindASSET:
+		return true
+	case SearchKindCOMMENT:
+		return true
+	case SearchKindDASHBOARD:
+		return true
+	case SearchKindENTRY:
+		return true
+	case SearchKindFILE:
+		return true
+	case SearchKindGOAL:
+		return true
+	case SearchKindPAGE:
+		return true
+	case SearchKindPERSON:
+		return true
+	case SearchKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchMode.
 const (
 	AUTO    SearchMode = "AUTO"
@@ -24065,6 +24125,76 @@ type ScimUser struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// SearchAllAnswer defines model for SearchAllAnswer.
+type SearchAllAnswer struct {
+	Data   []SearchAllHit `json:"data"`
+	Facets []SearchFacet  `json:"facets"`
+}
+
+// SearchAllHit One object as a hit row draws it.
+type SearchAllHit struct {
+	// CollectionId An entry's collection, or that of the entry a comment or file is on.
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// HubId The hub it stands in; null for the workspace's own and for people.
+	HubId *openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID  `json:"id"`
+
+	// Key An entry's ticket key where its collection has a handle.
+	Key  *string    `json:"key"`
+	Kind SearchKind `json:"kind"`
+
+	// On What a comment or a file belongs to; null for every other kind.
+	On *struct {
+		Id   openapi_types.UUID `json:"id"`
+		Kind SearchAllHitOnKind `json:"kind"`
+	} `json:"on"`
+
+	// Snippet The passage that matched, the words found between « and »; for pages and comments.
+	Snippet *string `json:"snippet"`
+
+	// State An entry's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's status, an inventory item's stage, a dashboard's sharing, a person's account status.
+	State *string `json:"state"`
+
+	// Tile What its tile shows: an entry's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.
+	Tile *string `json:"tile"`
+
+	// Title The title, a name, a file name, or for a comment the title of what it is on.
+	Title     string     `json:"title"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// SearchAllHitOnKind defines model for SearchAllHit.On.Kind.
+type SearchAllHitOnKind string
+
+// SearchAllRequest defines model for SearchAllRequest.
+type SearchAllRequest struct {
+	// HubId Only this hub's objects; people are not narrowed.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind.
+	Kinds *[]SearchKind `json:"kinds,omitempty"`
+
+	// Q The words; every word must occur.
+	Q string `json:"q"`
+
+	// Size At most this many hits per kind.
+	Size *int `json:"size,omitempty"`
+}
+
+// SearchFacet defines model for SearchFacet.
+type SearchFacet struct {
+	// Count The hits of this kind the caller may read.
+	Count int        `json:"count"`
+	Kind  SearchKind `json:"kind"`
+
+	// More True when there may be more than count.
+	More bool `json:"more"`
+}
+
+// SearchKind defines model for SearchKind.
+type SearchKind string
+
 // SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
@@ -31545,6 +31675,9 @@ type ReplaceScimUserApplicationScimPlusJSONRequestBody = ScimUser
 
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
+
+// SearchAllJSONRequestBody defines body for SearchAll for application/json ContentType.
+type SearchAllJSONRequestBody = SearchAllRequest
 
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
@@ -42043,6 +42176,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /search (the `SearchItems` operationId).
 	SearchItems(ctx context.Context, body SearchItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchAllWithBody One search over every kind of object the caller may read
+	//
+	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAllWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SearchAll One search over every kind of object the caller may read
+	//
+	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAll(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReindexSearch Bring the workspace's search documents current
 	//
@@ -64267,6 +64418,44 @@ func (c *Client) SearchItemsWithBody(ctx context.Context, contentType string, bo
 // Corresponds with POST /search (the `SearchItems` operationId).
 func (c *Client) SearchItems(ctx context.Context, body SearchItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSearchItemsRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchAllWithBody One search over every kind of object the caller may read
+//
+// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *Client) SearchAllWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchAllRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SearchAll One search over every kind of object the caller may read
+//
+// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *Client) SearchAll(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchAllRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -102228,6 +102417,46 @@ func NewSearchItemsRequestWithBody(server string, contentType string, body io.Re
 	return req, nil
 }
 
+// NewSearchAllRequest calls the generic SearchAll builder with application/json body
+func NewSearchAllRequest(server string, body SearchAllJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSearchAllRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSearchAllRequestWithBody constructs an http.Request for the SearchAll method, with any body, and a specified content type
+func NewSearchAllRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/search:all")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReindexSearchRequest constructs an http.Request for the ReindexSearch method
 func NewReindexSearchRequest(server string) (*http.Request, error) {
 	var err error
@@ -118701,6 +118930,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /search (the `SearchItems` operationId).
 	SearchItemsWithResponse(ctx context.Context, body SearchItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchItemsResult, error)
+
+	// SearchAllWithBodyWithResponse One search over every kind of object the caller may read
+	//
+	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAllWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchAllResult, error)
+
+	// SearchAllWithResponse One search over every kind of object the caller may read
+	//
+	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /search:all (the `SearchAll` operationId).
+	SearchAllWithResponse(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchAllResult, error)
 
 	// ReindexSearchWithResponse Bring the workspace's search documents current
 	//
@@ -156105,6 +156352,54 @@ func (r SearchItemsResult) ContentType() string {
 	return ""
 }
 
+type SearchAllResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SearchAllAnswer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchAllResult) GetJSON200() *SearchAllAnswer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SearchAllResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchAllResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchAllResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchAllResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchAllResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReindexSearchResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -179203,6 +179498,36 @@ func (c *ClientWithResponses) SearchItemsWithResponse(ctx context.Context, body 
 		return nil, err
 	}
 	return ParseSearchItemsResult(rsp)
+}
+
+// SearchAllWithBodyWithResponse One search over every kind of object the caller may read
+//
+// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *ClientWithResponses) SearchAllWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SearchAllResult, error) {
+	rsp, err := c.SearchAllWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchAllResult(rsp)
+}
+
+// SearchAllWithResponse One search over every kind of object the caller may read
+//
+// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /search:all (the `SearchAll` operationId).
+func (c *ClientWithResponses) SearchAllWithResponse(ctx context.Context, body SearchAllJSONRequestBody, reqEditors ...RequestEditorFn) (*SearchAllResult, error) {
+	rsp, err := c.SearchAll(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchAllResult(rsp)
 }
 
 // ReindexSearchWithResponse Bring the workspace's search documents current
@@ -207243,6 +207568,39 @@ func ParseSearchItemsResult(rsp *http.Response) (*SearchItemsResult, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON422 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSearchAllResult parses an HTTP response from a SearchAllWithResponse call
+func ParseSearchAllResult(rsp *http.Response) (*SearchAllResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchAllResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SearchAllAnswer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

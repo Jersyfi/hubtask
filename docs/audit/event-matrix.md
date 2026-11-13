@@ -1052,6 +1052,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `search.read` | SearchAll | `search` | INFO | When refused |
 | `search.reindex_asked` | ReindexSearch | `workspace` | NOTICE | Every time |
 
 ## Sla_policy

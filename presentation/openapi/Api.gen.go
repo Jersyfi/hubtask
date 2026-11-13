@@ -9253,6 +9253,66 @@ func (e SavedViewShareSharing) Valid() bool {
 	}
 }
 
+// Defines values for SearchAllHitOnKind.
+const (
+	SearchAllHitOnKindENTRY      SearchAllHitOnKind = "ENTRY"
+	SearchAllHitOnKindPAGE       SearchAllHitOnKind = "PAGE"
+	SearchAllHitOnKindWHITEBOARD SearchAllHitOnKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchAllHitOnKind enum.
+func (e SearchAllHitOnKind) Valid() bool {
+	switch e {
+	case SearchAllHitOnKindENTRY:
+		return true
+	case SearchAllHitOnKindPAGE:
+		return true
+	case SearchAllHitOnKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SearchKind.
+const (
+	SearchKindASSET      SearchKind = "ASSET"
+	SearchKindCOMMENT    SearchKind = "COMMENT"
+	SearchKindDASHBOARD  SearchKind = "DASHBOARD"
+	SearchKindENTRY      SearchKind = "ENTRY"
+	SearchKindFILE       SearchKind = "FILE"
+	SearchKindGOAL       SearchKind = "GOAL"
+	SearchKindPAGE       SearchKind = "PAGE"
+	SearchKindPERSON     SearchKind = "PERSON"
+	SearchKindWHITEBOARD SearchKind = "WHITEBOARD"
+)
+
+// Valid indicates whether the value is a known member of the SearchKind enum.
+func (e SearchKind) Valid() bool {
+	switch e {
+	case SearchKindASSET:
+		return true
+	case SearchKindCOMMENT:
+		return true
+	case SearchKindDASHBOARD:
+		return true
+	case SearchKindENTRY:
+		return true
+	case SearchKindFILE:
+		return true
+	case SearchKindGOAL:
+		return true
+	case SearchKindPAGE:
+		return true
+	case SearchKindPERSON:
+		return true
+	case SearchKindWHITEBOARD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchMode.
 const (
 	AUTO    SearchMode = "AUTO"
@@ -24059,6 +24119,76 @@ type ScimUser struct {
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
+// SearchAllAnswer defines model for SearchAllAnswer.
+type SearchAllAnswer struct {
+	Data   []SearchAllHit `json:"data"`
+	Facets []SearchFacet  `json:"facets"`
+}
+
+// SearchAllHit One object as a hit row draws it.
+type SearchAllHit struct {
+	// CollectionId An entry's collection, or that of the entry a comment or file is on.
+	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// HubId The hub it stands in; null for the workspace's own and for people.
+	HubId *openapi_types.UUID `json:"hub_id"`
+	Id    openapi_types.UUID  `json:"id"`
+
+	// Key An entry's ticket key where its collection has a handle.
+	Key  *string    `json:"key"`
+	Kind SearchKind `json:"kind"`
+
+	// On What a comment or a file belongs to; null for every other kind.
+	On *struct {
+		Id   openapi_types.UUID `json:"id"`
+		Kind SearchAllHitOnKind `json:"kind"`
+	} `json:"on"`
+
+	// Snippet The passage that matched, the words found between « and »; for pages and comments.
+	Snippet *string `json:"snippet"`
+
+	// State An entry's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's status, an inventory item's stage, a dashboard's sharing, a person's account status.
+	State *string `json:"state"`
+
+	// Tile What its tile shows: an entry's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.
+	Tile *string `json:"tile"`
+
+	// Title The title, a name, a file name, or for a comment the title of what it is on.
+	Title     string     `json:"title"`
+	UpdatedAt *time.Time `json:"updated_at"`
+}
+
+// SearchAllHitOnKind defines model for SearchAllHit.On.Kind.
+type SearchAllHitOnKind string
+
+// SearchAllRequest defines model for SearchAllRequest.
+type SearchAllRequest struct {
+	// HubId Only this hub's objects; people are not narrowed.
+	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
+
+	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind.
+	Kinds *[]SearchKind `json:"kinds,omitempty"`
+
+	// Q The words; every word must occur.
+	Q string `json:"q"`
+
+	// Size At most this many hits per kind.
+	Size *int `json:"size,omitempty"`
+}
+
+// SearchFacet defines model for SearchFacet.
+type SearchFacet struct {
+	// Count The hits of this kind the caller may read.
+	Count int        `json:"count"`
+	Kind  SearchKind `json:"kind"`
+
+	// More True when there may be more than count.
+	More bool `json:"more"`
+}
+
+// SearchKind defines model for SearchKind.
+type SearchKind string
+
 // SearchMode How much of the search to use.
 // `AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.
 type SearchMode string
@@ -31540,6 +31670,9 @@ type ReplaceScimUserApplicationScimPlusJSONRequestBody = ScimUser
 // SearchItemsJSONRequestBody defines body for SearchItems for application/json ContentType.
 type SearchItemsJSONRequestBody = ItemSearchQuery
 
+// SearchAllJSONRequestBody defines body for SearchAll for application/json ContentType.
+type SearchAllJSONRequestBody = SearchAllRequest
+
 // DefineSlaPolicyJSONRequestBody defines body for DefineSlaPolicy for application/json ContentType.
 type DefineSlaPolicyJSONRequestBody = SlaPolicyDefine
 
@@ -34340,6 +34473,9 @@ type ServerInterface interface {
 	// SearchItems Full-text search over the entries a caller may see
 	// (POST /search)
 	SearchItems(w http.ResponseWriter, r *http.Request)
+	// SearchAll One search over every kind of object the caller may read
+	// (POST /search:all)
+	SearchAll(w http.ResponseWriter, r *http.Request)
 	// ReindexSearch Bring the workspace's search documents current
 	// (POST /search:reindex)
 	ReindexSearch(w http.ResponseWriter, r *http.Request)
@@ -59274,6 +59410,20 @@ func (siw *ServerInterfaceWrapper) SearchItems(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// SearchAll operation middleware
+func (siw *ServerInterfaceWrapper) SearchAll(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchAll(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReindexSearch operation middleware
 func (siw *ServerInterfaceWrapper) ReindexSearch(w http.ResponseWriter, r *http.Request) {
 
@@ -64006,6 +64156,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/glance/open-entries", wrapper.ListMyOpenEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/glance:search", wrapper.SearchEverywhere)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:all", wrapper.SearchAll)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)

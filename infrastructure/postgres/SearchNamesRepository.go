@@ -33,7 +33,7 @@ func searchArgs(ctx context.Context, ask repository.Ask) (*sqlc.Queries, pgtype.
 		return nil, pgtype.UUID{}, 0, err
 	}
 	hub, err := optionalUUID(ask.HubID)
-	batch := int32(min(max(ask.Batch, 1), 1000)) //nolint:gosec // bounded here
+	batch := int32(min(max(ask.Batch, 1), 1000))
 	return queries, hub, batch, err
 }
 

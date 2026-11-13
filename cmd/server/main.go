@@ -70,6 +70,7 @@ import (
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	realtimeservice "github.com/Jersyfi/hubtask/core/application/service/realtime"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	searchservice "github.com/Jersyfi/hubtask/core/application/service/search"
 	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
@@ -2277,6 +2278,7 @@ func run() error {
 	// What another product's dashboard and search box show (UC-INT-20): the searches of the
 	// registry run as the reader, through the catalogue set below.
 	glanceSearches := &deferredCatalogue{}
+	searchNames := postgres.NewSearchNamesRepository()
 	// A person's stars are read as the person through the catalogue set below (UC-WRK-37).
 	starReads := &deferredCatalogue{}
 	starService := identity.Stars{
@@ -2684,6 +2686,19 @@ func run() error {
 		filestoreservice.ListFileStoreConnections{Connections: fileStores}.Descriptor(),
 		glanceservice.ListMyOpenEntries{Glance: glance}.Descriptor(),
 		glanceservice.SearchEverywhere{Glance: glance}.Descriptor(),
+		// One search over every kind (UC-WRK-18 check 9): entries and pages through their own searches as the
+		// reader, the other kinds by their names, each narrowed by its own permission question.
+		searchservice.SearchAll{Finders: map[string]searchservice.Finder{
+			searchservice.KindEntry:      searchservice.Entries{Invoker: glanceSearches, Containers: containers, UnitOfWork: unitOfWork},
+			searchservice.KindPage:       searchservice.Pages{Invoker: glanceSearches, Clock: clockadapter.System{}},
+			searchservice.KindWhiteboard: whiteboardservice.Finder{Studio: boardStudio, Names: searchNames},
+			searchservice.KindGoal:       goalservice.GoalFinder{Steward: steward, Names: searchNames},
+			searchservice.KindDashboard:  goalservice.DashboardFinder{Steward: steward, Names: searchNames},
+			searchservice.KindAsset:      cmdbservice.Finder{Inventory: inventory, Reader: authorizer, Names: searchNames},
+			searchservice.KindPerson:     identity.PeopleFinder{Members: authorizer, Names: searchNames, UnitOfWork: unitOfWork},
+			searchservice.KindFile:       work.OnEntries{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork},
+			searchservice.KindComment:    work.OnEntries{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork, Comments: true},
+		}}.Descriptor(),
 		chatbotservice.ListChatBots{Bots: chatBots}.Descriptor(),
 		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),
 		chatbotservice.UpdateChatBot{Bots: chatBots}.Descriptor(),

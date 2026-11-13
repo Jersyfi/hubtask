@@ -2353,6 +2353,9 @@ func (pending) ListMyOpenEntries(w http.ResponseWriter, r *http.Request, _ opena
 func (pending) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+func (pending) SearchAll(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
 func (pending) CommentOnMyRequest(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.CommentOnMyRequestParams) {
 	notAvailable(w, r)
 }

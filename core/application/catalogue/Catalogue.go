@@ -52,6 +52,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	searchservice "github.com/Jersyfi/hubtask/core/application/service/search"
 	servicedeskservice "github.com/Jersyfi/hubtask/core/application/service/servicedesk"
 	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
@@ -412,6 +413,7 @@ func Descriptors() []usecase.Descriptor {
 		filestoreservice.ListFileStoreConnections{}.Descriptor(),
 		glanceservice.ListMyOpenEntries{}.Descriptor(),
 		glanceservice.SearchEverywhere{}.Descriptor(),
+		searchservice.SearchAll{}.Descriptor(),
 		chatbotservice.ListChatBots{}.Descriptor(),
 		chatbotservice.CreateChatBot{}.Descriptor(),
 		chatbotservice.UpdateChatBot{}.Descriptor(),
