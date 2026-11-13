@@ -356,6 +356,45 @@ test('chromium: a widget grouped by person names the people beside one grouped b
   assert.deepEqual(walk.unstubbed(), []);
 });
 
+// UC-GOL-04 check 8: a widget grouped by status names each status as its workflow names it.
+test('chromium: a widget grouped by status names the statuses as the workflows do', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const byStatus = {
+    id: '01a0e2e0-0000-7000-8000-00000000a731', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT', group_by: 'status' } },
+    goal_ids: [], compare: null, cumulative: false, x: 0, y: 0, w: 6, h: 4,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a732', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], version: 1, widgets: [byStatus] };
+  const shape = {
+    statuses: [
+      { key: 'new', name: 'New', category: 'TODO', color_token: 'slate' },
+      { key: 'approved', name: 'Approved', category: 'IN_PROGRESS', color_token: 'blue' },
+      { key: 'known_error', name: 'Known error', category: 'IN_PROGRESS', color_token: 'red' },
+    ],
+    initial: 'new', steps: [],
+  };
+  const goals = goalsBackend({ seed: {
+    dashboards: [board],
+    figures: { [byStatus.id]: [{ group: 'approved', period: null, count: 1, value: null }, { group: 'known_error', period: null, count: 2, value: null }, { group: 'in_progress', period: null, count: 4, value: null }] },
+  } });
+  const walk = await productWalk(browser, {
+    modules: ['GOALS', 'WORKFLOWS'],
+    answer: (method, path, query, body) => (path === '/workflows' && method === 'GET'
+      ? { json: { data: [{ key: 'problems', system: false, name: 'Problems', published: shape, draft: null, published_at: '2026-10-30T09:00:00Z', version: 1 }], scheme: [] } }
+      : goals(method, path, query, body)),
+  });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  const bars = page.locator('[data-chart="BAR"]');
+  await bars.getByText('Known error', { exact: true }).waitFor({ timeout: 10_000 });
+  assert.deepEqual((await bars.locator('.name').allTextContents()).sort(), ['Approved', 'In progress', 'Known error']);
+  assert.equal(await page.getByText('known_error').count(), 0, 'no status key reaches the reader');
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
 test('chromium: 375 px - a portfolio names its projects\' days in words and stacks them; an empty one says what fills it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

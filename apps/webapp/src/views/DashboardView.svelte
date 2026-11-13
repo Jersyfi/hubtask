@@ -42,6 +42,8 @@
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
+  import { workflows } from '../lib/data/workflows.svelte.ts';
+  import { statusNameOf } from '../lib/workspace/happened.ts';
   import { handOver } from '../lib/data/listhandoff.ts';
   import { search } from '../lib/data/search.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -393,10 +395,11 @@
   const readsViews = $derived(shown.some((widget) => widget.source === 'VIEW'));
   // A group is named by what it is a value of, so the names are read where a widget groups by them.
   $effect(() => {
-    const wanted = { types: groupFields.has('entry_type'), views: readsViews, hub: placeHub ?? undefined };
+    const wanted = { types: groupFields.has('entry_type'), statuses: groupFields.has('status') || shown.some((widget) => widget.chart === 'LIST' && widget.column === 'status'), views: readsViews, hub: placeHub ?? undefined };
     return untrack(() => {
       const closers = [
         ...(wanted.types ? [entryTypes.open()] : []),
+        ...(wanted.statuses ? [workflows.open()] : []),
         ...(wanted.views ? [views.open(), ...(wanted.hub ? [views.open(wanted.hub)] : [])] : []),
       ];
       return () => closers.forEach((close) => close());
@@ -417,7 +420,8 @@
       case 'created_by': return accounts.nameOf(value) ?? t('app.people.unnamed');
       case 'collection_id': return containers.find(value)?.name ?? value;
       case 'is_completed': return t(value === 'true' ? 'app.dashboards.group_done' : 'app.dashboards.group_open');
-      case 'status': return ['todo', 'in_progress', 'done'].includes(value) ? t(`workflows.status.${value}`) : value;
+      // A widget counts across workflows, so a status is named as any workflow names it (as a hub's activity does).
+      case 'status': return statusNameOf({ statusKey: value }, '', workflows.list, t);
       default: return value;
     }
   }
