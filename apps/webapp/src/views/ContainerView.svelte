@@ -18,6 +18,7 @@
     Button,
     DetailPane,
     Dialog,
+    DensitySwitch,
     Drawer,
     EmptyState,
     Icon,
@@ -27,6 +28,7 @@
     ReadOnlyNotice,
     Skeleton,
     WorkPage,
+    type ListDensity,
     type MenuItem,
     type PageAction,
   } from '@hubtask/design-system/components';
@@ -872,6 +874,11 @@
 
   /** The filter: open inline from `expanded`, in a drawer below it; the count is the panel's. */
   let isFilterOpen = $state(false);
+  /**
+   * Comfortable or compact (WB-4, E-5), a matter of this device like the theme; the switch keeps
+   * it. Only from `expanded`: below it the frame's own density (spacious on a phone) holds.
+   */
+  let listDensity = $state<ListDensity>('comfortable');
   let filterCount = $state(0);
 
   /** Why an entry cannot be created here, or nothing. The gate is the list's; the words are shared. */
@@ -1238,6 +1245,9 @@
         <Button size="sm" tone="secondary" icon="saved-view" data-opener="views" {...props}>{t('app.views.menu')}</Button>
       {/snippet}
     </Menu>
+    {#if isListLayout(layout) && !viewport.isBelowExpanded}
+      <DensitySwitch label={t('app.list.density')} comfortableLabel={t('app.list.density_comfortable')} compactLabel={t('app.list.density_compact')} list="collection" bind:density={listDensity} />
+    {/if}
     {#if maySelect}
       <Button size="sm" tone="secondary" icon="square-check" data-opener="select" onclick={() => { isFilterOpen = false; selection.start(); }}>{t('app.bulk.select_mode')}</Button>
     {/if}
@@ -1450,6 +1460,7 @@
             <!-- Read-only follows the container: an archived collection's entries are read-only with
                  it (I-C3), and the notice above says so once; the rows say nothing of their own.
                  From `large` a row opens beside the list and stays current. -->
+            <div class="density" data-density={viewport.isBelowExpanded ? undefined : listDensity}>
             <EntryList
               bind:this={list}
               collectionId={container.id}
@@ -1477,6 +1488,7 @@
               {stateMode}
               workflow={boardShape}
             />
+            </div>
           {/if}
         </div>
         {#if openItemId}
@@ -1649,6 +1661,7 @@
 {/if}
 
 <style>
+  .density { display: contents; }
   .split { display: flex; align-items: flex-start; gap: var(--sp-300); min-width: 0; }
 
   .entries { flex: 1; min-width: 0; }

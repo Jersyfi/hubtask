@@ -58,3 +58,22 @@ test('chromium: 1280 px - fields stand in columns, Group groups by column, done 
   assert.equal(await page.locator('[data-row] .cell[data-field="people"]').count(), 0, 'the fields were not kept');
   assert.deepEqual(failures, []);
 });
+
+test('chromium: 1280 px - the density switch makes the rows compact, and this device keeps it (E-5)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  const row = page.locator('[data-row]').first();
+  await row.waitFor({ timeout: 15_000 });
+  const comfortable = (await row.boundingBox()).height;
+  const density = page.getByRole('radiogroup', { name: 'Density' });
+  await density.getByRole('radio', { name: 'Compact' }).click();
+  await page.waitForFunction((before) => document.querySelector('[data-row]').getBoundingClientRect().height < before, comfortable, { timeout: 5_000 });
+  await page.reload();
+  await row.waitFor({ timeout: 15_000 });
+  assert.ok((await row.boundingBox()).height < comfortable, 'the device did not keep compact');
+  assert.equal(await density.getByRole('radio', { name: 'Compact' }).isChecked(), true);
+  assert.deepEqual(failures, []);
+});
