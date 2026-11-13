@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { asWords, changedParts, groupingOf, lanesOf, lineOf, monthGrid, readQuery, type Names, type ViewSetup } from './viewquery.ts';
+import { asWords, changedParts, groupingOf, lanesOf, lineOf, monthGrid, readQuery, spokenPiece, type Names, type ViewSetup } from './viewquery.ts';
 
 const AMELIA = '0192f000-0000-7000-8000-0000000000a1';
 const LABEL = '0192f000-0000-7000-8000-0000000000b1';
@@ -93,4 +93,32 @@ test('a month is whole weeks from the account week start', () => {
   assert.equal(weeks[0]?.[0], '2026-10-26');
   assert.equal(weeks.at(-1)?.at(-1), '2026-12-06');
   assert.equal(monthGrid(2026, 10, true)[0]?.[0], '2026-11-01');
+});
+
+// §6.11 Q-2, ADR-0102: a release and a sprint are named in the line and the chip; the tree sends their ids.
+const SPRING = '0192f000-0000-7000-8000-0000000000d1';
+const FOURTH = '0192f000-0000-7000-8000-0000000000e1';
+const planned: Names = {
+  ...names,
+  release: (name) => (name === 'Spring' ? SPRING : undefined),
+  sprint: (name) => (name === 'Sprint 4' ? FOURTH : undefined),
+  nameOf: (field, id) => ({ [SPRING]: 'Spring', [FOURTH]: 'Sprint 4' })[id] ?? names.nameOf?.(field, id),
+};
+
+test('a release and a sprint typed by name are sent by id; none stays none', () => {
+  const read = readQuery('plan.release: Spring plan.sprint: "Sprint 4" -plan.release: none', planned);
+  assert.ok(read.ok);
+  assert.match(JSON.stringify(read.query.filter), new RegExp(`"release_id","op":"EQ","value":"${SPRING}"`, 'u'));
+  assert.match(JSON.stringify(read.query.filter), new RegExp(`"sprint_id","op":"EQ","value":"${FOURTH}"`, 'u'));
+  assert.match(JSON.stringify(read.query.filter), /IS_NULL/u);
+  assert.deepEqual(read.unknown, []);
+  assert.equal(lineOf({ filter: { field: 'release_id', op: 'EQ', value: SPRING } }, planned), 'plan.release: Spring');
+});
+
+test('a chip shows the name where its piece holds an id, and the piece itself otherwise', () => {
+  assert.equal(spokenPiece(`plan.release: ${SPRING}`, planned), 'plan.release: Spring');
+  assert.equal(spokenPiece(`plan.sprint: ${FOURTH}`, planned), 'plan.sprint: "Sprint 4"');
+  assert.equal(spokenPiece('plan.release: Spring', planned), 'plan.release: Spring');
+  assert.equal(spokenPiece('is: open', planned), 'is: open');
+  assert.equal(spokenPiece('passkey', planned), 'passkey');
 });

@@ -23,15 +23,20 @@ export interface Names {
   person(name: string): string | undefined;
   label(name: string): string | undefined;
   collection(name: string): string | undefined;
+  /** A hub's release and a collection's sprint, where the screen knows them (the plan). */
+  release?(name: string): string | undefined;
+  sprint?(name: string): string | undefined;
   nameOf?(field: string, id: string): string | undefined;
 }
 
-const NAMED: Readonly<Record<string, 'person' | 'label' | 'collection'>> = {
+const NAMED: Readonly<Record<string, 'person' | 'label' | 'collection' | 'release' | 'sprint'>> = {
   assignee_id: 'person',
   members: 'person',
   created_by: 'person',
   labels: 'label',
   collection_id: 'collection',
+  release_id: 'release',
+  sprint_id: 'sprint',
 };
 const IDENTIFIER = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const isWord = (value: unknown): value is string => typeof value === 'string' && !value.startsWith('@') && !IDENTIFIER.test(value);
@@ -63,7 +68,7 @@ export function resolveNames(node: FilterNode, names: Names): { node: FilterNode
     if (!kind) return each;
     const one = (value: unknown) => {
       if (!isWord(value)) return value;
-      const id = names[kind](value);
+      const id = names[kind]?.(value);
       if (!id) unknown.push(value);
       return id ?? value;
     };
@@ -112,6 +117,14 @@ export function readQuery(text: string, names: Names, order?: Order): Read {
     line,
   };
 }
+
+/** A chip's words: its piece with every identifier written as its name (Q-2), else the piece as typed. */
+export function spokenPiece(piece: string, names: Names): string {
+  const parsed = parseQuery(piece);
+  if (!parsed.ok || !parsed.query.filter || !IDENTIFIER_IN.test(piece)) return piece;
+  return formatQuery({ filter: namedBack(parsed.query.filter as FilterNode, names) }) ?? piece;
+}
+const IDENTIFIER_IN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/iu;
 
 /** The line a stored tree is spelled as, names for identifiers; undefined where no text spells it. */
 export function lineOf(query: ItemsQuery | undefined, names: Names): string | undefined {
