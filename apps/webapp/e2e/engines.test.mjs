@@ -73,6 +73,9 @@ async function stub(route) {
   }
   // A bare list, as the contract answers it - not a page: the create dialog reads it.
   if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
+  // The saved views, a bare array too, as fixture.mjs answers them: the search reads them once it
+  // opens, and WebKit's first Tab lands in its field.
+  if (url.pathname.endsWith('/api/v1/views')) return route.fulfill({ json: [] });
   // The reads the contract answers as a bare array: an envelope there is no list to the client.
   if (ARRAYS.has(url.pathname.replace(/^.*\/api\/v1/, ''))) return route.fulfill({ json: [] });
   return route.fulfill({ json: EMPTY_PAGE });
