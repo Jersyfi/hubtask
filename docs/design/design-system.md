@@ -582,6 +582,28 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   right takes its act, left opens its menu; the act also heads the row's menu, so no act needs the
   gesture (2.5.7). The row moves by token steps through `data-swipe`, never by a written length.
 
+* **`WidgetStrip`**, **`PriorityMark`**, **`DeadlineBar`**, **`DeadlineList`**, **`DensitySwitch`** — the
+  small parts the review of the foundation asked for, so a product never draws them itself: Today's
+  cards sharing a row equally and swiping on a phone; a priority as glyph and word in tone; a
+  deadline's bar with words (a paused clock with its mark, the track a hairline's colour so it shows
+  on the dark surface); a ticket's deadlines by urgency with bar and due time, the kept line and
+  *All deadlines as a table* (ET-6); *Comfortable | Compact* kept on the device, gone on a phone.
+
+**Fixes after review (2026-11-13).** A `work` row is one line at the density's height: no cell
+wraps, the title is cut with an ellipsis and shows its whole words on hover (`titleText`) and while
+the row has focus; the head's rule is a hairline, the body 13 px; the act and ⋯ stand in the title's
+cell, no column held for them. The leading checkbox selects (`isSelecting`), it never completes —
+completing is the swipe and the menu. Where the pointer is coarse or the window a phone's, a row's
+checkbox, ⋯, a group's twist and the composer's icons grow to `layout.target` (44 px). `QueryLine`
+opens its suggestions in the top layer, never clipped; offers *+ Condition* and *+ Group (or)*; and
+on a phone shows one strip with "+n" and the filters in a sheet. `Widget` titles break between
+words only, and `figureTone` sets a lozenge with glyph and word beside a figure that warns. A
+`Property` with `onedit` is an inline select. `SummaryCard` `lead="figure"` is a KPI. The
+`ProductBand` sets a 32 px name over its figures, the menu after the primary. The head's action bar
+is one type size; its deadline chip shows a clock until breached. `FoldingSection` clamps whole
+lines. The `Composer` takes `format`, a formatting bar inside its frame, and grows with its text.
+The status sheet's rows are 64 px with hairlines.
+
 **The work surface's tokens.** `product.<id>.surface` and `.ink` for the eight products alias the
 label pair `navigation.ts` gives each (plans orange, pages teal, whiteboards amber, desk magenta,
 assets slate, time lime, goals green, agents violet): a component names the product, never its
@@ -590,6 +612,7 @@ a chart's series in a fixed order — indigo, sky, mint, amber, violet, raspberr
 light theme's from the darker steps and the dark theme's from the lighter, each at least 3:1
 against every surface (1.4.11); beyond seven a chart groups the rest, and every chart has its table.
 `layout.rail` (320 px) is the property rail, `layout.reading` (720 px) the measure of running text,
+`layout.target` (44 px) the least hit area on a coarse pointer or a phone,
 and `density.<mode>.row.height` a row of a calm table: 40 px comfortable, 32 px compact (the
 concept's `density.row.compact`), 48 px spacious — inside each density mode, so the one
 vocabulary every mode declares holds.
