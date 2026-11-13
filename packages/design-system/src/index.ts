@@ -278,6 +278,8 @@ export { default as PageOutline } from './PageOutline.svelte';
 export { default as FloatingToolbar } from './FloatingToolbar.svelte';
 export { default as BlockHandle } from './BlockHandle.svelte';
 export { default as BoxPopover } from './BoxPopover.svelte';
+export { default as InsertList } from './InsertList.svelte';
+export type { InsertChoice, InsertGroup } from './InsertList.svelte';
 export { default as LiveBlock } from './LiveBlock.svelte';
 export { default as WidgetStrip } from './WidgetStrip.svelte';
 export { default as PriorityMark } from './PriorityMark.svelte';

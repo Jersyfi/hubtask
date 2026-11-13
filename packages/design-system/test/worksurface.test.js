@@ -265,3 +265,28 @@ test('a view switcher\'s targets reach layout.target on a phone or a coarse poin
   const css = source('ViewSwitcher.svelte');
   assert.match(css, /@media \(pointer: coarse\), \(width < 600px\) \{\s*\.view \{ min-block-size: var\(--layout-target\); \}/u);
 });
+
+// --- InsertList ------------------------------------------------------------------------------
+
+import { listKey } from '../src/insert.ts';
+
+test('the insert list moves with the arrows, wraps, jumps by letter, takes with Enter and closes with Escape', () => {
+  const labels = ['Embed a view', 'Mention an entry', 'Callout', 'Collapsible'];
+  assert.equal(listKey('ArrowDown', 0, labels), 1);
+  assert.equal(listKey('ArrowUp', 0, labels), 3);
+  assert.equal(listKey('End', 0, labels), 3);
+  assert.equal(listKey('c', 0, labels), 2);
+  assert.equal(listKey('c', 2, labels), 3);
+  assert.equal(listKey('Enter', 1, labels), 'take');
+  assert.equal(listKey('Enter', 0, []), null);
+  assert.equal(listKey('Escape', 1, labels), 'close');
+  assert.equal(listKey('Tab', 1, labels), null);
+});
+
+test('the insert list is a listbox of options read through aria-activedescendant, with its keys line', () => {
+  const list = source('InsertList.svelte');
+  assert.match(list, /role="listbox"/);
+  assert.match(list, /role="option"/);
+  assert.match(list, /aria-activedescendant=/);
+  assert.match(list, /<Kbd>↑↓<\/Kbd>/);
+});

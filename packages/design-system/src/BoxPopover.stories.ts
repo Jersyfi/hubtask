@@ -13,6 +13,6 @@ export default {
 
 export const panel: Story = {
   name: 'Under a line',
-  about: 'What "/" or "+" offers, opened under the line it was asked at; Escape or a press outside the text closes it (S-1).',
+  about: 'What "/" or "+" offers, opened under the line it was asked at, as an `InsertList`: the arrows choose, Enter inserts, a letter jumps, Escape or a press outside the text closes it (S-1).',
   args: { mode: 'panel' },
 };

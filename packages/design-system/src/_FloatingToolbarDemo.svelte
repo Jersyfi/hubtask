@@ -5,6 +5,7 @@
   import BoxPopover from './BoxPopover.svelte';
   import FloatingToolbar from './FloatingToolbar.svelte';
   import IconButton from './IconButton.svelte';
+  import InsertList from './InsertList.svelte';
   import type { Box } from './anchor.ts';
 
   interface Props {
@@ -41,7 +42,17 @@
   </FloatingToolbar>
 {:else if mode === 'panel'}
   <BoxPopover label="Insert" container={page} {box} onclose={() => (said = 'Closed')}>
-    <p>Blocks to insert at the line</p>
+    <InsertList
+      label="Insert"
+      takesFocus
+      keys={{ move: 'choose', take: 'insert', close: 'close' }}
+      groups={[
+        { label: 'Hubtask', choices: [{ id: 'view', label: 'Embed a view', detail: 'A saved view, live', icon: 'table' }, { id: 'mention', label: 'Mention an entry', detail: 'With its status', icon: 'square-check' }] },
+        { label: 'Blocks', choices: [{ id: 'callout', label: 'Callout', detail: 'Info, warning, success, error', icon: 'info' }, { id: 'details', label: 'Collapsible', detail: 'With a summary', icon: 'chevron-right' }] },
+      ]}
+      onchoose={(id) => (said = id)}
+      onclose={() => (said = 'Closed')}
+    />
   </BoxPopover>
 {:else}
   <BlockHandle container={page} {box} addLabel="Insert a block below" handleLabel="This line" onadd={() => (said = 'Insert')} items={[{ id: 'up', label: 'Move up', icon: 'arrow-up' }, { id: 'down', label: 'Move down', icon: 'arrow-down' }, { id: 'remove', label: 'Remove', icon: 'trash', isDestructive: true, hasSeparatorBefore: true }]} onselect={(id) => (said = id)} />
