@@ -28,7 +28,7 @@ entry was reassigned meanwhile; the app tells him why and leaves the card where 
 ## How to check
 
 1. An entry shows its status and offers exactly the steps the person may take from it, by their
-   names.
+   names; the steps they may not take are no control (UC-FLW-06 names them as information).
 2. Taking a step by the status control, by dragging on the board, by the keyboard, by the bulk
    action or through any door applies the same rules.
 3. A step that needs fields asks for them before it is taken; a refusal names, per field or
@@ -44,3 +44,4 @@ entry was reassigned meanwhile; the app tells him why and leaves the card where 
 
 * No step is taken by time passing; a rule does that (automation).
 * No undo of a step beyond taking a step back that the workflow offers.
+* Where no workflow runs there are no steps: completing the entry reaches done (UC-FLW-06).

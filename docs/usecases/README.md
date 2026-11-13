@@ -264,6 +264,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-FLW-03](./workflow/UC-FLW-03-move-an-entry-on.md) | Move an entry on, and be told what it still needs | workflow |
 | [UC-FLW-04](./workflow/UC-FLW-04-ask-for-what-a-step-needs.md) | Ask for what a step needs, and act when it is taken | workflow |
 | [UC-FLW-05](./workflow/UC-FLW-05-change-a-workflow-in-use.md) | Change a workflow that is already in use | workflow |
+| [UC-FLW-06](./workflow/UC-FLW-06-see-where-an-entry-can-go-next.md) | See where an entry can go next and how its workflow looks | workflow |
 | [UC-PLN-01](./planning/UC-PLN-01-say-that-one-piece-of-work-waits-for-another.md) | Say that one piece of work waits for another | planning |
 | [UC-PLN-02](./planning/UC-PLN-02-see-the-plan-as-a-gantt-chart-and-move-it.md) | See the plan as a Gantt chart and move it by hand | planning |
 | [UC-PLN-03](./planning/UC-PLN-03-know-which-chain-decides-the-end-date.md) | Know which chain decides the end date | planning |
