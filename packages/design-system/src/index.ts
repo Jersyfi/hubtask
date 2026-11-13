@@ -143,7 +143,7 @@ export {
   type QueryOperator,
 } from './QueryBuilder.svelte';
 export { default as ViewSwitcher, type View } from './ViewSwitcher.svelte';
-export { default as CommentThread, type ThreadComment } from './CommentThread.svelte';
+export { default as CommentThread, type ThreadComment, type ThreadEvent } from './CommentThread.svelte';
 export {
   default as CustomFieldRenderer,
   type CustomFieldKind,

@@ -22,6 +22,8 @@
   // Oldest first, because a conversation read from the bottom is a conversation read backwards.
 
   import Avatar from './Avatar.svelte';
+  import Icon from './Icon.svelte';
+  import type { IconName } from './icons/index.ts';
   import Button from './Button.svelte';
   import LoadMore from './LoadMore.svelte';
 
@@ -53,6 +55,21 @@
     readonly deleteDisabledReason?: string;
     /** The replies to this comment. One level: a reply carries none of its own. */
     readonly replies?: readonly Omit<ThreadComment, 'replies'>[];
+    /** Present: an internal note, drawn yellow with a lock and this word (*Internal*), never as a reply (ET-7). */
+    readonly internalLabel?: string;
+  }
+
+  /**
+   * Something that happened between the posts - a status change, a deadline met, a group changed:
+   * a quiet row in time order among the comments (*All*, work-surface concept §6.9).
+   */
+  export interface ThreadEvent {
+    readonly id: string;
+    /** The sentence, resolved: *Clara Neumann moved it to In review*. */
+    readonly text: string;
+    readonly when: string;
+    readonly at: string;
+    readonly icon?: IconName;
   }
 
   interface Props {
@@ -79,6 +96,8 @@
     onDelete?: (id: string) => void;
     /** Absent where the reader may not comment: no reply is offered then (P-05). */
     onReply?: (id: string) => void;
+    /** Quiet rows placed among the comments by their instant. */
+    events?: readonly ThreadEvent[];
   }
 
   const {
@@ -97,15 +116,39 @@
     onEdit,
     onDelete,
     onReply,
+    events = [],
   }: Props = $props();
+
+  type Row = { kind: 'comment'; comment: ThreadComment } | { kind: 'event'; event: ThreadEvent };
+
+  // Comments keep their own order (oldest first); an event goes before the first comment written
+  // after it. Instants are ISO strings in one zone, so they compare as text.
+  const rows = $derived.by((): Row[] => {
+    const pending = [...events].sort((a, b) => a.at.localeCompare(b.at));
+    const out: Row[] = [];
+    for (const comment of comments) {
+      while (pending.length > 0 && (pending[0]?.at ?? '') < comment.at) out.push({ kind: 'event', event: pending.shift() as ThreadEvent });
+      out.push({ kind: 'comment', comment });
+    }
+    for (const event of pending) out.push({ kind: 'event', event });
+    return out;
+  });
 </script>
 
 <section class="thread" aria-label={label}>
-  {#if comments.length === 0}
+  {#if rows.length === 0}
     <p class="empty">{emptyLabel}</p>
   {:else}
     <ol class="list">
-      {#each comments as comment (comment.id)}
+      {#each rows as each (each.kind === 'comment' ? each.comment.id : `event-${each.event.id}`)}
+        {#if each.kind === 'event'}
+          <li class="event" data-thread-event>
+            <Icon name={each.event.icon ?? 'clock'} size="sm" />
+            <span class="event-text">{each.event.text}</span>
+            <time datetime={each.event.at}>{each.event.when}</time>
+          </li>
+        {:else}
+        {@const comment = each.comment}
         <li class="entry">
           {@render row(comment, onReply !== undefined)}
           {#if comment.replies && comment.replies.length > 0}
@@ -116,6 +159,7 @@
             </ol>
           {/if}
         </li>
+        {/if}
       {/each}
     </ol>
 
@@ -126,7 +170,7 @@
 </section>
 
 {#snippet row(comment: Omit<ThreadComment, 'replies'>, canReply: boolean)}
-  <article class="comment">
+  <article class="comment" data-internal={comment.internalLabel ? '' : undefined}>
     <Avatar name={comment.authorName} src={comment.authorSrc} size="sm" />
     <div class="body">
       <p class="meta">
@@ -134,6 +178,7 @@
         <!-- The order is the content, so the instant is machine-readable rather than only drawn -
              the same decision ActivityFeed made about a step. -->
         <time datetime={comment.at}>{comment.when}</time>
+        {#if comment.internalLabel}<span class="internal"><Icon name="lock" size="sm" />{comment.internalLabel}</span>{/if}
         {#if comment.editedLabel && !comment.isRemoved}<span class="edited">{comment.editedLabel}</span>{/if}
       </p>
 
@@ -195,6 +240,27 @@
   }
 
   .comment { display: flex; gap: var(--sp-100); min-width: 0; }
+
+  /* An internal note is never mistaken for a reply (ET-7): yellow, with a lock and its word. */
+  .comment[data-internal] {
+    padding: var(--sp-100);
+    border-radius: var(--r-md);
+    border-inline-start: var(--bw-thick) solid var(--status-warning-accent);
+    background: var(--status-warning-surface);
+  }
+
+  .internal { display: inline-flex; align-items: center; gap: var(--sp-025); color: var(--text-primary); font-weight: var(--fw-medium); }
+
+  .event {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    padding-inline-start: var(--sp-050);
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  .event-text { min-width: 0; overflow-wrap: anywhere; }
 
   .body { display: flex; flex-direction: column; gap: var(--sp-025); min-width: 0; }
 
