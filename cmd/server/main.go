@@ -2344,6 +2344,8 @@ func run() error {
 		Buckets:     buckets,
 		Workspaces:  postgres.NewWorkspaceSettingsRepository(),
 		Renderer:    renderer,
+		Workflow:    workflowGate,
+		Statuses:    boards.Statuses,
 	}
 	// A change of a workspace's address (multi-tenancy.md §3.1): the lockout read through the
 	// session writer, the proof by password or provider only, an owner's cooldown from the last change.

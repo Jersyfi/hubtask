@@ -13,7 +13,11 @@ const StartingWipLimit = 3
 // (rule 8): the creating use case renders it in the workspace's language, and from then on the
 // name is content like any other.
 type StartingColumn struct {
-	NameCode     string
+	NameCode string
+	// Name is the column's name as given - a status's own name -, used in place of NameCode.
+	Name string
+	// Status is the status the column shows under a workflow; empty without one.
+	Status       string
 	ColorToken   string
 	IsDoneBucket bool
 	// WipLimit is zero for no limit, as NewBucketInput reads it.
@@ -34,4 +38,34 @@ func StartingColumns(values StructureValues) []StartingColumn {
 		{NameCode: "seed.bucket.doing", ColorToken: "blue", WipLimit: limit},
 		{NameCode: "seed.bucket.done", ColorToken: "green", IsDoneBucket: true},
 	}
+}
+
+// WorkflowStartingColumns answers the columns a collection created under a workflow starts with
+// (§3.5a): one per status in the workflow's order, each showing its status, named as the status -
+// or, for a status of the system workflow that has no name, by its category -, the first done
+// status's column marked done.
+func WorkflowStartingColumns(shape WorkflowShape) []StartingColumn {
+	words := map[StatusCategory]StartingColumn{
+		CategoryBacklog:    {NameCode: "seed.bucket.todo", ColorToken: "slate"},
+		CategoryTodo:       {NameCode: "seed.bucket.todo", ColorToken: "slate"},
+		CategoryInProgress: {NameCode: "seed.bucket.doing", ColorToken: "blue"},
+		CategoryDone:       {NameCode: "seed.bucket.done", ColorToken: "green"},
+	}
+	columns := make([]StartingColumn, 0, len(shape.Statuses))
+	marked := false
+	for _, status := range shape.Statuses {
+		column := words[status.Category]
+		column.Status = status.Key
+		if status.Name != "" {
+			column.Name, column.NameCode = status.Name, ""
+		}
+		if status.ColorToken != "" {
+			column.ColorToken = status.ColorToken
+		}
+		if status.Category.Completes() && !marked {
+			column.IsDoneBucket, marked = true, true
+		}
+		columns = append(columns, column)
+	}
+	return columns
 }

@@ -147,6 +147,10 @@ type CreateContainer struct {
 	Buckets    BucketInserter
 	Workspaces WorkspaceReader
 	Renderer   i18n.Renderer
+	// Workflow and Statuses give a collection created under a workflow one column per status,
+	// each showing its own (§3.5a). A build without them starts it as the structure says.
+	Workflow WorkflowGate
+	Statuses repository.BucketStatuses
 }
 
 // BucketInserter is the one method the starting columns need of the buckets.
@@ -255,10 +259,10 @@ func (h CreateContainer) create(
 				return err
 			}
 			structure = &effective
-			if container.Type == domain.ContainerCollection {
-				if err := h.startColumns(ctx, container, actor, effective.Values, now); err != nil {
-					return err
-				}
+		}
+		if container.Type == domain.ContainerCollection {
+			if err := h.startColumns(ctx, container, actor, structure, now); err != nil {
+				return err
 			}
 		}
 		if err := h.recordAudit(ctx, container, actor, now); err != nil {
@@ -281,15 +285,29 @@ func (h CreateContainer) create(
 
 // startColumns writes the columns the new collection's board starts with (UC-WRK-31 check 1),
 // each with the event and the change entry any column owes, so a synchronising client's next pull
-// sees the board the API answers.
+// sees the board the API answers. Under a workflow for its tasks they are one per status, each
+// showing its own (§3.5a); otherwise the structure's.
 func (h CreateContainer) startColumns(
 	ctx context.Context, collection domain.Container, actor appshared.ActorContext,
-	values domain.StructureValues, now time.Time,
+	structure *domain.EffectiveStructure, now time.Time,
 ) error {
-	columns := domain.StartingColumns(values)
-	if len(columns) == 0 || h.Buckets == nil || h.Workspaces == nil || h.Renderer == nil {
+	if h.Buckets == nil || h.Workspaces == nil || h.Renderer == nil {
 		return nil
 	}
+	var columns []domain.StartingColumn
+	workflow, runs, err := h.Workflow.InForce(ctx, collection, domain.SystemEntryTypeKey(domain.ItemTask))
+	switch {
+	case err != nil:
+		return err
+	case runs:
+		columns = domain.WorkflowStartingColumns(workflow.Published)
+	case structure != nil:
+		columns = domain.StartingColumns(structure.Values)
+	}
+	if len(columns) == 0 {
+		return nil
+	}
+	var mapping []domain.ColumnStatus
 	workspace, err := h.Workspaces.Find(ctx)
 	if err != nil {
 		return err
@@ -300,9 +318,13 @@ func (h CreateContainer) startColumns(
 		if orderKey, err = service.OrderKeyAfter(orderKey); err != nil {
 			return err
 		}
+		name := column.Name
+		if name == "" {
+			name = h.Renderer.Render(workspace.DefaultLocale, column.NameCode, nil)
+		}
 		bucket, err := domain.NewBucket(domain.NewBucketInput{
 			ID: h.IDs.NewID(), TenantID: collection.TenantID, CollectionID: collection.ID,
-			Name: h.Renderer.Render(workspace.DefaultLocale, column.NameCode, nil), OrderKey: orderKey,
+			Name: name, OrderKey: orderKey,
 			WipLimit: &column.WipLimit, IsDoneBucket: column.IsDoneBucket, ColorToken: column.ColorToken,
 			Text: h.Text,
 		})
@@ -311,6 +333,9 @@ func (h CreateContainer) startColumns(
 		}
 		if err := h.Buckets.Insert(ctx, bucket); err != nil {
 			return err
+		}
+		if column.Status != "" {
+			mapping = append(mapping, domain.ColumnStatus{BucketID: bucket.ID, Status: column.Status})
 		}
 		announcement, err := event.NewBucketCreated(h.IDs.NewID(), bucket, eventActor, now, event.Cause{})
 		if err != nil {
@@ -327,7 +352,10 @@ func (h CreateContainer) startColumns(
 			return err
 		}
 	}
-	return nil
+	if len(mapping) == 0 || h.Statuses == nil {
+		return nil
+	}
+	return h.Statuses.Replace(ctx, collection.ID, mapping)
 }
 
 // seedStructure is the new container's own layer (domain-model.md §2). A preset chosen is
