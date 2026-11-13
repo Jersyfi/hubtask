@@ -77,10 +77,18 @@ test('chromium 1280: one panel holds layout, the query line, order, fields, boar
   const panel = panelOf(page);
   await panel.waitFor({ timeout: 5_000 });
 
-  // Layout: list, board, timeline and the calendar marked new; the outline is the list's own
-  // *Show what is inside* (one list for everything, concept round 2).
-  assert.deepEqual(await panel.locator('[data-layout]').evaluateAll((cards) => cards.map((card) => card.dataset.layout)), ['LIST_COLLAPSED', 'KANBAN', 'TIMELINE', 'CALENDAR']);
+  // Layout: five cards - list, outline, board, timeline and the calendar marked new (§6.2). The
+  // outline card and the list's *Show what is inside* are one switch: each says what the other did.
+  assert.deepEqual(await panel.locator('[data-layout]').evaluateAll((cards) => cards.map((card) => card.dataset.layout)), ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE', 'CALENDAR']);
   assert.match(await panel.locator('[data-layout="CALENDAR"]').innerText(), /new/u);
+  const inside = page.getByRole('button', { name: 'Show what is inside', exact: true });
+  assert.equal(await inside.getAttribute('aria-pressed'), 'false');
+  await panel.locator('[data-layout="LIST_EXPANDED"]').click();
+  await page.waitForFunction(() => document.querySelector('[data-layout="LIST_EXPANDED"]')?.getAttribute('aria-pressed') === 'true');
+  assert.equal(await inside.getAttribute('aria-pressed'), 'true', 'the outline card and the toggle disagree');
+  await panel.locator('[data-layout="LIST_COLLAPSED"]').click();
+  await page.waitForFunction(() => document.querySelector('[data-layout="LIST_COLLAPSED"]')?.getAttribute('aria-pressed') === 'true');
+  assert.equal(await inside.getAttribute('aria-pressed'), 'false');
 
   // What is seen: the line, one row of chips; the count while typing; the same query as text.
   const line = panel.getByRole('combobox', { name: 'What is seen' });

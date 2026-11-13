@@ -1169,9 +1169,16 @@
   const baseName = $derived(currentView?.name ?? t(`app.view.${baseSetup?.layout ?? layout}`));
   const mayOverwrite = $derived(currentView !== undefined && (currentView.owner_id === actor.account?.id || holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'));
 
-  /** The layouts the panel offers: this collection's, and the calendar wherever a list is (E-21). */
+  /**
+   * The layouts the panel offers (§6.2, E-21): list, outline, board, timeline, calendar - this
+   * collection's, the outline where both list layouts are (the card and *Show what is inside* are
+   * one switch), and the calendar wherever a list is.
+   */
   const panelLayouts = $derived(
-    [...offeredLayouts.filter((each) => each !== 'CALENDAR'), ...(offeredLayouts.some(isListLayout) || offeredLayouts.includes('CALENDAR') ? ['CALENDAR'] : [])],
+    [
+      ...offeredLayouts.filter((each) => each !== 'CALENDAR').flatMap((each) => (isListLayout(each) && listsBoth ? ['LIST_COLLAPSED', 'LIST_EXPANDED'] : [each])),
+      ...(offeredLayouts.some(isListLayout) || offeredLayouts.includes('CALENDAR') ? ['CALENDAR'] : []),
+    ],
   );
   const fieldLabel = (field: string) => {
     if (field.startsWith('custom_fields.')) return customNames[field.slice('custom_fields.'.length)] ?? field;
