@@ -2505,6 +2505,12 @@ class EntrySlaList(TypedDict, total=False):
 class SlaReport(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
+DeadlinesKept = TypedDict("DeadlinesKept", {
+    "from": Required[str],
+    "to": Required[str],
+    "data": Required[list[dict[str, Any]]],
+}, total=False)
+
 class LinkType(TypedDict, total=False):
     """A kind of relation between two entries: one of the six every workspace has, or one of its own. What it means is fixed once it is made."""
     key: Required[str]

@@ -715,6 +715,10 @@ class Client:
         """How the SLA goals of a period stood"""
         return self._call("GET", "/sla-report", {}, query, {}, None, "none", None, "json")
 
+    def read_my_deadlines_kept(self, *, query: dict[str, Any] | None = None) -> "DeadlinesKept":
+        """How many of the deadlines on my own tickets I kept"""
+        return self._call("GET", "/deadlines-kept", {}, query, {}, None, "none", None, "json")
+
     def read_entry_requester(self, item_id: str) -> "EntryRequester":
         """Who raised the entry, and their organisation"""
         return self._call("GET", "/items/{itemId}/requester", {"itemId": item_id}, None, {}, None, "none", None, "json")

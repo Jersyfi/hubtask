@@ -876,6 +876,11 @@ export class HubtaskClient {
     return this.call("GET", "/sla-report", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** How many of the deadlines on my own tickets I kept */
+  readMyDeadlinesKept(options: CallOptions & { readonly query?: NonNullable<operations["readMyDeadlinesKept"]['parameters']['query']> } = {}): Promise<operations["readMyDeadlinesKept"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/deadlines-kept", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Who raised the entry, and their organisation */
   readEntryRequester(itemId: string, options: CallOptions = {}): Promise<operations["readEntryRequester"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/requester", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -2662,6 +2662,11 @@ var generatedCommands = []door{
 			{Name: "priority_field", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"key", "name", "version"}},
+	{Group: "sla", Verb: "kept", OperationID: "readMyDeadlinesKept", Method: "GET", Path: "/deadlines-kept", Summary: "How many of the deadlines on my own tickets I kept",
+		Query: []doorParam{
+			{Name: "days", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"kind"}},
 	{Group: "sla", Verb: "ls", OperationID: "listSlaPolicies", Method: "GET", Path: "/sla-policies", Summary: "The workspace's SLA policies",
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name", "version"}},
 	{Group: "sla", Verb: "report", OperationID: "reportSla", Method: "GET", Path: "/sla-report", Summary: "How the SLA goals of a period stood",

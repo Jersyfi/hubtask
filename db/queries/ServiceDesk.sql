@@ -353,3 +353,30 @@ WHERE id = sqlc.arg('collection_id')::uuid AND type = 'COLLECTION' AND deleted_a
 -- row's version and its updated_at stay. NULL takes it away.
 UPDATE container SET logo_media_id = sqlc.narg('logo_media_id')
 WHERE id = sqlc.arg('collection_id')::uuid AND type = 'COLLECTION' AND deleted_at IS NULL;
+
+-- The requester's goals on the entries assigned to one person that ended - met or breached - in a
+-- window, per goal, and how many were kept (UC-SVC-02 check 15).
+-- name: MyDeadlinesKeptSla :many
+SELECT s.goal, count(*)::bigint AS ended,
+       count(*) FILTER (WHERE s.standing = 'MET' AND s.breached_at IS NULL)::bigint AS kept
+FROM entry_sla s
+JOIN work_item w ON w.tenant_id = s.tenant_id AND w.id = s.item_id
+WHERE w.assignee_id = sqlc.arg('account_id') AND w.deleted_at IS NULL
+  AND s.standing IN ('MET', 'BREACHED')
+  AND coalesce(s.breached_at, s.met_at) >= sqlc.arg('from')
+  AND coalesce(s.breached_at, s.met_at) < sqlc.arg('to')
+GROUP BY s.goal
+ORDER BY s.goal;
+
+-- The teams' OLA goals likewise, per group and goal.
+-- name: MyDeadlinesKeptOla :many
+SELECT o.group_id, o.goal, count(*)::bigint AS ended,
+       count(*) FILTER (WHERE o.standing = 'MET' AND o.breached_at IS NULL)::bigint AS kept
+FROM entry_ola o
+JOIN work_item w ON w.tenant_id = o.tenant_id AND w.id = o.item_id
+WHERE w.assignee_id = sqlc.arg('account_id') AND w.deleted_at IS NULL
+  AND o.standing IN ('MET', 'BREACHED')
+  AND coalesce(o.breached_at, o.met_at) >= sqlc.arg('from')
+  AND coalesce(o.breached_at, o.met_at) < sqlc.arg('to')
+GROUP BY o.group_id, o.goal
+ORDER BY o.group_id, o.goal;

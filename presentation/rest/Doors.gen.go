@@ -527,6 +527,7 @@ var restDoors = map[string]restDoor{
 	"readInstanceSettings":              {UseCase: "ReadInstanceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readInvitationDeliveries":          {UseCase: "ReadInvitationDeliveries", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readKudos":                         {UseCase: "ReadKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readMyDeadlinesKept":               {UseCase: "ReadMyDeadlinesKept", Status: 200, Query: []string{"days"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"days"}},
 	"readMyRequest":                     {UseCase: "ReadMyRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readOauthClient":                   {UseCase: "ReadOauthClient", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readOwnAiPosition":                 {UseCase: "ReadOwnAiPosition", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -4190,6 +4191,12 @@ func (c *RestController) ReadInvitationDeliveries(w http.ResponseWriter, r *http
 // ReadKudos answers GET /items/{itemId}/kudos by the generated mapping.
 func (c *RestController) ReadKudos(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId) {
 	c.door(w, r, restDoors["readKudos"], usecase.Input{"item_id": itemId.String()}, nil, nil, answerBy(kudosResponse))
+}
+
+// ReadMyDeadlinesKept answers GET /deadlines-kept by the generated mapping.
+func (c *RestController) ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request, params openapi.ReadMyDeadlinesKeptParams) {
+	var answer openapi.DeadlinesKept
+	c.door(w, r, restDoors["readMyDeadlinesKept"], usecase.Input{}, params, nil, &answer)
 }
 
 // ReadMyRequest answers GET /requests/{itemId} by the generated mapping.

@@ -2320,6 +2320,9 @@ func (pending) DefineSlaPolicy(w http.ResponseWriter, r *http.Request, _ string,
 func (pending) ReportSla(w http.ResponseWriter, r *http.Request, _ openapi.ReportSlaParams) {
 	notAvailable(w, r)
 }
+func (pending) ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request, _ openapi.ReadMyDeadlinesKeptParams) {
+	notAvailable(w, r)
+}
 func (pending) GetDeskLogo(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
 	notAvailable(w, r)
 }

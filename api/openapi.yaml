@@ -3760,6 +3760,29 @@ paths:
               schema: { $ref: "#/components/schemas/SlaReport" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /deadlines-kept:
+    get:
+      tags: [servicedesk]
+      operationId: readMyDeadlinesKept
+      x-hubtask-rest: generated
+      x-hubtask-cli: "sla kept"
+      summary: How many of the deadlines on my own tickets I kept
+      description: >
+        For the signed-in person, over the entries assigned to them: the deadlines that ended in the
+        window - met or breached -, per kind - the requester's goals (first response, next response,
+        resolution) and each team's OLA by its group and goal - with how many were kept. Never
+        another person's; no report permission needed. The window ends now and reaches back `days`
+        days, 30 when left out.
+      parameters:
+        - { name: days, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 365 } }
+      responses:
+        "200":
+          description: The deadlines kept
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeadlinesKept" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /items/{itemId}/requester:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -31771,6 +31794,25 @@ components:
               goal: { type: string, enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION] }
               standing: { type: string, enum: [RUNNING, PAUSED, MET, BREACHED] }
               entries: { type: integer }
+
+    DeadlinesKept:
+      type: object
+      required: [from, to, data]
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        data:
+          type: array
+          description: One row per kind that ended in the window, the requester's goals first, then each group's.
+          items:
+            type: object
+            required: [kind, goal, group_id, ended, kept]
+            properties:
+              kind: { type: string, enum: [SLA, OLA] }
+              goal: { type: string, enum: [FIRST_RESPONSE, NEXT_RESPONSE, RESOLUTION] }
+              group_id: { type: [string, "null"], format: uuid, description: "The team an OLA is the group's of; null for the requester's goals." }
+              ended: { type: integer, description: "Deadlines of the kind that were met or breached in the window." }
+              kept: { type: integer, description: "Of them, met without being breached." }
 
     LinkType:
       type: object

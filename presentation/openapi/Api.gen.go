@@ -4429,6 +4429,45 @@ func (e DeadLetterState) Valid() bool {
 	}
 }
 
+// Defines values for DeadlinesKeptDataGoal.
+const (
+	DeadlinesKeptDataGoalFIRSTRESPONSE DeadlinesKeptDataGoal = "FIRST_RESPONSE"
+	DeadlinesKeptDataGoalNEXTRESPONSE  DeadlinesKeptDataGoal = "NEXT_RESPONSE"
+	DeadlinesKeptDataGoalRESOLUTION    DeadlinesKeptDataGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataGoal enum.
+func (e DeadlinesKeptDataGoal) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataGoalFIRSTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalNEXTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeadlinesKeptDataKind.
+const (
+	DeadlinesKeptDataKindOLA DeadlinesKeptDataKind = "OLA"
+	DeadlinesKeptDataKindSLA DeadlinesKeptDataKind = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataKind enum.
+func (e DeadlinesKeptDataKind) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataKindOLA:
+		return true
+	case DeadlinesKeptDataKindSLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -16869,6 +16908,31 @@ type DeadLetterPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// DeadlinesKept defines model for DeadlinesKept.
+type DeadlinesKept struct {
+	// Data One row per kind that ended in the window, the requester's goals first, then each group's.
+	Data []struct {
+		// Ended Deadlines of the kind that were met or breached in the window.
+		Ended int                   `json:"ended"`
+		Goal  DeadlinesKeptDataGoal `json:"goal"`
+
+		// GroupId The team an OLA is the group's of; null for the requester's goals.
+		GroupId *openapi_types.UUID `json:"group_id"`
+
+		// Kept Of them, met without being breached.
+		Kept int                   `json:"kept"`
+		Kind DeadlinesKeptDataKind `json:"kind"`
+	} `json:"data"`
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// DeadlinesKeptDataGoal defines model for DeadlinesKept.Data.Goal.
+type DeadlinesKeptDataGoal string
+
+// DeadlinesKeptDataKind defines model for DeadlinesKept.Data.Kind.
+type DeadlinesKeptDataKind string
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -28458,6 +28522,11 @@ type UpdateDashboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ReadMyDeadlinesKeptParams defines parameters for ReadMyDeadlinesKept.
+type ReadMyDeadlinesKeptParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
 // RemoveLdapDirectoryParams defines parameters for RemoveLdapDirectory.
 type RemoveLdapDirectoryParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -33001,6 +33070,9 @@ type ServerInterface interface {
 	// ReadDashboardFigures A dashboard's numbers, for the caller
 	// (GET /dashboards/{dashboardId}/figures)
 	ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
+	// (GET /deadlines-kept)
+	ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request, params ReadMyDeadlinesKeptParams)
 	// RemoveLdapDirectory Stop synchronising from the LDAP directory
 	// (DELETE /directory/ldap)
 	RemoveLdapDirectory(w http.ResponseWriter, r *http.Request, params RemoveLdapDirectoryParams)
@@ -45663,6 +45735,39 @@ func (siw *ServerInterfaceWrapper) ReadDashboardFigures(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadDashboardFigures(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadMyDeadlinesKept operation middleware
+func (siw *ServerInterfaceWrapper) ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ReadMyDeadlinesKeptParams
+
+	// ------------- Optional query parameter "days" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "days", r.URL.Query(), &params.Days, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "days"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "days", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadMyDeadlinesKept(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -63252,6 +63357,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/sla-policies/{policyKey}", wrapper.DefineSlaPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/sla-policies/{policyKey}:copy-here", wrapper.CopySlaPolicyHere)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/sla-report", wrapper.ReportSla)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/deadlines-kept", wrapper.ReadMyDeadlinesKept)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/requester", wrapper.ReadEntryRequester)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/sla", wrapper.ReadEntrySla)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requester-organisations", wrapper.ListRequesterOrganisations)

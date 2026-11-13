@@ -4435,6 +4435,45 @@ func (e DeadLetterState) Valid() bool {
 	}
 }
 
+// Defines values for DeadlinesKeptDataGoal.
+const (
+	DeadlinesKeptDataGoalFIRSTRESPONSE DeadlinesKeptDataGoal = "FIRST_RESPONSE"
+	DeadlinesKeptDataGoalNEXTRESPONSE  DeadlinesKeptDataGoal = "NEXT_RESPONSE"
+	DeadlinesKeptDataGoalRESOLUTION    DeadlinesKeptDataGoal = "RESOLUTION"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataGoal enum.
+func (e DeadlinesKeptDataGoal) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataGoalFIRSTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalNEXTRESPONSE:
+		return true
+	case DeadlinesKeptDataGoalRESOLUTION:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DeadlinesKeptDataKind.
+const (
+	DeadlinesKeptDataKindOLA DeadlinesKeptDataKind = "OLA"
+	DeadlinesKeptDataKindSLA DeadlinesKeptDataKind = "SLA"
+)
+
+// Valid indicates whether the value is a known member of the DeadlinesKeptDataKind enum.
+func (e DeadlinesKeptDataKind) Valid() bool {
+	switch e {
+	case DeadlinesKeptDataKindOLA:
+		return true
+	case DeadlinesKeptDataKindSLA:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DependencyHealthCircuitState.
 const (
 	DependencyHealthCircuitStateClosed      DependencyHealthCircuitState = "closed"
@@ -16875,6 +16914,31 @@ type DeadLetterPage struct {
 	Page PageInfo     `json:"page"`
 }
 
+// DeadlinesKept defines model for DeadlinesKept.
+type DeadlinesKept struct {
+	// Data One row per kind that ended in the window, the requester's goals first, then each group's.
+	Data []struct {
+		// Ended Deadlines of the kind that were met or breached in the window.
+		Ended int                   `json:"ended"`
+		Goal  DeadlinesKeptDataGoal `json:"goal"`
+
+		// GroupId The team an OLA is the group's of; null for the requester's goals.
+		GroupId *openapi_types.UUID `json:"group_id"`
+
+		// Kept Of them, met without being breached.
+		Kept int                   `json:"kept"`
+		Kind DeadlinesKeptDataKind `json:"kind"`
+	} `json:"data"`
+	From time.Time `json:"from"`
+	To   time.Time `json:"to"`
+}
+
+// DeadlinesKeptDataGoal defines model for DeadlinesKept.Data.Goal.
+type DeadlinesKeptDataGoal string
+
+// DeadlinesKeptDataKind defines model for DeadlinesKept.Data.Kind.
+type DeadlinesKeptDataKind string
+
 // DegradedFeature defines model for DegradedFeature.
 type DegradedFeature struct {
 	Feature    string    `json:"feature"`
@@ -28464,6 +28528,11 @@ type UpdateDashboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ReadMyDeadlinesKeptParams defines parameters for ReadMyDeadlinesKept.
+type ReadMyDeadlinesKeptParams struct {
+	Days *int `form:"days,omitempty" json:"days,omitempty"`
+}
+
 // RemoveLdapDirectoryParams defines parameters for RemoveLdapDirectory.
 type RemoveLdapDirectoryParams struct {
 	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
@@ -36962,6 +37031,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
+	//
+	// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+	//
+	// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+	ReadMyDeadlinesKept(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveLdapDirectory Stop synchronising from the LDAP directory
 	//
@@ -53540,6 +53616,23 @@ func (c *Client) SetDashboardDigest(ctx context.Context, dashboardId DashboardId
 // Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 func (c *Client) ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadDashboardFiguresRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
+//
+// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+//
+// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+func (c *Client) ReadMyDeadlinesKept(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadMyDeadlinesKeptRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -83489,6 +83582,60 @@ func NewReadDashboardFiguresRequest(server string, dashboardId DashboardId) (*ht
 	return req, nil
 }
 
+// NewReadMyDeadlinesKeptRequest constructs an http.Request for the ReadMyDeadlinesKept method
+func NewReadMyDeadlinesKeptRequest(server string, params *ReadMyDeadlinesKeptParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/deadlines-kept")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Days != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "days", *params.Days, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRemoveLdapDirectoryRequest constructs an http.Request for the RemoveLdapDirectory method
 func NewRemoveLdapDirectoryRequest(server string, params *RemoveLdapDirectoryParams) (*http.Request, error) {
 	var err error
@@ -113057,6 +113204,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardFiguresResult, error)
 
+	// ReadMyDeadlinesKeptWithResponse How many of the deadlines on my own tickets I kept
+	//
+	// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+	ReadMyDeadlinesKeptWithResponse(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*ReadMyDeadlinesKeptResult, error)
+
 	// RemoveLdapDirectoryWithResponse Stop synchronising from the LDAP directory
 	//
 	// The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
@@ -136964,6 +137120,54 @@ func (r ReadDashboardFiguresResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadDashboardFiguresResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadMyDeadlinesKeptResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeadlinesKept
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadMyDeadlinesKeptResult) GetJSON200() *DeadlinesKept {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadMyDeadlinesKeptResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadMyDeadlinesKeptResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadMyDeadlinesKeptResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadMyDeadlinesKeptResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadMyDeadlinesKeptResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -170119,6 +170323,21 @@ func (c *ClientWithResponses) ReadDashboardFiguresWithResponse(ctx context.Conte
 	return ParseReadDashboardFiguresResult(rsp)
 }
 
+// ReadMyDeadlinesKeptWithResponse How many of the deadlines on my own tickets I kept
+//
+// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /deadlines-kept (the `ReadMyDeadlinesKept` operationId).
+func (c *ClientWithResponses) ReadMyDeadlinesKeptWithResponse(ctx context.Context, params *ReadMyDeadlinesKeptParams, reqEditors ...RequestEditorFn) (*ReadMyDeadlinesKeptResult, error) {
+	rsp, err := c.ReadMyDeadlinesKept(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadMyDeadlinesKeptResult(rsp)
+}
+
 // RemoveLdapDirectoryWithResponse Stop synchronising from the LDAP directory
 //
 // The configuration and its sealed password go and no run follows. The people and groups it provisioned stay as they are, with their roles. Needs a fresh step-up. Auditable.
@@ -193576,6 +193795,39 @@ func ParseReadDashboardFiguresResult(rsp *http.Response) (*ReadDashboardFiguresR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest DashboardFigures
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadMyDeadlinesKeptResult parses an HTTP response from a ReadMyDeadlinesKeptWithResponse call
+func ParseReadMyDeadlinesKeptResult(rsp *http.Response) (*ReadMyDeadlinesKeptResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadMyDeadlinesKeptResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeadlinesKept
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
