@@ -834,7 +834,8 @@
 
       <div class="hits">
         <div class="head">
-          <p class="count"><b>{t('app.search.count', { count: shownCount })}</b> <span>{t('app.search.count_where')}</span></p>
+          <!-- A phone says the count once, beside its filters' sheet. -->
+          {#if !viewport.isCompact}<p class="count"><b>{t('app.search.count', { count: shownCount })}</b> <span>{t('app.search.count_where')}</span></p>{/if}
           <div class="tools">
             <div class="orders" role="group" aria-label={t('app.search.order')}>
               {#each ['RELEVANCE', 'UPDATED', 'CREATED'] as const as each (each)}
