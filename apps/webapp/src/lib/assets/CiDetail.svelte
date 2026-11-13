@@ -12,7 +12,7 @@
   import { placeMark } from '../workspace/PlaceMark.svelte';
 
   import { untrack } from 'svelte';
-  import { Badge, Banner, Button, Checkbox, DataTable, DetailPage, Input, PageHeader, Select, Spinner, Stack, Textarea, type DataColumn, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Banner, Breadcrumb, Button, Checkbox, DataTable, DetailPage, Input, ObjectHead, Select, StateLozenge, Spinner, Stack, Textarea, type DataColumn, type SelectOption } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { CiBacklinkList, CiClass, CiCompliance, CiImpact, CiRelationType, ConfigurationItem, ConfigurationItemList } from '@hubtask/sync-engine';
 
@@ -27,7 +27,7 @@
   import { backlinkHref } from '../data/whiteboards.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import AttributeField from './AttributeField.svelte';
@@ -274,34 +274,24 @@
 
 <DetailPage>
   {#snippet top()}
-  <PageHeader
+  <!-- One head for every object (WB-1): the class with the inventory's tile, the name, the stage
+       and state said rather than offered, the next review as its day; the body is the inventory's. -->
+  <ObjectHead
+    objectKey={{ label: classWord(ci.class, classes, words), icon: 'shield', product: 'assets' }}
+    meta={ci.last_seen_at ? t('app.assets.last_seen', { when: when(ci.last_seen_at) }) : t('app.assets.never_seen')}
     title={ci.name}
-    subtitle={classWord(ci.class, classes, words)}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={hub
-      ? {
-          trail: [
-            { id: hub.id, label: hub.name, href: `/hubs/${hub.id}` },
-            { id: 'assets', label: t('app.assets.title'), href: `/hubs/${hub.id}/assets` },
-            { id: 'ci', label: ci.name },
-          ],
-          mark: placeMark,
-          label: t('app.assets.trail'),
-          expandLabel: t('app.admin.expand_trail'),
-          onnavigate: (id) => onnavigate(id === hub.id ? `/hubs/${hub.id}` : `/hubs/${hub.id}/assets`),
-        }
-      : undefined}
-    secondary={[{ label: t('app.assets.copy_reference'), icon: 'link', onclick: () => void copyReference() }]}
+    titleLabel={classWord(ci.class, classes, words)}
+    secondary={{ label: t('app.assets.copy_reference'), onclick: () => void copyReference() }}
+    due={ci.review_due ? { label: t('app.assets.review_on', { day: formatPlainDay(ci.review_due, messages.locale) }) } : undefined}
+    trail={hub && !viewport.isCompact ? ciTrail : undefined}
   >
-    {#snippet figure()}
-      <!-- The lifecycle and the state are said, not offered: badges without a control's look. -->
+    {#snippet status()}
       <span class="facts">
-        <Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>
-        {#if ci.status !== 'OK'}<Badge size="sm" tone="warning">{t(`app.assets.status.${ci.status}`)}</Badge>{/if}
-        <span class="meta">{ci.last_seen_at ? t('app.assets.last_seen', { when: when(ci.last_seen_at) }) : t('app.assets.never_seen')}</span>
+        <StateLozenge label={t(`app.assets.stage.${ci.stage}`)} />
+        {#if ci.status !== 'OK'}<StateLozenge tone="warning" label={t(`app.assets.status.${ci.status}`)} />{/if}
       </span>
     {/snippet}
-  </PageHeader>
+  </ObjectHead>
   {/snippet}
 
   {#if ci.merged_into}
@@ -513,6 +503,23 @@
   </section>
 </DetailPage>
 
+{#snippet ciTrail()}
+  {#if hub}
+    {@const at = hub}
+    <Breadcrumb
+      label={t('app.assets.trail')}
+      trail={[
+        { id: at.id, label: at.name, href: `/hubs/${at.id}` },
+        { id: 'assets', label: t('app.assets.title'), href: `/hubs/${at.id}/assets` },
+        { id: 'ci', label: ci.name },
+      ]}
+      mark={placeMark}
+      expandLabel={t('app.admin.expand_trail')}
+      onnavigate={(id) => onnavigate(id === at.id ? `/hubs/${at.id}` : `/hubs/${at.id}/assets`)}
+    />
+  {/if}
+{/snippet}
+
 <style>
   .part { display: grid; gap: var(--sp-100); }
   .part-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--sp-100); }
@@ -550,10 +557,9 @@
     background: var(--bg-surface);
   }
   .row a { color: var(--text-primary); font-weight: var(--fw-medium); }
-  .facts { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); align-items: baseline; }
+  .facts { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); align-items: center; }
   .relate, .buttons { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
   .buttons { justify-content: flex-end; }
   .protection { display: grid; gap: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); padding: var(--sp-100) var(--sp-150); margin: 0; }
   .dimension { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
-  .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>

@@ -11706,6 +11706,7 @@
   "app.assets.location": "Standort",
   "app.assets.no_location": "Kein Standort",
   "app.assets.review_due": "Nächste Prüfung",
+  "app.assets.review_on": "Prüfung {day}",
   "app.assets.quantity": "Anzahl",
   "app.assets.no_owner": "Niemand verantwortlich",
   "app.assets.protection": "Schutzbedarf",

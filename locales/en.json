@@ -11706,6 +11706,7 @@
   "app.assets.location": "Location",
   "app.assets.no_location": "No location",
   "app.assets.review_due": "Next review",
+  "app.assets.review_on": "Review {day}",
   "app.assets.quantity": "Quantity",
   "app.assets.no_owner": "No owner",
   "app.assets.protection": "Protection need",
