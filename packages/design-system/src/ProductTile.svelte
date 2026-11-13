@@ -1,5 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
+<script module lang="ts">
+  /** The eight products with a colour of their own (`product.<id>` in tokens.json, WB-2). */
+  export type ProductId = 'plans' | 'pages' | 'whiteboards' | 'desk' | 'assets' | 'time' | 'goals' | 'agents';
+</script>
+
 <script lang="ts">
   // A product's mark, or a place's chosen symbol, on its label tile (design-system.md §4, wave 5;
   // §11.3): the label's measured pair, its ink on its tile, so the symbol keeps the contrast the
@@ -11,17 +16,25 @@
 
   interface Props {
     icon: IconName;
-    /** One of the ten label tokens; anything else draws the plain mark without a tile. */
+    /** One of the ten label tokens, or `brand`; anything else draws the plain mark without a tile. */
     color?: string;
-    /** `sm` is the breadcrumb's step; `md` the sidebar's mark cell. */
-    size?: 'sm' | 'md';
+    /**
+     * A product's own colour through its alias token, which wins over `color`: inside a product
+     * the tile names the product, so no component picks its label colour itself.
+     */
+    product?: ProductId;
+    /**
+     * `sm` is the breadcrumb's step and an object's key; `md` the sidebar's mark cell; `lg` a
+     * widget's head; `xl` a product home's band.
+     */
+    size?: 'sm' | 'md' | 'lg' | 'xl';
   }
 
-  const { icon, color, size = 'md' }: Props = $props();
-  const token = $derived((labelTokens as readonly string[]).includes(color ?? '') ? (color as LabelToken) : undefined);
+  const { icon, color, product, size = 'md' }: Props = $props();
+  const token = $derived(color === 'brand' || (labelTokens as readonly string[]).includes(color ?? '') ? (color as LabelToken | 'brand') : undefined);
 </script>
 
-<span class="tile" data-token={token} data-size={size} aria-hidden="true"><Icon name={icon} size="sm" /></span>
+<span class="tile" data-token={product ? undefined : token} data-product={product} data-size={size} aria-hidden="true"><Icon name={icon} size="sm" /></span>
 
 <style>
   .tile {
@@ -50,6 +63,40 @@
     inline-size: var(--fs-050);
     block-size: var(--fs-050);
   }
+
+  .tile[data-size='lg'] {
+    inline-size: var(--sp-400);
+    block-size: var(--sp-400);
+    border-radius: var(--r-md);
+  }
+
+  .tile[data-size='lg'] :global(.icon) {
+    inline-size: var(--sp-200);
+    block-size: var(--sp-200);
+  }
+
+  .tile[data-size='xl'] {
+    inline-size: var(--sp-500);
+    block-size: var(--sp-500);
+    border-radius: var(--r-lg);
+  }
+
+  .tile[data-size='xl'] :global(.icon) {
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+  }
+
+  .tile[data-product='plans'] { --tile-bg: var(--product-plans-surface); --tile-fg: var(--product-plans-ink); }
+  .tile[data-product='pages'] { --tile-bg: var(--product-pages-surface); --tile-fg: var(--product-pages-ink); }
+  .tile[data-product='whiteboards'] { --tile-bg: var(--product-whiteboards-surface); --tile-fg: var(--product-whiteboards-ink); }
+  .tile[data-product='desk'] { --tile-bg: var(--product-desk-surface); --tile-fg: var(--product-desk-ink); }
+  .tile[data-product='assets'] { --tile-bg: var(--product-assets-surface); --tile-fg: var(--product-assets-ink); }
+  .tile[data-product='time'] { --tile-bg: var(--product-time-surface); --tile-fg: var(--product-time-ink); }
+  .tile[data-product='goals'] { --tile-bg: var(--product-goals-surface); --tile-fg: var(--product-goals-ink); }
+  .tile[data-product='agents'] { --tile-bg: var(--product-agents-surface); --tile-fg: var(--product-agents-ink); }
+
+  /* The work of a collection is the reader's own, not a product's: the brand's tint. */
+  .tile[data-token='brand'] { --tile-bg: var(--accent-primary-subtle); --tile-fg: var(--text-brand); }
 
   .tile[data-token='slate'] { --tile-bg: var(--label-slate-bg); --tile-fg: var(--label-slate-fg); }
   .tile[data-token='blue'] { --tile-bg: var(--label-blue-bg); --tile-fg: var(--label-blue-fg); }
