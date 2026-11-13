@@ -64,6 +64,26 @@ func (n Names) EntryComments(ctx context.Context, a searchrepo.Ask) ([]searchrep
 	return n.all(ctx, a)
 }
 
+// PageFiles answers the candidates.
+func (n Names) PageFiles(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
+// PageComments answers the candidates.
+func (n Names) PageComments(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
+// WhiteboardFiles answers the candidates.
+func (n Names) WhiteboardFiles(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
+// WhiteboardComments answers the candidates.
+func (n Names) WhiteboardComments(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
 // UnitOfWork calls through.
 type UnitOfWork struct{}
 

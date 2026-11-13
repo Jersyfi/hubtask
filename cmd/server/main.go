@@ -2738,8 +2738,16 @@ func run() error {
 			searchservice.KindDashboard:  goalservice.DashboardFinder{Steward: steward, Names: searchNames},
 			searchservice.KindAsset:      cmdbservice.Finder{Inventory: inventory, Reader: authorizer, Names: searchNames},
 			searchservice.KindPerson:     identity.PeopleFinder{Members: authorizer, Names: searchNames, UnitOfWork: unitOfWork},
-			searchservice.KindFile:       work.OnEntries{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork},
-			searchservice.KindComment:    work.OnEntries{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork, Comments: true},
+			searchservice.KindFile: searchservice.Together{
+				work.OnEntries{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork},
+				knowledgeservice.OnPages{Space: pageSpace, Names: searchNames},
+				whiteboardservice.OnBoards{Studio: boardStudio, Names: searchNames},
+			},
+			searchservice.KindComment: searchservice.Together{
+				work.OnEntries{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork, Comments: true},
+				knowledgeservice.OnPages{Space: pageSpace, Names: searchNames, Comments: true},
+				whiteboardservice.OnBoards{Studio: boardStudio, Names: searchNames, Comments: true},
+			},
 		}}.Descriptor(),
 		chatbotservice.ListChatBots{Bots: chatBots}.Descriptor(),
 		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),

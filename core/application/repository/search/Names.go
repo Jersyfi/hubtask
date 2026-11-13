@@ -30,7 +30,7 @@ type Row struct {
 	HubID shared.ID
 	// CollectionID is the collection of the entry a file or comment is on.
 	CollectionID shared.ID
-	// OnID is the entry a file or comment is on.
+	// OnID is the entry, page or board a file or comment is on.
 	OnID shared.ID
 	// OwnerID, Sharing and GroupIDs are a dashboard's, for the question who sees it.
 	OwnerID  shared.ID
@@ -57,4 +57,11 @@ type Names interface {
 	People(ctx context.Context, ask Ask) ([]Row, error)
 	EntryFiles(ctx context.Context, ask Ask) ([]Row, error)
 	EntryComments(ctx context.Context, ask Ask) ([]Row, error)
+	// PageFiles and PageComments are on living pages, OnID the page; a comment's Title is the
+	// page's.
+	PageFiles(ctx context.Context, ask Ask) ([]Row, error)
+	PageComments(ctx context.Context, ask Ask) ([]Row, error)
+	// WhiteboardFiles and WhiteboardComments are on living boards, OnID the board.
+	WhiteboardFiles(ctx context.Context, ask Ask) ([]Row, error)
+	WhiteboardComments(ctx context.Context, ask Ask) ([]Row, error)
 }

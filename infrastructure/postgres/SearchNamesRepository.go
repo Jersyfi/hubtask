@@ -267,3 +267,72 @@ func (SearchNamesRepository) EntryComments(ctx context.Context, ask repository.A
 		}, nil
 	})
 }
+
+// onRow is a file or comment found on a page or a board.
+func onRow(id, on, hub pgtype.UUID, title, tile, text string, at pgtype.Timestamptz) (repository.Row, error) {
+	own, place, err := hitIDs(id, on, hub)
+	if err != nil {
+		return repository.Row{}, err
+	}
+	return repository.Row{ID: own, OnID: place[0], HubID: place[1], Title: title, Tile: tile, Text: text, UpdatedAt: optionalTime(at)}, nil
+}
+
+// PageFiles answers the files on living pages by their names.
+func (SearchNamesRepository) PageFiles(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, hub, batch, err := searchArgs(ctx, ask)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchPageFileNames(ctx, sqlc.SearchPageFileNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("page files", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchPageFileNamesRow) (repository.Row, error) {
+		return onRow(r.ID, r.PageID, r.HubID, r.FileName, r.MimeType, "", r.CreatedAt)
+	})
+}
+
+// PageComments answers the comments on living pages by their words.
+func (SearchNamesRepository) PageComments(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, hub, batch, err := searchArgs(ctx, ask)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchPageComments(ctx, sqlc.SearchPageCommentsParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("page comments", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchPageCommentsRow) (repository.Row, error) {
+		return onRow(r.ID, r.PageID, r.HubID, r.PageTitle, "", r.Body, r.ChangedAt)
+	})
+}
+
+// WhiteboardFiles answers the files on living boards by their names.
+func (SearchNamesRepository) WhiteboardFiles(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, hub, batch, err := searchArgs(ctx, ask)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchWhiteboardFileNames(ctx, sqlc.SearchWhiteboardFileNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("whiteboard files", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchWhiteboardFileNamesRow) (repository.Row, error) {
+		return onRow(r.ID, r.WhiteboardID, r.HubID, r.FileName, r.MimeType, "", r.CreatedAt)
+	})
+}
+
+// WhiteboardComments answers the comments on living boards by their words.
+func (SearchNamesRepository) WhiteboardComments(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, hub, batch, err := searchArgs(ctx, ask)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchWhiteboardComments(ctx, sqlc.SearchWhiteboardCommentsParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("whiteboard comments", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchWhiteboardCommentsRow) (repository.Row, error) {
+		return onRow(r.ID, r.WhiteboardID, r.HubID, r.WhiteboardTitle, "", r.Body, r.ChangedAt)
+	})
+}

@@ -9,7 +9,11 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
+	searchrepo "github.com/Jersyfi/hubtask/core/application/repository/search"
 	"github.com/Jersyfi/hubtask/core/application/service/search"
+	st "github.com/Jersyfi/hubtask/core/application/service/search/searchtest"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
@@ -82,5 +86,31 @@ func TestThePageKeysReachThePageSearch(t *testing.T) {
 				t.Errorf("asked %+v", asked)
 			}
 		})
+	}
+}
+
+// UC-WRK-18 check 9: a file or comment on a page is found only where the reader may read the page
+// - its space, and a restriction that names them -, the passage marked in a comment.
+func TestWhatIsOnAPageIsFoundWhereThePageIsRead(t *testing.T) {
+	f := newFixture()
+	open, closed, restricted := shared.ID("0192f000-0000-7000-8000-0000000009b1"), shared.ID("0192f000-0000-7000-8000-0000000009b2"), shared.ID("0192f000-0000-7000-8000-0000000009b3")
+	f.store.pages[open] = domain.Page{ID: open, HubID: hub}
+	f.store.pages[closed] = domain.Page{ID: closed, HubID: private}
+	f.store.pages[restricted] = domain.Page{ID: restricted, HubID: hub, Restricted: true}
+	f.store.restrictedTo[restricted] = []shared.ID{anna}
+	row := func(id, on, place shared.ID) searchrepo.Row {
+		return searchrepo.Row{ID: id, OnID: on, HubID: place, Title: "Travel policy", Text: "see the travel budget"}
+	}
+	names := st.Names{Rows: []searchrepo.Row{
+		row("0192f000-0000-7000-8000-0000000009c1", open, hub),
+		row("0192f000-0000-7000-8000-0000000009c2", closed, private),
+		row("0192f000-0000-7000-8000-0000000009c3", restricted, hub),
+	}}
+	found, err := OnPages{Space: f.space, Names: names, Comments: true}.Find(context.Background(), as(bert), search.Question{Terms: []string{"budget"}, Size: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Count != 1 || found.Hits[0].OnID != open || found.Hits[0].OnKind != search.KindPage || found.Hits[0].Snippet != "see the travel «budget»" {
+		t.Fatalf("found %+v, want the comment on the open page alone", found)
 	}
 }

@@ -10,6 +10,7 @@ package search
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -384,7 +385,8 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 			"each hit with its kind, title, place, tile, the passage that matched where there is " +
 			"one and its state, grouped by kind and best first within a kind, at most size per " +
 			"kind; facets counts each kind's hits the caller may read, a count with more being a " +
-			"lower bound. People are found by their display name only, files by their name only. " +
+			"lower bound. People are found by their display name only, files by their name only; " +
+			"files and comments on entries, pages and whiteboards, where the caller reads what they are on. " +
 			"Among equally good pages a verified one comes first. q is a Hubtask query: its free " +
 			"words are searched, its keys narrow - a key of one kind (asset.class, asset.stage, " +
 			"asset.owner, asset.location, asset.tag, page.verified, page.owner, goal.state) keeps the " +
@@ -432,3 +434,27 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 	}
 }
 
+// Together is one kind found in several places - files and comments on entries, pages and
+// boards - each by its own finder and read rule: the counts add up, and the hits are the latest
+// first, at most Size.
+type Together []Finder
+
+// Find asks every finder.
+func (t Together) Find(ctx context.Context, actor appshared.ActorContext, q Question) (Found, error) {
+	var all Found
+	for _, finder := range t {
+		found, err := finder.Find(ctx, actor, q)
+		if err != nil {
+			return Found{}, err
+		}
+		all.Count += found.Count
+		all.More = all.More || found.More
+		all.Hits = append(all.Hits, found.Hits...)
+	}
+	sort.SliceStable(all.Hits, func(i, j int) bool {
+		a, b := all.Hits[i].UpdatedAt, all.Hits[j].UpdatedAt
+		return a != nil && (b == nil || a.After(*b))
+	})
+	all.Hits = all.Hits[:min(len(all.Hits), q.Size)]
+	return all, nil
+}

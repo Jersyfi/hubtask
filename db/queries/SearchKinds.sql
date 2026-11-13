@@ -112,3 +112,56 @@ WHERE cm.tenant_id = current_tenant_id() AND cm.deleted_at IS NULL AND cm.kind =
   AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(cm.body), t) = 0)
 ORDER BY changed_at DESC, cm.id
 LIMIT sqlc.arg('batch');
+
+-- name: SearchPageFileNames :many
+-- The files on living pages by their names; a file's contents are not searched.
+SELECT m.id, m.file_name::text AS file_name, m.mime_type, m.created_at, p.id AS page_id, p.hub_id,
+       coalesce(strpos(lower(m.file_name), (sqlc.arg('terms')::text[])[1]) = 1, false) AS leads
+FROM page_media pm
+JOIN media_object m ON m.tenant_id = pm.tenant_id AND m.id = pm.media_id
+JOIN page p ON p.tenant_id = pm.tenant_id AND p.id = pm.page_id
+WHERE pm.tenant_id = current_tenant_id() AND m.deleted_at IS NULL AND m.file_name IS NOT NULL
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR p.hub_id = sqlc.narg('hub_id')::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(m.file_name), t) = 0)
+ORDER BY leads DESC, m.created_at DESC, m.id
+LIMIT sqlc.arg('batch');
+
+-- name: SearchPageComments :many
+-- The comments on living pages by their words; a comment taken back is not searched.
+SELECT pc.id, pc.body, coalesce(pc.edited_at, pc.created_at)::timestamptz AS changed_at, p.id AS page_id,
+       p.title AS page_title, p.hub_id
+FROM page_comment pc
+JOIN page p ON p.tenant_id = pc.tenant_id AND p.id = pc.page_id
+WHERE pc.tenant_id = current_tenant_id() AND pc.deleted_at IS NULL
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR p.hub_id = sqlc.narg('hub_id')::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(pc.body), t) = 0)
+ORDER BY changed_at DESC, pc.id
+LIMIT sqlc.arg('batch');
+
+-- name: SearchWhiteboardFileNames :many
+-- The files on living whiteboards by their names; a file's contents are not searched.
+SELECT m.id, m.file_name::text AS file_name, m.mime_type, m.created_at, w.id AS whiteboard_id, w.hub_id,
+       coalesce(strpos(lower(m.file_name), (sqlc.arg('terms')::text[])[1]) = 1, false) AS leads
+FROM whiteboard_media wm
+JOIN media_object m ON m.tenant_id = wm.tenant_id AND m.id = wm.media_id
+JOIN whiteboard w ON w.tenant_id = wm.tenant_id AND w.id = wm.whiteboard_id
+WHERE wm.tenant_id = current_tenant_id() AND m.deleted_at IS NULL AND m.file_name IS NOT NULL
+  AND w.deleted_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR w.hub_id = sqlc.narg('hub_id')::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(m.file_name), t) = 0)
+ORDER BY leads DESC, m.created_at DESC, m.id
+LIMIT sqlc.arg('batch');
+
+-- name: SearchWhiteboardComments :many
+-- The comments on living whiteboards by their words; a comment taken back is not searched.
+SELECT wc.id, wc.body, coalesce(wc.edited_at, wc.created_at)::timestamptz AS changed_at, w.id AS whiteboard_id,
+       w.title AS whiteboard_title, w.hub_id
+FROM whiteboard_comment wc
+JOIN whiteboard w ON w.tenant_id = wc.tenant_id AND w.id = wc.whiteboard_id
+WHERE wc.tenant_id = current_tenant_id() AND wc.deleted_at IS NULL AND w.deleted_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR w.hub_id = sqlc.narg('hub_id')::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(wc.body), t) = 0)
+ORDER BY changed_at DESC, wc.id
+LIMIT sqlc.arg('batch');

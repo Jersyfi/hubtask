@@ -20481,7 +20481,8 @@ paths:
         search to that kind. `facets` counts the hits per kind the caller may read; a count with
         `more` is a lower bound. Every hit and every count is narrowed to what the caller may
         read. People are found by their display name only; a file by its name, never its
-        contents. Among equally good pages a verified one comes first. A `POST` because what
+        contents. Files and comments are found on entries, pages and whiteboards, each where
+        the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what
         somebody looks for is their content.
       requestBody:
         required: true

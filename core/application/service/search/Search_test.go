@@ -8,6 +8,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -174,5 +175,23 @@ func TestAQueryTheKindsCannotAnswerIsRefused(t *testing.T) {
 func TestASnippetMarksAWordAtTheEnd(t *testing.T) {
 	if got := Snippet("see the travel budget", []string{"budget"}); got != "see the travel «budget»" {
 		t.Fatalf("snippet %q", got)
+	}
+}
+
+// Files and comments are found on entries, pages and boards together: the counts add up and the
+// latest come first, at most size.
+func TestKindsFoundTogetherAddUpLatestFirst(t *testing.T) {
+	at := func(h int) *time.Time { m := time.Date(2026, 11, 13, h, 0, 0, 0, time.UTC); return &m }
+	together := Together{
+		fixedFinder{found: Found{Hits: []Hit{{Title: "entry", UpdatedAt: at(9)}}, Count: 4}},
+		fixedFinder{found: Found{Hits: []Hit{{Title: "page", UpdatedAt: at(11)}, {Title: "page 2", UpdatedAt: at(8)}}, Count: 2, More: true}},
+		fixedFinder{found: Found{Hits: []Hit{{Title: "board", UpdatedAt: at(10)}}, Count: 1}},
+	}
+	found, err := together.Find(t.Context(), reader, Question{Size: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Count != 7 || !found.More || len(found.Hits) != 3 || found.Hits[0].Title != "page" || found.Hits[1].Title != "board" || found.Hits[2].Title != "entry" {
+		t.Fatalf("found %+v", found)
 	}
 }

@@ -358,6 +358,121 @@ func (q *Queries) SearchGoalNames(ctx context.Context, arg SearchGoalNamesParams
 	return items, nil
 }
 
+const searchPageComments = `-- name: SearchPageComments :many
+SELECT pc.id, pc.body, coalesce(pc.edited_at, pc.created_at)::timestamptz AS changed_at, p.id AS page_id,
+       p.title AS page_title, p.hub_id
+FROM page_comment pc
+JOIN page p ON p.tenant_id = pc.tenant_id AND p.id = pc.page_id
+WHERE pc.tenant_id = current_tenant_id() AND pc.deleted_at IS NULL
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  AND ($1::uuid IS NULL OR p.hub_id = $1::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest($2::text[]) t WHERE strpos(lower(pc.body), t) = 0)
+ORDER BY changed_at DESC, pc.id
+LIMIT $3
+`
+
+type SearchPageCommentsParams struct {
+	HubID pgtype.UUID
+	Terms []string
+	Batch int32
+}
+
+type SearchPageCommentsRow struct {
+	ID        pgtype.UUID
+	Body      string
+	ChangedAt pgtype.Timestamptz
+	PageID    pgtype.UUID
+	PageTitle string
+	HubID     pgtype.UUID
+}
+
+// The comments on living pages by their words; a comment taken back is not searched.
+func (q *Queries) SearchPageComments(ctx context.Context, arg SearchPageCommentsParams) ([]SearchPageCommentsRow, error) {
+	rows, err := q.db.Query(ctx, searchPageComments, arg.HubID, arg.Terms, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchPageCommentsRow{}
+	for rows.Next() {
+		var i SearchPageCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Body,
+			&i.ChangedAt,
+			&i.PageID,
+			&i.PageTitle,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchPageFileNames = `-- name: SearchPageFileNames :many
+SELECT m.id, m.file_name::text AS file_name, m.mime_type, m.created_at, p.id AS page_id, p.hub_id,
+       coalesce(strpos(lower(m.file_name), ($1::text[])[1]) = 1, false) AS leads
+FROM page_media pm
+JOIN media_object m ON m.tenant_id = pm.tenant_id AND m.id = pm.media_id
+JOIN page p ON p.tenant_id = pm.tenant_id AND p.id = pm.page_id
+WHERE pm.tenant_id = current_tenant_id() AND m.deleted_at IS NULL AND m.file_name IS NOT NULL
+  AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  AND ($2::uuid IS NULL OR p.hub_id = $2::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(m.file_name), t) = 0)
+ORDER BY leads DESC, m.created_at DESC, m.id
+LIMIT $3
+`
+
+type SearchPageFileNamesParams struct {
+	Terms []string
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type SearchPageFileNamesRow struct {
+	ID        pgtype.UUID
+	FileName  string
+	MimeType  string
+	CreatedAt pgtype.Timestamptz
+	PageID    pgtype.UUID
+	HubID     pgtype.UUID
+	Leads     interface{}
+}
+
+// The files on living pages by their names; a file's contents are not searched.
+func (q *Queries) SearchPageFileNames(ctx context.Context, arg SearchPageFileNamesParams) ([]SearchPageFileNamesRow, error) {
+	rows, err := q.db.Query(ctx, searchPageFileNames, arg.Terms, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchPageFileNamesRow{}
+	for rows.Next() {
+		var i SearchPageFileNamesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.MimeType,
+			&i.CreatedAt,
+			&i.PageID,
+			&i.HubID,
+			&i.Leads,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchPeopleNames = `-- name: SearchPeopleNames :many
 SELECT a.id, a.display_name, a.kind::text AS kind, a.status::text AS status, a.updated_at,
        coalesce(strpos(lower(a.display_name), ($1::text[])[1]) = 1, false) AS leads
@@ -400,6 +515,120 @@ func (q *Queries) SearchPeopleNames(ctx context.Context, arg SearchPeopleNamesPa
 			&i.Kind,
 			&i.Status,
 			&i.UpdatedAt,
+			&i.Leads,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWhiteboardComments = `-- name: SearchWhiteboardComments :many
+SELECT wc.id, wc.body, coalesce(wc.edited_at, wc.created_at)::timestamptz AS changed_at, w.id AS whiteboard_id,
+       w.title AS whiteboard_title, w.hub_id
+FROM whiteboard_comment wc
+JOIN whiteboard w ON w.tenant_id = wc.tenant_id AND w.id = wc.whiteboard_id
+WHERE wc.tenant_id = current_tenant_id() AND wc.deleted_at IS NULL AND w.deleted_at IS NULL
+  AND ($1::uuid IS NULL OR w.hub_id = $1::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest($2::text[]) t WHERE strpos(lower(wc.body), t) = 0)
+ORDER BY changed_at DESC, wc.id
+LIMIT $3
+`
+
+type SearchWhiteboardCommentsParams struct {
+	HubID pgtype.UUID
+	Terms []string
+	Batch int32
+}
+
+type SearchWhiteboardCommentsRow struct {
+	ID              pgtype.UUID
+	Body            string
+	ChangedAt       pgtype.Timestamptz
+	WhiteboardID    pgtype.UUID
+	WhiteboardTitle string
+	HubID           pgtype.UUID
+}
+
+// The comments on living whiteboards by their words; a comment taken back is not searched.
+func (q *Queries) SearchWhiteboardComments(ctx context.Context, arg SearchWhiteboardCommentsParams) ([]SearchWhiteboardCommentsRow, error) {
+	rows, err := q.db.Query(ctx, searchWhiteboardComments, arg.HubID, arg.Terms, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchWhiteboardCommentsRow{}
+	for rows.Next() {
+		var i SearchWhiteboardCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Body,
+			&i.ChangedAt,
+			&i.WhiteboardID,
+			&i.WhiteboardTitle,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchWhiteboardFileNames = `-- name: SearchWhiteboardFileNames :many
+SELECT m.id, m.file_name::text AS file_name, m.mime_type, m.created_at, w.id AS whiteboard_id, w.hub_id,
+       coalesce(strpos(lower(m.file_name), ($1::text[])[1]) = 1, false) AS leads
+FROM whiteboard_media wm
+JOIN media_object m ON m.tenant_id = wm.tenant_id AND m.id = wm.media_id
+JOIN whiteboard w ON w.tenant_id = wm.tenant_id AND w.id = wm.whiteboard_id
+WHERE wm.tenant_id = current_tenant_id() AND m.deleted_at IS NULL AND m.file_name IS NOT NULL
+  AND w.deleted_at IS NULL
+  AND ($2::uuid IS NULL OR w.hub_id = $2::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(m.file_name), t) = 0)
+ORDER BY leads DESC, m.created_at DESC, m.id
+LIMIT $3
+`
+
+type SearchWhiteboardFileNamesParams struct {
+	Terms []string
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type SearchWhiteboardFileNamesRow struct {
+	ID           pgtype.UUID
+	FileName     string
+	MimeType     string
+	CreatedAt    pgtype.Timestamptz
+	WhiteboardID pgtype.UUID
+	HubID        pgtype.UUID
+	Leads        interface{}
+}
+
+// The files on living whiteboards by their names; a file's contents are not searched.
+func (q *Queries) SearchWhiteboardFileNames(ctx context.Context, arg SearchWhiteboardFileNamesParams) ([]SearchWhiteboardFileNamesRow, error) {
+	rows, err := q.db.Query(ctx, searchWhiteboardFileNames, arg.Terms, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchWhiteboardFileNamesRow{}
+	for rows.Next() {
+		var i SearchWhiteboardFileNamesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FileName,
+			&i.MimeType,
+			&i.CreatedAt,
+			&i.WhiteboardID,
+			&i.HubID,
 			&i.Leads,
 		); err != nil {
 			return nil, err
