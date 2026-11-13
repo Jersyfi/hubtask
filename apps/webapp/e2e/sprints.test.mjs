@@ -214,7 +214,7 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   const chooser = page.getByLabel('Release', { exact: true });
   await chooser.waitFor({ timeout: 15_000 });
   assert.equal(await chooser.inputValue(), COMING.id);
-  await page.getByText('1 done, 0 open').waitFor({ timeout: 5_000 });
+  await page.locator('[data-release-done]').getByText('1 of 1 done').waitFor({ timeout: 5_000 });
   // The head says what is coming and what went out (user-experience.md §5.1).
   await page.getByText(/^2 planned · next: 1\.1 on .+ · 1 released$/).waitFor({ timeout: 5_000 });
 

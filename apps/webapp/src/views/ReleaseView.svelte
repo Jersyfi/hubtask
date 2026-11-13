@@ -17,7 +17,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Checkbox, Dialog, Inline, Input, ProgressBar, Select, Skeleton, Stack, Textarea,
+    Badge, Button, Checkbox, Dialog, Inline, Input, ObjectHead, Select, Skeleton, Stack, StateLozenge, Textarea,
     DataTable, WorkPage, type DataColumn,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -192,7 +192,6 @@
   });
   const isPlanned = $derived(chosen?.state === 'PLANNED');
   const mayChange = $derived(mayWrite && isPlanned);
-  const shareDone = $derived(detail && detail.done_count + detail.open_count > 0 ? Math.round((100 * detail.done_count) / (detail.done_count + detail.open_count)) : undefined);
 
   // Coming first, the soonest on top, then what went out, the latest on top.
   const options = $derived(groups ? [...groups.planned, ...groups.released].map((r) => ({
@@ -215,15 +214,6 @@
   <ToolHead {hubId} tool="plan" current="releases" {onnavigate}
     figure={figureText ? headFigure : undefined}
     primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
-    secondary={mayChange && chosen
-      ? [
-          { label: t('app.releases.publish'), icon: 'send', onclick: () => { carryTo = targets[0]?.id ?? ''; writeNotes = true; dialogFailure = undefined; isReleasing = true; } },
-          { label: t('app.releases.edit'), icon: 'pencil', onclick: () => openPlan(chosen) },
-        ]
-      : []}
-    menu={mayChange
-      ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
-      : undefined}
   />
   {/snippet}
 
@@ -248,27 +238,34 @@
       </div>
     {/if}
 
-    <section class="card" aria-labelledby="release-head">
-      <Inline gap="100" align="center" isWrapping>
-        <h2 id="release-head" class="name">{chosen.name}</h2>
-        {#if groups?.late.has(chosen.id)}
-          <Badge tone="warning">{t('app.releases.badge_late')}</Badge>
-        {:else if chosen.state === 'RELEASED'}
-          <Badge tone="success">{t('app.releases.badge_RELEASED')}</Badge>
-        {:else}
-          <Badge tone="info">{t('app.releases.badge_PLANNED')}</Badge>
-        {/if}
-      </Inline>
-      <p class="quiet">
-        {chosen.state === 'RELEASED' && chosen.released_at
-          ? t('app.releases.released_on', { day: formatDay(chosen.released_at, messages.locale) })
-          : t('app.releases.due_on', { day: formatPlainDay(chosen.release_on, messages.locale) })}
-      </p>
+    {@const shown = chosen}
+    {@const isLate = groups?.late.has(shown.id) ?? false}
+    <section class="card" aria-label={chosen.name}>
+      <!-- The chosen release is an object like any other (WB-1): its state, releasing it as the
+           next step, changing it beside, its day and how much of it is done; deleting in ⋯. -->
+      <ObjectHead isCompact
+        objectKey={{ label: t('app.releases.release'), icon: 'calendar', product: 'plans' }}
+        title={shown.name}
+        titleLabel={t('app.releases.release')}
+        next={mayChange ? { label: t('app.releases.publish'), icon: 'send', onclick: () => { carryTo = targets[0]?.id ?? ''; writeNotes = true; dialogFailure = undefined; isReleasing = true; } } : undefined}
+        secondary={mayChange ? { label: t('app.releases.edit'), onclick: () => openPlan(shown) } : undefined}
+        due={{
+          label: shown.state === 'RELEASED' && shown.released_at ? formatDay(shown.released_at, messages.locale) : formatPlainDay(shown.release_on, messages.locale),
+          tone: isLate ? 'warning' : 'neutral',
+        }}
+        menu={mayChange
+          ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
+          : undefined}
+      >
+        {#snippet status()}
+          <StateLozenge tone={isLate ? 'warning' : shown.state === 'RELEASED' ? 'success' : 'neutral'}
+            label={t(isLate ? 'app.releases.badge_late' : `app.releases.badge_${shown.state}`)} />
+        {/snippet}
+        {#snippet facts()}
+          {#if detail}<span data-release-done>{t('app.releases.done_of', { done: String(detail.done_count), all: String(detail.done_count + detail.open_count) })}</span>{/if}
+        {/snippet}
+      </ObjectHead>
       {#if chosen.description}<p class="about">{chosen.description}</p>{/if}
-      {#if detail && shareDone !== undefined}
-        <ProgressBar label={t('app.releases.progress', { name: chosen.name })} value={shareDone}
-          valueLabel={t('app.releases.counts', { done: String(detail.done_count), open: String(detail.open_count) })} size="sm" />
-      {/if}
       {#if chosen.notes_page_id}
         <p><a href={`/pages/${chosen.notes_page_id}`}>{t('app.releases.notes')}</a></p>
       {/if}
@@ -369,7 +366,6 @@
 <style>
   .chooser { max-inline-size: var(--layout-board-column); }
   .card { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
-  .name { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .about { margin: 0; }
   .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--layout-board-column)), 1fr)); gap: var(--sp-200); }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }

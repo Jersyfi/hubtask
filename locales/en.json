@@ -13793,6 +13793,7 @@
   "app.releases.col_type": "Type",
   "app.releases.counts": "{done} done, {open} open",
   "app.releases.delete": "Delete",
+  "app.releases.done_of": "{done} of {all} done",
   "app.releases.deleted": "The release is deleted.",
   "app.releases.description": "What it is about",
   "app.releases.done": "Done",
