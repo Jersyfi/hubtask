@@ -289,6 +289,41 @@
     return () => void seen.off('update', read);
   });
 
+  // Tools only while writing (S-1): the bar stands while the focus is in the body or one of its
+  // panels; "/" on an empty line opens the blocks to insert, as the bar's *Block* does.
+  let zone = $state<HTMLElement | undefined>(undefined);
+  let isWriting = $state(false);
+  $effect(() => {
+    const element = zone;
+    if (!element) return;
+    const enter = () => (isWriting = true);
+    const leave = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
+      isWriting = false;
+    };
+    element.addEventListener('focusin', enter);
+    element.addEventListener('focusout', leave);
+    return () => {
+      element.removeEventListener('focusin', enter);
+      element.removeEventListener('focusout', leave);
+    };
+  });
+  $effect(() => {
+    const element = host;
+    if (!element) return;
+    const slash = (event: KeyboardEvent) => {
+      const seen = editor;
+      if (event.key !== '/' || !seen?.isEditable || !seen.state.selection.empty) return;
+      if (seen.state.selection.$from.parent.textContent !== '') return;
+      event.preventDefault();
+      isAddingBlock = true;
+    };
+    element.addEventListener('keydown', slash, true);
+    return () => element.removeEventListener('keydown', slash, true);
+  });
+  const hasPanel = $derived(isAddingBlock || isLinkingPage || isEmbedding || isPickingEmoji || isMakingTask);
+  const isQuiet = $derived(status === 'connected' && unsent === 0 && saveRefusal === undefined);
+
   // --- The editor and its live document ------------------------------------------------------------
 
   $effect(() => {
@@ -458,7 +493,9 @@
   );
 </script>
 
-{#if page.writable && isLive}
+<div class="writing" bind:this={zone}>
+{#if page.writable && isLive && (isWriting || hasPanel)}
+  <div class="tools" data-page-tools>
   <Toolbar label={t('app.pages.toolbar')}>
     <Inline gap="050" isWrapping>
       <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleHeading({ level: 2 }))}>{t('app.pages.tool_heading')}</Button>
@@ -487,6 +524,7 @@
       {/if}
     </Inline>
   </Toolbar>
+  </div>
 {/if}
 
 {#if isLinkingPage}
@@ -546,14 +584,31 @@
   </ul>
 {/if}
 
-<p class="status" aria-live="polite">{statusWords}</p>
+{#if page.writable && (isWriting || !isQuiet)}<p class="status" aria-live="polite">{statusWords}</p>{/if}
 {#if saveRefusal}<p class="refusal" role="alert">{saveRefusal}</p>{/if}
 
 <div class="editor" bind:this={host}></div>
+</div>
 
 <MentionDialog bind:isOpen={isMentioning} selfId="" oninsert={insertAddressText} />
 
 <style>
+  .writing { display: grid; gap: var(--sp-100); }
+  /* The bar stays at hand above the text while writing; on a phone it sits above the keyboard (§7). */
+  .tools {
+    position: sticky;
+    inset-block-start: var(--sp-100);
+    z-index: var(--z-sticky);
+    padding: var(--sp-050);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+  }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .tools { inset-block-start: auto; inset-block-end: 0; overflow-x: auto; }
+  }
   .status { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
   .refusal { margin: 0; color: var(--text-danger); }
   .choices {

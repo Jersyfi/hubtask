@@ -59,6 +59,34 @@ test('the first writer opens a page without saving it; typing saves', async (t) 
   assert.deepEqual(failures, []);
 });
 
+test('a page shows its writing tools only while writing; "/" on an empty line offers the blocks (S-1)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const handbook = PD_PAGES[0];
+  const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true });
+  t.after(close);
+  await page.context().routeWebSocket(/\/realtime\/documents\/page\//, (ws) => {
+    ws.onMessage(() => {});
+    ws.send(EMPTY_DOCUMENT);
+    ws.send(ASK_STATE);
+  });
+  await page.goto(new URL(`/pages/${handbook.id}`, page.url()).href);
+  const body = page.getByRole('textbox', { name: /Product handbook/ });
+  await body.getByText('Welcome to the team.').waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(500);
+  assert.equal(await page.locator('[data-page-tools]').count(), 0, 'reading shows no tools');
+
+  await body.click();
+  await page.locator('[data-page-tools]').waitFor({ timeout: 5_000 });
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/');
+  await page.locator('[data-page-blocks]').waitFor({ timeout: 5_000 });
+  assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'the slash opened the blocks and was not typed');
+
+  assert.deepEqual(failures, []);
+});
+
 test('the first writer opens and leaves a whiteboard without saving it; removing a sticky saves', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
