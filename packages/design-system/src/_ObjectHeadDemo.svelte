@@ -75,7 +75,7 @@
   <ObjectHead
     objectKey={{ label: 'TAMA-18', icon: 'square-check' }}
     type={{ label: 'Story', icon: 'square-check' }}
-    meta="· Backlog · target version 4.3.0 · created 3 Nov by Clara Neumann"
+    meta="Backlog · target version 4.3.0 · created 3 Nov by Clara Neumann"
     title={mode === 'long' ? 'Pay with Apple Pay and Google Pay in the app’s checkout, including the fallback to the card form when no wallet is set up and the receipt in the customer’s account' : title}
     titleLabel="Title"
     editTitleLabel="Edit title"
@@ -94,7 +94,7 @@
   <ObjectHead
     objectKey={{ label: 'SA-12', icon: 'inbox', product: 'desk' }}
     type={{ label: 'Incident', icon: 'triangle-alert' }}
-    meta="· through the portal · 11 Nov, 07:52"
+    meta="through the portal · 11 Nov, 07:52"
     title="Customer portal: sign-in fails with a gateway timeout – every dispatcher in Lüneburg affected"
     titleLabel="Title"
     editTitleLabel="Edit title"
@@ -104,7 +104,7 @@
     person={{ name: 'Amelia Hughes' }}
     deadline={{ label: '1 deadline breached · next in 1 h 05', tone: 'danger' }}
     end={storyEnd}
-    {menu}
+    menu={{ ...menu, label: 'More for SA-12' }}
   >
     {#snippet status()}{@render stepButton(IN_PROGRESS, STORY_STEPS)}{/snippet}
     {#snippet facts()}<PriorityMark level={2} label="P2 High" />{/snippet}

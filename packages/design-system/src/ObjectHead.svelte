@@ -190,7 +190,7 @@
     {/if}
     {#if due}<span class="chip" data-tone={due.tone ?? 'neutral'}><Icon name="calendar" size="sm" />{due.label}</span>{/if}
     {#if deadline}
-      <span class="chip" data-tone={deadline.tone}><Icon name={deadline.tone === 'neutral' ? 'clock' : 'triangle-alert'} size="sm" />{deadline.label}</span>
+      <span class="chip" data-tone={deadline.tone}><Icon name={deadline.tone === 'danger' ? 'triangle-alert' : 'clock'} size="sm" />{deadline.label}</span>
     {/if}
     {#if facts}<span class="facts">{@render facts()}</span>{/if}
     {#if end}<span class="end">{@render end()}</span>{/if}
@@ -217,6 +217,9 @@
   }
 
   .meta { color: var(--text-subtle); font-size: var(--fs-075); }
+  /* The dot that joins the meta to the key is drawn here, so a meta that wraps on a phone starts
+     its own line with words, not with the dot. */
+  .meta::before { content: '·'; margin-inline-end: var(--sp-050); }
 
   .title-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
 
@@ -265,6 +268,10 @@
   }
 
   .action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  /* One type size in the bar: the steps at the status button's 13 px semibold, the next step
+     lifted by the primary's glow (the grammar mockup). */
+  .step :global(.button) { font-size: var(--fs-090); font-weight: var(--fw-semibold); }
+  .step :global(.button[data-tone='primary']) { box-shadow: var(--shadow-glow); }
 
   .divider {
     inline-size: var(--bw-hairline);
@@ -308,6 +315,8 @@
   /* A phone: the bar carries the way back and the tools; the steps are in the status's sheet (WB-8). */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
+    .meta { flex-basis: 100%; }
+    .meta::before { content: none; }
     .top,
     .step,
     .divider,

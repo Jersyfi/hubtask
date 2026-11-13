@@ -49,7 +49,7 @@
       <ObjectHead
         objectKey={{ label: 'TAMA-18', icon: 'square-check' }}
         type={{ label: 'Story', icon: 'square-check' }}
-        meta="· Backlog · target version 4.3.0 · created 3 Nov by Clara Neumann"
+        meta="Backlog · target version 4.3.0 · created 3 Nov by Clara Neumann"
         title="Pay with Apple Pay and Google Pay in the app’s checkout"
         titleLabel="Title"
         editTitleLabel="Edit title"
