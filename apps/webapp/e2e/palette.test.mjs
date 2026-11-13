@@ -150,6 +150,36 @@ test('chromium: 375 px — the shortcut and a tap on Search open the palette in 
   assert.deepEqual(failures, []);
 });
 
+// Scene palette m 4: on a phone the hits end in a foot a thumb reaches - *Filter*, a sheet of the
+// scopes with their counts, and *Show all* - instead of the list's last row.
+test('chromium: 375 px — the hits end in Filter and Show all, the scopes in a sheet', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 375, 800, { hasTouch: true });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  await page.getByText(ITEMS[2].title).first().waitFor();
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: 'Search or run a command' });
+  await dialog.waitFor();
+  await page.keyboard.type(ITEMS[2].title.slice(0, 6));
+  const all = dialog.getByRole('button', { name: /^Show all \d+ hits$/u });
+  await all.waitFor({ timeout: 10_000 });
+  assert.equal(await dialog.getByRole('option', { name: /^Show all/u }).count(), 0, 'the list still ends in its own Show all');
+
+  await dialog.getByRole('button', { name: 'Filter' }).tap();
+  const sheet = page.getByRole('dialog', { name: 'Filter' });
+  await sheet.waitFor();
+  await sheet.getByRole('button', { name: /^Entries · \d+$/u }).tap();
+  await sheet.waitFor({ state: 'hidden' });
+  assert.equal(await dialog.getByRole('button', { name: /^Entries/u, pressed: true }).count(), 1, 'the scope picked in the sheet is not the one on');
+
+  await all.tap();
+  await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: an action the role refuses is absent (check 2)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

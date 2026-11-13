@@ -25,7 +25,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Dialog, Icon, Kbd, ProductTile, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
+  import { Button, Dialog, Icon, Kbd, ProductTile, SearchField, Sheet, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
   import type { Container, SettingDefinition, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
@@ -61,6 +61,7 @@
   import { views } from '../data/views.svelte.ts';
   import { BAR_KINDS, arrange, keyIn, kindsOn, markWords, pathOf as hitPath, personLine, requestOf, scopesOf, tileOf, type Answer, type Hit, type Scope } from '../search/everything.ts';
   import { workspace } from '../data/workspace.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -83,6 +84,8 @@
   let answer = $state<Answer>({ data: [], facets: [] });
   /** The scope chip chosen: every kind, one kind, or the hub one stands in. */
   let scope = $state<Scope['id']>('ALL');
+  /** The phone's filters as a sheet (palette m 4), and whether it is open. */
+  let isFilterOpen = $state(false);
   let searching = $state(false);
   let form = $state<HTMLFormElement | null>(null);
 
@@ -345,6 +348,9 @@
   const makeRow = $derived(rows.find((row) => row.kind === 'make'));
   const jumpRow = $derived(rows.find((row) => row.kind === 'jump'));
   const total = $derived(scopes[0]?.count ?? 0);
+  /** A phone draws *Filter* and *Show all* as a foot under the hits, as thumbs reach them (palette m 4). */
+  const hasPhoneFoot = $derived(host === 'dialog' && viewport.isCompact && words !== '' && !isCommandsOnly && allRow !== undefined);
+  const scopeName = (each: Scope) => (each.id === 'HERE' ? t('app.palette.scope_here', { name: hereHub?.name ?? '' }) : t('app.palette.scope', { kind: each.id }));
 
   // ------------------------------------------------------------------------------------------
   // Reads the answer needs, while it is open
@@ -723,7 +729,7 @@
             onmousedown={(event) => event.preventDefault()}
             onclick={() => (scope = each.id)}
           >
-            {each.id === 'HERE' ? t('app.palette.scope_here', { name: hereHub?.name ?? '' }) : t('app.palette.scope', { kind: each.id })}
+            {scopeName(each)}
             {#if each.count !== undefined}<span class="count">{each.count}{each.more ? '+' : ''}</span>{/if}
           </button>
         {/each}
@@ -787,7 +793,7 @@
           <span class="title">{t('app.palette.make_entry', { words: words.length > 24 ? `${words.slice(0, 24)} …` : `${words} …` })}</span>
         </button>
       {/if}
-      {#if allRow}
+      {#if allRow && !hasPhoneFoot}
         <button
           type="button"
           role="option"
@@ -863,7 +869,20 @@
     <form class="sheet" role="search" aria-label={t('app.search.title')} bind:this={form} onsubmit={submit} onkeydowncapture={keydown}>
       {@render field()}
       {@render list()}
+      {#if hasPhoneFoot && allRow}
+        <div class="phone-foot">
+          {#if scopes.length > 1}<Button tone="secondary" icon="funnel" onclick={() => (isFilterOpen = true)}>{t('app.palette.filter')}</Button>{/if}
+          <Button tone="primary" onclick={() => pick(allRow)}>{t('app.palette.all_hits', { count: String(total) })}</Button>
+        </div>
+      {/if}
     </form>
+    <Sheet
+      title={t('app.palette.filter')}
+      closeLabel={t('app.palette.close')}
+      bind:isOpen={isFilterOpen}
+      items={scopes.map((each) => ({ id: each.id, label: each.count !== undefined ? t('app.palette.scope_counted', { scope: scopeName(each), count: `${each.count}${each.more ? '+' : ''}` }) : scopeName(each), icon: scope === each.id ? 'check' : undefined }))}
+      onselect={(id) => (scope = id as Scope['id'])}
+    />
   </Dialog>
 {/if}
 
@@ -916,6 +935,16 @@
   /* The words make room for the key rather than run under it - a German placeholder is long. */
   .float:has(> .keys) :global(input) { padding-inline-end: calc(var(--sp-100) + var(--sp-500)); text-overflow: ellipsis; }
   .sheet { display: flex; flex-direction: column; gap: var(--sp-100); }
+  /* Under the hits, where a thumb is: *Filter* beside the one primary act. */
+  .phone-foot {
+    position: sticky;
+    inset-block-end: 0;
+    display: flex;
+    gap: var(--sp-100);
+    padding-block: var(--sp-100);
+    background: var(--bg-raised);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
 
   .menu[data-host='bar'] {
     position: absolute;
