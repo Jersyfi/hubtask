@@ -1108,6 +1108,7 @@ func run() error {
 	// bucket, ask the same permission question of the same collection, and owe the same four writes
 	// (work.BucketWriter).
 	bucketWriter := work.BucketWriter{
+		Boards:  boards,
 		Buckets: buckets, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,

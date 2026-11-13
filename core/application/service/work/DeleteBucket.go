@@ -61,6 +61,9 @@ type BucketDeletion struct {
 	// anybody made a board.
 	TargetBucketID shared.ID
 	MovedItems     int
+	// DoneBucketID is the column that took the done mark, where the deleted one carried it; zero
+	// otherwise or where no column is left.
+	DoneBucketID shared.ID
 }
 
 // Execute deletes the column and returns what became of its entries.
@@ -146,7 +149,7 @@ func (h DeleteBucket) write(
 ) (BucketDeletion, error) {
 	w := h.Writer
 
-	target, err := h.fallbackFor(ctx, deleted)
+	target, successor, err := h.targetFor(ctx, deleted)
 	if err != nil {
 		return BucketDeletion{}, err
 	}
@@ -182,7 +185,29 @@ func (h DeleteBucket) write(
 		return BucketDeletion{}, err
 	}
 
-	return BucketDeletion{BucketID: deleted.ID, TargetBucketID: target, MovedItems: moved}, nil
+	if !successor.IsZero() {
+		marked := true
+		if err := w.setDone(ctx, actor, successor, &marked, collection); err != nil {
+			return BucketDeletion{}, err
+		}
+	}
+	return BucketDeletion{BucketID: deleted.ID, TargetBucketID: target, MovedItems: moved, DoneBucketID: successor}, nil
+}
+
+// targetFor is where a deleted column's entries go and which column takes its done mark: the
+// board decides where boards are read (Board.TargetAfterDeleting, Board.DoneSuccessor), else the
+// leftmost column left.
+func (h DeleteBucket) targetFor(ctx context.Context, deleted domain.Bucket) (shared.ID, shared.ID, error) {
+	if !h.Writer.Boards.Wired() {
+		target, err := h.fallbackFor(ctx, deleted)
+		return target, "", err
+	}
+	board, err := h.Writer.Boards.Of(ctx, deleted.CollectionID)
+	if err != nil {
+		return "", "", err
+	}
+	successor, _ := board.DoneSuccessor(deleted.ID)
+	return board.TargetAfterDeleting(deleted.ID), successor.ID, nil
 }
 
 // fallbackFor is where a deleted column's entries go: the leftmost column left on the board.
@@ -276,6 +301,7 @@ func deletionOutput(deletion BucketDeletion) usecase.Output {
 		"bucket_id":        deletion.BucketID.String(),
 		"target_bucket_id": idOrNil(deletion.TargetBucketID),
 		"moved_items":      deletion.MovedItems,
+		"done_bucket_id":   idOrNil(deletion.DoneBucketID),
 	}
 }
 

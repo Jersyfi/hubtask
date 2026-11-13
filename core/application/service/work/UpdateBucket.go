@@ -57,6 +57,9 @@ type BucketWriter struct {
 	HLC        clock.HLCSource
 	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Boards keeps one done column per board and places a deleted column's entries where the board
+	// says (domain-model.md §3.5a); unwired, a done mark is only the column's own.
+	Boards Boards
 }
 
 // UpdateBucket changes a column's own fields.
@@ -93,6 +96,73 @@ type ReorderBucketCommand struct {
 	ExpectedVersion int
 }
 
+// mayMark refuses clearing the only done column of a board (Board.MarkDone).
+func (h UpdateBucket) mayMark(ctx context.Context, bucket domain.Bucket, done *bool) error {
+	if done == nil || !h.Writer.Boards.Wired() {
+		return nil
+	}
+	board, err := h.Writer.Boards.Of(ctx, bucket.CollectionID)
+	if err != nil {
+		return err
+	}
+	_, err = board.MarkDone(bucket.ID, *done)
+	return err
+}
+
+// unmarkOthers takes the done mark off the board's other columns once one is marked, each
+// written with everything a change to a column owes.
+func (h UpdateBucket) unmarkOthers(
+	ctx context.Context, actor appshared.ActorContext, marked domain.Bucket, collection domain.Container,
+) error {
+	if !marked.IsDoneBucket || !h.Writer.Boards.Wired() {
+		return nil
+	}
+	return h.Writer.unmarkOthers(ctx, actor, marked.CollectionID, marked.ID, collection)
+}
+
+// unmarkOthers takes the done mark off every column of a board but keep.
+func (w BucketWriter) unmarkOthers(
+	ctx context.Context, actor appshared.ActorContext, collectionID, keep shared.ID, collection domain.Container,
+) error {
+	board, err := w.Boards.Of(ctx, collectionID)
+	if err != nil {
+		return err
+	}
+	others, err := board.MarkDone(keep, true)
+	if err != nil {
+		return err
+	}
+	cleared := false
+	for _, other := range others {
+		if err := w.setDone(ctx, actor, other.ID, &cleared, collection); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// setDone writes one column's done mark as an update of that column.
+func (w BucketWriter) setDone(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, done *bool, collection domain.Container,
+) error {
+	current, err := w.Buckets.Find(ctx, id)
+	if err != nil {
+		return err
+	}
+	wanted, changes, err := current.Updated(domain.BucketAttributes{IsDoneBucket: done}, w.Text)
+	if err != nil || len(changes) == 0 {
+		return err
+	}
+	_, err = w.write(ctx, actor, bucketChange{
+		bucketID: id, action: BucketUpdatedAction, store: repository.Buckets.SetAttributes,
+		announce: func(id shared.ID, bucket domain.Bucket, changes []domain.FieldChange, by event.Actor, at time.Time) (event.Envelope, error) {
+			return event.NewBucketUpdated(id, bucket, changes, by, at, event.Cause{})
+		},
+		classification: audit.Sensitive,
+	}, wanted, collection, changes, current.Version)
+	return err
+}
+
 // Execute changes the column and returns it as it now stands.
 func (h UpdateBucket) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd UpdateBucketCommand,
@@ -101,10 +171,14 @@ func (h UpdateBucket) Execute(
 		bucketID:        cmd.BucketID,
 		action:          BucketUpdatedAction,
 		expectedVersion: cmd.ExpectedVersion,
-		apply: func(_ context.Context, bucket domain.Bucket) (domain.Bucket, []domain.FieldChange, error) {
+		apply: func(ctx context.Context, bucket domain.Bucket) (domain.Bucket, []domain.FieldChange, error) {
+			if err := h.mayMark(ctx, bucket, cmd.Attributes.IsDoneBucket); err != nil {
+				return domain.Bucket{}, nil, err
+			}
 			return bucket.Updated(cmd.Attributes, h.Writer.Text)
 		},
-		store: repository.Buckets.SetAttributes,
+		follow: h.unmarkOthers,
+		store:  repository.Buckets.SetAttributes,
 		announce: func(id shared.ID, bucket domain.Bucket, changes []domain.FieldChange,
 			by event.Actor, at time.Time,
 		) (event.Envelope, error) {
@@ -196,6 +270,8 @@ type bucketChange struct {
 	store           func(repository.Buckets, context.Context, domain.Bucket, int) error
 	announce        func(shared.ID, domain.Bucket, []domain.FieldChange, event.Actor, time.Time) (event.Envelope, error)
 	classification  audit.Classification
+	// follow writes what the change owes the rest of the board, in its transaction; nil for none.
+	follow func(context.Context, appshared.ActorContext, domain.Bucket, domain.Container) error
 }
 
 // change is the whole of what a change to an existing column owes, once.
@@ -260,8 +336,13 @@ func (w BucketWriter) change(
 			return nil
 		}
 
-		updated, err = w.write(ctx, actor, change, wanted, collection, changes, bucket.Version)
-		return err
+		if updated, err = w.write(ctx, actor, change, wanted, collection, changes, bucket.Version); err != nil {
+			return err
+		}
+		if change.follow == nil {
+			return nil
+		}
+		return change.follow(ctx, actor, updated, collection)
 	})
 	if err != nil {
 		return domain.Bucket{}, err

@@ -340,3 +340,76 @@ func TestAnImportsCompletionDecidesTheColumn(t *testing.T) {
 		t.Errorf("placed %+v, want %+v", statuses.placed, want)
 	}
 }
+
+// Door: a column's done mark. Marking a column done takes the mark off the other; clearing the
+// only one is refused.
+func TestOneDoneColumnPerBoard(t *testing.T) {
+	marked := true
+	h := newWriterHarness()
+	threeColumnBoard(h.buckets)
+	h.update.Writer.Boards = Boards{Buckets: h.buckets}
+	if _, err := h.update.Execute(t.Context(), actor(), UpdateBucketCommand{
+		BucketID: doingColumn, Attributes: domain.BucketAttributes{IsDoneBucket: &marked},
+	}); err != nil {
+		t.Fatalf("marking: %v", err)
+	}
+	if h.buckets.stored[doneColumn].IsDoneBucket || !h.buckets.stored[doingColumn].IsDoneBucket {
+		t.Errorf("done marks: Erledigt %v, In Arbeit %v", h.buckets.stored[doneColumn].IsDoneBucket,
+			h.buckets.stored[doingColumn].IsDoneBucket)
+	}
+	unmarked := false
+	for _, write := range h.buckets.written {
+		unmarked = unmarked || (write.bucket.ID == doneColumn && write.expected == 1)
+	}
+	if !unmarked {
+		t.Error("the mark was taken off without a write against its version")
+	}
+
+	cleared := false
+	_, err := h.update.Execute(t.Context(), actor(), UpdateBucketCommand{
+		BucketID: doingColumn, Attributes: domain.BucketAttributes{IsDoneBucket: &cleared},
+	})
+	if !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("clearing the only done column: %v", err)
+	}
+}
+
+// Door: deleting a column. The done column names its successor, which its entries go into; under a
+// mapped workflow the entries go by status, so into *Ohne Spalte*.
+func TestDeletingAColumnKeepsTheBoardCoupled(t *testing.T) {
+	t.Run("the done column", func(t *testing.T) {
+		h, deleter := newDeleteHarness()
+		threeColumnBoard(h.buckets)
+		deleter.Writer.Boards = Boards{Buckets: h.buckets}
+		deletion, err := deleter.Execute(t.Context(), actor(), DeleteBucketCommand{BucketID: doneColumn})
+		if err != nil {
+			t.Fatalf("deleting: %v", err)
+		}
+		if deletion.DoneBucketID != doingColumn || deletion.TargetBucketID != doingColumn {
+			t.Errorf("successor %s, entries into %s", deletion.DoneBucketID, deletion.TargetBucketID)
+		}
+		if !h.buckets.stored[doingColumn].IsDoneBucket {
+			t.Error("the successor carries no done mark")
+		}
+	})
+	t.Run("an open column passes over the done column", func(t *testing.T) {
+		h, deleter := newDeleteHarness()
+		threeColumnBoard(h.buckets)
+		deleter.Writer.Boards = Boards{Buckets: h.buckets}
+		deletion, err := deleter.Execute(t.Context(), actor(), DeleteBucketCommand{BucketID: todoColumn})
+		if err != nil || deletion.TargetBucketID != doingColumn || !deletion.DoneBucketID.IsZero() {
+			t.Errorf("deleted %+v: %v", deletion, err)
+		}
+	})
+	t.Run("under a mapped workflow", func(t *testing.T) {
+		h, deleter := newDeleteHarness()
+		threeColumnBoard(h.buckets)
+		deleter.Writer.Boards = Boards{Buckets: h.buckets, Statuses: &mapping{rows: []domain.ColumnStatus{
+			{BucketID: todoColumn, Status: "open"},
+		}}}
+		deletion, err := deleter.Execute(t.Context(), actor(), DeleteBucketCommand{BucketID: todoColumn})
+		if err != nil || !deletion.TargetBucketID.IsZero() {
+			t.Errorf("deleted %+v: %v", deletion, err)
+		}
+	})
+}
