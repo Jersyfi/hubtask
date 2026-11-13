@@ -308,7 +308,9 @@
 
   /** The entries whose children are shown. Expanding one is what reads its level. */
   let expanded = $state<string[]>(rememberedExpansion() ?? []);
-  /** Whether the subtree's default - direct children open - has been applied once they arrived. */
+  /** How many direct children of a subtree start open: the rows a reader meets first. */
+  const OPEN_BY_DEFAULT = 3;
+  /** Whether the subtree's default - the first direct children open - has been applied once they arrived. */
   let hasDefaultExpansion = rememberedExpansion() !== undefined;
 
   // `untrack`, because the listener writes the store and writing it reads it,
@@ -330,15 +332,16 @@
     return untrack(() => (under ? items.openSubtree(under) : items.openCollection(wanted, asked)));
   });
 
-  // In a subtree, the direct children that take children start open and deeper levels closed
-  // (design-system.md §11.10) - applied once, when the first level has arrived, unless this device remembers
-  // a choice. Kept whenever it changes, and only for a subtree.
+  // In a subtree, the first direct children that hold anything start open, the rest and deeper
+  // levels closed (design-system.md §11.8, the `task` scene) - applied once, when the first
+  // level has arrived, unless this device remembers a choice. Kept whenever it changes, and only
+  // for a subtree.
   $effect(() => {
     if (!root || hasDefaultExpansion) return;
     const first = items.childrenOf(root.id);
     if (first.length === 0) return;
     hasDefaultExpansion = true;
-    expanded = first.filter((item) => childTypes(item.type).length > 0).map((item) => item.id);
+    expanded = first.filter((item) => childTypes(item.type).length > 0 && items.childrenOf(item.id).length > 0).slice(0, OPEN_BY_DEFAULT).map((item) => item.id);
   });
   $effect(() => {
     // Read first, so the effect follows `expanded` from its first run and not only once the

@@ -1446,7 +1446,8 @@ between columns is the card's menu (§11.9).
    *Select*, since no bulk bar acts there. Every
    level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
    manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
-   one, gated by `add_child`. Direct children open, deeper levels closed, "expand all" in the section
+   one, gated by `add_child`. The first three direct children that hold anything open, the rest
+   and deeper levels closed, as the work surface's `task` scene draws them; "expand all" in the section
    head; which levels are open is the device's (§11.10). Depth comes from the tree, never a type
    name. The bottom level has no subtree; its breadcrumb is the way up.
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
