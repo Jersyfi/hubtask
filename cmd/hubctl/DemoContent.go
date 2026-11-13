@@ -883,9 +883,7 @@ func (d *demo) cmdb(ctx context.Context, desk demoHub, fresh bool) {
 	}
 }
 
-const demoArchitecture = `# Architekturüberblick Kunden-App
-
-Die App spricht ausschließlich mit der **Public API v3**. Es gibt keinen direkten Zugriff auf Datenbanken.
+const demoArchitecture = `Die App spricht ausschließlich mit der **Public API v3**. Es gibt keinen direkten Zugriff auf Datenbanken.
 
 ## Bausteine
 
