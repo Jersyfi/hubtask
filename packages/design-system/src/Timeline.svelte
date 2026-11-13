@@ -83,6 +83,8 @@
     readonly slack?: string;
     /** A few words after the bar: *done*, *critical · 3 d. late*, a milestone's date. Already worded. */
     readonly note?: string;
+    /** A colour of the chart's categorical palette (1-7), when bars are coloured by a field. */
+    readonly tone?: number;
   }
 
   /** One outline column left of the axis (a Gantt's start, end, duration): its id and its head. */
@@ -192,6 +194,8 @@
     /** Outline columns between the titles and the axis; their cells are `outlineCell`'s. */
     outline?: readonly TimelineColumn[];
     outlineCell?: Snippet<[string, string]>;
+    /** Whether Saturdays and Sundays are shaded, where a day is a column wide enough to see. */
+    weekends?: boolean;
   }
 
   const {
@@ -223,6 +227,7 @@
     titleHead,
     outline = [],
     outlineCell,
+    weekends = false,
   }: Props = $props();
   const wide = $derived(outline.filter((each) => !each.isNarrow).length);
   const narrow = $derived(outline.length - wide);
@@ -254,6 +259,12 @@
 
   const days = $derived(Math.max(1, Math.round((dayOf(to) - dayOf(from)) / DAY) + 1));
   const columns = $derived([...Array(days).keys()]);
+  /** The columns that fall on a Saturday or a Sunday (UTC, as every day index here). */
+  const weekendColumns = $derived(
+    weekends && (scale === 'day' || scale === 'week')
+      ? new Set(columns.filter((column) => [0, 6].includes(new Date(dayOf(from) + column * DAY).getUTCDay())))
+      : new Set<number>(),
+  );
 
   /** Where a row sits, in day columns, clamped to the window rather than dropped at its edge. */
   function placement(row: TimelineRow): { first: number; last: number } | undefined {
@@ -766,6 +777,8 @@
                   data-summary={isFilled && entry.row.kind === 'summary' ? '' : undefined}
                   data-critical={isFilled && entry.row.isCritical ? '' : undefined}
                   data-done={isFilled && entry.row.isDone ? '' : undefined}
+                  data-tone={isFilled && entry.row.tone ? String(entry.row.tone) : undefined}
+                  data-weekend={weekendColumns.has(column) ? '' : undefined}
                   data-slack={entry.slack !== undefined && column > entry.at.last && column <= entry.slack ? '' : undefined}
                 >
                   {#if entry.row.note && column === entry.at.last}<span class="note" data-note>{entry.row.note}</span>{/if}
@@ -1302,6 +1315,18 @@
   /* Done in the success tone, beside the word *done* after it (rule 3). */
   .cell[data-filled][data-done]:not([data-milestone]) { background: var(--status-success-accent); }
 
+  /* Weekends shaded, so a bar's working days are read against them. */
+  .cell[data-weekend]:not([data-filled]) { background: var(--bg-surface-sunken); }
+
+  /* Coloured by a field: the chart's categorical palette, never a status colour (WB-2). */
+  .cell[data-filled][data-tone='1'] { background: var(--chart-categorical-1); }
+  .cell[data-filled][data-tone='2'] { background: var(--chart-categorical-2); }
+  .cell[data-filled][data-tone='3'] { background: var(--chart-categorical-3); }
+  .cell[data-filled][data-tone='4'] { background: var(--chart-categorical-4); }
+  .cell[data-filled][data-tone='5'] { background: var(--chart-categorical-5); }
+  .cell[data-filled][data-tone='6'] { background: var(--chart-categorical-6); }
+  .cell[data-filled][data-tone='7'] { background: var(--chart-categorical-7); }
+
   /* Slack: a thin line after the bar up to the last day it may end. */
   .cell[data-slack] { position: relative; }
   .cell[data-slack]::before {
@@ -1326,8 +1351,10 @@
      wide as what is visible and kept in view while the chart scrolls within itself. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
   @container (inline-size < 600px) {
-    .axis { margin-inline-start: 0; }
-    .heads, .outline { display: none; }
+    .axis,
+    .timeline:not([data-wide='0']) .axis,
+    .timeline:not([data-narrow='0']) .axis { margin-inline-start: 0; }
+    .heads, .outline, .note { display: none; }
     .rows { inline-size: max-content; min-inline-size: 100%; }
     .row { flex-direction: column; align-items: flex-start; gap: 0; }
     .lead {
