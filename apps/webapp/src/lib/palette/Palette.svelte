@@ -595,6 +595,12 @@
     return 'zap';
   }
 
+  /** A row opened last, as `recents` keeps it: its kind and where it lives, for its tile and place. */
+  function recentOf(row: Row) {
+    const at = row.id.indexOf(':');
+    return recents.rows.find((each) => each.kind === row.id.slice(0, at) && each.id === row.id.slice(at + 1));
+  }
+
   function kindOf(row: Row): string {
     if (row.kind === 'container') return t('app.palette.kind', { kind: containers.find(row.id)?.type ?? '' });
     // A place opened last says what it was: its id starts with its kind (`registry.ts`).
@@ -661,7 +667,8 @@
 
 {#snippet option(row: Row)}
   {@const shortcut = shortcutOf(row)}
-  {@const context = byKey.get(keyOf(row))?.context}
+  {@const recent = row.kind === 'recent' ? recentOf(row) : undefined}
+  {@const context = byKey.get(keyOf(row))?.context ?? (recent?.placeId ? containers.find(recent.placeId)?.name : undefined)}
   <button
     type="button"
     role="option"
@@ -673,7 +680,12 @@
     onmouseenter={() => (activeKey = keyOf(row))}
     onclick={() => pick(row)}
   >
-    <Icon name={iconOf(row)} />
+    {#if recent}
+      <!-- Opened last, as the concept draws it (palette t 2): its tile, its title, where it lives. -->
+      <ProductTile icon={recent.kind === 'item' ? 'square' : recent.kind} color="brand" size="sm" />
+    {:else}
+      <Icon name={iconOf(row)} />
+    {/if}
     <span class="title">{labelOf(row)}</span>
     {#if context}<span class="context">{context}</span>{/if}
     <!-- What a row is, said to a reader; the group's heading already says it to the eye. -->
