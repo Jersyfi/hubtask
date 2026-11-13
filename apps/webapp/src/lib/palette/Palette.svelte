@@ -302,7 +302,7 @@
   /** A typed key such as `SA-12` that an entry carries: Enter jumps to it. */
   const jumpHit = $derived.by(() => {
     const key = keyIn(words);
-    return key ? answer.data.find((hit) => hit.kind === 'ENTRY' && hit.key?.toUpperCase() === key) : undefined;
+    return key ? answer.data.find((hit) => (hit.kind === 'ENTRY' || hit.kind === 'TICKET') && hit.key?.toUpperCase() === key) : undefined;
   });
   /** The account's own saved searches, offered before anything is typed. */
   const saved = $derived(

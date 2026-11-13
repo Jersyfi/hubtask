@@ -27,15 +27,16 @@
     Button,
     Checkbox,
     EmptyState,
-    Inline,
+    Kbd,
     PageHeader,
-    SearchField,
+    QueryLine,
     Skeleton,
     Stack,
-    Switch,
     TaskRow,
     WorkPage,
     canCopy,
+    lineText,
+    type QueryToken,
   } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
@@ -44,10 +45,26 @@
   import EntryMenu from '../lib/entries/EntryMenu.svelte';
   import { attachEntryGestures } from '../lib/entries/entryGestures.ts';
   import { entryMenu } from '../lib/entries/entryMenu.ts';
-  import FilterBar from '../lib/search/FilterBar.svelte';
-  import SearchLine from '../lib/search/SearchLine.svelte';
-  import OtherHits from '../lib/search/OtherHits.svelte';
-  import { foundWords, kindsOffered, shows, type SearchKind } from '../lib/search/kinds.ts';
+  import HitRow from '../lib/search/HitRow.svelte';
+  import {
+    PAGE_KINDS,
+    countBy,
+    kindsOn,
+    ordered,
+    personLine,
+    requestOf,
+    scopesOf,
+    sinceOf,
+    wordsForUnknownKeys,
+    type Answer,
+    type Hit,
+    type Kind,
+    type Order,
+    type Since,
+  } from '../lib/search/everything.ts';
+  import { compactLine, lineOf } from '../lib/search/queryline.ts';
+  import { askQuery, searchAll } from '../lib/data/everything.ts';
+  import { views } from '../lib/data/views.svelte.ts';
 
   import type { BulkOperation, BulkResult, WorkItem } from '@hubtask/sync-engine';
 
@@ -69,11 +86,9 @@
   import { health } from '../lib/data/health.svelte.ts';
   import { search, type SearchMode } from '../lib/data/search.svelte.ts';
   import {
-    QUICK,
     asksSomething,
     compile,
     content,
-    isQuick,
     joinLine,
     narrowingOf,
     parse,
@@ -110,19 +125,9 @@
   /** The whole question, in one string: words and narrowing together. The only state there is. */
   let line = $state('');
 
-  /**
-   * Whether the narrowing is edited as text rather than as chips.
-   *
-   * It lives in the address like the narrowing does — the bar's "with the filter open" is what
-   * puts it there — so it is adopted on arrival and whenever the address moves under the screen,
-   * and written back whenever the reader presses the control. One value, one home.
-   */
-  let advanced = $state(untrack(() => query.edit) === '1');
-
   $effect(() => {
     const named = query[HANDLE];
     const carried = query.f ?? '';
-    const editing = query.edit === '1';
     untrack(() => {
       // Arriving: a reload or the back button naming a handle this tab wrote, so its words come
       // back and join the narrowing the address carried.
@@ -130,7 +135,6 @@
       if (isHandle(named) && named !== handle && known !== undefined) {
         handle = named;
         line = joinLine(carried, known);
-        advanced = editing;
         return;
       }
 
@@ -154,7 +158,6 @@
       // not this branch - by the time the address carries what it wrote, `carried` already equals
       // `shareable` and there is nothing to adopt.
       if (carried !== shareable) line = joinLine(carried, secret);
-      if (editing !== advanced) advanced = editing;
       if (isHandle(named) && named !== handle) handle = mint((bytes) => crypto.getRandomValues(bytes));
     });
   });
@@ -172,21 +175,44 @@
     const handed = search.takeHandover();
     // Joined to the narrowing rather than replacing it: somebody who searches again from the bar
     // while standing on a narrowed search meant those words *here*.
-    if (handed !== undefined) line = joinLine(untrack(() => narrowingOf(line)), handed);
+    if (handed !== undefined) line = joinLine(untrack(() => narrowingOf(compact)), handed);
   });
 
-  const parsed = $derived(parse(line));
+  /**
+   * The one line (Q-1, Q-2): QueryLine's chips and the text not yet a chip, fed by @hubtask/query.
+   * `line` is the query's own spelling; the entry search reads it written close (`compact`), and a
+   * `word:` that names no key is searched as words, said at the line.
+   */
+  const queryLine = $derived(lineOf(manifest.value?.query_keys as never, t, (code) => messages.has(code)));
+  let chips = $state<readonly QueryToken[]>([]);
+  let rest = $state('');
+  const unknownWords = $derived(wordsForUnknownKeys(line, queryLine.known));
+  const compact = $derived(compactLine(unknownWords.line));
 
-  /** The editing split: the plain words, and every token. What the two basic controls hold. */
-  const typed = $derived(wordsOf(line));
-  // The other kinds the search fans out to (user-experience.md §5.3), and which of them is shown.
-  const kinds = $derived(kindsOffered(manifest.value?.modules_on));
-  let kind = $state<SearchKind>('all');
-  let otherCount = $state(0);
+  // The line written in from elsewhere (the address, the bar, a question taken over) becomes chips.
+  $effect(() => {
+    const next = line;
+    untrack(() => {
+      if (lineText(queryLine.language, chips, rest) === next.trim()) return;
+      const cut = queryLine.language.parse(next.trim() === '' ? '' : `${next.trim()} `);
+      chips = cut.tokens;
+      rest = cut.rest;
+    });
+  });
+
+  // What is typed in the line is the line.
+  $effect(() => {
+    const written = lineText(queryLine.language, chips, rest);
+    untrack(() => {
+      if (written !== line.trim()) line = written;
+    });
+  });
+
+  const parsed = $derived(parse(compact));
+
+  /** The plain words of the line, which the hits mark. */
+  const typed = $derived(wordsOf(compact));
   const hasWords = $derived(typed.trim() !== '');
-  // Without words there is only the narrowing, which only entries answer.
-  const shownKind = $derived<SearchKind>(hasWords && kinds.includes(kind) ? kind : 'all');
-  const tokens = $derived(narrowingOf(line));
 
   /**
    * The privacy split, which is a different one: what may travel in a link, and what may not.
@@ -277,24 +303,11 @@
   /** The question the line asks, in the shape `POST /search` takes it. */
   const compiled = $derived<Compiled>(compile(parsed, context));
 
-  /**
-   * The tokens the chips do not draw, which the reader is **told about** rather than left to
-   * discover.
-   *
-   * This is the one place the concept answers Jira's warning, and it answers it differently. There
-   * the basic surface cannot represent the query, so it refuses to open; here there is only one
-   * representation, so nothing is lost — the chips simply do not have a control for `title:`,
-   * `note:` or `sort:`, and saying so with the way to edit them is the whole of the problem.
-   */
-  const CHIPPED = new Set(['is', 'type', 'due', 'who', 'in', 'label', 'updated', 'created', 'start', 'with', 'by']);
-  const unshown = $derived(parsed.tokens.filter((token) => !CHIPPED.has(token.key)));
-
   /** The address this search has: the narrowing, and the handle its words are kept under. */
   const address = $derived.by(() => {
     const carried = new URLSearchParams({
       ...(shareable === '' ? {} : { f: shareable }),
       ...(secret === '' ? {} : { [HANDLE]: handle }),
-      ...(advanced ? { edit: '1' } : {}),
     });
     const written = carried.toString();
     return written === '' ? '/search' : `/search?${written}`;
@@ -307,16 +320,11 @@
     if (wanted !== `${location.pathname}${location.search}`) untrack(() => onnavigate?.(wanted));
   });
 
-  // Words and meaning, or words only. The switch exists only where the manifest says
-  // meaning is available here; an installation without it has a search by words that never
-  // mentioned the other (ADR-0063 decision 4).
+  // Words and meaning where the manifest offers meaning, words only otherwise - no switch (§6.11);
+  // a degraded meaning search falls back to words and says so at the results (ADR-0063 decision 4).
   const hasMeaning = $derived(manifest.value?.features?.semantic_search === true);
   const meaningDegraded = $derived(health.degradations.find((d) => d.feature === 'semantic_search'));
-  let byMeaning = $state(true);
-  const mode = $derived<SearchMode | undefined>(hasMeaning ? (byMeaning ? 'AUTO' : 'LEXICAL') : undefined);
-
-  /** The quick narrowings, offered on the empty screen as the way in that needs no typing. */
-  const quick = $derived(QUICK.filter((each) => reported.has(each.field)));
+  const mode = $derived<SearchMode | undefined>(hasMeaning ? (meaningDegraded ? 'LEXICAL' : 'AUTO') : undefined);
 
   const asked = $derived({
     q: compiled.q ?? '',
@@ -335,7 +343,7 @@
    */
   $effect(() => {
     const question = asked;
-    if (!asksSomething(compiled)) {
+    if (shownKind !== 'ENTRY' || !asksSomething(compiled)) {
       search.reset();
       return;
     }
@@ -347,9 +355,8 @@
   // a screen reader is told nothing about.
   // The other kinds count too: "nothing matches" while pages match would be a wrong answer.
   $effect(() => {
-    if (search.status !== 'done') return;
-    const words = foundWords(shows(shownKind, 'entries') ? search.hits.length : 0, otherCount);
-    announcer.say(t(words.code, words.params));
+    if (shownKind === 'ENTRY' ? search.status !== 'done' : allStatus !== 'done') return;
+    announcer.say(t('app.search.count', { count: shownCount }));
   });
 
   const failure = $derived(search.error ? renderProblem(search.error, messages) : undefined);
@@ -532,96 +539,204 @@
     return () => node.removeEventListener('click', onClick, true);
   });
 
+  // ---- One search over every kind (§6.11, UC-WRK-18 check 9): the facets, the hits, the order.
+
+  /** The kinds this installation answers, by its modules (P-17). */
+  const kinds = $derived(kindsOn(PAGE_KINDS, manifest.value?.modules_on as readonly string[] | undefined));
+  /** The facet chosen; unchosen, a line of words shows every kind and a narrowing alone entries. */
+  let chosenKind = $state<'ALL' | Kind | undefined>(undefined);
+  const shownKind = $derived<'ALL' | Kind>(chosenKind ?? (hasWords || line.trim() === '' ? 'ALL' : 'ENTRY'));
+  let chosenHub = $state<string | undefined>(undefined);
+  let chosenSince = $state<Since | undefined>(undefined);
+  let order = $state<Order>('RELEVANCE');
+
+  let answer = $state<Answer>({ data: [], facets: [] });
+  let allStatus = $state<'idle' | 'searching' | 'done' | 'failed'>('idle');
+  let allFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  const allBody = $derived(requestOf(unknownWords.line, kinds, { size: 25 }));
+
+  // The line travels whole in the body, never in the address (Q-5); a beat after the typing stops.
+  $effect(() => {
+    const body = allBody;
+    if (!body) {
+      answer = { data: [], facets: [] };
+      allStatus = 'idle';
+      return;
+    }
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      allStatus = 'searching';
+      searchAll(body).then(
+        (found) => {
+          if (!isCurrent) return;
+          answer = found;
+          allStatus = 'done';
+          allFailure = undefined;
+        },
+        (error) => {
+          if (!isCurrent) return;
+          allFailure = renderProblem(error as never, messages);
+          allStatus = 'failed';
+        },
+      );
+    }, 250);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  });
+
+  const scopes = $derived(scopesOf(answer.facets, kinds, false));
+  const hubOfEntry = (hit: WorkItem) => containers.find(hit.collection_id)?.parent_id ?? null;
+  const hubOfHit = (hit: Hit) => hit.hub_id ?? (hit.collection_id ? (containers.find(hit.collection_id)?.parent_id ?? null) : null);
+  const now = new Date();
+
+  /** The hits of the kind chosen, before the hub and the change narrow them. */
+  const kindHits = $derived(shownKind === 'ALL' ? answer.data : answer.data.filter((hit) => hit.kind === shownKind));
+  const hubCounts = $derived(
+    shownKind === 'ENTRY' ? countBy(search.hits.map((hit) => ({ hub_id: hubOfEntry(hit) }) as Hit), (hit) => hit.hub_id) : countBy(kindHits, hubOfHit),
+  );
+  const sinceCounts = $derived(
+    shownKind === 'ENTRY'
+      ? countBy(search.hits.map((hit) => ({ updated_at: hit.updated_at ?? null }) as Hit), (hit) => sinceOf(hit.updated_at, now))
+      : countBy(kindHits, (hit) => sinceOf(hit.updated_at, now)),
+  );
+  const shownHits = $derived(
+    ordered(
+      kindHits.filter((hit) => (chosenHub === undefined || hubOfHit(hit) === chosenHub) && (chosenSince === undefined || sinceOf(hit.updated_at, now) === chosenSince)),
+      order,
+      messages.locale,
+    ),
+  );
+  /** The entries, narrowed by the facets and in the order chosen; relevance is the server's. */
+  const shownEntries = $derived.by(() => {
+    const narrowed = search.hits.filter(
+      (hit) => (chosenHub === undefined || hubOfEntry(hit) === chosenHub) && (chosenSince === undefined || sinceOf(hit.updated_at ?? null, now) === chosenSince),
+    );
+    if (order === 'UPDATED') return [...narrowed].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
+    if (order === 'TITLE') return [...narrowed].sort((a, b) => new Intl.Collator(messages.locale).compare(a.title, b.title));
+    return narrowed;
+  });
+  const shownCount = $derived(
+    shownKind === 'ENTRY'
+      ? shownEntries.length
+      : chosenHub !== undefined || chosenSince !== undefined
+        ? shownHits.length
+        : (scopes.find((scope) => scope.id === shownKind)?.count ?? 0),
+  );
+
+  /** A person's hit searches their entries: their identifier, never their name, in the line. */
+  function searchPerson(hit: Hit) {
+    line = personLine(hit);
+    chosenKind = 'ENTRY';
+  }
+
+  // ---- Save as a view (UC-WRK-18 check 12): the account's own view holding the line as `q`.
+  let saving = $state(false);
+  let savedName = $state<string | undefined>(undefined);
+  async function saveAsView() {
+    if (line.trim() === '' || saving) return;
+    saving = true;
+    try {
+      const name = t('app.search.save_name', { line: line.trim().slice(0, 120) });
+      await views.create({ scope_type: 'ACCOUNT', name, layout: 'LIST_COLLAPSED', query: { q: line.trim() } } as never, crypto.randomUUID());
+      savedName = name;
+      announcer.say(t('app.search.saved_view', { name }));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    } finally {
+      saving = false;
+    }
+  }
+
+  // ---- Ask in words (Q-6): only where the workspace's AI writes queries (P-14); the answer is a
+  // query one sees and takes over, never run by itself.
+  const asksInWords = $derived(manifest.value?.features?.query_from_words === true);
+  let question = $state('');
+  let asking = $state(false);
+  let proposal = $state<{ question: string; query: string } | undefined>(undefined);
+  let askFailure = $state<string | undefined>(undefined);
+  async function ask(event: SubmitEvent) {
+    event.preventDefault();
+    const asked = question.trim();
+    if (asked === '' || asking) return;
+    asking = true;
+    askFailure = undefined;
+    try {
+      proposal = { question: asked, query: await askQuery(asked) };
+    } catch {
+      askFailure = t('app.search.ask_failed');
+    } finally {
+      asking = false;
+    }
+  }
+  function takeProposal() {
+    if (!proposal) return;
+    line = proposal.query;
+    proposal = undefined;
+    question = '';
+  }
+
   // The bar carries the page's title on a phone (ADR-0061 decision 1); the head then reads its
   // heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.search.title')));
 </script>
 
-<!-- Search is worked in - the line, the results, their selection - so a work page (§7.8). -->
+<!-- On a phone the count stands beside the filters' sheet (palette m); wider, in the hits' head. -->
+{#snippet phoneCount()}<b>{t('app.search.count', { count: shownCount })}</b>{/snippet}
+
+<!-- Search is worked in - the line, the facets, the hits, their selection - so a work page (§7.8). -->
 <WorkPage>
   {#snippet top()}<PageHeader title={t('app.search.title')} isTitleInBar={viewport.isCompact} />{/snippet}
 
-  <!-- `data-tour`: where the tour points for the query language. -->
+  <!-- `data-tour`: where the tour points for the query language. One line, no switch (Q-1). -->
   <Stack gap="150" data-tour="search" data-head="search">
-    {#if advanced}
-      <!-- The whole question as text. Everything the chips can say, and the four things they
-           cannot: `title:`, `note:`, `sort:` and a negation. -->
-      <SearchLine value={line} {context} onchange={(next) => (line = next)} />
-    {:else}
-      <Inline gap="150" align="end">
-        <div class="term">
-          <SearchField
-            label={t('app.search.label')}
-            clearLabel={t('app.search.clear')}
-            value={typed}
-            oninput={(event) => (line = joinLine(tokens, (event.currentTarget as HTMLInputElement).value))}
-            onclear={() => (line = tokens)}
-          />
-        </div>
-        {#if hasMeaning}
-          <Switch
-            label={t('app.search.by_meaning')}
-            bind:checked={byMeaning}
-            disabledReason={meaningDegraded
-              ? t('app.search.meaning_degraded', { reason: t(meaningDegraded.reasonCode) })
-              : undefined}
-          />
-        {/if}
-      </Inline>
-
-      <FilterBar
-        value={line}
-        fields={reported}
-        collectionId={oneCollection}
-        onchange={(next) => (line = next)}
-      />
-
-      {#if unshown.length > 0}
-        <!-- Not a warning that something is lost — nothing is. The chips have no control for
-             these, and that is worth one sentence and a way through. -->
-        <p class="hint">
-          {t('app.searchline.not_in_chips', { parts: unshown.map((token) => `${token.key}:${token.value}`).join(' ') })}
-        </p>
-      {/if}
+    <QueryLine
+      label={t('app.search.label')}
+      language={queryLine.language}
+      catalogue={queryLine.catalogue}
+      bind:tokens={chips}
+      bind:text={rest}
+      count={viewport.isCompact ? phoneCount : undefined}
+      placeholder={t('app.search.placeholder')}
+      suggestionsLabel={t('app.search.suggestions')}
+      fieldsHeading={(typed) => t('app.search.fields_heading', { typed })}
+      valuesHeading={(field) => t('app.search.values_heading', { field })}
+      editLabel={(spelling) => t('app.search.edit_chip', { spelling })}
+      removeLabel={(spelling) => t('app.search.remove_chip', { spelling })}
+      phone={{
+        open: t('app.search.filters_open'),
+        title: t('app.search.filters'),
+        close: t('app.create.close'),
+        reset: t('app.searchline.clear_all'),
+        show: t('app.search.show_hits', { count: shownCount }),
+        more: (hidden) => `+${hidden}`,
+      }}
+    >
+      {#snippet keys()}<span><Kbd>↑↓</Kbd> {t('app.palette.hint_move')}</span><span><Kbd>↵</Kbd> {t('app.search.take')}</span><span><Kbd>,</Kbd> {t('app.search.or')}</span><span><Kbd>-</Kbd> {t('app.search.not')}</span>{/snippet}
+    </QueryLine>
+    {#if unknownWords.asWords.length > 0}
+      <p class="hint">{t('app.search.as_words', { words: unknownWords.asWords.join(' ') })}</p>
     {/if}
 
-    <div class="aside">
-      <!-- Outlined, so its box starts on the page's edge with the field above it (G1). -->
-      <Button
-        size="sm"
-        tone="secondary"
-        icon={advanced ? 'sliders-horizontal' : 'pencil'}
-        onclick={() => (advanced = !advanced)}
-      >
-        {t(advanced ? 'app.searchline.as_controls' : 'app.searchline.as_text')}
-      </Button>
-      {#if shareable !== '' && canCopy(navigator.clipboard)}
-        <!-- The link says what it carries, because what it leaves out is the point: the narrowing
-             travels, the words do not. -->
-        <Button size="sm" tone="subtle" icon="link" onclick={() => void copyLink()}>
-          {t(copied ? 'app.search.link_copied' : 'app.search.copy_link')}
-        </Button>
-      {/if}
-      {#if line !== ''}
-        <Button size="sm" tone="subtle" icon="x" onclick={() => (line = '')}>
-          {t('app.searchline.clear_all')}
-        </Button>
-      {/if}
-    </div>
-    {#if hasWords}
-      <div class="starts" role="group" aria-label={t('app.search.kinds')}>
-        {#each kinds as each (each)}
-          <button type="button" class="pill" aria-pressed={shownKind === each} data-chosen={shownKind === each ? '' : undefined} onclick={() => (kind = each)}>
-            {t(`app.search.kind.${each}`)}
-          </button>
-        {/each}
-      </div>
+    {#if asksInWords}
+      <form class="ask" onsubmit={ask}>
+        <span class="spark" aria-hidden="true">✧</span>
+        {#if proposal}
+          <p class="proposal">
+            {t('app.search.ask_gives', { question: proposal.question })}
+            <code>{proposal.query}</code>
+            <button type="button" class="take" onclick={takeProposal}>{t('app.search.ask_take')}</button>
+          </p>
+        {:else}
+          <input class="question" aria-label={t('app.search.ask_label')} placeholder={t('app.search.ask_placeholder')} bind:value={question} disabled={asking} />
+        {/if}
+      </form>
+      {#if askFailure}<p class="failure" role="status">{askFailure}</p>{/if}
     {/if}
   </Stack>
 
-  {#if compiled.problems.length > 0}
-    <!-- What the line asks for and cannot have, said by name. A token the installation does not
-         answer is refused here rather than sent and answered with an empty page. -->
+  {#if compiled.problems.length > 0 && shownKind === 'ENTRY'}
     <ul class="problems">
       {#each compiled.problems as problem, index (index)}
         <li>{t(problem.code, problem.params ?? {})}</li>
@@ -629,48 +744,95 @@
     </ul>
   {/if}
 
-  {#if shareable !== ''}
-    <p class="hint">{t('app.search.link_carries')}</p>
-  {/if}
-
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
 
-  {#if !shows(shownKind, 'entries')}
-    {#if hasWords && otherCount === 0}<EmptyState kind="filtered" title={t('app.search.kind_none')} icon="search" />{/if}
-  {:else if failure}
-    <FailureState problem={failure} onRetry={() => void search.run(asked)} />
-  {:else if search.status === 'searching' && search.hits.length === 0}
-    <div aria-busy="true"><Skeleton lines={4} /></div>
-  {:else if search.status === 'idle'}
-    <!-- The empty screen is not empty: it is where the narrowings that need no typing live. That
-         is Jira's starred filters and Linear's views, at the one moment a reader has arrived with
-         no question of their own yet. -->
-    <Stack gap="150">
-      <EmptyState kind="unused" title={t('app.search.start')} icon="search" />
-      {#if quick.length > 0}
-        <div class="starts">
-          {#each quick as each (each.line)}
-            <button
-              type="button"
-              class="pill"
-              data-chosen={isQuick(line, each) ? '' : undefined}
-              onclick={() => (line = each.line)}
-            >
-              {t(each.code)}
+  {#if line.trim() === ''}
+    <EmptyState kind="unused" title={t('app.search.start')} icon="search" />
+  {:else}
+    {#if viewport.isCompact}
+      <!-- The phone's kinds as a strip of chips with counts (search m); the rest in the line's sheet. -->
+      <div class="strip" role="group" aria-label={t('app.search.facet_kind')}>
+        {#each scopes as scope (scope.id)}
+          <button type="button" class="chip" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; }}>
+            {t('app.palette.scope', { kind: scope.id })} {scope.count}{scope.more ? '+' : ''}
+          </button>
+        {/each}
+      </div>
+    {/if}
+    <div class="body" data-compact={viewport.isCompact ? '' : undefined}>
+      <!-- Facets with counts (§6.11, scene search 3): the kind from the server, the hub and the
+           change counted over the hits read. -->
+      <nav class="facets" aria-label={t('app.search.facets')}>
+        <section>
+          <h2>{t('app.search.facet_kind')}</h2>
+          {#each scopes as scope (scope.id)}
+            <button type="button" class="facet" aria-pressed={shownKind === scope.id} data-facet={scope.id} onclick={() => { chosenKind = scope.id as 'ALL' | Kind; chosenHub = undefined; }}>
+              <span>{t('app.palette.scope', { kind: scope.id })}</span><span class="n">{scope.count}{scope.more ? '+' : ''}</span>
             </button>
           {/each}
+        </section>
+        {#if hubCounts.size > 0}
+          <section>
+            <h2>{t('app.search.facet_hub')}</h2>
+            {#each [...hubCounts].sort((a, b) => b[1] - a[1]) as [hub, count] (hub)}
+              <button type="button" class="facet" aria-pressed={chosenHub === hub} onclick={() => (chosenHub = chosenHub === hub ? undefined : hub)}>
+                <span>{containers.find(hub)?.name ?? ''}</span><span class="n">{count}</span>
+              </button>
+            {/each}
+          </section>
+        {/if}
+        {#if sinceCounts.size > 0}
+          <section>
+            <h2>{t('app.search.facet_changed')}</h2>
+            {#each (['TODAY', 'WEEK', 'OLDER'] as const).filter((since) => sinceCounts.has(since)) as since (since)}
+              <button type="button" class="facet" aria-pressed={chosenSince === since} onclick={() => (chosenSince = chosenSince === since ? undefined : since)}>
+                <span>{t('app.search.since', { since })}</span><span class="n">{sinceCounts.get(since)}</span>
+              </button>
+            {/each}
+          </section>
+        {/if}
+      </nav>
+
+      <div class="hits">
+        <div class="head">
+          <p class="count"><b>{t('app.search.count', { count: shownCount })}</b> <span>{t('app.search.count_where')}</span></p>
+          <div class="tools">
+            <div class="orders" role="group" aria-label={t('app.search.order')}>
+              {#each ['RELEVANCE', 'UPDATED', 'TITLE'] as const as each (each)}
+                <button type="button" aria-pressed={order === each} onclick={() => (order = each)}>{t('app.search.order_value', { order: each })}</button>
+              {/each}
+            </div>
+            <Button size="sm" tone="secondary" icon="star" onclick={() => void saveAsView()} isBusy={saving}>{t('app.search.save_view')}</Button>
+            {#if shareable !== '' && canCopy(navigator.clipboard)}
+              <Button size="sm" tone="subtle" icon="link" onclick={() => void copyLink()}>{t(copied ? 'app.search.link_copied' : 'app.search.copy_link')}</Button>
+            {/if}
+          </div>
         </div>
-      {/if}
-    </Stack>
-  {:else if search.hits.length === 0 && hasWords && otherCount > 0}
-    <!-- No entry holds the words, and another kind does: drawn below, so no "nothing matches". -->
-  {:else if search.hits.length === 0 && typed.trim() === ''}
-    <!-- Narrowed and empty is a different sentence from searched and empty: nothing was looked
-         *for*, so nothing "does not match the words" — what excluded everything is the narrowing. -->
-    <EmptyState kind="filtered" title={t('app.search.narrowed_none')} icon="search" />
-  {:else if search.hits.length === 0}
-    <EmptyState kind="filtered" title={t('app.search.none')} icon="search" />
-  {:else}
+        {#if savedName}<p class="hint" role="status">{t('app.search.saved_view', { name: savedName })}</p>{/if}
+
+        {#if shownKind !== 'ENTRY'}
+          {#if allFailure}
+            <FailureState problem={allFailure} onRetry={() => (answer = { ...answer })} />
+          {:else if allStatus === 'searching' && answer.data.length === 0}
+            <div aria-busy="true"><Skeleton lines={4} /></div>
+          {:else if shownHits.length === 0 && allStatus === 'done'}
+            <EmptyState kind="filtered" title={t(hasWords ? 'app.search.none' : 'app.search.narrowed_none')} icon="search" />
+          {:else}
+            <div class="list" role="list">
+              {#each shownHits as hit (`${hit.kind}:${hit.id}`)}
+                <div role="listitem"><HitRow {hit} words={typed} onperson={searchPerson} /></div>
+              {/each}
+            </div>
+          {/if}
+        {:else if failure}
+          <FailureState problem={failure} onRetry={() => void search.run(asked)} />
+        {:else if search.status === 'searching' && search.hits.length === 0}
+          <div aria-busy="true"><Skeleton lines={4} /></div>
+        {:else if search.hits.length === 0 && typed.trim() === ''}
+          <EmptyState kind="filtered" title={t('app.search.narrowed_none')} icon="search" />
+        {:else if search.hits.length === 0}
+          <EmptyState kind="filtered" title={t('app.search.none')} icon="search" />
+        {:else}
     <BulkBar onresults={bulkDone} />
     <div class="results" bind:this={results}>
     <Stack gap="050">
@@ -684,7 +846,7 @@
           </Button>
         {/if}
       </div>
-      {#each search.hits as hit (hit.id)}
+      {#each shownEntries as hit (hit.id)}
         {@const isCompleted = hit.completion?.is_completed ?? false}
         <div class="hit" data-hit={hit.id} data-compact={viewport.isCompact ? '' : undefined} data-by-meaning={search.isByMeaning(hit.id) ? '' : undefined}>
         {#if selection.isOn}
@@ -737,33 +899,117 @@
     </Stack>
     </div>
     <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
-    {#if search.isPartial}
-      <p class="hint">{t('app.search.partial')}</p>
-    {/if}
+          {#if search.isPartial}
+            <p class="hint">{t('app.search.partial')}</p>
+          {/if}
+        {/if}
+      </div>
+    </div>
   {/if}
-
-  <OtherHits words={typed} kind={shownKind} modulesOn={manifest.value?.modules_on} oncount={(count) => (otherCount = count)} {onnavigate} />
 </WorkPage>
 
 <style>
-  /* As wide as a sentence of search words, the width the results below are read at. */
-  .term { flex: 1 1 24ch; min-width: 0; max-width: 72ch; }
-
-  .aside { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
   .hint { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }
 
   .failure { margin: 0; max-width: 64ch; color: var(--text-danger); font-size: var(--fs-075); }
 
-  .problems {
-    margin: 0;
-    padding-inline-start: var(--sp-200);
-    max-width: 64ch;
-    color: var(--text-danger);
-    font-size: var(--fs-075);
+  .problems { margin: 0; padding-inline-start: var(--sp-200); max-width: 64ch; color: var(--text-danger); font-size: var(--fs-075); }
+
+  /* The question in words: a quiet band under the line, the answer a query one takes over. */
+  .ask {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-150);
+    min-block-size: var(--density-control-md-min);
+    padding-inline: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
   }
 
+  .spark { color: var(--text-subtle); }
+
+  .question { flex: 1; min-inline-size: 0; border: 0; background: none; color: var(--text-primary); font: inherit; font-size: var(--fs-090); }
+
+  .question:focus-visible { outline: none; }
+
+  .proposal { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); margin: 0; color: var(--text-secondary); font-size: var(--fs-090); }
+
+  .proposal code { color: var(--text-primary); font-family: var(--font-mono); }
+
+  .take { border: 0; background: none; color: var(--text-brand); font: inherit; font-weight: var(--fw-semibold); cursor: pointer; }
+
+  .body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--sp-300); align-items: start; }
+
+  .body[data-compact] { grid-template-columns: minmax(0, 1fr); }
+
+  .body[data-compact] .facets { display: none; }
+
+  .strip { display: flex; gap: var(--sp-100); overflow-x: auto; scrollbar-width: none; }
+
+  .chip {
+    flex: none;
+    min-block-size: var(--density-control-sm-min);
+    padding-inline: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-full);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: var(--fs-075);
+    cursor: pointer;
+  }
+
+  .chip[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary); color: var(--text-inverse); }
+
+  .chip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .facets { display: flex; flex-direction: column; gap: var(--sp-300); }
+
+  .facets section { display: flex; flex-direction: column; gap: var(--sp-025); }
+
+  .facets h2 { margin: 0 0 var(--sp-050); color: var(--text-subtle); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-transform: uppercase; }
+
+  .facet {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--sp-100);
+    padding: var(--sp-050) var(--sp-100);
+    border: 0;
+    border-radius: var(--r-md);
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: var(--fs-090);
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .facet:hover { background: var(--bg-surface-hover); }
+
+  .facet[aria-pressed='true'] { background: var(--bg-surface-pressed); font-weight: var(--fw-semibold); }
+
+  .facet:focus-visible, .orders button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .n { color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+
+  .hits { display: flex; flex-direction: column; gap: var(--sp-150); min-inline-size: 0; }
+
   .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+
+  .count { margin: 0; }
+
+  .count span { color: var(--text-subtle); font-size: var(--fs-075); }
+
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+
+  .orders { display: inline-flex; padding: var(--sp-025); border-radius: var(--r-md); background: var(--bg-recess); }
+
+  .orders button { padding: var(--sp-050) var(--sp-150); border: 0; border-radius: var(--r-sm); background: none; color: var(--text-secondary); font: inherit; font-size: var(--fs-075); cursor: pointer; }
+
+  .orders button[aria-pressed='true'] { background: var(--bg-surface); color: var(--text-primary); font-weight: var(--fw-semibold); }
+
+  .list { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); overflow: hidden; }
 
   /* As a list's row lays out its pick (`EntryList`): the row takes the rest of the line. */
   .hit { display: flex; align-items: center; gap: var(--sp-050); }
@@ -772,27 +1018,7 @@
 
   .pick { display: flex; flex: none; align-items: center; }
 
-  /* On a phone the task row stacks its controls under its title, so the pick keeps to the title's
-     line: aligned to the start and as tall as that line, as a list's pick does. */
   .hit[data-compact] { align-items: start; }
 
   .hit[data-compact] .pick { min-block-size: calc(var(--density-control-md-min) + 2 * var(--density-row-block)); }
-
-  .starts { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
-
-  .pill {
-    min-block-size: var(--density-control-sm-min);
-    padding-inline: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-full);
-    background: var(--bg-surface);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: var(--fs-075);
-    cursor: pointer;
-  }
-
-  .pill:hover, .pill[data-chosen] { border-color: var(--accent-primary); color: var(--text-primary); }
-
-  .pill:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>
