@@ -6578,7 +6578,7 @@
   "app.query.op.STARTS_WITH": "starts with",
   "app.query.op.MATCHES": "matches",
   "app.nav.search": "Search",
-  "app.nav.capture": "Capture",
+  "app.nav.capture": "Create",
   "app.search.title": "Search",
   "app.search.narrow": "Narrow the search",
   "app.search.chip_type": "Kind",

@@ -250,7 +250,7 @@ test('chromium: 375 px — the area is a level of the Browse stack, under the sa
   assert.equal((await back.innerText()).trim(), 'Administration');
   assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'the area is behind a drawer on a phone');
   const tabs = page.getByRole('navigation', { name: 'Sections' });
-  assert.deepEqual((await tabs.locator('.word').allInnerTexts()).map((word) => word.trim()), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
+  assert.deepEqual((await tabs.locator('.word').allInnerTexts()).map((word) => word.trim()), ['Today', 'Browse', 'Create', 'Inbox', 'Search']);
   assert.equal(await tabs.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page');
 
   // One level up: the area's groups as a step, its rows leading on, and Browse above it.

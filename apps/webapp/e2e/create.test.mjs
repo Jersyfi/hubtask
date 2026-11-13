@@ -117,7 +117,7 @@ test('chromium: Create, C, Q and the phone’s ＋ open one menu whose first lin
   t.after(() => phone.context.close());
   await phone.page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await phone.page.getByText(ITEMS[2].title).first().waitFor();
-  await phone.page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' }).tap();
+  await phone.page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Create' }).tap();
   await lineOf(phone.page).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
   assert.deepEqual(phone.failures, []);
@@ -244,7 +244,7 @@ test('chromium: 375 px — holding the ＋ makes the kind made last (check 5)', 
 
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByText(ITEMS[2].title).first().waitFor();
-  const plus = page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' });
+  const plus = page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Create' });
   await plus.tap();
   await lineOf(page).waitFor({ timeout: 5_000 });
   await page.locator('dialog[open] .tilebutton[data-kind="entry"]').tap();

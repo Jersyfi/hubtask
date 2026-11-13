@@ -80,9 +80,9 @@ async function finger(page, rowId, moves, holdMs = 0) {
   );
 }
 
-/** Capture, from the bottom bar's ＋: pointed at the list the phone stands in. */
+/** Create, from the bottom bar's ＋: pointed at the list the phone stands in. */
 async function captureField(page) {
-  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' }).tap();
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Create' }).tap();
   // The ＋ opens Create (UC-WRK-46 check 1); its entry is capture.
   await page.locator('dialog[open] .tilebutton[data-kind="entry"]').tap();
   const field = page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' });

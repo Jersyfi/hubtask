@@ -149,8 +149,8 @@ test('chromium: 375 px — the bottom bar’s ＋ opens Create, and its line the
   await page.getByText(ITEMS[2].title).first().waitFor();
   const bar = page.getByRole('navigation', { name: 'Sections' });
   const names = await bar.locator('li').allTextContents();
-  assert.deepEqual(names.map((name) => name.trim()), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
-  await bar.getByRole('button', { name: 'Capture' }).tap();
+  assert.deepEqual(names.map((name) => name.trim()), ['Today', 'Browse', 'Create', 'Inbox', 'Search']);
+  await bar.getByRole('button', { name: 'Create' }).tap();
   await lineOf(page).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Enter');
   await fieldOf(page).waitFor({ timeout: 5_000 });
@@ -222,7 +222,7 @@ for (const width of [390, 1280]) {
 
     await land(page, '/jumble');
     assert.equal(await page.getByRole('main').getByRole('textbox').count(), 0, 'the jumble draws a capture form of its own');
-    await page.getByRole(width < 600 ? 'navigation' : 'banner').getByRole('button', { name: width < 600 ? 'Capture' : 'Create', exact: true }).click();
+    await page.getByRole(width < 600 ? 'navigation' : 'banner').getByRole('button', { name: 'Create', exact: true }).click();
     await lineOf(page).waitFor({ timeout: 5_000 });
     await page.keyboard.press('Enter');
     await fieldOf(page).fill('Call the plumber\nThe tap drips.\n\n  Since Monday.');

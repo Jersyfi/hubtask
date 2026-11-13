@@ -169,8 +169,8 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
   const bar = page.getByRole('navigation', { name: 'Sections', exact: true });
   for (const name of ['Today', 'Browse', 'Inbox', 'Search']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
   // The ＋ is an act: a button, never a link (UC-WRK-26 check 1).
-  assert.equal(await bar.getByRole('button', { name: 'Capture' }).count(), 1, 'the bottom bar has no capture');
-  assert.equal(await bar.getByRole('link', { name: 'Capture' }).count(), 0, 'capture is drawn as a link');
+  assert.equal(await bar.getByRole('button', { name: 'Create' }).count(), 1, 'the bottom bar has no capture');
+  assert.equal(await bar.getByRole('link', { name: 'Create' }).count(), 0, 'capture is drawn as a link');
   assert.equal(await bar.getByRole('link', { name: 'Today' }).getAttribute('aria-current'), 'page');
   assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'a drawer beside the stack');
 

@@ -35,7 +35,7 @@ test('UC-WRK-36 check 13: Today · Browse · ＋ · Inbox · Search; Browse hold
   t.after(() => browser.close());
   const { page, failures, close } = await phone(browser, '/');
   t.after(close);
-  assert.deepEqual(await texts(tabs(page).locator('.word')), ['Today', 'Browse', 'Capture', 'Inbox', 'Search']);
+  assert.deepEqual(await texts(tabs(page).locator('.word')), ['Today', 'Browse', 'Create', 'Inbox', 'Search']);
   assert.equal(await page.getByRole('button', { name: 'Open the navigation' }).count(), 0, 'a drawer beside the stack');
 
   await tabs(page).getByRole('link', { name: 'Browse' }).click();
