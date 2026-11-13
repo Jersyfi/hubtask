@@ -17,7 +17,7 @@
   // A reader's editor is not connected: what they read is the body as last saved.
 
   import { mount, tick, unmount, untrack } from 'svelte';
-  import { BlockHandle, BoxPopover, Button, FloatingToolbar, IconButton, Inline, Menu, Toolbar, UploadField } from '@hubtask/design-system/components';
+  import { BlockHandle, BoxPopover, Button, FloatingToolbar, IconButton, Inline, InsertList, Menu, Toolbar, UploadField } from '@hubtask/design-system/components';
   import {
     Doc, LiveDocument, actOnLine, createPageEditor, lineAt, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
     replaceFromMarkdown, revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
@@ -327,7 +327,7 @@
       if (event.key !== '/' || !seen?.isEditable || !seen.state.selection.empty) return;
       if (seen.state.selection.$from.parent.textContent !== '') return;
       event.preventDefault();
-      openInsert();
+      openInsert(true);
     };
     element.addEventListener('keydown', slash, true);
     return () => element.removeEventListener('keydown', slash, true);
@@ -430,11 +430,84 @@
   /** A panel opened by a button takes the focus, as a menu does; one opened by "/" leaves it in the line. */
   const focusPanel = () => void tick().then(() => zone?.querySelector<HTMLElement>('[data-box-popover] button')?.focus());
 
-  function openInsert() {
+  /** Opened by "/", the focus stays in the line and the editor hands the list its keys (`listKeys`). */
+  let insertList = $state<ReturnType<typeof InsertList> | undefined>(undefined);
+  let isInsertByKey = $state(false);
+
+  function openInsert(byKey = false) {
     blockForm = undefined;
+    isInsertByKey = byKey;
     isAddingBlock = true;
     const at = editor ? lineAt(editor) : undefined;
     insertBox = at ? boxOf(at.element) : line?.box;
+  }
+
+  const LIST_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Home', 'End', 'Enter', 'Escape']);
+  $effect(() => {
+    const element = host;
+    if (!element) return;
+    const listKeys = (event: KeyboardEvent) => {
+      if (!isAddingBlock || !isInsertByKey || blockForm || !LIST_KEYS.has(event.key)) return;
+      if (insertList?.keydown(event)) event.stopPropagation();
+    };
+    element.addEventListener('keydown', listKeys, true);
+    return () => element.removeEventListener('keydown', listKeys, true);
+  });
+
+  let fileChooser = $state<HTMLInputElement | undefined>(undefined);
+
+  const insertGroups = $derived([
+    {
+      label: t('app.pages.insert_hubtask'),
+      choices: [
+        { id: 'view', label: t('app.pages.tool_view'), detail: t('app.pages.insert_detail_view'), icon: 'table' as const },
+        { id: 'mention', label: t('app.pages.tool_mention'), detail: t('app.pages.insert_detail_mention'), icon: 'at-sign' as const },
+        { id: 'page', label: t('app.pages.tool_page'), detail: t('app.pages.insert_detail_page'), icon: 'file-text' as const },
+        { id: 'emoji', label: t('app.pages.tool_emoji'), detail: t('app.pages.insert_detail_emoji'), icon: 'sparkles' as const },
+        { id: 'file', label: t('app.pages.tool_file'), detail: t('app.pages.insert_detail_file'), icon: 'image' as const },
+      ],
+    },
+    {
+      label: t('app.pages.insert_blocks'),
+      choices: [
+        ...(['info', 'warning', 'success', 'error'] as const).map((tone) => ({
+          id: `callout_${tone}`, label: t(`app.pages.block_callout_${tone}`), detail: t('app.pages.insert_detail_callout'), icon: 'info' as const,
+        })),
+        { id: 'details', label: t('app.pages.block_toggle'), detail: t('app.pages.insert_detail_details'), icon: 'chevron-right' as const },
+        { id: 'toc', label: t('app.pages.block_toc'), detail: t('app.pages.insert_detail_toc'), icon: 'list' as const },
+        { id: 'children', label: t('app.pages.block_child_pages'), detail: t('app.pages.insert_detail_children'), icon: 'folder' as const },
+        { id: 'date', label: t('app.pages.block_date'), detail: t('app.pages.insert_detail_date'), icon: 'calendar' as const },
+        { id: 'diagram', label: t('app.pages.block_diagram_add'), detail: t('app.pages.insert_detail_diagram'), icon: 'git-branch' as const },
+        { id: 'math', label: t('app.pages.block_math_add'), detail: t('app.pages.insert_detail_math'), icon: 'type' as const },
+        { id: 'status', label: t('app.pages.block_status'), detail: t('app.pages.insert_detail_status'), icon: 'tag' as const },
+        { id: 'embed', label: t('app.pages.block_embed_add'), detail: t('app.pages.insert_detail_embed'), icon: 'globe' as const },
+      ],
+    },
+  ]);
+
+  function choose(id: string) {
+    const at = line?.box;
+    if (id === 'view' || id === 'page' || id === 'emoji') {
+      closeInsert();
+      if (id === 'view') isEmbedding = true;
+      else if (id === 'page') isLinkingPage = true;
+      else isPickingEmoji = true;
+      insertBox = at;
+      focusPanel();
+    } else if (id === 'mention') {
+      closeInsert();
+      isMentioning = true;
+    } else if (id === 'file') {
+      closeInsert();
+      fileChooser?.click();
+    } else if (id.startsWith('callout_')) {
+      addBlock({ kind: 'callout', tone: id.slice('callout_'.length) as 'info' | 'warning' | 'success' | 'error' });
+    } else if (id === 'details') addBlock({ kind: 'details', summary: '' });
+    else if (id === 'toc') addBlock({ kind: 'toc' });
+    else if (id === 'children') addBlock({ kind: 'children' });
+    else if (id === 'date') addBlock({ kind: 'date', date: today() });
+    else if (id === 'diagram') addBlock({ kind: 'diagram', source: 'graph TD\n  A --> B' });
+    else if (id === 'math' || id === 'status' || id === 'embed') blockForm = id;
   }
 
   function closeInsert() {
@@ -753,37 +826,15 @@
       </form>
     {:else}
       <!-- What "/" and "+" offer: Hubtask's own first, then the blocks; a block's fields only after it is chosen. -->
-      <p class="group">{t('app.pages.insert_hubtask')}</p>
-      <ul class="menu" aria-label={t('app.pages.insert_hubtask')}>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isEmbedding = true; insertBox = line?.box; focusPanel(); }}>{t('app.pages.tool_view')}</button></li>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isMentioning = true; }}>{t('app.pages.tool_mention')}</button></li>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isLinkingPage = true; insertBox = line?.box; focusPanel(); }}>{t('app.pages.tool_page')}</button></li>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isPickingEmoji = true; insertBox = line?.box; focusPanel(); }}>{t('app.pages.tool_emoji')}</button></li>
-        <li>
-          <UploadField
-            variant="button"
-            size="sm"
-            label={t('app.pages.tool_file')}
-            chooseLabel={isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}
-            disabledReason={isUploading ? t('app.pages.uploading') : undefined}
-            onChoose={(file) => { closeInsert(); void putFile(file); }}
-          />
-        </li>
-      </ul>
-      <p class="group">{t('app.pages.insert_blocks')}</p>
-      <ul class="menu" aria-label={t('app.pages.tool_block')}>
-        {#each ['info', 'warning', 'success', 'error'] as const as tone (tone)}
-          <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'callout', tone })}>{t(`app.pages.block_callout_${tone}`)}</button></li>
-        {/each}
-        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'details', summary: '' })}>{t('app.pages.block_toggle')}</button></li>
-        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'toc' })}>{t('app.pages.block_toc')}</button></li>
-        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'children' })}>{t('app.pages.block_child_pages')}</button></li>
-        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'date', date: today() })}>{t('app.pages.block_date')}</button></li>
-        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'diagram', source: 'graph TD\n  A --> B' })}>{t('app.pages.block_diagram_add')}</button></li>
-        <li><button type="button" class="choice" onclick={() => (blockForm = 'math')}>{t('app.pages.block_math_add')}</button></li>
-        <li><button type="button" class="choice" onclick={() => (blockForm = 'status')}>{t('app.pages.block_status')}</button></li>
-        <li><button type="button" class="choice" onclick={() => (blockForm = 'embed')}>{t('app.pages.block_embed_add')}</button></li>
-      </ul>
+      <InsertList
+        bind:this={insertList}
+        label={t('app.pages.insert')}
+        groups={insertGroups}
+        takesFocus={!isInsertByKey}
+        keys={{ move: t('app.pages.insert_keys_move'), take: t('app.pages.insert_keys_take'), close: t('app.pages.insert_keys_close') }}
+        onchoose={choose}
+        onclose={() => { closeInsert(); editor?.commands.focus(); }}
+      />
     {/if}
   </div>
 {/if}
@@ -861,12 +912,14 @@
 {#if saveRefusal}<p class="refusal" role="alert">{saveRefusal}</p>{/if}
 
 <div class="editor" bind:this={host}></div>
+<input class="chooser" type="file" tabindex="-1" aria-hidden="true" bind:this={fileChooser} onchange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void putFile(file); }} />
 </div>
 
 <MentionDialog bind:isOpen={isMentioning} selfId="" oninsert={insertAddressText} />
 
 <style>
   .writing { display: grid; gap: var(--sp-100); }
+  .chooser { display: none; }
   /* The bar stays at hand above the text while writing; on a phone it sits above the keyboard (§7). */
   .tools {
     position: sticky;
@@ -906,16 +959,6 @@
   }
   .choice:hover { background: var(--bg-surface-hover); }
   .quiet { color: var(--text-secondary); }
-  .group {
-    margin: 0;
-    padding-block: var(--sp-050) var(--sp-025);
-    color: var(--text-subtle);
-    font-size: var(--fs-050);
-    font-weight: var(--fw-semibold);
-    text-transform: uppercase;
-  }
-  .menu { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
-  .menu .choice { inline-size: 100%; border-color: transparent; text-align: start; }
 
   /* Reading first (S-1): running text at the reading size and the loose line height, no box. */
   .editor :global(.page-body) {

@@ -131,8 +131,19 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await panel.waitFor({ timeout: 5_000 });
   assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'the slash opened the blocks and was not typed');
   assert.equal(await panel.locator('input:not([type=file])').count(), 0, 'no block fields before a choice');
-  await panel.getByRole('button', { name: 'Add formula' }).click();
+  // A listbox as every menu: the focus stays in the line, the arrows choose (wrapping), Enter takes.
+  const list = panel.getByRole('listbox', { name: 'Insert' });
+  const activeName = async () => (await page.locator(`[id="${await list.getAttribute('aria-activedescendant')}"]`).innerText()).split('\n')[0];
+  assert.equal(await activeName(), 'Show a view', 'the first choice is active');
+  assert.match(await panel.innerText(), /↑↓ choose/);
+  await page.keyboard.press('ArrowUp');
+  assert.equal(await activeName(), 'Embed', 'ArrowUp from the first wraps to the last');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  assert.equal(await activeName(), 'Add formula');
+  await page.keyboard.press('Enter');
   await panel.locator('input:not([type=file])').waitFor({ timeout: 5_000 });
+  assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'Enter took the choice and wrote nothing');
   await page.keyboard.press('Escape');
   await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
 
