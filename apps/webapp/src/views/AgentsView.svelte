@@ -411,7 +411,8 @@
             {#if isBudgetZero(agent)}
               <span class="warn" data-agent-budget-zero>{t('app.agents.budget_zero_short')}</span>
             {:else}
-              <span class="quiet">{t('app.agents.budget_short', { tokens: grouped(agent.budget.tokens_per_day ?? 0), actions: grouped(agent.budget.actions_per_hour ?? 0) })}</span>
+              <!-- Its share of the day's budget and its last run (scene homeagents); a draft is not live yet. -->
+              <span class="quiet" data-agent-spend>{t('app.agents.budget_share', { share: String(Math.round(((agent.usage?.tokens_today ?? 0) / (agent.budget.tokens_per_day ?? 1)) * 100)) })} · {agent.status === 'DRAFT' ? t('app.agents.not_live') : agent.last_run_at ? t('app.agents.last_run', { when: formatRelative(agent.last_run_at, messages.locale) }) : t('app.agents.never_ran')}</span>
             {/if}
             {#if waiting > 0}
               <span class="held"><Button size="sm" tone="primary" icon="clock" onclick={() => onnavigate?.(`${hrefOf('requests')}&agent=${agent.id}`)}>{t('app.agents.held_count', { count: String(waiting) })}</Button></span>

@@ -25,7 +25,7 @@ const board = (n, title, at) => ({ id: `01a0e2e0-0000-7000-8000-0000000001${n}`,
 const agent = (n, name, status, owner) => ({ id: `01a0e2e0-0000-7000-8000-0000000002${n}`, account_id: null, name, purpose: 'Sorts new requests into the right queue', kind: 'TICKET_TRIAGE', owner_id: owner, status,
   risk_class: 'MINIMAL', scopes: [], model_id: null, policy: { reversible: 'APPROVAL', irreversible: 'APPROVAL' }, budget: { tokens_per_day: 200000, actions_per_hour: 120, concurrent_runs: 2 },
   min_accuracy: 0, needs_approval: false, approved_by: null, approved_at: null, suspended_by: null, suspended_at: null, created_at: '2026-11-01T08:00:00Z', version: 1 });
-const AGENTS = [agent('01', 'Old sorter', 'RETIRED', ACCOUNT.id), agent('02', 'Request sorter', 'ACTIVE', ACCOUNT.id), agent('03', 'Duplicate finder', 'SUSPENDED', '01a0e2e0-0000-7000-8000-0000000009ff')];
+const AGENTS = [agent('01', 'Old sorter', 'RETIRED', ACCOUNT.id), { ...agent('02', 'Request sorter', 'ACTIVE', ACCOUNT.id), usage: { actions_this_hour: 3, tokens_today: 68000 }, last_run_at: new Date(Date.now() - 12 * 60_000).toISOString() }, agent('03', 'Duplicate finder', 'SUSPENDED', '01a0e2e0-0000-7000-8000-0000000009ff')];
 const HELD = { id: '01a0e2e0-0000-7000-8000-000000000211', agent_id: AGENTS[1].id, use_case: 'UpdateItem', class: 'REVERSIBLE', input: {}, status: 'PENDING', decided_by: null, decided_at: null, code: '', created_at: '2026-11-03T08:00:00Z' };
 const job = (n, status, at) => ({ id: `01a0e2e0-0000-7000-8000-00000000022${n}`, agent_id: AGENTS[1].id, target_type: 'ENTRY', target_id: '01a0e2e0-0000-7000-8000-000000000299', status, code: '', proposals: 1, tokens: 120, started_by: null, started_at: at, ended_at: null });
 const JOBS = [job(1, 'FAILED', '2026-11-02T08:00:00Z'), job(2, 'DONE', '2026-11-03T08:00:00Z')];
@@ -396,6 +396,8 @@ test('chromium 1280 px: the agents\' home lists the agents, their held acts and 
   assert.ok(await waiting.evaluate((section) => section.compareDocumentPosition(document.querySelector('[data-agent-card]')) & Node.DOCUMENT_POSITION_FOLLOWING), 'the agents come after what waits');
   const first = page.locator('[data-agent-card]').filter({ hasText: 'Request sorter' });
   assert.match((await first.textContent()) ?? '', /Live/u);
+  // Its share of the day's budget and its last run, as the list answers them (scene homeagents).
+  assert.equal((await first.locator('[data-agent-spend]').textContent())?.trim(), '34 % of the daily budget · last run 12 minutes ago');
   await first.getByRole('button', { name: '1 waiting' }).click();
   await page.waitForURL(new RegExp(`/agents\\?tab=requests&agent=${AGENTS[1].id}$`));
   await page.getByText('Waiting on Request sorter').waitFor({ timeout: 10_000 });
