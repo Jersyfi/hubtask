@@ -413,9 +413,24 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
       return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], form, version: 1 }] } };
     }
     if (path === '/entry-types/request/form:evaluate' && method === 'POST') return { json: { fields: {} } };
-    if (path === `/items/${REQUEST.id}/steps` && method === 'GET') return { json: { workflow: 'requests', status: 'new', steps: [] } };
+    // A ticket's head (deskentry.d): the step that resolves as the primary, the one that waits beside it.
+    const statuses = [
+      { key: 'new', name: 'New', category: 'TODO', color_token: 'slate' }, { key: 'waiting', name: 'Waiting', category: 'IN_PROGRESS', color_token: 'amber' },
+      { key: 'resolved', name: 'Resolved', category: 'DONE', color_token: 'green' },
+    ];
+    if (path === `/items/${REQUEST.id}/steps` && method === 'GET') {
+      return { json: {
+        workflow: 'requests', status: 'new', picture: { statuses, initial: 'new', steps: [] }, blocked: [], done_route: [{ key: 'resolve', name: 'Lösen', to: 'resolved' }],
+        steps: [{ key: 'wait', name: 'Auf anfragende Person warten', to: 'waiting', asks: [], allowed: true }, { key: 'resolve', name: 'Lösen', to: 'resolved', asks: [], allowed: true }],
+      } };
+    }
+    // Two replies to the requester and one note for the team: the conversation's tabs count each.
+    if (path === `/items/${REQUEST.id}/comments` && method === 'GET') {
+      const post = (n, internal) => ({ id: `01a0e2e0-0000-7000-8000-00000000cd0${n}`, item_id: REQUEST.id, author_id: OTHER.id, body: `Post ${n}`, parent_comment_id: null, internal, created_at: `2026-11-10T0${n}:00:00Z`, edited_at: null, deleted_at: null, version: 1 });
+      return { json: { data: [post(1, false), post(2, true), post(3, false)], page: { has_more: false, next_cursor: null } } };
+    }
     if (path === '/workflows' && method === 'GET') {
-      const shape = { statuses: [{ key: 'new', name: 'New', category: 'TODO', color_token: 'slate' }, { key: 'resolved', name: 'Resolved', category: 'DONE', color_token: 'green' }], initial: 'new', steps: [] };
+      const shape = { statuses, initial: 'new', steps: [] };
       return { json: { data: [{ key: 'requests', system: false, name: 'Requests', published: shape, draft: null, published_at: '2026-10-30T09:00:00Z', version: 1 }], scheme: [{ container_id: COLLECTION.id, entry_type: null, workflow: 'requests' }] } };
     }
     if (path === '/custom-fields' && method === 'GET') {
@@ -463,4 +478,13 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   assert.match(await running.locator('.words').innerText(), /^noch 2 Std\. 10 Min\.$/);
   assert.match(await running.locator('.due').innerText(), /^bis /);
   assert.doesNotMatch(await deadlines.innerText(), /incidents|ola_plattform/, 'a policy shows by its key');
+
+  // The head (deskentry.d): *Resolve* the primary, *wait for the requester* beside it, the priority among its facts.
+  const head = page.locator('[data-tour="entry"]');
+  await head.getByRole('button', { name: 'Lösen', exact: true }).waitFor({ timeout: 10_000 });
+  assert.ok(await head.getByRole('button', { name: 'Auf anfragende Person warten' }).isVisible(), 'the step that waits is not beside the primary');
+  assert.match(await head.locator('[data-head-priority]').innerText(), /P2/, 'the priority is not in the head');
+  // The conversation's tabs say how many each holds (§6.9).
+  const tabs = (await page.locator('#entry-conversation').getByRole('tab').allInnerTexts()).map((text) => text.replace(/\s+/g, ' ').trim());
+  assert.deepEqual(tabs.slice(1, 3), ['Antworten 2', 'Interne Notizen 1']);
 });

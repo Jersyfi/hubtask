@@ -32,6 +32,12 @@
     runs?: boolean;
     /** The head's primary act: the workflow's next step, or *Done* without one. */
     next?: { label: string; icon?: 'check'; onclick: () => void };
+    /**
+     * A second step beside it where `offersSecond` asks for one (a ticket's *Wait for the
+     * requester*): the first other allowed step that neither finishes nor goes back.
+     */
+    second?: { label: string; onclick: () => void };
+    offersSecond?: boolean;
     /** Completing or reopening without a workflow: the same write as the row's checkbox. */
     oncomplete: () => void;
     /** Present: the reader may not change the entry now, and this says why. */
@@ -41,7 +47,7 @@
     onnavigate?: (path: string) => void;
   }
 
-  let { item, runs = $bindable(false), next = $bindable(undefined), oncomplete, disabledReason, reasonSaidAt, onnavigate }: Props = $props();
+  let { item, runs = $bindable(false), next = $bindable(undefined), second = $bindable(undefined), offersSecond = false, oncomplete, disabledReason, reasonSaidAt, onnavigate }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntrySteps>(untrack(() => `/items/${item.id}/steps`));
@@ -189,6 +195,7 @@
   });
 
   $effect(() => {
+    second = undefined;
     if (!model || disabledReason !== undefined || answer?.steps === undefined) {
       next = undefined;
       return;
@@ -200,6 +207,10 @@
     const step = model.steps.find((each) => each.isNext && each.blockedReason === undefined)
       ?? model.steps.find((each) => each.blockedReason === undefined && each.to.category !== 'todo' && each.to.category !== model.current.category);
     next = step ? { label: step.label, onclick: () => choose(step) } : undefined;
+    const other = offersSecond && !model.columns
+      ? model.steps.find((each) => each !== step && each.blockedReason === undefined && each.to.category === 'progress')
+      : undefined;
+    if (other) second = { label: other.label, onclick: () => choose(other) };
   });
 
   const allowedNow = $derived(new Map((answer?.steps ?? []).filter((step) => step.allowed !== false).map((step) => [step.key, asksLine(step)])));

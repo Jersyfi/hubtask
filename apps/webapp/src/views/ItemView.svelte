@@ -38,6 +38,7 @@
     IconButton,
     LoadMore,
     FoldingSection,
+    PriorityMark,
     JumpMarks,
     ObjectHead,
     PropertyRail,
@@ -173,6 +174,8 @@
 
   /** The head's primary act, from the status (E-23): the next step, or *Done* without a workflow. */
   let statusNext = $state<{ label: string; icon?: 'check'; onclick: () => void } | undefined>(undefined);
+  /** A ticket's second act beside it: the step that waits for the requester (deskentry.d). */
+  let statusSecond = $state<{ label: string; onclick: () => void } | undefined>(undefined);
   /** The ticket's one deadline chip in the action bar (ET-6). */
   let deadlineChip = $state<DeadlineChip | undefined>(undefined);
   /** The section the jump marks stand at; on a phone the one shown (§7). */
@@ -1179,6 +1182,15 @@
     const made = !date ? undefined : maker ? t('app.entry.created_meta', { date, name: maker }) : t('app.entry.created_meta_alone', { date });
     return [!hasWorkflow ? columnName : undefined, made].filter((part): part is string => Boolean(part)).join(' · ') || undefined;
   });
+  /** The priority among the head's facts (the scenes' *↑ P2 High*), where the entry holds one of P1-P4. */
+  const headPriority = $derived.by(() => {
+    const definition = definitions.find((each) => each.key === 'priority');
+    const held = (item?.custom_fields as Record<string, unknown> | undefined)?.priority;
+    const level = /^P([1-4])\b/.exec(String(held ?? ''))?.[1];
+    if (!definition || !level || !carries('CUSTOM_FIELDS')) return undefined;
+    const label = valueText(definition, held, fieldReading);
+    return label ? { level: Number(level) as 1 | 2 | 3 | 4, label } : undefined;
+  });
   /** Jump marks with counts (ET-2). */
   const jumpMarks = $derived.by(() => {
     const marks = [
@@ -1286,6 +1298,7 @@
         editTitleLabel={isWritable ? t('app.entry.edit_title') : undefined}
         onrename={isWritable ? rename : undefined}
         next={statusNext}
+        secondary={statusSecond}
         person={carries('ASSIGNMENT') || carries('MEMBERS') ? (item.assignee_id ? { name: accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed'), src: accounts.pictureOf(item.assignee_id) } : { emptyLabel: t('app.entry.nobody') }) : undefined}
         due={carries('DUE_DATE') && headDates ? { label: headDates } : undefined}
         deadline={isPhoneTicket ? undefined : deadlineChip}
@@ -1297,7 +1310,7 @@
         isDone={item.completion?.is_completed === true}
       >
         {#snippet status()}
-          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} {onnavigate} />{/key}
+          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} bind:second={statusSecond} offersSecond={isDeskEntry} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
       <!-- A ticket's deadlines stand under its head on a phone, each a line (the `deskentry` phone scene). -->
@@ -1498,6 +1511,7 @@
   {/snippet}
 
   {#snippet headFacts()}
+    {#if headPriority}<span class="fact" data-head-priority><PriorityMark level={headPriority.level} label={headPriority.label} /></span>{/if}
     <!-- The column is changed through the status button (by level, UC-FLW-06); a reader who may not
          change it still reads where it stands. -->
     {#if item && !hasWorkflow && !isWritable && columnName}
