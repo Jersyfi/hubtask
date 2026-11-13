@@ -55,6 +55,12 @@
      * sheet with a row per condition. `more` names the hidden ones: *+3*.
      */
     phone?: { open: string; title: string; close: string; reset: string; show: string; more: (hidden: number) => string };
+    /** The phone's sheet is open; bound where a button elsewhere opens it. */
+    isSheetOpen?: boolean;
+    /** False where that button stands elsewhere: the strip carries only the chips and the count. */
+    hasPhoneButton?: boolean;
+    /** Under the sheet's conditions: a way on to what the filter does not hold. */
+    sheetEnd?: Snippet;
   }
 
   let {
@@ -77,13 +83,15 @@
     addGroupLabel,
     hint,
     phone,
+    isSheetOpen = $bindable(false),
+    hasPhoneButton = true,
+    sheetEnd,
   }: Props = $props();
 
   /** The chips a phone's strip shows before "+n". */
   const STRIP = 2;
   let isPhone = $state(isCompactWidth());
   $effect(() => watchCompactWidth((value) => (isPhone = value)));
-  let isSheetOpen = $state(false);
   /** *+ Condition* pressed: every field is offered before a letter is typed. */
   let isBrowsing = $state(false);
   let line = $state<HTMLElement | null>(null);
@@ -198,16 +206,20 @@
 
 <div class="query">
   {#if isPhone && phone}
-    <div class="strip">
-      {#each tokens.slice(0, STRIP) as token (token.id)}
-        <span class="chip" data-kind={token.kind} data-problem={token.problem ? '' : undefined}><span class="chip-body">{@render tokenWords(token)}</span></span>
-      {/each}
-      {#if tokens.length > STRIP}<span class="chip more"><span class="value">{phone.more(tokens.length - STRIP)}</span></span>{/if}
-    </div>
-    <div class="phone-bar">
-      <Button tone="secondary" size="sm" icon="funnel" onclick={() => (isSheetOpen = true)}>{phone.open}</Button>
-      {#if count}<span class="count" role="status">{@render count()}</span>{/if}
-    </div>
+    {#if tokens.length > 0}
+      <div class="strip">
+        {#each tokens.slice(0, STRIP) as token (token.id)}
+          <span class="chip" data-kind={token.kind} data-problem={token.problem ? '' : undefined}><span class="chip-body">{@render tokenWords(token)}</span></span>
+        {/each}
+        {#if tokens.length > STRIP}<span class="chip more"><span class="value">{phone.more(tokens.length - STRIP)}</span></span>{/if}
+      </div>
+    {/if}
+    {#if hasPhoneButton || count}
+      <div class="phone-bar">
+        {#if hasPhoneButton}<Button tone="secondary" size="sm" icon="funnel" onclick={() => (isSheetOpen = true)}>{phone.open}</Button>{/if}
+        {#if count}<span class="count" role="status">{@render count()}</span>{/if}
+      </div>
+    {/if}
     <Sheet title={phone.title} closeLabel={phone.close} bind:isOpen={isSheetOpen}>
       <ul class="rows">
         {#each tokens as token (token.id)}
@@ -221,6 +233,7 @@
         {/each}
       </ul>
       {@render editor(false)}
+      {#if sheetEnd}{@render sheetEnd()}{/if}
       {#snippet actions()}
         <Button tone="subtle" onclick={() => setTokens([])}>{phone.reset}</Button>
         <Button tone="primary" onclick={() => { isSheetOpen = false; onsubmit?.(tokens); }}>{phone.show}</Button>
