@@ -844,6 +844,18 @@ type BucketStatuses interface {
 
 	// EntriesOnBoard counts a collection's entries standing in any column, trashed ones included.
 	EntriesOnBoard(ctx context.Context, collectionID shared.ID) (int, error)
+
+	// PlaceUnplaced puts a collection's top-level tasks without a status and without a column, of
+	// one completion, into a column, and answers those it moved.
+	PlaceUnplaced(ctx context.Context, collectionID shared.ID, completed bool, column shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// Cells counts a collection's top-level tasks by status, column and completion, trashed ones
+	// included.
+	Cells(ctx context.Context, collectionID shared.ID) ([]work.BoardCell, error)
+
+	// SetStatusInColumn gives a status to the top-level tasks without one standing in a column -
+	// or, with no column, to those of one completion standing in none - and answers them.
+	SetStatusInColumn(ctx context.Context, collectionID, column shared.ID, completed bool, status string, at time.Time) ([]MovedEntry, error)
 }
 
 // Labels stores a collection's vocabulary.

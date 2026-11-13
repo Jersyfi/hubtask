@@ -218,3 +218,79 @@ func (r BucketStatusRepository) EntriesOnBoard(ctx context.Context, collectionID
 	}
 	return int(count), nil
 }
+
+// PlaceUnplaced puts a collection's top-level tasks without a status and without a column, of one
+// completion, into a column.
+func (r BucketStatusRepository) PlaceUnplaced(
+	ctx context.Context, collectionID shared.ID, completed bool, column shared.ID, at time.Time,
+) ([]repository.MovedEntry, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := uuidsOf([]shared.ID{collectionID, column})
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PlaceUnplacedWorkItems(ctx, sqlc.PlaceUnplacedWorkItemsParams{
+		BucketID: ids[1], UpdatedAt: timestampOf(at), CollectionID: ids[0], IsCompleted: completed,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("placing entries without a column: %w", err))
+	}
+	return placedEntries(len(rows), func(i int) (pgtype.UUID, int32) { return rows[i].ID, rows[i].Version })
+}
+
+// Cells counts a board's top-level tasks by status, column and completion.
+func (r BucketStatusRepository) Cells(ctx context.Context, collectionID shared.ID) ([]work.BoardCell, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.CountBoardCells(ctx, collection)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the board's entries by column: %w", err))
+	}
+	out := make([]work.BoardCell, 0, len(rows))
+	for _, row := range rows {
+		column, err := optionalID(row.BucketID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, work.BoardCell{Status: row.Status, BucketID: column, Completed: row.IsCompleted, Count: int(row.Count)})
+	}
+	return out, nil
+}
+
+// SetStatusInColumn gives a status to the top-level tasks without one standing in a column, or,
+// with no column, to those of one completion standing in none.
+func (r BucketStatusRepository) SetStatusInColumn(
+	ctx context.Context, collectionID, column shared.ID, completed bool, status string, at time.Time,
+) ([]repository.MovedEntry, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+	bucket, err := optionalUUID(column)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SetWorkItemStatusInColumn(ctx, sqlc.SetWorkItemStatusInColumnParams{
+		Status: status, UpdatedAt: timestampOf(at), CollectionID: collection, BucketID: bucket, IsCompleted: completed,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("giving a column's entries a status: %w", err))
+	}
+	return placedEntries(len(rows), func(i int) (pgtype.UUID, int32) { return rows[i].ID, rows[i].Version })
+}

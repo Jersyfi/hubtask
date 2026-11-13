@@ -38,9 +38,14 @@ func threeColumnBoard(store *buckets) {
 }
 
 type mapping struct {
-	rows   []domain.ColumnStatus
-	placed []placedByStatus
+	rows     []domain.ColumnStatus
+	placed   []placedByStatus
+	cells    []domain.BoardCell
+	statused []placedByStatus
 }
+
+// unplaced marks a PlaceUnplaced call among the placements.
+var unplaced = shared.MustParseID("0192f000-0000-7000-8000-0000000b00ff")
 
 // placedByStatus is one PlaceByStatus call.
 type placedByStatus struct {
@@ -57,6 +62,18 @@ func (m *mapping) CompleteInColumn(context.Context, shared.ID, shared.ID, shared
 	return nil, nil
 }
 func (m *mapping) EntriesOnBoard(context.Context, shared.ID) (int, error) { return 0, nil }
+
+func (m *mapping) PlaceUnplaced(_ context.Context, _ shared.ID, completed bool, column shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
+	m.placed = append(m.placed, placedByStatus{completed: completed, from: unplaced, column: column})
+	return nil, nil
+}
+
+func (m *mapping) Cells(context.Context, shared.ID) ([]domain.BoardCell, error) { return m.cells, nil }
+
+func (m *mapping) SetStatusInColumn(_ context.Context, _ shared.ID, column shared.ID, completed bool, status string, _ time.Time) ([]repository.MovedEntry, error) {
+	m.statused = append(m.statused, placedByStatus{status: status, column: column, completed: completed})
+	return []repository.MovedEntry{{ID: taskID, Version: 4}}, nil
+}
 
 func (m *mapping) PlaceByCompletion(_ context.Context, _ shared.ID, completed bool, from, column shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
 	m.placed = append(m.placed, placedByStatus{completed: completed, from: from, column: column})

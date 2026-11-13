@@ -408,6 +408,42 @@ WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collec
   AND wi.bucket_id IS DISTINCT FROM sqlc.narg('bucket_id')::uuid
 RETURNING wi.id, wi.version;
 
+-- name: PlaceUnplacedWorkItems :many
+-- A board's tasks without a status and without a column, of one completion, go into a column:
+-- open ones into the first when a workflow leaves or a list becomes a board (domain-model.md §3.5a).
+UPDATE work_item wi SET
+  bucket_id  = sqlc.arg('bucket_id')::uuid,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND wi.bucket_id IS NULL
+  AND wi.is_completed = sqlc.arg('is_completed')::boolean
+RETURNING wi.id, wi.version;
+
+-- name: CountBoardCells :many
+-- A board's top-level tasks counted by status, column and completion: what a change of its
+-- workflow moves (work.PlanBoardChange). Trashed entries count, as they move.
+SELECT coalesce(wi.status, '')::text AS status, wi.bucket_id, wi.is_completed, count(*)::int AS count
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3;
+
+-- name: SetWorkItemStatusInColumn :many
+-- A workflow made from a board's columns: the top-level tasks without a status standing in a
+-- column - or, with no column given, of one completion standing in none - take a status.
+UPDATE work_item wi SET
+  status     = sqlc.arg('status')::text,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND ((sqlc.narg('bucket_id')::uuid IS NOT NULL AND wi.bucket_id = sqlc.narg('bucket_id')::uuid)
+    OR (sqlc.narg('bucket_id')::uuid IS NULL AND wi.bucket_id IS NULL
+        AND wi.is_completed = sqlc.arg('is_completed')::boolean))
+RETURNING wi.id, wi.version;
+
 -- name: ListBoardCollections :many
 -- The collections whose board has a live column, for the board repair.
 SELECT DISTINCT b.collection_id FROM bucket b

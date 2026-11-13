@@ -144,3 +144,104 @@ func TestABoardsMappingIsInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// The counts and writes a change of level makes (domain-model.md §3.5a): cells by status, column
+// and completion; open entries without a column put into one; a column's entries given a status.
+func TestABoardsCellsAndLevelWrites(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	open := seedRepairColumn(ctx, t, tenantA, collection, "a0", false)
+	done := seedRepairColumn(ctx, t, tenantA, collection, "a1", true)
+	inOpen := seedOnBoard(ctx, t, tenantA, authorA, collection, open.ID, false, "")
+	loose := seedOnBoard(ctx, t, tenantA, authorA, collection, "", false, "")
+	looseDone := seedOnBoard(ctx, t, tenantA, authorA, collection, "", true, "")
+	seedOnBoard(ctx, t, tenantA, authorA, collection, done.ID, true, "")
+	at := created.Add(time.Hour)
+
+	var cells []work.BoardCell
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		cells, err = bucketStatusRepo().Cells(ctx, collection)
+		return err
+	}); err != nil {
+		t.Fatalf("counting the cells: %v", err)
+	}
+	total := 0
+	for _, cell := range cells {
+		total += cell.Count
+	}
+	if len(cells) != 4 || total != 4 {
+		t.Errorf("cells %v, want four of one entry each", cells)
+	}
+
+	var placed []shared.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		moved, err := bucketStatusRepo().PlaceUnplaced(ctx, collection, false, open.ID, at)
+		for _, entry := range moved {
+			placed = append(placed, entry.ID)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("placing the entries without a column: %v", err)
+	}
+	if !slices.Equal(placed, []shared.ID{loose}) {
+		t.Errorf("placed %v, want only the open entry without a column", placed)
+	}
+	if got := readEntry(ctx, t, tenantA, looseDone); !got.BucketID.IsZero() {
+		t.Errorf("a completed entry was placed by the open pass: %s", got.BucketID)
+	}
+
+	var statused []shared.ID
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		moved, err := bucketStatusRepo().SetStatusInColumn(ctx, collection, open.ID, false, "open", at)
+		for _, entry := range moved {
+			statused = append(statused, entry.ID)
+		}
+		if err != nil {
+			return err
+		}
+		moved, err = bucketStatusRepo().SetStatusInColumn(ctx, collection, "", true, "done", at)
+		for _, entry := range moved {
+			statused = append(statused, entry.ID)
+		}
+		return err
+	}); err != nil {
+		t.Fatalf("giving the entries a status: %v", err)
+	}
+	if len(statused) != 3 || !slices.Contains(statused, inOpen) || !slices.Contains(statused, looseDone) {
+		t.Errorf("statused %v, want the open column's two and the completed one without a column", statused)
+	}
+	if got := readEntry(ctx, t, tenantA, looseDone); got.Status != "done" {
+		t.Errorf("status %q, want done", got.Status)
+	}
+}
+
+func TestABoardsCellsAndLevelWritesAreInvisibleFromAnotherTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	column := seedRepairColumn(ctx, t, tenantA, collection, "a0", false)
+	entry := seedOnBoard(ctx, t, tenantA, authorA, collection, "", false, "")
+	at := created.Add(time.Hour)
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		cells, err := bucketStatusRepo().Cells(ctx, collection)
+		if err != nil || len(cells) != 0 {
+			return errors.Join(err, errors.New("tenant B counted tenant A's board"))
+		}
+		moved, err := bucketStatusRepo().PlaceUnplaced(ctx, collection, false, column.ID, at)
+		if err != nil || len(moved) != 0 {
+			return errors.Join(err, errors.New("tenant B placed tenant A's entries"))
+		}
+		moved, err = bucketStatusRepo().SetStatusInColumn(ctx, collection, "", false, "open", at)
+		if err != nil || len(moved) != 0 {
+			return errors.Join(err, errors.New("tenant B gave tenant A's entries a status"))
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if got := readEntry(ctx, t, tenantA, entry); !got.BucketID.IsZero() || got.Status != "" {
+		t.Errorf("tenant A's entry changed: %+v", got)
+	}
+}
