@@ -217,6 +217,7 @@ test('chromium: an approved agent\'s head draws its standing as the status butto
   const standing = head.locator('.action-bar .lozenge').first();
   await standing.waitFor({ timeout: 10_000 });
   assert.equal((await standing.innerText()).trim(), 'Approved');
+  assert.equal(await standing.getAttribute('data-tone'), 'success', 'approved is drawn as a warning');
   assert.equal(await standing.getAttribute('data-size'), 'md', 'the standing is the small lozenge, not the status button\'s shape');
   assert.equal(await standing.locator('.icon').count(), 1, 'the standing carries no glyph');
   const next = head.locator('.action-bar .step').first();

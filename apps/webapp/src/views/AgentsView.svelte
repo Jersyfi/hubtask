@@ -98,8 +98,9 @@
     }
   }
 
+  // Approved is a good standing, not a warning (the agents' scenes draw it green); a draft still waits.
   const statusTone = (status: Agent['status']) =>
-    status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
+    status === 'ACTIVE' || status === 'APPROVED' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
 
   // --- Adding, changing, retiring ---------------------------------------------------------------
 

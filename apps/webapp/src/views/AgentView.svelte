@@ -71,8 +71,9 @@
   const grouped = (value: number) => new Intl.NumberFormat(messages.locale).format(value);
   const modelName = (modelId: string | null | undefined) => (modelId ? (models.find((each) => each.id === modelId)?.name ?? t('app.agents.model_unread')) : t('app.agents.no_model'));
 
+  // Approved is a good standing, not a warning (the agents' scenes draw it green); a draft still waits.
   const statusTone = (status: Agent['status']) =>
-    status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
+    status === 'ACTIVE' || status === 'APPROVED' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
   /** Every toned standing says it with a mark too (UX-7); an approval that no longer covers the model warns. */
   const STATUS_GLYPH = { DRAFT: 'pencil', APPROVED: 'check', ACTIVE: 'zap', SUSPENDED: 'circle-alert', RETIRED: 'archive' } as const;
   const isApprovalDue = (each: Agent) => each.needs_approval && each.status !== 'DRAFT' && each.status !== 'RETIRED';
