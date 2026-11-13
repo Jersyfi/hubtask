@@ -428,8 +428,12 @@
   .sheet-foot { display: flex; flex-direction: column; gap: var(--sp-100); margin-block-start: var(--sp-150); }
   .sheet-foot .scope { margin-inline-start: 0; text-align: center; }
 
-  /* On a phone a row is a thumb's target. */
-  .sheet-rows .row { min-block-size: var(--sp-600); }
+  /* On a phone a row is a thumb's target, as the workflow's phone mockup draws it: taller, its
+     name at the reading size, a hairline between the rows instead of a gap. */
+  .sheet-rows { gap: 0; }
+  .sheet-rows .row { min-block-size: var(--sp-800); padding-block: var(--sp-150); border-radius: 0; font-size: var(--fs-100); }
+  .sheet-rows > :global(* + *) { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .sheet-rows .name { font-size: var(--fs-200); }
 
   @keyframes open {
     from { opacity: 0; }
