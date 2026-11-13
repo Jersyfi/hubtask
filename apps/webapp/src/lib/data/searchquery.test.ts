@@ -295,3 +295,13 @@ test('a person is looked up by name, and one nobody knows is refused rather than
   assert.equal(unknown.filter, undefined);
   assert.deepEqual(unknown.problems.map((problem) => problem.code), ['app.searchline.person_unknown']);
 });
+
+test('a hub is the collections it holds, and a hub nobody knows is a problem', () => {
+  const hubbed = context({ hub: (name) => (name.toLowerCase() === 'home' ? [KITCHEN, SHOPPING] : undefined) });
+  const found = compile(parse('hub:"Home" sort:-updated'), hubbed);
+  assert.deepEqual(found.filter, { op: 'IN', field: 'collection_id', value: [KITCHEN, SHOPPING] });
+  assert.deepEqual(found.sort, [{ field: 'updated_at', direction: 'DESC' }]);
+  assert.deepEqual(compile(parse('hub:cellar'), hubbed).problems, [
+    { code: 'app.searchline.place_unknown', params: { value: 'cellar' } },
+  ]);
+});

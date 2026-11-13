@@ -9997,6 +9997,7 @@
   "app.searchline.key.updated": "wann es zuletzt geändert wurde",
   "app.searchline.key.done": "wann es erledigt wurde",
   "app.searchline.key.in": "in welcher Sammlung es liegt",
+  "app.searchline.key.hub": "in welchem Hub es liegt",
   "app.searchline.key.label": "welches Label es trägt",
   "app.searchline.key.title": "Wörter nur im Titel",
   "app.searchline.key.note": "Wörter nur in den Notizen",

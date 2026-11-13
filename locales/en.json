@@ -9997,6 +9997,7 @@
   "app.searchline.key.updated": "when it last changed",
   "app.searchline.key.done": "when it was completed",
   "app.searchline.key.in": "which collection it lives in",
+  "app.searchline.key.hub": "which hub it lives in",
   "app.searchline.key.label": "which label it carries",
   "app.searchline.key.title": "words in the title alone",
   "app.searchline.key.note": "words in the notes alone",

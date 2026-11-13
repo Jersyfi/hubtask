@@ -295,6 +295,11 @@
       return undefined;
     },
     hasCollection: named.length > 0,
+    hub: (name) => {
+      const wanted = name.trim().toLowerCase();
+      const hub = containers.hubs.find((each) => each.name.toLowerCase() === wanted || each.id === name.trim());
+      return hub ? containers.collectionsOf(hub.id).map((collection) => collection.id) : undefined;
+    },
     person: (name) => {
       const wanted = name.trim().toLowerCase();
       if (!oneCollection) return undefined;
