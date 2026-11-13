@@ -124,6 +124,11 @@
      * always shows them.
      */
     kind?: 'records' | 'work';
+    /**
+     * The title's whole words, for a `work` row whose cell cuts them with an ellipsis: shown on
+     * hover, and the cell opens to them while the row has focus.
+     */
+    titleText?: (row: T) => string;
     /** A phone's row under its title: the meta line and a bar - key, status, priority, SLA. */
     stack?: Snippet<[T]>;
     swipe?: RowSwipe<T>;
@@ -167,6 +172,7 @@
     add,
     density,
     kind = 'records',
+    titleText,
     stack,
     swipe,
     empty,
@@ -179,7 +185,10 @@
   const END = '__end';
 
   const visible = $derived(columns.filter((column) => !hiddenColumns.includes(column.id)));
-  const hasEnd = $derived(verb !== undefined || menu !== undefined || swipe?.toEnd !== undefined);
+  const hasActs = $derived(verb !== undefined || menu !== undefined || swipe?.toEnd !== undefined);
+  // A work row keeps its act and ⋯ in the title's cell, after the title (the queue's mockup): no
+  // column is held for them while nothing hovers.
+  const hasEnd = $derived(hasActs && kind !== 'work');
   const tableColumns = $derived<Column[]>([
     ...(isSelecting ? [{ id: SELECT, label: actionsLabel || label, isLabelHidden: true, priority: 1 as const }] : []),
     ...visible.map((column, index) => ({ ...column, priority: column.priority ?? (index === 0 ? 1 : 2) })),
@@ -314,6 +323,19 @@
             data-align={column.align ?? 'start'}
             data-role={column.id === titleColumn ? 'title' : column.isStatus ? 'status' : priority === 2 ? 'line' : undefined}
           >
+            {#if column.id === titleColumn && kind === 'work'}
+              <span class="title-line">
+                {#if lead}<span class="lead">{@render lead(row)}</span>{/if}
+                {#if link}
+                  <a class="press cut" href={link} title={titleText?.(row)}>{@render cell(row, column)}</a>
+                {:else if onopen}
+                  <button type="button" class="press cut" title={titleText?.(row)} onclick={() => onopen(row)}>{@render cell(row, column)}</button>
+                {:else}
+                  <span class="cut" title={titleText?.(row)}>{@render cell(row, column)}</span>
+                {/if}
+                {#if hasActs}{@render acts(row)}{/if}
+              </span>
+            {:else}
             {#if column.id === titleColumn && lead}<span class="lead">{@render lead(row)}</span>{/if}
             {#if column.id === titleColumn && link}
               <a class="press" href={link}>{@render cell(row, column)}</a>
@@ -321,6 +343,7 @@
               <button type="button" class="press" onclick={() => onopen(row)}>{@render cell(row, column)}</button>
             {:else}
               {@render cell(row, column)}
+            {/if}
             {/if}
           </td>
         {/each}
@@ -335,26 +358,7 @@
           </td>
         {/if}
         {#if hasEnd}
-          {@const rowMenu = menuOf(row)}
-          <td class="end" data-priority="1" data-align="end">
-            <span class="end-inner">
-              {#if verb}<span class="verb">{@render verb(row)}</span>{/if}
-              {#if rowMenu && rowMenu.items.length > 0}
-                {#if (menu?.(row)?.items.length ?? 0) > 0}
-                <span class="menu-wide">
-                  <Menu label={rowMenu.label} items={menu?.(row)?.items ?? []} placement={{ side: 'block-end', align: 'end' }} onselect={(item) => onmenu?.(row, item)}>
-                    {#snippet trigger(props)}
-                      <IconButton icon="ellipsis" label={rowMenu.label} size="sm" {...props} />
-                    {/snippet}
-                  </Menu>
-                </span>
-                {/if}
-                <span class="menu-phone">
-                  <IconButton icon="ellipsis" label={rowMenu.label} size="sm" onclick={() => { sheetRow = row; isSheetOpen = true; }} />
-                </span>
-              {/if}
-            </span>
-          </td>
+          <td class="end" data-priority="1" data-align="end">{@render acts(row)}</td>
         {/if}
       </tr>
       {/if}
@@ -368,6 +372,27 @@
     {/each}
   </Table>
 </div>
+
+{#snippet acts(row: T)}
+  {@const rowMenu = menuOf(row)}
+  <span class="end-inner">
+    {#if verb}<span class="verb">{@render verb(row)}</span>{/if}
+    {#if rowMenu && rowMenu.items.length > 0}
+      {#if (menu?.(row)?.items.length ?? 0) > 0}
+      <span class="menu-wide">
+        <Menu label={rowMenu.label} items={menu?.(row)?.items ?? []} placement={{ side: 'block-end', align: 'end' }} onselect={(item) => onmenu?.(row, item)}>
+          {#snippet trigger(props)}
+            <IconButton icon="ellipsis" label={rowMenu.label} size="sm" {...props} />
+          {/snippet}
+        </Menu>
+      </span>
+      {/if}
+      <span class="menu-phone">
+        <IconButton icon="ellipsis" label={rowMenu.label} size="sm" onclick={() => { sheetRow = row; isSheetOpen = true; }} />
+      </span>
+    {/if}
+  </span>
+{/snippet}
 
 {#snippet tableFoot()}
     {#if shownLabel}<span class="shown">{shownLabel}</span>{/if}
@@ -457,10 +482,27 @@
     /* design-system-lint-ignore: tracking in em follows the type step it spaces */
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    border-block-end-width: var(--bw-hairline);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
+  /* A work row is one line at the density's height (WB-4): no cell wraps, the title takes the
+     room that is left and is cut with an ellipsis, its whole words on hover and while the row
+     has focus. The padding goes, so the height is the token's and not the content's. */
+  .data-table[data-kind='work'] :global(tbody) { font-size: var(--fs-090); }
+  .data-table[data-kind='work'] :global(tbody td) { padding-block: 0; white-space: nowrap; }
+  .data-table[data-kind='work']:not([data-density]) :global(tbody tr.row > td) { block-size: var(--density-row-height); }
+  .data-table[data-kind='work'] :global(td[data-role='title']) { inline-size: 100%; max-inline-size: 0; }
+  .data-table[data-kind='work'] :global(td.select) { inline-size: 1%; padding-inline-end: 0; }
+
+  .title-line { display: flex; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
+  .cut { display: block; flex: 0 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .title-line .end-inner { margin-inline-start: auto; flex: none; }
+  /* The act reads as one, not as a disabled control: the primary text on the hovered row. */
+  .data-table[data-kind='work'] .verb :global(.button) { color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .data-table[data-kind='work'] :global(tr.row:focus-within .cut) { white-space: normal; padding-block: var(--sp-050); }
+
   .data-table :global(tr.group-row[data-head] td) { padding-block: var(--sp-050); }
+  .data-table[data-density] :global(tr.group-row td) { block-size: auto; }
 
   .twist {
     display: inline-grid;
@@ -512,11 +554,21 @@
   @media (hover: hover) {
     .data-table[data-kind='work'] :global(.end-inner) { opacity: 0; transition: opacity var(--motion-state-duration) var(--motion-state-easing); }
     .data-table[data-kind='work'] :global(tr.row:hover .end-inner),
+    .data-table[data-kind='work'] :global(tr.row:focus-within .end-inner),
     .data-table[data-kind='work'] :global(.end-inner:focus-within) { opacity: 1; }
   }
 
   .stack { display: none; }
   .swipe-hint { display: none; }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the checkbox's
+     input, the ⋯ and the group's twist grow to layout.target; the drawn box stays as it is. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .data-table :global(td.select .native) { inset: calc((var(--sp-250) - var(--layout-target)) / 2); width: auto; height: auto; }
+    .data-table :global(.end-inner .icon-button[data-size]) { width: var(--layout-target); height: var(--layout-target); }
+    .twist { inline-size: var(--layout-target); block-size: var(--layout-target); margin-block: calc((var(--sp-300) - var(--layout-target)) / 2); }
+  }
 
   .shown { color: var(--text-subtle); }
   .more { margin-inline: auto; }
@@ -570,6 +622,20 @@
       grid-template-areas: 'check title status menu' 'check stack stack menu';
     }
     .data-table[data-stacked] :global(tr.row > td[data-role='line']) { display: none; }
+
+    /* A work row on a phone has no end column: its ⋯ stands in the title's line. The title wraps
+       here - the row is as tall as its content - and the checkbox keeps its gap to it. */
+    .data-table[data-kind='work'][data-stacked] :global(tr.row) {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: 'title status' 'stack stack';
+    }
+    .data-table[data-kind='work'][data-stacked][data-selecting] :global(tr.row) {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas: 'check title status' 'check stack stack';
+    }
+    .data-table[data-kind='work'] :global(tr.row > td[data-role='title']) { inline-size: auto; max-inline-size: none; }
+    .data-table[data-kind='work'] .cut { white-space: normal; }
+    .data-table[data-kind='work'] :global(tr.row > td.select) { padding-block-start: var(--sp-025); }
     .data-table[data-stacked] :global(tbody td) { block-size: auto; }
     .data-table :global(tr.row > td.stack) { display: flex; flex-direction: column; gap: var(--sp-050); grid-area: stack; min-inline-size: 0; }
     .data-table :global(tr.add-row) { display: block; }
