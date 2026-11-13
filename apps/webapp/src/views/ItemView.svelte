@@ -1203,6 +1203,10 @@
           {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
+      <!-- On a phone the head's top row stays hidden (WB-8); the ask and the key's copy stay reachable under it. -->
+      {#if viewport.isCompact && (hasAi || ticketKey)}
+        <div class="phone-tools">{@render headTools()}</div>
+      {/if}
       {#if writeFailure && isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
       {/if}
@@ -1613,6 +1617,7 @@
   /* A ✦ that has no field row of its own sits at the end of the line under its subject. */
   .field-ai { display: flex; justify-content: flex-end; }
 
+  .phone-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .format { display: inline-flex; flex-wrap: wrap; gap: var(--sp-025); }
 
   .cover-image { inline-size: 100%; max-block-size: var(--sp-1600); object-fit: cover; border-radius: var(--r-lg); }
