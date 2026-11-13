@@ -216,6 +216,17 @@ export const DECLARED = {
     // `chevrons-up-down`, and no two actions of the sidebar share a mark (the navigation concept).
     'arrow-up-down',
   ],
+  'The work surface': [
+    // A priority's glyph beside its word (the queue's mockup): up for high and critical, down for
+    // low; the middle takes `minus`.
+    'arrow-up',
+    'arrow-down',
+    // The composer's formatting bar (ET-5) and its mention.
+    'bold',
+    'italic',
+    'list',
+    'at-sign',
+  ],
 };
 
 /**
