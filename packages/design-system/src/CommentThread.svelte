@@ -289,5 +289,8 @@
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; }
+  /* A compact row under the text, as the scene draws *Reply ···*: the buttons at the 24 px a target
+     needs (WCAG 2.5.8), the first one's words in line with the text above. */
+  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; margin-inline-start: calc(-1 * var(--sp-150)); }
+  .actions :global(.button) { min-height: var(--sp-300); padding-block: 0; }
 </style>
