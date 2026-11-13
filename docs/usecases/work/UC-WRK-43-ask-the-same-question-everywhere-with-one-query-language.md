@@ -5,9 +5,9 @@ context: work
 actors: [PE-member, PE-admin, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-19]
-state: specified
+state: verified
 tasks: []
-checked_by: [test/querylanguage/lines_test.go, core/domain/model/view/Query_test.go, core/application/service/work/QueryItems_test.go, core/application/service/work/SearchItems_test.go, core/application/service/work/AggregateItems_test.go, packages/query/test/lines.test.ts, packages/query/test/language.test.ts]
+checked_by: [test/querylanguage/lines_test.go, core/domain/model/view/Query_test.go, core/application/service/work/QueryItems_test.go, core/application/service/work/SearchItems_test.go, core/application/service/work/AggregateItems_test.go, packages/query/test/lines.test.ts, packages/query/test/language.test.ts, apps/webapp/e2e/viewpanel.test.mjs]
 ---
 
 # Ask the same question everywhere with one query language
@@ -30,10 +30,6 @@ In `D1` and `D2` a person mostly uses the line on their own lists; in `D4`–`D7
 4. `POST /search` takes the search as one `query`: its free words are ranked, the rest narrows; sent beside `q` it is refused with `query.line_with_filter`.
 5. The count of a line while it is typed and a key's values with their counts are `POST /items:aggregate` with `q` over the reader's own readable scope, so a member never sees a count or a value of an entry they may not read; the line travels in the body, never in an address.
 6. A line is one row of chips: a term is a chip, a group or a word a text chip, and a refused term carries the problem and its suggestion.
-
-## Today
-
-* Check 6: a collection's panel *Ansicht* draws the line with `QueryLine` and `@hubtask/query`; a `word:` that names no field is searched as words and said at its chip (`apps/webapp/src/lib/data/viewquery.test.ts`). Not yet walked in the browser (family 3.2's next step).
 
 ## Where it ends
 

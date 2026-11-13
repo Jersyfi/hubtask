@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-13]
 state: partial
 tasks: [B-09, F2-11, F2-12, F9-07, F10-11]
-checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts, apps/webapp/e2e/entryhead.test.mjs]
+checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/e2e/viewpanel.test.mjs]
 ---
 
 # Run a collection as a board
@@ -79,7 +79,6 @@ column at a time.
 
 ## Today
 
-* Check 12: not met — lanes are built (`Board.svelte`, `lanesOf` in `viewquery.test.ts`, `grouping.lanes_by` in `SavedView_test.go`) but no browser walk proves them yet.
 
 * Check 2: not met in the web app — the board never reorders columns; they stay in creation order unless reordered through the API.
 * Check 6: met — the server couples on every door; the web board drops through `POST /items/{id}:drop` and completes nothing itself (`apps/webapp/e2e/board.test.mjs`, `flow.test.mjs`, `boardlevels.test.mjs`).
