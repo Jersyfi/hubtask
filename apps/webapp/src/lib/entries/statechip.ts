@@ -60,3 +60,14 @@ export function chipOf(
   }
   return undefined;
 }
+
+/**
+ * Where a swipe towards the inline end carries an entry at L1 and L2 (work-surface concept §7,
+ * "completes or advances"): the column after the current one, or the first step out of its status.
+ * Nothing past the last column, nor where no step leads on; the row menu offers the same choice.
+ */
+export function advanceOf(chip: Chip): ChipChoice | undefined {
+  const at = chip.choices.findIndex((choice) => choice.isCurrent);
+  if (chip.choices.some((choice) => choice.id.startsWith('column:'))) return at === -1 ? chip.choices[0] : chip.choices[at + 1];
+  return chip.choices.find((choice) => !choice.isCurrent);
+}

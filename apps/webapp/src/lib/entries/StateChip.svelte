@@ -8,13 +8,10 @@
   import { Menu, StateLozenge, type MenuItem } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
-  import { announcer } from '../announce.svelte.ts';
-  import { celebration } from '../celebration.svelte.ts';
-  import { items } from '../data/items.svelte.ts';
-  import { workflows } from '../data/workflows.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import type { Chip } from './statechip.ts';
+  import { takeChoice } from './statetake.ts';
 
   interface Props {
     item: WorkItem;
@@ -33,11 +30,7 @@
 
   async function choose(id: string) {
     try {
-      const moved = id.startsWith('column:')
-        ? (await items.drop(item.id, id.slice('column:'.length), item.version)).item
-        : await workflows.take(item, { step: id.slice('step:'.length) });
-      if (moved.completion?.is_completed && !item.completion?.is_completed) void celebration.celebrate(moved);
-      announcer.say(t('app.board.moved', { title: item.title, name: chip.choices.find((each) => each.id === id)?.label ?? '', limit: '' }));
+      await takeChoice(item, { id, label: chip.choices.find((each) => each.id === id)?.label ?? '' });
     } catch (error) {
       onfailure?.(renderProblem(error as never, messages).message);
     }
