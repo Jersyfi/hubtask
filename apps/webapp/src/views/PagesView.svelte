@@ -691,7 +691,7 @@
 
             {#snippet beside()}
               {#snippet threadCard(thread: (typeof threads)[number])}
-                <article class="thread" class:resolved={thread.first.resolved}>
+                <article class="thread" class:resolved={thread.first.resolved} class:at-passage={!!thread.first.quote}>
                   {#if thread.first.quote}
                     <button type="button" class="quote" onclick={() => (reveal = thread.first.anchor ?? undefined)}>{thread.first.quote}</button>
                   {/if}
@@ -1023,7 +1023,16 @@
   }
   .which button[aria-pressed='true'] { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .which button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
-  .write { display: grid; gap: var(--sp-050); }
+  .write {
+    display: grid;
+    gap: var(--sp-050);
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-inline-start: var(--bw-thick) solid var(--accent-primary);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+  }
   .backlinks {
     display: grid;
     gap: var(--sp-100);
@@ -1052,28 +1061,34 @@
     border-radius: var(--r-lg);
     background: var(--bg-surface);
   }
+  /* A thread's card as the margin draws it (pwrite): a raised card, the passage's mark at its start. */
   .thread {
     display: grid;
     gap: var(--sp-050);
-    padding: var(--sp-100);
+    padding: var(--sp-150);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
+    font-size: var(--fs-100);
   }
+  .thread.at-passage { border-inline-start: var(--bw-thick) solid var(--accent-primary); }
   .thread.resolved { color: var(--text-secondary); }
   .margin { position: relative; display: grid; row-gap: var(--sp-100); }
   .margin.level { display: block; min-block-size: var(--margin-height); }
   .margin.level > .placed { position: absolute; inset-inline: 0; inset-block-start: var(--thread-top); }
   .quote {
     text-align: start;
-    padding-inline-start: var(--sp-100);
+    padding: 0;
     border: none;
-    border-inline-start: var(--bw-thick) solid var(--border-default);
     background: none;
     color: var(--text-secondary);
     font: inherit;
+    font-style: italic;
     cursor: pointer;
   }
+  .quote::before { content: open-quote; }
+  .quote::after { content: close-quote; }
   .comment .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   .versions li { display: flex; align-items: center; gap: var(--sp-050); }
   .version {
