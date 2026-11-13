@@ -61,6 +61,10 @@ column at a time.
     ⋯ menu, after a preview: a board starts with an open and a done column, completed cards in the
     done one; back to a list the columns go and every entry keeps its completion. Neither is
     offered while a workflow runs for the tasks (owner's decision of 2026-11-12).
+12. A board may be drawn in lanes by a second field - a person, a label's or a custom field's
+    value -, each lane a row of the same columns with its count, the cards without a value in the
+    last lane; the lanes are saved with the view as `grouping.lanes_by`, held to the grouping's
+    rule (E-21).
 
 ## Where it ends
 
@@ -74,6 +78,8 @@ column at a time.
   grouping ([UC-WRK-17](./UC-WRK-17-filter-sort-and-save-a-view-of-my-work.md)).
 
 ## Today
+
+* Check 12: not met — lanes are built (`Board.svelte`, `lanesOf` in `viewquery.test.ts`, `grouping.lanes_by` in `SavedView_test.go`) but no browser walk proves them yet.
 
 * Check 2: not met in the web app — the board never reorders columns; they stay in creation order unless reordered through the API.
 * Check 6: met — the server couples on every door; the web board drops through `POST /items/{id}:drop` and completes nothing itself (`apps/webapp/e2e/board.test.mjs`, `flow.test.mjs`, `boardlevels.test.mjs`).

@@ -33,7 +33,7 @@ In `D1` and `D2` a person mostly uses the line on their own lists; in `D4`–`D7
 
 ## Today
 
-* Check 6: the language is built and tested in `packages/query`, but no screen draws its line yet (work-surface build plan, families 3.2 and 3.3).
+* Check 6: a collection's panel *Ansicht* draws the line with `QueryLine` and `@hubtask/query`; a `word:` that names no field is searched as words and said at its chip (`apps/webapp/src/lib/data/viewquery.test.ts`). Not yet walked in the browser (family 3.2's next step).
 
 ## Where it ends
 
