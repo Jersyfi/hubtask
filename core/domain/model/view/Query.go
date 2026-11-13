@@ -128,7 +128,14 @@ func ParseQuery(text, path string) (Query, error) {
 func comparisonLine(text string) bool {
 	tokens, _, ok := lex(text)
 	if !ok {
-		return false
+		// A line that stops being readable is answered by the grammar it looks like, so the
+		// error names the character there.
+		for _, word := range strings.Fields(text) {
+			if fieldMarker.MatchString(word) {
+				return false
+			}
+		}
+		return strings.ContainsAny(text, "=<>~'")
 	}
 	compares := false
 	for _, t := range tokens {

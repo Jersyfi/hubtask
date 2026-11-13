@@ -52,3 +52,46 @@ func FuzzParseQuery(f *testing.F) {
 		}
 	})
 }
+
+// UC-WRK-43 check 2: every key the catalogue serves is one the parser reads, with examples that
+// read, and its field is one the grammar knows.
+func TestEveryCatalogueKeyIsRead(t *testing.T) {
+	for _, key := range QueryKeys() {
+		if key.Field != "" && key.Field != CustomFieldPrefix {
+			if _, known := FieldByName(key.Field); !known {
+				t.Fatalf("%s names the unknown field %s", key.Key, key.Field)
+			}
+		}
+		for _, example := range key.Examples {
+			if strings.Contains(example, "here") {
+				continue
+			}
+			if _, err := ParseQuery(example, "/q"); err != nil {
+				t.Fatalf("%s: the example %q is refused: %v", key.Key, example, err)
+			}
+		}
+	}
+}
+
+// Free words join the tree as a MATCHES leaf for a query of entries; another kind is refused.
+func TestAQueryOfEntriesTakesItsWordsIntoTheTree(t *testing.T) {
+	q, err := ParseQuery("passkey who: me", "/q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter, err := q.EntryFilter("/q")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{"op": "AND", "nodes": []any{
+		map[string]any{"field": "assignee_id", "op": "EQ", "value": "@me"},
+		map[string]any{"field": "text", "op": "MATCHES", "value": "passkey"},
+	}}
+	if !reflect.DeepEqual(filter, want) {
+		t.Fatalf("got %v", filter)
+	}
+	q, _ = ParseQuery("type: page", "/q")
+	if _, err := q.EntryFilter("/q"); err == nil {
+		t.Fatal("a page was asked of entries")
+	}
+}
