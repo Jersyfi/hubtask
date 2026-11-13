@@ -30112,6 +30112,7 @@ components:
         milestone: { type: boolean }
         done: { type: boolean }
         due_only: { type: boolean, description: "The entry has a due date and no start; its start and finish are that day." }
+        release_id: { type: [string, "null"], format: uuid, description: "The release the entry ships with; null when none." }
 
     PlanDependency:
       type: object

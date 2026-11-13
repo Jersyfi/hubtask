@@ -1467,6 +1467,7 @@ class PlanScheduleEntry(TypedDict, total=False):
     milestone: Required[bool]
     done: Required[bool]
     due_only: bool
+    release_id: str | None
 
 class PlanDependency(TypedDict, total=False):
     link_id: Required[str]

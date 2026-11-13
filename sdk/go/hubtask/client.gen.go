@@ -22640,7 +22640,10 @@ type PlanScheduleEntry struct {
 
 	// ParentId The parent entry within the plan; null for a top-level or outside entry.
 	ParentId *openapi_types.UUID `json:"parent_id"`
-	Start    openapi_types.Date  `json:"start"`
+
+	// ReleaseId The release the entry ships with; null when none.
+	ReleaseId *openapi_types.UUID `json:"release_id,omitempty"`
+	Start     openapi_types.Date  `json:"start"`
 
 	// Summary A parent whose dates are its children's span.
 	Summary bool   `json:"summary"`
