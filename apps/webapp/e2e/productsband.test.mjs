@@ -37,6 +37,13 @@ const PAGES = [
   pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true }),
 ];
 const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [{ class: 'laptop', total: 12, completeness: 1, stale: 0, orphans: 0, duplicates: 0 }, { class: 'server', total: 30, completeness: 0.9, stale: 2, orphans: 1, duplicates: 0 }], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
+// The handler's own deadlines kept: four kinds, so the card draws three and "+ 1 more".
+const KEPT = [
+  { kind: 'SLA', goal: 'FIRST_RESPONSE', group_id: null, ended: 2, kept: 1 },
+  { kind: 'SLA', goal: 'RESOLUTION', group_id: null, ended: 4, kept: 4 },
+  { kind: 'SLA', goal: 'NEXT_RESPONSE', group_id: null, ended: 5, kept: 4 },
+  { kind: 'OLA', goal: 'RESOLUTION', group_id: '01a0e2e0-0000-7000-8000-000000000901', ended: 3, kept: 1 },
+];
 const DESK = { id: '01a0e2e0-0000-7000-8000-000000000501', type: 'COLLECTION', parent_id: HUB.id, name: 'IT help desk for every office and every remote worker', handle: 'it', key_prefix: 'INC', order_key: 'a0', version: 1, structure: { settings: { entry_types: { TASK: ['incident'] } } } };
 const SCRUM = { id: '01a0e2e0-0000-7000-8000-000000000502', type: 'COLLECTION', parent_id: HUB.id, name: 'Sprint work', order_key: 'a1', version: 1, structure: { settings: { entry_types: { TASK: ['story'] } } } };
 const TYPES = [
@@ -146,6 +153,9 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
     }
     if (path.endsWith('/api/v1/pages:search')) return route.fulfill({ json: { data: [{ id: PAGES[0].id, hub_id: HUB.id, parent_id: null, title: 'Onboarding guide', icon: null, excerpt: 'Your first «release» week', rank: 1, updated_at: PAGES[0].updated_at }] } });
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [], page: { next_cursor: null, has_more: false } } });
+    if (path.endsWith('/api/v1/deadlines-kept')) return route.fulfill({ json: { from: '2026-10-14T00:00:00Z', to: '2026-11-13T00:00:00Z', data: KEPT } });
+    // The server names the hub's desks; a deskless workspace has none.
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/queues`)) return route.fulfill({ json: { data: [], desks: deskless ? [] : [DESK.id] } });
     if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: deskless ? TYPES.map(({ form, ...type }) => type) : TYPES } });
     if (role && path.endsWith('/api/v1/memberships')) {
       const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }] : [];
@@ -273,7 +283,8 @@ for (const scheme of ['dark']) {
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width: 375, scheme, modulesOn: ['SERVICE_DESK', 'ASSETS'] });
     t.after(close);
-    // Today with *More in Hubtask* fits the phone.
+    // Today with *More in Hubtask* fits the phone; on a phone it stands in the overview half.
+    await page.getByRole('tab', { name: 'Overview' }).click({ timeout: 10_000 });
     await page.getByRole('region', { name: 'More in Hubtask' }).waitFor({ timeout: 10_000 });
     await noSidewaysScroll(page, `Today 375 ${scheme}`);
     const bar = page.getByRole('navigation', { name: 'Sections' });
@@ -433,7 +444,20 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     if (width >= 600) assert.deepEqual(cells.map((row) => [row[0], row[3], row[4], row[5]]), [
       ['INC-1', ACCOUNT.display_name, 'P2', '1 h 0 min left'], ['INC-2', ACCOUNT.display_name, 'P3', 'Breached 18 min ago'], ['INC-3', ACCOUNT.display_name, 'P4', 'Paused'],
     ], JSON.stringify(cells));
-    assert.equal(await page.locator('[data-desk-figure]').textContent(), '3 open · 2 unassigned');
+    // UC-SVC-02 check 15 (the owner's decision of 2026-11-12): my deadlines kept, every kind worst
+    // first, three rows then "+ n more"; the phone draws only the worst.
+    const kept = page.locator('[data-desk-kept]');
+    assert.deepEqual((await kept.locator('[data-kept-row] >> visible=true').allInnerTexts()).map((each) => each.replace(/\s+/g, ' ').trim()),
+      width >= 600 ? ['A team: Resolution 33 % 2 breached', 'First response 50 % 1 breached', 'Next response 80 % 1 breached'] : ['A team: Resolution 33 % 2 breached']);
+    if (width >= 600) {
+      await kept.getByRole('button', { name: '+ 1 more' }).click();
+      const dialog = page.getByRole('dialog', { name: 'My deadlines kept' });
+      assert.equal(await dialog.locator('[data-kept-row]').count(), 4, 'the whole table of kinds');
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({ state: 'hidden' });
+    }
+    // The band's figures (E-1, WB-5): the first one is the headline.
+    assert.deepEqual((await page.locator('.band .figure').allTextContents()).map((each) => each.trim()), ['3 open', '2 unassigned']);
     // UC-SVC-03 check 12, UC-WRK-45 check 9: grouped by status, each group counted, each ending in
     // capture's door for the desk; on a phone the key, the status and the priority under the title.
     const counts = await table.locator('tr.group-row[data-head] .group-count').allTextContents();
@@ -635,13 +659,14 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   // says first, the tool it leads to at its end.
   const lines = page.getByRole('list', { name: 'What the products say here' });
   for (const id of ['plan', 'assets', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
+  // UC-WRK-36 (E-6): the hub's tools as tiles - the tool, one figure with its word, a line.
   assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'assets', 'contents']);
-  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /^Sprint Kranich · (Its last day has passed|\d+ days? left) · Autumn fixes on [A-Z][a-z]{2} \d+\s+Plan$/);
+  assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /^Plan\s+\d+ days?\s+to the sprint's end\s+Sprint Kranich\s+Autumn fixes on [A-Z][a-z]{2} \d+$/);
   assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/hubs/${HUB.id}/plan`);
   // Every page and board of the fixture changed before this week began, the template included.
-  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^No page and no whiteboard changed this week\s+All contents$/);
+  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^All contents\s+0\s+changed this week\s+No page and no whiteboard changed this week$/);
   assert.equal(await lines.locator('[data-product-line="contents"] a').getAttribute('href'), `/hubs/${HUB.id}/contents`);
-  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /^42 configuration items · 2 need attention\s+Inventory$/);
+  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /^Inventory\s+42\s+items\s+2 need attention$/);
   assert.equal(await lines.locator('[data-product-line="assets"] a').getAttribute('href'), `/hubs/${HUB.id}/inventory`);
   await noSidewaysScroll(page, 'hub overview');
   assert.deepEqual(failures, []);
@@ -658,12 +683,13 @@ test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what
   for (const id of ['desk', 'time', 'goals', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
   assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['desk', 'time', 'goals', 'contents']);
   // Both boards of the fixture changed before this week began.
-  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^No page and no whiteboard changed this week\s+All contents$/);
-  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /^3 open\s+Queues$/);
+  assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^All contents\s+0\s+changed this week\s+No page and no whiteboard changed this week$/);
+  assert.match(await lines.locator('[data-product-line="desk"]').innerText(), /^Queues\s+3\s+open$/);
   assert.equal(await lines.locator('[data-product-line="desk"] a').getAttribute('href'), `/hubs/${HUB.id}/desk`);
-  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /^6:30 of yours this week\s+Time$/);
+  assert.match(await lines.locator('[data-product-line="time"]').innerText(), /^Time\s+6:30\s+this week/);
+  assert.equal(await lines.locator('[data-product-line="time"] .day').count(), 7, 'the week as seven small bars');
   assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/time`);
-  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /^1 goal\s+Goals$/);
+  assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /^Goals\s+1\s+pursued/);
   assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/hubs/${HUB.id}/goals`);
   const recent = page.getByRole('region', { name: 'Recently changed' });
   await recent.waitFor({ timeout: 10_000 });

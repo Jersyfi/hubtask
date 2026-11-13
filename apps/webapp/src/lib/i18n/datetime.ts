@@ -59,6 +59,13 @@ export function formatPlainDay(date: string | null | undefined, locale: string):
 }
 
 /** A calendar day as a short line says it - "Nov 21" -, without its year; read on UTC's clock as `formatPlainDay`. */
+/** A plain date's weekday, short - "Mo" -, for a week's columns. */
+export function formatWeekdayShort(date: string, locale: string): string {
+  const at = Date.parse(`${date}T00:00:00Z`);
+  if (Number.isNaN(at)) return date;
+  return new Intl.DateTimeFormat(locale, { weekday: 'short', timeZone: 'UTC' }).format(at).replace(/\.$/u, '');
+}
+
 export function formatShortDay(date: string, locale: string): string {
   const at = Date.parse(`${date}T00:00:00Z`);
   if (Number.isNaN(at)) return date;
