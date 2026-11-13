@@ -1204,6 +1204,11 @@
     white-space: nowrap;
   }
   .editor :global(.page-caret__label)::first-line { color: var(--text-inverse); }
+  /* The name never covers words (carets.ts): below where the line above holds words, tucked away
+     where both neighbours do, faded near the reader's own caret. */
+  .editor :global(.page-caret[data-place='below'] .page-caret__label) { inset-block: 100% auto; }
+  .editor :global(.page-caret[data-place='tucked'] .page-caret__label) { visibility: hidden; }
+  .editor :global(.page-caret[data-near] .page-caret__label) { opacity: 0.25; }
   .editor :global(.page-caret--0) { color: var(--label-blue-fg); }
   .editor :global(.page-caret--1) { color: var(--label-green-fg); }
   .editor :global(.page-caret--2) { color: var(--label-violet-fg); }

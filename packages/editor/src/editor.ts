@@ -27,6 +27,7 @@ import { EmojiShortcodes } from './emoji.ts';
 import { MathBlock } from './math.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { lineBelow, lineStart, moveLine, removeLine } from './lines.ts';
+import { caretLabels } from './carets.ts';
 import { readSelectionFirst } from './selection.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
@@ -441,6 +442,12 @@ const SelectionFirst = Extension.create({
   addProseMirrorPlugins: () => [readSelectionFirst],
 });
 
+/** A co-writer's name beside their caret never covers words (`carets.ts`). */
+const CaretLabels = Extension.create({
+  name: 'caretLabels',
+  addProseMirrorPlugins: () => [caretLabels],
+});
+
 export function createPageEditor(options: PageEditorOptions): Editor {
   const fallback = options.fallback ?? '…';
   const extensions = [
@@ -490,6 +497,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
         return caret;
       },
     }) as never);
+    extensions.push(CaretLabels);
   }
   let made: Editor | undefined;
   const editor = new Editor({
