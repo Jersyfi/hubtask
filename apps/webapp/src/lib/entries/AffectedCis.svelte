@@ -11,7 +11,8 @@
   // dialog. Without the right to change the entry neither naming nor removing is drawn (P-05).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, IconButton, Skeleton, Stack, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, Dialog, Skeleton, Stack } from '@hubtask/design-system/components';
+  import type { DataColumn } from '@hubtask/design-system/components';
   import type { ConfigurationItem, EntryCis, EntryOnCi } from '@hubtask/sync-engine';
 
   import CiPicker from '../assets/CiPicker.svelte';
@@ -82,6 +83,12 @@
       isNaming = false;
     }
   }
+
+  const ciColumns = $derived<DataColumn[]>([
+    { id: 'name', label: t('app.affected.col_name'), priority: 1 },
+    { id: 'class', label: t('app.affected.col_class'), priority: 2 },
+    { id: 'stage', label: t('app.affected.col_stage'), priority: 2, isStatus: true },
+  ]);
 </script>
 
 {#snippet entry(other: EntryOnCi)}
@@ -104,36 +111,24 @@
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else if answer.cis.length > 0}
     <!-- A table, as the ticket's scene draws it (§6.9): what it is, its class and its stage in
-         columns, so several items read across rather than as a run of words. -->
-    <table class="table">
-      <thead>
-        <tr>
-          <th scope="col">{t('app.affected.col_name')}</th>
-          <th scope="col">{t('app.affected.col_class')}</th>
-          <th scope="col">{t('app.affected.col_stage')}</th>
-          {#if mayChange}<th scope="col"><VisuallyHidden>{t('app.affected.col_acts')}</VisuallyHidden></th>{/if}
-        </tr>
-      </thead>
-      <tbody>
-        {#each answer.cis as ci (ci.ci_id)}
-          <tr data-affected-ci={ci.ci_id}>
-            <td class="name-cell"><a href={`/cis/${ci.ci_id}`}>{ci.name}</a></td>
-            <td class="quiet">{classWord(ci.class)}</td>
-            <td><Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge></td>
-            {#if mayChange}
-              <td class="act">
-                <IconButton
-                  icon="x" size="sm" tone="subtle"
-                  label={t('app.affected.remove', { name: ci.name })}
-                  data-unaffect-ci={ci.ci_id}
-                  onclick={() => void remove(ci.ci_id)}
-                />
-              </td>
-            {/if}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+         columns; taking one off is the row's menu. -->
+    <DataTable
+      label={t('app.affected.title')}
+      columns={ciColumns}
+      rows={answer.cis}
+      key={(ci) => ci.ci_id}
+      rowLabel={(ci) => ci.name}
+      href={(ci) => `/cis/${ci.ci_id}`}
+      menu={mayChange ? (ci) => ({ label: t('app.affected.col_acts'), items: [{ id: 'remove', label: t('app.affected.remove', { name: ci.name }) }] }) : undefined}
+      onmenu={(ci) => void remove(ci.ci_id)}
+    >
+      {#snippet cell(ci, column)}
+        {#if column.id === 'name'}<span data-affected-ci={ci.ci_id}>{ci.name}</span>
+        {:else if column.id === 'class'}{classWord(ci.class)}
+        {:else}<Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>{/if}
+      {/snippet}
+    </DataTable>
+
 
     <div class="group">
       <h3 class="relation">{t('app.affected.services')}</h3>
@@ -214,10 +209,4 @@
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refusal { margin: 0; color: var(--text-danger); }
 
-  .table { inline-size: 100%; border-collapse: collapse; font-size: var(--fs-090); }
-  .table th { padding: var(--sp-050) var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); text-align: start; border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .table td { padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); vertical-align: middle; }
-  .name-cell { overflow-wrap: anywhere; }
-  .name-cell a { color: var(--text-primary); font-weight: var(--fw-medium); }
-  .act { inline-size: 1%; text-align: end; }
 </style>
