@@ -1777,6 +1777,8 @@
   /* The main column under the full-width head; the jump marks stay on top while it scrolls. */
   .entry-main { display: flex; flex-direction: column; min-inline-size: 0; }
   .plain { padding-block: var(--sp-300); border-block-start: var(--bw-hairline) solid var(--border-subtle); scroll-margin-block-start: var(--sp-600); }
+  /* A section with nothing in it is one line (ET-3), and its padding a line's. */
+  .plain:has(:global(.none)) { padding-block: var(--sp-150); }
   .plain:focus { outline: none; }
   .quiet { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
   .fact { display: inline-flex; align-items: center; gap: var(--sp-025); }
