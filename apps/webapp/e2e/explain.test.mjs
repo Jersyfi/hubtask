@@ -207,9 +207,11 @@ async function withNotes(page, entry) {
 async function readOnlyTitleAndNotes(page) {
   await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 10_000 });
   assert.equal(await page.getByRole('button', { name: 'Edit title' }).count(), 0, 'the title can be edited');
-  const notes = page.getByRole('textbox', { name: 'Notes', exact: true });
+  // Read only, the notes are the text they are, not a textbox a screen reader offers for typing.
+  const notes = page.locator('#entry-description .page-body').first();
   await notes.waitFor({ timeout: 10_000 });
   assert.notEqual(await notes.getAttribute('contenteditable'), 'true', 'the notes can be typed in');
+  assert.equal(await page.getByRole('textbox', { name: 'Notes', exact: true }).count(), 0, 'read-only notes are announced as a textbox');
   // Read formatted (UC-WRK-02 check 4): the bold is bold, the tag stays text, the line its own.
   assert.equal(await notes.locator('strong', { hasText: 'Not bold' }).count(), 1, 'the notes are not read formatted');
   assert.equal(await notes.locator('b').count(), 0, 'markup typed into the notes became a tag');
