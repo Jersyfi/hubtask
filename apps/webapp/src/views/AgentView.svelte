@@ -333,7 +333,7 @@
     {@const shown = agent}
     <!-- One head for every object (WB-1): its state, putting it live as the next step, changing it
          beside, the budget as its fact; the other presses in ⋯, retiring in the danger zone. -->
-    <ObjectHead
+    <ObjectHead hasActsOnPhone
       objectKey={{ label: t('app.agents.record_kind'), icon: 'zap', product: 'agents' }}
       type={{ label: t(`app.agents.kind.${shown.kind}`) }}
       {meta}

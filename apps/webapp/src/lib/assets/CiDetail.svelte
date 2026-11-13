@@ -276,7 +276,7 @@
   {#snippet top()}
   <!-- One head for every object (WB-1): the class with the inventory's tile, the name, the stage
        and state said rather than offered, the next review as its day; the body is the inventory's. -->
-  <ObjectHead
+  <ObjectHead hasActsOnPhone
     objectKey={{ label: classWord(ci.class, classes, words), icon: 'shield', product: 'assets' }}
     meta={ci.last_seen_at ? t('app.assets.last_seen', { when: when(ci.last_seen_at) }) : t('app.assets.never_seen')}
     title={ci.name}

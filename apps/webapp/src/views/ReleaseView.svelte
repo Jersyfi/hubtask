@@ -243,7 +243,7 @@
     <section class="card" aria-label={chosen.name}>
       <!-- The chosen release is an object like any other (WB-1): its state, releasing it as the
            next step, changing it beside, its day and how much of it is done; deleting in ⋯. -->
-      <ObjectHead isCompact
+      <ObjectHead isCompact hasActsOnPhone
         objectKey={{ label: t('app.releases.release'), icon: 'calendar', product: 'plans' }}
         title={shown.name}
         titleLabel={t('app.releases.release')}

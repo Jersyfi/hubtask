@@ -310,6 +310,9 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
   const updates = page.getByRole('table', { name: 'Status updates' });
   await updates.getByText('Kitchen slips a week.').waitFor({ timeout: 5_000 });
   assert.ok(await page.getByText('At risk').count() >= 2, 'the project\'s health and the update\'s');
+  // On a phone the head keeps its next step and its ⋯ - a portfolio has no status sheet to hold them.
+  assert.ok(await page.getByRole('button', { name: 'Add project' }).first().isVisible(), 'the next step is gone on a phone');
+  assert.ok(await page.getByRole('button', { name: 'More' }).first().isVisible(), 'the ⋯ is gone on a phone');
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 

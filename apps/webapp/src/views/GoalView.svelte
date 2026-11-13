@@ -233,7 +233,7 @@
     <!-- One head for every object (WB-1, the grammar scene): the goal's key, its title, its status,
          the check-in as the next step, its owner and confidence. -->
     {@const shown = goal}
-    <ObjectHead
+    <ObjectHead hasActsOnPhone
       objectKey={{ label: t('app.goals.goal'), icon: 'flag', product: 'goals' }}
       meta={t('app.goals.goal_subtitle', { place: placeName })}
       title={shown.title}

@@ -71,6 +71,8 @@
     isCompact?: boolean;
     /** Completed: the title is struck through, as on its row (UC-WRK-04 check 2). */
     isDone?: boolean;
+    /** An object without a status sheet (goal, release, agent, CI): its next step and ⋯ stay on a phone. */
+    hasActsOnPhone?: boolean;
   }
 
   const {
@@ -93,6 +95,7 @@
     end,
     menu,
     isCompact = false,
+    hasActsOnPhone = false,
     isDone = false,
   }: Props = $props();
 
@@ -136,7 +139,7 @@
   {/if}
 {/snippet}
 
-<header class="object-head" data-compact={isCompact ? '' : undefined}>
+<header class="object-head" data-compact={isCompact ? '' : undefined} data-phone-acts={hasActsOnPhone ? '' : undefined}>
   <!-- A compact head without a trail spends no row on its tools: they end the title's line. -->
   {#if trail || ((tools || menu) && !isCompact)}
     <div class="top">
@@ -335,6 +338,8 @@
     .end,
     .person-name { display: none; }
     .title { font-size: var(--fs-450); }
+    .object-head[data-phone-acts] .top { display: flex; }
+    .object-head[data-phone-acts] .step { display: inline-flex; }
   }
 
   @media (prefers-reduced-motion: reduce) {

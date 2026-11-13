@@ -210,7 +210,7 @@
     <!-- One head for every object (WB-1): the portfolio's key, name, status and owner; adding a
          project the next step, an update beside it; the roadmap and the rest in ⋯. -->
     {@const shown = portfolio}
-    <ObjectHead
+    <ObjectHead hasActsOnPhone
       objectKey={{ label: t('app.portfolios.portfolio'), icon: 'briefcase', product: 'goals' }}
       title={shown.name}
       titleLabel={t('app.portfolios.portfolio')}
