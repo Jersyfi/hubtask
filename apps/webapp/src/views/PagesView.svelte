@@ -601,7 +601,7 @@
           </div>
 
           <div class="reader" class:with-beside={viewport.isLarge}>
-            <article class="column" aria-labelledby="page-title">
+            <article class="column" class:with-gutter={current.writable && !viewport.isCompact} aria-labelledby="page-title">
               {#if current.icon}<span class="icon" aria-hidden="true">{current.icon}</span>{/if}
               {#if current.writable}
                 <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
@@ -990,6 +990,12 @@
     max-inline-size: var(--layout-reading);
     min-inline-size: 0;
     justify-self: center;
+  }
+  /* "+" and the handle stand in a gutter of their own before the text, never at the frame's edge (pwrite 3). */
+  .column.with-gutter {
+    box-sizing: border-box;
+    max-inline-size: calc(var(--layout-reading) + var(--sp-1000));
+    padding-inline-start: var(--sp-1000);
   }
   .icon { font-size: var(--fs-700); line-height: var(--lh-tight); }
   .column .title { font-size: var(--fs-600); }

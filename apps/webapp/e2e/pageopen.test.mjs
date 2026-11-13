@@ -84,6 +84,8 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   const line = await body.getByText('Welcome to the team.').boundingBox();
   assert.ok(handle && line && handle.x + handle.width <= line.x + 1, 'the handle stands before the line');
   assert.ok(Math.abs(handle.y - line.y) < line.height + 8, 'level with the line');
+  const column = await page.locator('article.column').boundingBox();
+  assert.ok(column && handle.x >= column.x, 'the handle stands in the column\'s own gutter, not over the frame\'s edge');
 
   // Selected words: the bar above them; Bold makes them bold and keeps them selected.
   await page.keyboard.press('End');

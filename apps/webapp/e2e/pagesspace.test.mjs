@@ -130,9 +130,9 @@ test('a full space opens on its home page: the path on top, the title once, the 
     assert.equal(await page.locator('[data-page-side]').count(), 0, 'the side sheet is closed at first');
     await head.locator('[data-page-comments]').click();
     assert.equal(await margin.locator('[data-page-comment-new] textarea').evaluate((field) => field === document.activeElement), true, 'the count leads to the writing field');
-    // The reading column keeps its measure.
-    const column = await reading.locator('article').boundingBox();
-    assert.ok(column && column.width <= 720, `the reading column is at most 720 px wide, not ${column?.width}`);
+    // The reading column keeps its measure; a writer's column has the handle's gutter before it.
+    const measure = await reading.locator('article').evaluate((column) => column.clientWidth - parseFloat(getComputedStyle(column).paddingInlineStart) - parseFloat(getComputedStyle(column).paddingInlineEnd));
+    assert.ok(measure <= 720, `the reading column is at most 720 px wide, not ${measure}`);
     // The filters wait behind one control.
     assert.equal(await page.getByLabel('Only pages I wrote').count(), 0);
     await head.getByRole('button', { name: 'More for this page' }).click();
