@@ -168,8 +168,23 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
     const history = /\/api\/v1\/items\/([^/]+)\/activity$/.exec(path);
     if (history) {
       const at = RECENT.find((entry) => entry.id === history[1]);
-      return route.fulfill({ json: { ...PAGE, data: at ? [{ id: `s-${at.id}`, item_id: at.id, code: 'activity.item_created', actor: { type: 'USER', id: OTHER.id }, occurred_at: at.updated_at, change_set: {} }] : [] } });
+      // The first entry was made, the second moved to a status by a step: its sentence names it.
+      const stepped = at === RECENT[1];
+      return route.fulfill({ json: { ...PAGE, data: at ? [{
+        id: `s-${at.id}`, item_id: at.id, code: stepped ? 'activity.item_step_taken' : 'activity.item_created', actor: { type: 'USER', id: OTHER.id }, occurred_at: at.updated_at,
+        change_set: stepped ? { step: { to: 'start' }, status: { from: 'todo', to: 'in_progress' } } : {},
+      }] : [] } });
     }
+    // The hub's plan in two phases, the first done; the sprint's burndown over three days.
+    if (/\/api\/v1\/plans\/[^/]+\/schedule$/.test(path)) {
+      const phase = (id, title, start, finish, done) => ({ item_id: id, title, parent_id: null, collection_id: SCRUM.id, start, finish, duration_days: 5, moved: false, total_float_days: 0, free_float_days: 0, critical: false, summary: true, external: false, mode: 'AUTOMATIC', milestone: false, done });
+      return route.fulfill({ json: { zone: 'UTC', finish: '2026-12-05', entries: [phase('p1', 'Groundwork', '2026-10-01', '2026-10-31', true), phase('p2', 'Shell', '2026-11-01', '2026-12-05', false)], dependencies: [], conflicts: [], unscheduled: [], critical_path: [] } });
+    }
+    if (/\/api\/v1\/sprints\/[^/]+$/.test(path)) {
+      return route.fulfill({ json: { sprint: SPRINTS[0], entries: [], burndown: [{ day: '2026-11-02', remaining: 21, scope: 21, ideal: 21 }, { day: '2026-11-03', remaining: 12, scope: 21, ideal: 14 }] } });
+    }
+    // The hub's plan lies four days past its baseline: the plans' band counts it late.
+    if (/\/api\/v1\/plans\/[^/]+\/tolerance$/.test(path)) return route.fulfill({ json: { time_tolerance_days: 2, source: 'DEFAULT', locked_by: null, baseline_id: 'b1', exception: { agreed_finish: '2026-12-01', forecast_finish: '2026-12-05', slip_days: 4, tolerance_days: 2, exceeded: true } } });
     if (path.endsWith('/api/v1/sla-policies')) return route.fulfill({ json: { data: [] } });
     if (path.endsWith('/api/v1/time-records:report')) return route.fulfill({ json: { group_by: [], groups: [], minutes: 390, withheld_minutes: 0, withheld_groups: 0 } });
     if (path.endsWith('/api/v1/items:query')) {
@@ -703,8 +718,14 @@ test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what
   await recent.locator('[data-recent-entry]').first().waitFor({ timeout: 10_000 });
   await recent.getByText(OTHER.display_name).first().waitFor({ timeout: 10_000 });
   assert.deepEqual(await recent.locator('.title').allTextContents(), [...RECENT.map((entry) => entry.title), BOARDS[0].title, BOARDS[1].title]);
-  assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/items/${RECENT[0].id}`);
+  assert.equal(await recent.locator('li').getByRole('link').first().getAttribute('href'), `/items/${RECENT[0].id}`);
   assert.match(await recent.locator('li').first().locator('.said').innerText(), new RegExp(`^${OTHER.display_name} created\\s*${RECENT[0].title}$`));
+  // A step is said with the status it set, not as a move (work-surface §6.1).
+  assert.match(await recent.locator('li').nth(1).locator('.said').innerText(), new RegExp(`^${OTHER.display_name} set\\s*${RECENT[1].title}\\s*to In progress$`));
+  // *All* is the search over the hub, the latest change first.
+  const all = new URL(await recent.locator('[data-recent-all]').getAttribute('href'), 'http://x');
+  assert.equal(all.pathname, '/search');
+  assert.equal(all.searchParams.get('f'), `hub:"${HUB.name}" sort:-updated`);
   assert.match(await recent.locator('[data-recent="board"] .said').first().innerText(), /changed the whiteboard/);
   const asked = queries.find((body) => body?.sort?.[0]?.field === 'updated_at');
   assert.deepEqual(asked.scope, { container_id: HUB.id, include_descendants: true });

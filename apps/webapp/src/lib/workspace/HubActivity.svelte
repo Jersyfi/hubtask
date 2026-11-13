@@ -17,7 +17,8 @@
   import { boardsPath } from '../data/whiteboards.svelte.ts';
   import { formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { happenedVerb, latestHappenings, type Happening } from './happened.ts';
+  import { workflows } from '../data/workflows.svelte.ts';
+  import { happenedVerb, latestHappenings, statusNameOf, type Happening } from './happened.ts';
 
   import type { ActivityPage, ItemQueryResult, PageList, WhiteboardList, WorkItem } from '@hubtask/sync-engine';
 
@@ -64,6 +65,15 @@
     });
   });
 
+  // A status a step set is named as its workflow names it; read only where the module is on.
+  $effect(() => untrack(() => workflows.open()));
+
+  /** Everything that happened: the search over the hub, the latest change first. */
+  const allHref = $derived.by(() => {
+    const name = containers.find(hubId)?.name;
+    return name ? `/search?${new URLSearchParams({ f: `hub:"${name.replaceAll('"', '')}" sort:-updated` })}` : undefined;
+  });
+
   const happenings = $derived(entries === undefined ? undefined : latestHappenings({ entries, steps, pages, boards }, SHOWN));
   $effect(() => {
     accounts.resolve((happenings ?? []).flatMap((each) => (each.actorId ? [each.actorId] : [])));
@@ -80,7 +90,8 @@
   /** The sentence around its object, split where the object stands, so the object is a link. */
   function partsOf(each: Happening): [string, string] {
     const marker = '\u0001';
-    const said = t(`app.hub_overview.did_${happenedVerb(each)}`, { actor: whoOf(each), object: marker });
+    const status = each.statusKey ? statusNameOf(each, hubId, workflows.list, t) : '';
+    const said = t(`app.hub_overview.did_${happenedVerb(each)}`, { actor: whoOf(each), object: marker, status });
     const at = said.indexOf(marker);
     return at < 0 ? [said, ''] : [said.slice(0, at), said.slice(at + marker.length)];
   }
@@ -95,7 +106,10 @@
 
 {#if happenings && happenings.length > 0}
   <section class="recent" aria-labelledby="hub-recent">
-    <h2 class="heading" id="hub-recent">{t('app.hub_overview.recent')}</h2>
+    <header class="heading">
+      <h2 id="hub-recent">{t('app.hub_overview.recent')}</h2>
+      {#if allHref}<a class="all" href={allHref} data-recent-all>{t('app.hub_overview.recent_all')}</a>{/if}
+    </header>
     <ul>
       {#each happenings as each (each.kind + each.id)}
         {@const [before, after] = partsOf(each)}
@@ -120,13 +134,15 @@
   }
 
   .heading {
-    margin: 0;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-100);
     padding: var(--sp-150);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    font-size: var(--fs-100);
-    font-weight: var(--fw-semibold);
-    color: var(--text-primary);
   }
+  .heading h2 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); color: var(--text-primary); }
+  .heading .all { font-size: var(--fs-075); font-weight: var(--fw-regular); color: var(--text-brand); }
 
   ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
 

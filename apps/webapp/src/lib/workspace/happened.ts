@@ -4,7 +4,9 @@
 // What happened in a hub (work-surface §6.1, scene hub): the entries changed last with their last
 // step, and the pages and boards changed last, merged newest first into one list of sentences.
 
-import type { ActivityEntry, Page, Whiteboard, WorkItem } from '@hubtask/sync-engine';
+import type { ActivityEntry, Page, Whiteboard, WorkflowList, WorkItem } from '@hubtask/sync-engine';
+
+import { statusLabel, workflowFor } from '../data/workflows.ts';
 
 export interface Happening {
   readonly kind: 'entry' | 'page' | 'board';
@@ -17,6 +19,9 @@ export interface Happening {
   /** An entry's history code, which says the verb; absent for a page or a board. */
   readonly code?: string;
   readonly collectionId?: string;
+  readonly entryType?: string;
+  /** The status a step set, from its change set; the sentence names it. */
+  readonly statusKey?: string;
 }
 
 interface Reads {
@@ -33,7 +38,6 @@ const VERBS: Record<string, string> = {
   'activity.item_duplicated': 'created',
   'activity.item_completed': 'completed',
   'activity.item_reopened': 'reopened',
-  'activity.item_step_taken': 'moved_on',
   'activity.item_commented': 'commented',
 };
 
@@ -41,7 +45,35 @@ const VERBS: Record<string, string> = {
 export function happenedVerb(each: Happening): string {
   if (each.kind === 'page') return 'page_changed';
   if (each.kind === 'board') return 'board_changed';
-  return VERBS[each.code ?? ''] ?? 'changed';
+  const verb = VERBS[each.code ?? ''];
+  if (verb) return verb;
+  if (each.statusKey) return 'set_status';
+  return 'changed';
+}
+
+/** The status a step set, where its change set kept one. */
+function statusSet(step: ActivityEntry | null | undefined): string | undefined {
+  const status = (step?.change_set as Record<string, { to?: unknown } | undefined> | undefined)?.status;
+  return typeof status?.to === 'string' ? status.to : undefined;
+}
+
+/**
+ * A status's name as the entry's workflow names it, else as any workflow does, else the client's
+ * word for a shipped status; the key itself only where nothing names it.
+ */
+export function statusNameOf(
+  each: Pick<Happening, 'statusKey' | 'collectionId' | 'entryType'>, hubId: string, list: WorkflowList | undefined,
+  t: (code: string) => string,
+): string {
+  const key = each.statusKey ?? '';
+  const own = each.collectionId ? workflowFor(list, each.collectionId, hubId, each.entryType ?? 'task') : undefined;
+  const shapes = [own, ...(list?.data ?? [])].flatMap((workflow) => (workflow?.published ? [workflow.published] : []));
+  for (const shape of shapes) {
+    const status = shape.statuses.find((candidate) => candidate.key === key);
+    if (status) return statusLabel(status, t);
+  }
+  if (key === 'todo' || key === 'in_progress' || key === 'done') return t(`workflows.status.${key}`);
+  return key;
 }
 
 /**
@@ -58,6 +90,7 @@ export function latestHappenings(reads: Reads, shown: number): Happening[] {
     all.push({
       kind: 'entry', id: entry.id, title: entry.title, href: `/items/${entry.id}`, at,
       actorId: step?.actor.id ?? undefined, actorKind: step?.actor.type, code: step?.code, collectionId: entry.collection_id,
+      entryType: entry.type, statusKey: statusSet(step),
     });
   }
   // A row without its time says nothing of when; it is left out rather than sorted as now.
