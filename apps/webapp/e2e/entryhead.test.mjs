@@ -53,9 +53,14 @@ async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, ti
     if (runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: ['WORKFLOWS'] } });
     if (runs && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, entry_type: 'incident', status: 'new' } });
     if (runs && read === `/items/${ENTRY.id}/steps`) {
-      const steps = [{ key: 'start', name: 'Start work', to: 'in_progress', asks: [] }];
-      if (asks) steps.push({ key: 'resolve', name: 'Resolve', to: 'resolved', asks: ['custom_fields.resolution'] });
-      return route.fulfill({ json: { workflow: 'incident', status: 'new', steps } });
+      const steps = [{ key: 'start', name: 'Start work', to: 'in_progress', asks: [], allowed: true }];
+      if (asks) steps.push({ key: 'resolve', name: 'Resolve', to: 'resolved', asks: ['custom_fields.resolution'], allowed: true });
+      const blocked = asks ? [] : [{ key: 'resolve', name: 'Resolve', to: 'resolved', reason: 'workflows.step_who_unmet', roles: ['ADMIN'], people: [], groups: [] }];
+      const picture = { ...SHAPE, steps: SHAPE.steps.map((step) => ({ name: null, limited: step.key === 'resolve', approval: false, ...step })) };
+      return route.fulfill({ json: { workflow: 'incident', status: 'new', steps, blocked, done_route: [{ key: 'resolve', name: 'Resolve', to: 'resolved' }], picture, by_default: false, may_design: false } });
+    }
+    if (!runs && read === `/items/${ENTRY.id}/steps`) {
+      return route.fulfill({ json: { workflow: null, status: null, steps: [], blocked: [], done_route: [], picture: SHAPE, by_default: true, may_design: false } });
     }
     if (asks && read === `/items/${ENTRY.id}:step` && request.method() === 'POST') {
       return route.fulfill({
@@ -82,20 +87,31 @@ async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, ti
 }
 
 for (const width of [1280, 390]) {
-  test(`chromium ${width}: a workflow entry's head carries its status and steps, not the level or the column`, { timeout: 60_000 }, async () => {
+  test(`chromium ${width}: one head - key, type, title, the status as a button with where it can go next (UC-WRK-44/1, /6, UC-FLW-06/1, /3, /4)`, { timeout: 60_000 }, async () => {
     const { page, close } = await open(width, { runs: true });
     try {
-      const steps = page.locator('[data-steps]');
-      await steps.waitFor({ timeout: 10_000 });
-      const head = page.locator('.head');
+      const status = page.locator('[data-steps]');
+      await status.waitFor({ timeout: 10_000 });
+      const head = page.locator('[data-tour="entry"]');
       assert.equal(await head.locator('[data-steps]').count(), 1, 'the status sits in the head');
-      assert.ok(await head.locator('[data-status="new"]').isVisible(), 'the status pill is drawn');
-      assert.ok(await head.getByRole('button', { name: 'Start work' }).isVisible(), 'the step from it is offered');
-      const marks = (await head.locator('.marks').innerText()).trim();
-      assert.ok(marks.includes('Incident'), `the type is named: ${marks}`);
-      assert.ok(!/\bTask\b/.test(marks), `no level beside the type: ${marks}`);
-      assert.equal(await page.locator('[data-column-mark]').count(), 0, 'no column mark');
-      assert.ok(!marks.includes('No column'), `no "No column": ${marks}`);
+      assert.equal(await head.locator('[data-steps]').getAttribute('data-status'), 'new');
+      assert.ok((await head.innerText()).includes('Incident'), 'the type is named');
+      assert.equal(await page.locator('[data-column-mark]').count(), 0, 'no column mark where a workflow runs');
+      if (width > 600) assert.ok(await head.getByRole('button', { name: 'Start work' }).isVisible(), 'the next step is the primary button');
+      // The menu: the allowed step with its target, the blocked one as information with its reason.
+      await status.getByRole('button', { name: /Change status/ }).click();
+      const surface = page.locator('[role=menu]:visible, dialog[open]').last();
+      await surface.waitFor({ timeout: 5_000 });
+      const text = await surface.innerText();
+      assert.ok(text.includes('In progress'), `the step names its target: ${text}`);
+      assert.ok(/Resolve/.test(text) && /only/.test(text), `the blocked step says why: ${text}`);
+      assert.ok(await page.getByText('Done is reached by: Resolve').first().isVisible(), 'how done is reached');
+      assert.equal(await surface.locator('[data-blocked]').count(), 1, 'one blocked step');
+      await page.getByRole('button', { name: 'View workflow' }).filter({ visible: true }).first().click();
+      const picture = page.locator('[data-workflow-picture]');
+      await picture.waitFor({ timeout: 5_000 });
+      assert.equal(await picture.locator('[data-current]').count(), 1, 'the entry\'s status is outlined');
+      assert.equal(await page.getByRole('button', { name: 'Open in designer' }).count(), 0, 'no designer without the right to the structure');
       const scroll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(scroll <= 0, `nothing scrolls sideways: ${scroll}`);
     } finally {
@@ -104,13 +120,48 @@ for (const width of [1280, 390]) {
   });
 }
 
-test('chromium: an entry without a workflow keeps its level and column mark', { timeout: 60_000 }, async () => {
+test('chromium: without a workflow the default holds and the primary button is Done (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
   const { page, close } = await open(1280, { runs: false });
   try {
-    await page.locator('[data-column-mark]').waitFor({ timeout: 10_000 });
-    assert.equal(await page.locator('[data-steps]').count(), 0, 'no status where no workflow runs');
-    const marks = (await page.locator('.head .marks').innerText()).trim();
-    assert.ok(/\bTask\b/.test(marks), `the level is drawn: ${marks}`);
+    await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+    assert.equal(await page.locator('[data-steps]').getAttribute('data-status'), 'todo');
+    assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done is the primary button');
+    assert.equal(await page.locator('[data-column-mark]').count(), 1, 'the column is still changed in the head');
+  } finally {
+    await close();
+  }
+});
+
+test('chromium: jump marks with counts, the conversation opens on All (UC-WRK-44/2, /3)', { timeout: 60_000 }, async () => {
+  const { page, close } = await open(1280, { runs: false });
+  try {
+    const marks = page.getByRole('navigation', { name: /Sections of/ });
+    await marks.waitFor({ timeout: 10_000 });
+    const words = await marks.innerText();
+    for (const word of ['Description', 'Links', 'Files', 'Conversation']) assert.ok(words.includes(word), `${word} is a mark: ${words}`);
+    await marks.getByText('Conversation').click();
+    await page.waitForTimeout(400);
+    const box = await page.locator('#entry-conversation').boundingBox();
+    assert.ok(box && box.y < 900, `the conversation is in view: ${box?.y}`);
+    const tabs = page.getByRole('tablist', { name: 'Conversation' });
+    assert.deepEqual((await tabs.getByRole('tab').allInnerTexts()).map((each) => each.trim()), ['All', 'Comments', 'History']);
+    assert.equal(await tabs.getByRole('tab', { selected: true }).innerText(), 'All');
+  } finally {
+    await close();
+  }
+});
+
+test('chromium 390: the marks are a switch and the properties a sheet (UC-WRK-44/7)', { timeout: 60_000 }, async () => {
+  const { page, close } = await open(390, { runs: false });
+  try {
+    const marks = page.getByRole('navigation', { name: /Sections of/ });
+    await marks.waitFor({ timeout: 10_000 });
+    await marks.getByText('Conversation').click();
+    await page.waitForTimeout(300);
+    assert.ok(await page.locator('#entry-conversation').isVisible(), 'the chosen section shows');
+    assert.ok(!(await page.locator('#entry-description').isVisible()), 'the others do not');
+    await page.getByRole('button', { name: /All properties/ }).click();
+    await page.getByRole('dialog').waitFor({ timeout: 5_000 });
   } finally {
     await close();
   }
@@ -119,7 +170,8 @@ test('chromium: an entry without a workflow keeps its level and column mark', { 
 test('chromium: a refused step says at the asked field what it needs, and the failing check inside the dialog', { timeout: 60_000 }, async () => {
   const { page, close } = await open(1280, { runs: true, asks: true });
   try {
-    await page.getByRole('button', { name: 'Resolve' }).click();
+    await page.locator('[data-steps]').getByRole('button', { name: /Change status/ }).click();
+    await page.getByRole('menuitem', { name: /Resolve/ }).click();
     const dialog = page.getByRole('dialog');
     await dialog.waitFor({ timeout: 5_000 });
     await dialog.locator('[data-confirm-step]').click();
@@ -154,12 +206,12 @@ test('chromium 375: a long title takes the head\'s width beside its key', { time
   const title = 'VPN-Gateway Frankfurt antwortet sporadisch nicht (Paketverlust 30 %)';
   const { page, close } = await open(375, { runs: false, title });
   try {
-    const key = page.locator('.head .ticket-key');
+    const key = page.locator('.object-head .key');
     await key.waitFor({ timeout: 10_000 });
     const sizes = await page.evaluate(() => {
-      const head = document.querySelector('.head .title-row').getBoundingClientRect();
-      const field = document.querySelector('.head .title-field').getBoundingClientRect();
-      const key = document.querySelector('.head .ticket-key').getBoundingClientRect();
+      const head = document.querySelector('.object-head').getBoundingClientRect();
+      const field = document.querySelector('.object-head .title').getBoundingClientRect();
+      const key = document.querySelector('.object-head .key').getBoundingClientRect();
       return { head: head.width, field: field.width, fieldTop: field.top, keyBottom: key.bottom };
     });
     assert.ok(sizes.field >= sizes.head * 0.8, `the title takes ${Math.round(sizes.field)} of ${Math.round(sizes.head)} px`);
