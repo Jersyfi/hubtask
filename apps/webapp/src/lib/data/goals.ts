@@ -490,6 +490,138 @@ export function scaleTop(values: readonly (number | undefined)[]): number {
   return Math.max(0, ...values.filter((v): v is number => v !== undefined && Number.isFinite(v)));
 }
 
+// --- The nine kinds' shapes (wcat) -------------------------------------------------------------
+
+/**
+ * A NUMBER widget's figure: over periods the last period with its change against the one before
+ * and the last eight periods as a line; without periods the sum of its rows.
+ */
+export interface NumberFigure {
+  readonly value: number;
+  readonly text: string;
+  /** Last period minus the one before, where there are two. */
+  readonly change?: number;
+  /** The last eight periods as SVG points on a 100 × 24 canvas; '' for fewer than two. */
+  readonly spark: string;
+}
+
+export function numberFigure(rows: readonly FigureRow[]): NumberFigure {
+  const periods = rows.filter((row) => row.period !== undefined && row.column === undefined);
+  if (periods.length === 0 || periods.length !== rows.length) {
+    const total = totalOf(rows);
+    const texts = rows.length === 1 ? rows[0]!.text : String(round(total));
+    return { value: total, text: texts, spark: '' };
+  }
+  const ordered = [...periods].sort((a, b) => compare(a.period!, b.period!));
+  const last = ordered[ordered.length - 1]!;
+  const before = ordered[ordered.length - 2];
+  const recent = ordered.slice(-8);
+  return {
+    value: last.value,
+    text: last.text,
+    ...(before ? { change: round(last.value - before.value) } : {}),
+    spark: recent.length > 1 ? linePoints(recent, 100, 24) : '',
+  };
+}
+
+/**
+ * Where a figure stands against its target and warning line (wcat "Ziel ≤ 30"): a warning line
+ * above the target means lower is better, below it higher is. `met` reaches the target, `warn`
+ * crosses the warning line, `between` is neither. Never drawn by colour alone: a word goes with it.
+ */
+export type TargetState = 'met' | 'between' | 'warn';
+export function targetState(value: number, target: number | null | undefined, warnAt: number | null | undefined): TargetState | undefined {
+  if (target === null || target === undefined) return undefined;
+  const lowerIsBetter = warnAt !== null && warnAt !== undefined ? warnAt >= target : false;
+  if (lowerIsBetter ? value <= target : value >= target) return 'met';
+  if (warnAt !== null && warnAt !== undefined && (lowerIsBetter ? value >= warnAt : value <= warnAt)) return 'warn';
+  return 'between';
+}
+
+/** A horizontal bar: its row and its length in percent of the longest. */
+export interface HBar {
+  readonly row: FigureRow;
+  readonly share: number;
+}
+
+/** Bars lying down, the longest full (wcat): at most eight, the rest as one row named `rest`. */
+export function hbars(rows: readonly FigureRow[], rest: string): HBar[] {
+  const kept = folded(rows, 8, rest);
+  const top = scaleTop(kept.map((row) => row.value));
+  return kept.map((row) => ({ row, share: top > 0 ? round((Math.max(row.value, 0) / top) * 100) : 0 }));
+}
+
+/** Two series as pairs of bars lying down: each label's parts in percent of the largest pair's sum. */
+export interface HPair {
+  readonly label: string;
+  readonly shares: readonly number[];
+  readonly texts: readonly string[];
+}
+export function hpairs(table: SeriesTable): HPair[] {
+  const sums = table.labels.map((_, i) => table.series.reduce((sum, each) => sum + Math.max(each.values[i] ?? 0, 0), 0));
+  const top = Math.max(0, ...sums);
+  return table.labels.slice(0, 8).map((label, i) => ({
+    label,
+    shares: table.series.map((each) => (top > 0 ? round((Math.max(each.values[i] ?? 0, 0) / top) * 100) : 0)),
+    texts: table.series.map((each) => each.texts[i] ?? ''),
+  }));
+}
+
+/** A ring's part: its row, its share of the whole and where it starts, both as fractions of one turn. */
+export interface RingPart {
+  readonly row: FigureRow;
+  readonly share: number;
+  readonly start: number;
+  readonly series: Series;
+}
+
+/** A ring of at most four parts (wcat), the rest as one named `rest`; parts of zero or less are left out. */
+export function ringParts(rows: readonly FigureRow[], rest: string): RingPart[] {
+  const kept = folded(rows.filter((row) => row.value > 0), 4, rest);
+  const total = kept.reduce((sum, row) => sum + row.value, 0);
+  if (total <= 0) return [];
+  let start = 0;
+  return kept.map((row, i) => {
+    const share = round(row.value / total);
+    const part = { row, share, start: round(start), series: seriesOf(i) };
+    start += row.value / total;
+    return part;
+  });
+}
+
+/** A matrix cell's step from 1 (least) to 5 (most), 0 where it holds nothing, over the whole matrix. */
+export function matrixSteps(matrix: Matrix): number[][] {
+  const values = matrix.cells.flat().map(Number).filter((v) => Number.isFinite(v));
+  const top = Math.max(0, ...values);
+  return matrix.cells.map((row) => row.map((text) => {
+    const v = Number(text);
+    if (text === '' || !Number.isFinite(v)) return 0;
+    return top > 0 ? Math.max(1, Math.ceil((Math.max(v, 0) / top) * 5)) : 1;
+  }));
+}
+
+/** A piece of a TEXT widget: plain, bold, or a link to a path inside the app. */
+export type TextPiece = { readonly kind: 'plain' | 'bold'; readonly text: string } | { readonly kind: 'link'; readonly text: string; readonly href: string };
+
+/**
+ * A TEXT widget's words in pieces - `**bold**` and `[words](/path)` - drawn as elements, never as
+ * HTML. A link goes only to a path of the app; any other target stays its words.
+ */
+export function textPieces(text: string): TextPiece[] {
+  const pieces: TextPiece[] = [];
+  const pattern = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/gu;
+  let at = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index > at) pieces.push({ kind: 'plain', text: text.slice(at, match.index) });
+    if (match[1] !== undefined) pieces.push({ kind: 'bold', text: match[1] });
+    else if (/^\/(?!\/)/u.test(match[3]!)) pieces.push({ kind: 'link', text: match[2]!, href: match[3]! });
+    else pieces.push({ kind: 'plain', text: match[2]! });
+    at = match.index + match[0].length;
+  }
+  if (at < text.length) pieces.push({ kind: 'plain', text: text.slice(at) });
+  return pieces;
+}
+
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }

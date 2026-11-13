@@ -9,7 +9,7 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
   folded, leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
-  widgetWrite,
+  widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces,
 } from './goals.ts';
 
 const goal = (id: string, parent: string | null, progress: number | null = null): Goal => ({
@@ -218,4 +218,55 @@ test('a chart folds what is past its parts into one row', () => {
   assert.deepEqual(ring.map((row) => row.label), ['f', 'e', 'd', 'Others']);
   assert.equal(ring[3]?.value, 6);
   assert.equal(folded(rows, 8, 'Others').length, 6);
+});
+
+// UC-GOL-04 check 16: each of the nine kinds is drawn in its own shape (wcat).
+test('a number over periods is the last period, its change and eight periods as a line', () => {
+  const rows = figureRows(['2026-01-05', '2026-01-12', '2026-01-19'].map((period, i) => ({ period, count: [30, 44, 38][i] })));
+  const figure = numberFigure(rows);
+  assert.equal(figure.text, '38');
+  assert.equal(figure.change, -6);
+  assert.equal(figure.spark.split(' ').length, 3);
+  assert.deepEqual(numberFigure(figureRows([{ count: 4 }, { count: 5 }])), { value: 9, text: '9', spark: '' });
+});
+
+test('a target with a warning line above it means lower is better, below it higher', () => {
+  assert.equal(targetState(28, 30, 40), 'met');
+  assert.equal(targetState(35, 30, 40), 'between');
+  assert.equal(targetState(41, 30, 40), 'warn');
+  assert.equal(targetState(92, 90, 80), 'met');
+  assert.equal(targetState(75, 90, 80), 'warn');
+  assert.equal(targetState(5, undefined, 3), undefined);
+});
+
+test('bars lie down at most eight, the longest full, the rest as Sonstige', () => {
+  const rows = figureRows(Array.from({ length: 10 }, (_, i) => ({ group: `g${i}`, count: 10 - i })));
+  const bars = hbars(rows, 'Sonstige');
+  assert.equal(bars.length, 8);
+  assert.equal(bars[0]!.share, 100);
+  assert.equal(bars[7]!.row.label, 'Sonstige');
+  const pairs = hpairs(seriesTable([{ name: 'a', rows: figureRows([{ group: 'x', count: 14 }]) }, { name: 'b', rows: figureRows([{ group: 'x', count: 11 }]) }]));
+  assert.deepEqual(pairs[0]!.texts, ['14', '11']);
+  assert.equal(pairs[0]!.shares.reduce((a, b) => a + b, 0), 100);
+});
+
+test('a ring holds at most four parts, each starting where the last ended', () => {
+  const parts = ringParts(figureRows([{ group: 'a', count: 47 }, { group: 'b', count: 9 }, { group: 'c', count: 4 }, { group: 'd', count: 1 }, { group: 'e', count: 1 }, { group: 'f', count: 0 }]), 'Sonstige');
+  assert.equal(parts.length, 4);
+  assert.equal(parts[0]!.start, 0);
+  assert.equal(parts[3]!.row.label, 'Sonstige');
+  assert.equal(parts[3]!.row.value, 2);
+  assert.deepEqual(parts.map((part) => part.series), ['1', '2', '3', '4']);
+});
+
+test('a matrix cell steps from one to five over the whole matrix, nothing as zero', () => {
+  assert.deepEqual(matrixSteps({ rows: ['a'], columns: ['1', '2', '3'], cells: [['10', '', '2']] }), [[5, 0, 1]]);
+});
+
+test('a text is bold and links to app paths, never a link elsewhere', () => {
+  assert.deepEqual(textPieces('Zuerst **SA-7**, siehe [Plan](/pages/1) oder [hier](https://x.example).'), [
+    { kind: 'plain', text: 'Zuerst ' }, { kind: 'bold', text: 'SA-7' }, { kind: 'plain', text: ', siehe ' },
+    { kind: 'link', text: 'Plan', href: '/pages/1' }, { kind: 'plain', text: ' oder ' }, { kind: 'plain', text: 'hier' }, { kind: 'plain', text: '.' },
+  ]);
+  assert.equal(textPieces('[x](//evil)')[0]!.kind, 'plain');
 });
