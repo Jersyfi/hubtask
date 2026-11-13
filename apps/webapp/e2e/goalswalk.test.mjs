@@ -110,6 +110,10 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await goalDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.waitForURL(/\/goals\/[0-9a-f-]+$/, { timeout: 5_000 });
   await page.getByRole('heading', { name: 'Ship the suite' }).first().waitFor({ timeout: 5_000 });
+  // WB-1: the goal's head is every object's head - its key, the check-in as the next step.
+  const head = page.locator('header.object-head');
+  assert.match(await head.locator('.key').innerText(), /Goal/);
+  assert.equal(await head.getByRole('button', { name: 'Check in' }).count(), 1, 'the check-in is not the head\'s next step');
 
   await page.getByRole('button', { name: 'Check in' }).first().click();
   const checkDialog = page.getByRole('dialog', { name: /Check in/ });

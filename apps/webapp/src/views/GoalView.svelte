@@ -17,7 +17,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Button, Dialog, EmptyState, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
-    DataTable, DetailPage, type DataColumn, type DataRowMenu,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge,
   } from '@hubtask/design-system/components';
   import type { Goal, GoalCheckInList, GoalList, WorkItem } from '@hubtask/sync-engine';
 
@@ -229,22 +229,29 @@
 
 <DetailPage>
   {#snippet top()}
-  <PageHeader
-    title={goal?.title ?? t('app.goals.goal')}
-    subtitle={goal ? t('app.goals.goal_subtitle', { place: placeName }) : undefined}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={goal
-      ? {
-          trail: [{ id: 'goals', label: t('app.goals.title'), href: `/goals?period=${goal.period_id}` }, { id: 'goal', label: goal.title }],
-          label: t('app.goals.trail'),
-          expandLabel: t('app.goals.expand_trail'),
-          onnavigate: () => onnavigate(`/goals?period=${goal?.period_id ?? ''}`),
-        }
-      : undefined}
-    secondary={mayWrite ? [{ label: t('app.goals.check_in'), icon: 'circle-check', onclick: openCheckIn }, { label: t('app.goals.change'), icon: 'pencil', onclick: openChange }] : []}
-    menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
-  />
+  {#if goal}
+    <!-- One head for every object (WB-1, the grammar scene): the goal's key, its title, its status,
+         the check-in as the next step, its owner and confidence. -->
+    {@const shown = goal}
+    <ObjectHead
+      objectKey={{ label: t('app.goals.goal'), icon: 'flag', product: 'goals' }}
+      meta={t('app.goals.goal_subtitle', { place: placeName })}
+      title={shown.title}
+      titleLabel={t('app.goals.goal')}
+      next={mayWrite ? { label: t('app.goals.check_in'), icon: 'circle-check', onclick: openCheckIn } : undefined}
+      secondary={mayWrite ? { label: t('app.goals.change'), onclick: openChange } : undefined}
+      person={{ name: personName(shown.owner_id), src: shown.owner_id ? accounts.pictureOf(shown.owner_id) : undefined }}
+      trail={viewport.isCompact ? undefined : goalTrail}
+      menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
+    >
+      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge tone={goalTone(shown.status)} label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
+      {#snippet facts()}{#if shown.confidence !== null}<span>{t('app.goals.confidence_of', { value: String(shown.confidence) })}</span>{/if}{/snippet}
+    </ObjectHead>
+  {:else}
+    <PageHeader title={t('app.goals.goal')} isTitleInBar={viewport.isCompact} />
+  {/if}
   {/snippet}
+
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
@@ -259,9 +266,6 @@
   {:else}
     <section class="summary" aria-label={t('app.goals.summary')}>
       <div class="facts">
-        {#if goal.status !== 'NONE'}<Badge tone={goalTone(goal.status)}>{t(`app.goals.status_${goal.status}`)}</Badge>{/if}
-        {#if goal.confidence !== null}<span>{t('app.goals.confidence_of', { value: String(goal.confidence) })}</span>{/if}
-        <span>{t('app.goals.owned_by', { name: personName(goal.owner_id) })}</span>
         {#if parentName && goal.parent_id}<span>{t('app.goals.serves')} <a href={`/goals/${goal.parent_id}`}>{parentName}</a></span>{/if}
         {#if goal.grade !== null}<Badge tone="info">{t('app.goals.graded', { percent: percentText(goal.grade) })}</Badge>{/if}
       </div>
@@ -341,6 +345,14 @@
     </section>
   {/if}
 </DetailPage>
+
+{#snippet goalTrail()}
+  {#if goal}
+    {@const at = goal}
+    <Breadcrumb label={t('app.goals.trail')} trail={[{ id: 'goals', label: t('app.goals.title'), href: `/goals?period=${at.period_id}` }, { id: 'goal', label: at.title }]}
+      expandLabel={t('app.goals.expand_trail')} onnavigate={() => onnavigate(`/goals?period=${at.period_id}`)} />
+  {/if}
+{/snippet}
 
 {#if isChanging && goal}
   <Dialog size="m" bind:isOpen={isChanging} title={t('app.goals.change')} dismissLabel={t('app.links.cancel')}>
