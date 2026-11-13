@@ -75,6 +75,20 @@
     const at = placeId;
     return untrack(() => savedViews.open(at));
   });
+  // A hub's *Plan* shows *Sprints* only where one of its collections runs sprints (§6.3).
+  const hubCollections = $derived(tool === 'plan' && !isCollection && modulesOn.includes('PLANNING') ? containers.collectionsOf(placeId).map((each) => each.id) : []);
+  let sprintRunners = $state<readonly string[]>([]);
+  $effect(() => {
+    const ids = hubCollections;
+    sprintRunners = [];
+    return untrack(() => {
+      const stops = ids.map((id) => runsSprints(id, (runs) => {
+        sprintRunners = runs ? [...new Set([...sprintRunners, id])] : sprintRunners.filter((each) => each !== id);
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const hubRunsSprints = $derived(sprintRunners.length > 0);
   const layouts = $derived(place && isCollection ? layoutsOffered(place, manifest.value) : []);
   // The budget is MANAGE_COSTS's (UC-TIM-08 check 1): no tab for anybody else (P-05).
   const mayCost = $derived(holdsHere('MANAGE_COSTS') === true || holdsHere('MANAGE_MEMBERS') === true);
@@ -87,7 +101,7 @@
             runsSprints: sprintsRun || current === 'sprint' || current === 'backlog', sprintName,
             saved: savedViews.of(placeId).map((view) => ({ id: view.id, name: view.name })),
           })
-        : toolViews(placeId, tool ?? '', { mayCost }),
+        : toolViews(placeId, tool ?? '', { mayCost, runsSprints: hubRunsSprints || current === 'sprints' }),
   );
   const views = $derived(entries.map((entry) => ({ id: entry.id, label: 'code' in entry && entry.code ? t(entry.code) : ('name' in entry ? (entry.name ?? '') : ''), href: entry.href, icon: entry.icon, ...(changed && entry.id === current ? { changed } : {}) })));
 </script>

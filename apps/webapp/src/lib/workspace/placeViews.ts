@@ -22,6 +22,8 @@ export interface PlaceView {
 /** What a hub tool's tabs depend on beyond the hub: whether the reader manages costs (*Budget*). */
 export interface ToolInput {
   readonly mayCost?: boolean;
+  /** Whether a collection of the hub runs sprints: *Plan*'s *Sprints* only then (§2.4, §6.3). */
+  readonly runsSprints?: boolean;
 }
 
 /**
@@ -39,7 +41,7 @@ export function toolViews(hubId: string, tool: string, input: ToolInput = {}): r
         { id: 'table', code: 'app.planning.view_table', icon: 'columns-3', href: `${base}/plan/table` },
         { id: 'dependencies', code: 'app.timeline.dependencies', icon: 'link', href: `${base}/plan/dependencies` },
         { id: 'releases', code: 'app.releases.title', href: `${base}/plan/releases` },
-        { id: 'sprints', code: 'app.sprints.title', icon: 'repeat', href: `${base}/plan/sprints` },
+        ...(input.runsSprints ? [{ id: 'sprints', code: 'app.sprints.title', icon: 'repeat' as const, href: `${base}/plan/sprints` }] : []),
       ];
     case 'time':
       return [
