@@ -15,7 +15,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Banner, Button, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
-    DataTable, DetailPage, type DataColumn, type DataRowMenu,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge,
   } from '@hubtask/design-system/components';
   import type { Portfolio, PortfolioList, PortfolioUpdateList, PortfolioWrite } from '@hubtask/sync-engine';
 
@@ -206,38 +206,43 @@
 
 <DetailPage>
   {#snippet top()}
-  <PageHeader
-    title={portfolio?.name ?? t('app.portfolios.portfolio')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [{ id: 'portfolios', label: t('app.goals.tab_portfolios'), href: '/goals?tab=portfolios' }, { id: 'portfolio', label: portfolio?.name ?? '' }],
-      label: t('app.goals.trail'),
-      expandLabel: t('app.goals.expand_trail'),
-      onnavigate: () => onnavigate('/goals?tab=portfolios'),
-    }}
-    primary={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
-    secondary={mayWrite ? [
-      { label: t('app.portfolios.report'), icon: 'send', onclick: () => { report.status = portfolio?.status && portfolio.status !== 'NONE' ? portfolio.status : 'ON_TRACK'; report.summary = ''; isReporting = true; } },
-      { label: t('app.roadmap.title'), icon: 'calendar', onclick: () => onnavigate(`/portfolios/${portfolioId}/roadmap`) },
-    ] : [{ label: t('app.roadmap.title'), icon: 'calendar', onclick: () => onnavigate(`/portfolios/${portfolioId}/roadmap`) }]}
-    menu={{
-      label: t('app.goals.more'),
-      items: [
-        { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
-        { id: 'export_sheet', label: t('app.portfolios.export_sheet'), icon: 'layout-template' },
-        ...(mayWrite ? [
-          { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
-          { id: 'delete', label: t('app.portfolios.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
-        ] : []),
-      ],
-      onselect: (id: string) => {
-        if (id === 'export') exportTable();
-        if (id === 'export_sheet') exportTable(true);
-        if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
-        if (id === 'delete') isDeleting = true;
-      },
-    }}
-  />
+  {#if portfolio}
+    <!-- One head for every object (WB-1): the portfolio's key, name, status and owner; adding a
+         project the next step, an update beside it; the roadmap and the rest in ⋯. -->
+    {@const shown = portfolio}
+    <ObjectHead
+      objectKey={{ label: t('app.portfolios.portfolio'), icon: 'briefcase', product: 'goals' }}
+      title={shown.name}
+      titleLabel={t('app.portfolios.portfolio')}
+      next={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
+      secondary={mayWrite ? { label: t('app.portfolios.report'), onclick: () => { report.status = shown.status !== 'NONE' ? shown.status : 'ON_TRACK'; report.summary = ''; isReporting = true; } } : undefined}
+      person={{ name: personName(shown.owner_id), src: shown.owner_id ? accounts.pictureOf(shown.owner_id) : undefined }}
+      trail={viewport.isCompact ? undefined : portfolioTrail}
+      menu={{
+        label: t('app.goals.more'),
+        items: [
+          { id: 'roadmap', label: t('app.roadmap.title'), icon: 'calendar' },
+          { id: 'export', label: t('app.portfolios.export'), icon: 'file-text' },
+          { id: 'export_sheet', label: t('app.portfolios.export_sheet'), icon: 'layout-template' },
+          ...(mayWrite ? [
+            { id: 'change', label: t('app.portfolios.change'), icon: 'pencil' as const },
+            { id: 'delete', label: t('app.portfolios.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
+          ] : []),
+        ],
+        onselect: (id: string) => {
+          if (id === 'roadmap') onnavigate(`/portfolios/${portfolioId}/roadmap`);
+          if (id === 'export') exportTable();
+          if (id === 'export_sheet') exportTable(true);
+          if (id === 'change' && portfolio) { draft.name = portfolio.name; draft.description = portfolio.description; draft.parent = portfolio.parent_id ?? ''; isChanging = true; }
+          if (id === 'delete') isDeleting = true;
+        },
+      }}
+    >
+      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge tone={goalTone(shown.status)} label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
+    </ObjectHead>
+  {:else}
+    <PageHeader title={t('app.portfolios.portfolio')} isTitleInBar={viewport.isCompact} />
+  {/if}
   {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -249,8 +254,6 @@
   {:else}
     <section class="summary" aria-label={t('app.goals.summary')}>
       <div class="facts">
-        {#if portfolio.status !== 'NONE'}<Badge tone={goalTone(portfolio.status)}>{t(`app.goals.status_${portfolio.status}`)}</Badge>{/if}
-        <span>{t('app.goals.owned_by', { name: personName(portfolio.owner_id) })}</span>
         {#if parentName && portfolio.parent_id}<span>{t('app.portfolios.inside')} <a href={`/portfolios/${portfolio.parent_id}`}>{parentName}</a></span>{/if}
       </div>
       {#if portfolio.progress !== null}
@@ -321,6 +324,11 @@
     </section>
   {/if}
 </DetailPage>
+
+{#snippet portfolioTrail()}
+  <Breadcrumb label={t('app.goals.trail')} trail={[{ id: 'portfolios', label: t('app.goals.tab_portfolios'), href: '/goals?tab=portfolios' }, { id: 'portfolio', label: portfolio?.name ?? '' }]}
+    expandLabel={t('app.goals.expand_trail')} onnavigate={() => onnavigate('/goals?tab=portfolios')} />
+{/snippet}
 
 {#if isChanging}
   <Dialog size="m" bind:isOpen={isChanging} title={t('app.portfolios.change')} dismissLabel={t('app.links.cancel')}>
