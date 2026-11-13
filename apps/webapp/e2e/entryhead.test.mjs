@@ -518,6 +518,39 @@ test('chromium 1280: links are tight rows by relation, each far end in its own s
   }
 });
 
+test('chromium 390: Link is reached through its jump mark, nothing covers it, and its dialog fits the phone (§6.9 links)', { timeout: 60_000 }, async () => {
+  const blocks = { key: 'blocks', system: true, name: null, inverse_name: null, direction: 'DIRECTED', cardinality: 'MANY', cycles: 'FORBIDDEN', waits: 'NONE', position: 1, archived: false, version: 1 };
+  const far = (n) => ({ kind: 'ENTRY', id: `01a0e2e0-0000-7000-8000-0000000003f${n}`, anchor: null, available: true, title: `Far end ${n}`, key: `TAMA-${n}`, level: 'TASK', entry_type: 'task', completed: false, archived: false, collection_id: ENTRY.collection_id });
+  const answer = {
+    links: [1, 2, 3, 4].map((n) => ({ id: `01a0e2e0-0000-7000-8000-0000000004f${n}`, type: 'blocks', source_id: ENTRY.id, target_id: far(n).id, created_at: '2026-11-01T09:00:00Z', outward: true, other: far(n) })),
+    backlinks: [], page_backlinks: [], whiteboard_backlinks: [],
+  };
+  const { page, close } = await open(390, {
+    runs: false,
+    extra: (read, method) => (method !== 'GET' ? undefined : read === '/link-types' ? { data: [blocks] } : read === `/items/${ENTRY.id}/links` ? answer : undefined),
+  });
+  try {
+    await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Links/ }).click();
+    const button = page.locator('[data-links]').getByRole('button', { name: 'Link', exact: true });
+    await button.waitFor({ state: 'visible', timeout: 10_000 });
+    await button.scrollIntoViewIfNeeded();
+    // What a finger lands on at the button's centre is the button, not the bar above or below it.
+    const covered = await button.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return hit && element.contains(hit) ? null : (hit?.outerHTML.slice(0, 120) ?? 'nothing');
+    });
+    assert.equal(covered, null, `Link is covered by ${covered}`);
+    await button.click({ timeout: 5_000 });
+    const dialog = page.getByRole('dialog', { name: 'Link this entry to another' });
+    await dialog.waitFor({ timeout: 5_000 });
+    const confirm = await dialog.getByRole('button', { name: 'Link', exact: true }).boundingBox();
+    assert.ok(confirm && confirm.x >= 0 && confirm.x + confirm.width <= 390 && confirm.y + confirm.height <= 900, `the dialog's Link is off the phone: ${JSON.stringify(confirm)}`);
+  } finally {
+    await close();
+  }
+});
+
 test('chromium 1280: the affected items are named as their jump mark, both with their count (§6.9)', { timeout: 60_000 }, async () => {
   const ci = (n, name) => ({ ci_id: `01a0e2e0-0000-7000-8000-0000000003f${n}`, hub_id: ENTRY.collection_id, class: 'server', name, stage: 'OPERATIONAL', added_at: '2026-11-01T09:00:00Z' });
   const { page, close } = await open(1280, {
