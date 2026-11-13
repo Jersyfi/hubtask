@@ -36,10 +36,15 @@
     type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineColumn, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { QueryKey } from '@hubtask/query';
-  import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
+  import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { changeRefusalCode, holds, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { archivalOfItem } from '../lib/data/lifecycle.ts';
+  import EntryActions from '../lib/entries/EntryActions.svelte';
+  import EntryMenu from '../lib/entries/EntryMenu.svelte';
+  import { attachEntryGestures } from '../lib/entries/entryGestures.ts';
+  import { entryMenu } from '../lib/entries/entryMenu.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { addDays, dueInputFor, shift, type Window } from '../lib/data/due.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -261,6 +266,44 @@
   const myRole = $derived((rolePath && people.roleOf(rolePath, actor.account?.id, roleOrder())) ?? undefined);
   const mayChange = (id: string) =>
     mayWrite && !isArchived && changeRefusalCode(myRole, assigneeOf.get(id) !== undefined && assigneeOf.get(id) === actor.account?.id) === undefined;
+  // An entry's menu on the timeline: the one every surface draws (UC-WRK-28 check 1). The plan
+  // holds no level, so the moves wait for the one read when the menu opens (D6).
+  const entryOf = (id: string) => items.onTimeline(planId).find((each) => each.id === id) ?? items.find(id);
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let entryActions = $state<EntryActions | undefined>(undefined);
+  let chartWindow = $state<HTMLElement | null>(null);
+  function menuOf(entry: WorkItem) {
+    return entryMenu(
+      {
+        sendsLinks: platform.sendLink !== undefined,
+        surface: 'timeline',
+        item: { title: entry.title, isCompleted: entry.completion?.is_completed ?? false, hasDue: Boolean(entry.due_at) },
+        archival: archivalOfItem(entry, false),
+        isCollectionReadOnly: isArchived,
+        mayChange: mayWrite && changeRefusalCode(myRole, entry.assignee_id != null && entry.assignee_id === actor.account?.id) === undefined,
+        mayCreate: mayDo(myRole, 'create', false) === true,
+        mayShare: holds(myRole, 'MANAGE_MEMBERS').status === 'permitted',
+        carries: (capability) => supports(entry.type, capability).status === 'permitted',
+        level: entryActions?.levelOf(entry),
+      },
+      t,
+    );
+  }
+  function openMenu(id: string) {
+    const entry = entryOf(id);
+    if (entry) entryActions?.readLevel(entry);
+    menus[id]?.open(0);
+  }
+  // A right click and the context-menu key on a row; the long press is the timeline's own (`onHold`).
+  $effect(() => {
+    const node = chartWindow;
+    if (!node) return;
+    return attachEntryGestures(node, {
+      idAt: (target) => (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined,
+      open: openMenu,
+      ignore: '[data-row]',
+    });
+  });
   $effect(() => {
     const ids = [...assigneeOf.values()];
     untrack(() => accounts.resolve(ids));
@@ -818,7 +861,7 @@
     {#if showsChart}
       <!-- design-system-lint-ignore: the pane's width is the person's drag, kept by the device. -->
       <div class="split" data-pane={openItemId ? '' : undefined} style:--panel-width={device.panelWidth ? `${device.panelWidth}px` : undefined}>
-      <div class="window" data-plan-view="schedule">
+      <div class="window" data-plan-view="schedule" bind:this={chartWindow}>
         <Timeline
           label={t('app.planning.chart')}
           from={current.from}
@@ -847,7 +890,8 @@
           resizeLabel={t('app.planning.resize_titles')}
           undatedLabel={undatedSaid}
           isTrayFolded
-          rowAction={undated.length > 0 ? giveDates : undefined}
+          {rowAction}
+          onHold={openMenu}
         />
 
       </div>
@@ -1002,6 +1046,20 @@
     <Button size="sm" tone="subtle" aria-label={t('app.planning.give_dates_of', { title: titleOfUndated(id) })} onclick={() => openEntry(id)}>
       {t('app.planning.give_dates')}
     </Button>
+  {/if}
+{/snippet}
+
+{#snippet rowAction(id: string)}
+  {@const entry = entryOf(id)}
+  {@render giveDates(id)}
+  {#if entry}
+    <EntryMenu
+      bind:this={menus[id]}
+      title={entry.title}
+      items={menuOf(entry)}
+      onselect={(chosen) => void entryActions?.run(entry, chosen)}
+      onopening={() => entryActions?.readLevel(entry)}
+    />
   {/if}
 {/snippet}
 
@@ -1253,6 +1311,8 @@
     {/snippet}
   </Dialog>
 {/if}
+
+<EntryActions bind:this={entryActions} onopen={openEntry} {onnavigate} />
 
 <PlanViewPanel
   bind:isOpen={isPanelOpen}
