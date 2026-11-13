@@ -55,6 +55,7 @@
   import { archivalOfItem } from '../data/lifecycle.ts';
   import { isSwipe, swipeThreshold } from './swipe.ts';
   import { goesOverLimit } from './wip.ts';
+  import { laneOf, lanesOf } from '../data/viewquery.ts';
   import { NO_COLUMN, columnRefusals, unmappedStatuses } from './boardlevel.ts';
   import StateChip from './StateChip.svelte';
   import { chipOf } from './statechip.ts';
@@ -117,6 +118,12 @@
      * card holding nothing else stays a title alone where nobody asked for keys.
      */
     showsKey?: boolean;
+    /** The board's lanes (E-21, UC-WRK-05): a second grouping, each lane its row of the columns. */
+    lanesBy?: string;
+    /** A lane's value as it reads: a person's or a label's name. */
+    laneName?: (value: string) => string | undefined;
+    /** Whether the columns show their WIP limits (the panel's *Limits je Spalte*). */
+    showsLimits?: boolean;
     /**
      * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
      * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
@@ -152,6 +159,9 @@
     level,
     workflow,
     showsKey = false,
+    lanesBy,
+    laneName,
+    showsLimits = true,
   }: Props = $props();
   // The collection the cards' keys are read from (ticket.ts).
   const keyedCollection = $derived(containers.find(collectionId));
@@ -352,6 +362,20 @@
       element.removeEventListener('touchend', onSwipeEnd);
     };
   });
+  /** The lanes in the order their first card stands, the cards without a value last. */
+  const laneKeys = $derived.by(() => {
+    if (!lanesBy) return [''];
+    void groups;
+    const all = [null, ...columns].flatMap((bucket) => items.columnCards(collectionId, bucket?.id ?? null));
+    const found = lanesOf(all, lanesBy);
+    return found.length > 0 ? found : [''];
+  });
+  function entriesOfLane(lane: string): number {
+    if (!lanesBy) return 0;
+    const field = lanesBy;
+    return [null, ...columns].flatMap((bucket) => cardsOf(bucket?.id ?? null)).filter((card) => laneOf(card, field) === lane).length;
+  }
+
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
     void groups;
     return items.columnCards(collectionId, bucketId);
@@ -922,10 +946,13 @@
        so the columns cannot cover it. -->
   <div class="frame" data-more-start={edges.start ? '' : undefined} data-more-end={edges.end ? '' : undefined}>
   <!-- design-system-lint-ignore: the gap is the carried card's measured height, not a design value. -->
-  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board} onscroll={measureEdges} style:--drag-gap={dragGap}>
+  <div class="board" data-one-column={isOneColumn ? '' : undefined} data-lanes={lanesBy ? '' : undefined} bind:this={board} onscroll={measureEdges} style:--drag-gap={dragGap}>
+    {#each laneKeys as lane (lane)}
+    <div class="lane-row" data-lane={lanesBy ? lane : undefined}>
+    {#if lanesBy}<p class="lane-head"><b>{lane === '' ? t('app.board.lane_none') : (laneName?.(lane) ?? lane)}</b> <span>{entriesOfLane(lane)}</span></p>{/if}
     {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
-      {@const cards = cardsOf(bucketId)}
+      {@const cards = lanesBy ? cardsOf(bucketId).filter((card) => laneOf(card, lanesBy) === lane) : cardsOf(bucketId)}
       <!-- The entries with no bucket are their own lane, first (design-system.md §11.9): a card
            nobody has put in a column is a card somebody has to find, and it is found before the
            columns rather than after them. On a phone only the column the strip chose is drawn. -->
@@ -940,8 +967,8 @@
           <BucketColumn
             name={bucket?.name ?? noColumnName}
             count={countOf(bucketId) ?? cards.length}
-            wipLimit={bucket?.wip_limit ?? null}
-            limitLabel={bucket?.wip_limit ? t('app.board.wip', { count: String(countOf(bucketId) ?? cards.length), limit: String(bucket.wip_limit) }) : undefined}
+            wipLimit={showsLimits ? (bucket?.wip_limit ?? null) : null}
+            limitLabel={showsLimits && bucket?.wip_limit ? t('app.board.wip', { count: String(countOf(bucketId) ?? cards.length), limit: String(bucket.wip_limit) }) : undefined}
             overLimitLabel={t('app.board.over_limit')}
             isDoneBucket={bucket?.is_done_bucket ?? false}
             doneBucketLabel={t('app.board.done_bucket')}
@@ -1096,6 +1123,8 @@
           </BucketColumn>
         </div>
       {/if}
+    {/each}
+    </div>
     {/each}
 
     <!-- After the columns rather than above them: a new column is added at the end, and the dashed
@@ -1302,6 +1331,12 @@
      what it scrolls: a card's checkbox hides its input the visually-hidden way, absolutely, and
      an absolute box inside an unpositioned scroller overflows the scroller's ancestor - which is
      how a board widens the page by four hundred pixels on a tablet. */
+  /* Without lanes a row is no box: the columns stand in the board's own row. */
+  .lane-row { display: contents; }
+  .board[data-lanes] { flex-direction: column; }
+  .board[data-lanes] .lane-row { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: start; padding-block-end: var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .lane-head { flex-basis: 100%; margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  .lane-head b { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .board {
     position: relative;
     display: flex;
