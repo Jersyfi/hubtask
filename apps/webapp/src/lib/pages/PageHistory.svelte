@@ -3,13 +3,15 @@
 <script lang="ts">
   // A page's history in place of its text (UC-DOC-06): the versions with person and time on the
   // left, the chosen one beside the page as it stands, side by side or its changes only; bringing
-  // it back and naming it are buttons on top. The comparison is the client's (compare.ts).
+  // it back and naming it are buttons on top. Each version is drawn as formatted text, its changed
+  // blocks marked; the comparison is the client's, block by block (compare.ts).
 
   import { Button, Inline, StateLozenge, ViewSwitcher } from '@hubtask/design-system/components';
-  import { compareBodies } from '@hubtask/editor';
+  import { compareBlocks } from '@hubtask/editor';
 
   import { t } from '../i18n/i18n.svelte.ts';
-  import { changeRuns, sideBySide } from './history.ts';
+  import PageVersionText from './PageVersionText.svelte';
+  import { changeRuns } from './history.ts';
 
   interface Version {
     readonly seq: number;
@@ -42,9 +44,8 @@
   const { title, body, changedBy, changedAt, versions, chosen, writable, wide, nameOf, when, onchoose, onrestore, onname, onclose }: Props = $props();
 
   let layout = $state<'side' | 'changes'>('side');
-  const compared = $derived(chosen ? compareBodies(chosen.body, body) : []);
-  const columns = $derived(sideBySide(compared));
-  const runs = $derived(changeRuns(compared));
+  const compared = $derived(chosen ? compareBlocks(chosen.body, body) : undefined);
+  const runs = $derived(compared ? changeRuns(compared.blocks) : []);
 </script>
 
 <section class="history" class:wide aria-label={t('app.pages.side_history')} data-page-history>
@@ -90,31 +91,28 @@
         <span class="legend">
           <del>{t('app.pages.history_removed')}</del>
           <ins>{t('app.pages.history_added')}</ins>
-          <b>{t('app.pages.history_places', { count: String(runs.length) })}</b>
+          <b>{t('app.pages.history_places', { count: String(compared?.places ?? 0) })}</b>
         </span>
       </div>
       {#if chosen}
         {#if layout === 'side'}
+          {@const older = `${when(chosen.created_at)}${chosen.name ? ` · „${chosen.name}“` : ''}`}
           <div class="sheet sides" data-history-sides>
             <div class="side">
-              <span class="label">{when(chosen.created_at)}{chosen.name ? ` · „${chosen.name}“` : ''}</span>
-              {#each columns.before as line, at (at)}
-                <p class="line" class:empty={line.text === ''}>{#if line.kind === 'removed'}<del>{line.text}</del>{:else}{line.text}{/if}</p>
-              {/each}
+              <span class="label">{older}</span>
+              <PageVersionText body={chosen.body} marks={compared?.before} label={older} />
             </div>
             <div class="side">
               <span class="label">{t('app.pages.history_now')}</span>
-              {#each columns.after as line, at (at)}
-                <p class="line" class:empty={line.text === ''}>{#if line.kind === 'added'}<ins>{line.text}</ins>{:else}{line.text}{/if}</p>
-              {/each}
+              <PageVersionText body={body} marks={compared?.after} label={t('app.pages.history_now')} />
             </div>
           </div>
         {:else}
           <div class="sheet runs" data-history-changes>
             {#each runs as run, at (at)}
               <div class="run">
-                {#each run as line, index (index)}
-                  <p class="line">{#if line.kind === 'removed'}<del>{line.text}</del>{:else}<ins>{line.text}</ins>{/if}</p>
+                {#each run as block, index (index)}
+                  <PageVersionText body={block.text} marks={[block.kind]} label={block.kind === 'removed' ? t('app.pages.history_removed') : t('app.pages.history_added')} />
                 {/each}
               </div>
             {:else}
@@ -160,8 +158,6 @@
   .wide .sides .side + .side { border-inline-start: var(--bw-hairline) solid var(--border-subtle); padding-inline-start: var(--sp-300); }
   .side { display: grid; align-content: start; gap: var(--sp-050); min-inline-size: 0; }
   .label { font-size: var(--fs-090); font-weight: var(--fw-semibold); color: var(--text-subtle); margin-block-end: var(--sp-100); }
-  .line { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--lh-normal); }
-  .line.empty { min-block-size: var(--sp-100); }
   .runs { display: grid; gap: var(--sp-200); }
   .run + .run { border-block-start: var(--bw-hairline) solid var(--border-subtle); padding-block-start: var(--sp-200); }
 </style>

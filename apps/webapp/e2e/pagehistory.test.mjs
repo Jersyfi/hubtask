@@ -106,16 +106,18 @@ test('the history lists the versions with person, time and name, and compares on
   assert.match(await versions.nth(2).innerText(), /Sent to legal/, 'a named version carries its name');
   assert.match(await history.innerText(), /Bringing one back adds a new version; nothing is lost\./);
 
-  // The version before the newest is compared at once, side by side: out struck, in marked.
+  // The version before the newest is compared at once, side by side, each drawn as the page draws
+  // its text: the block that went out struck, the one that came in marked.
   const sides = history.locator('[data-history-sides]');
-  await sides.locator('del', { hasText: OLDER }).waitFor({ timeout: 5_000 });
-  await sides.locator('ins', { hasText: 'Welcome to the team.' }).waitFor();
+  await sides.locator('[data-page-version] .page-body > p[data-change="removed"]', { hasText: OLDER }).waitFor({ timeout: 5_000 });
+  await sides.locator('[data-page-version] .page-body > p[data-change="added"]', { hasText: 'Welcome to the team.' }).waitFor();
+  assert.equal(await sides.getByRole('textbox').count(), 0, 'a version is read, not written');
   assert.equal(await history.getByRole('button', { name: /Sent to legal/ }).getAttribute('aria-pressed'), 'true');
   assert.match(await history.innerText(), /1 place/);
   await history.getByRole('radio', { name: 'Changes only' }).click();
   const changes = history.locator('[data-history-changes]');
-  await changes.locator('del', { hasText: OLDER }).waitFor({ timeout: 5_000 });
-  assert.equal(await changes.locator('p').count(), 2, 'only the changed lines');
+  await changes.locator('[data-change="removed"]', { hasText: OLDER }).waitFor({ timeout: 5_000 });
+  assert.equal(await changes.locator('[data-change]').count(), 2, 'only the changed blocks');
 
   // Naming is a button on top, for the version compared.
   await history.getByRole('button', { name: 'Name this version' }).click();
