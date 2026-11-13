@@ -14716,7 +14716,7 @@
   "app.entry.format_quote": "Quote",
   "app.entry.all_deadlines": "All deadlines as a table",
   "app.entry.deadline_chip_breached": "{goal} breached",
-  "app.entry.deadline_chip_next": "next: {goal} {at}",
+  "app.entry.deadline_chip_next": "next: {goal}, {rest}",
   "app.entry.deadlines_kept": "{goal}: {kept} of {count} kept",
   "app.desk.macro_does": "does: {actions}",
   "app.desk.snippets": "Snippets",
@@ -14773,5 +14773,9 @@
   "app.item.priority_from_matrix": "from impact × urgency",
   "templates.text.be0a061d": "High",
   "templates.text.09be5f96": "Medium",
-  "templates.text.b1dd9521": "Low"
+  "templates.text.b1dd9521": "Low",
+  "app.entry.deadline_left": "{span} left",
+  "app.entry.deadline_overdue": "overdue for {span}",
+  "app.entry.deadline_due": "until {at}",
+  "app.entry.deadline_was_due": "was due {at}"
 }

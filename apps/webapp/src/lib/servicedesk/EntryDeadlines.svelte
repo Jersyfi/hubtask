@@ -8,31 +8,54 @@
   import { untrack } from 'svelte';
   import { DeadlineList, Dialog, StateLozenge } from '@hubtask/design-system/components';
   import type { Deadline, DeadlineChip } from '@hubtask/design-system/components';
-  import type { EntrySlaGoal, EntrySlaList } from '@hubtask/sync-engine';
-  import { entrySlaPath } from '../data/desk.svelte.ts';
+  import type { EntrySlaGoal, EntrySlaList, SlaPolicyList } from '@hubtask/sync-engine';
+  import { entrySlaPath, policiesPath } from '../data/desk.svelte.ts';
   import { groups } from '../data/groups.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { byUrgency, chipOf, shareOf, urgencyOf } from './deadlines.ts';
+  import { byUrgency, chipOf, shareOf, timeOf, urgencyOf } from './deadlines.ts';
+  import { spanOf } from './sla.ts';
 
   let { itemId, chip = $bindable(undefined), count = $bindable(0) }: { itemId: string; chip?: DeadlineChip; count?: number } = $props();
 
   const read = resource<EntrySlaList>(untrack(() => entrySlaPath(itemId)));
+  // A policy and a group by their names, never their keys (ET-6): any member may read both.
+  const named = resource<SlaPolicyList>(policiesPath);
   $effect(() => untrack(() => groups.open()));
   const goals = $derived(read.state.status === 'ready' ? read.state.data.data : []);
   const now = Date.now();
   const at = (iso: string | null) => (iso ? formatDateTime(iso, messages.locale) : '');
   const goalName = (goal: EntrySlaGoal) => t(`app.portal.goal.${goal.goal}`);
-  const whose = (goal: EntrySlaGoal) =>
-    goal.kind === 'OLA'
-      ? `${(goal.assignee_group ? groups.nameOf(goal.assignee_group) : undefined) ?? goal.policy_key} · OLA`
-      : `${goal.policy_key} · SLA`;
+  const policyName = (key: string) =>
+    named.state.status === 'ready' ? named.state.data.data.find((policy) => policy.key === key)?.name : undefined;
+  const whose = (goal: EntrySlaGoal) => {
+    const name = goal.kind === 'OLA'
+      ? ((goal.assignee_group ? groups.nameOf(goal.assignee_group) : undefined) ?? policyName(goal.policy_key))
+      : policyName(goal.policy_key);
+    return name ? `${name} · ${goal.kind}` : goal.kind;
+  };
   const words = (goal: EntrySlaGoal) =>
     goal.standing === 'MET' ? t('app.portal.goal_met', { at: at(goal.met_at) })
     : goal.standing === 'BREACHED' ? t('app.portal.goal_breached', { at: at(goal.breached_at) })
     : goal.standing === 'PAUSED' ? t('app.desk.goal_paused')
     : t('app.portal.goal_due', { at: at(goal.due_at) });
+  const spanText = (ms: number) => {
+    const span = spanOf(ms);
+    return t(span.code, span.params);
+  };
+  /** What is left, or how long it is overdue - the row's words; the moment stands under the bar. */
+  const remaining = (goal: EntrySlaGoal) => {
+    const time = timeOf(goal, now);
+    if (!time) return goal.standing === 'PAUSED' ? t('app.desk.goal_paused') : t('app.desk_queues.sla_running');
+    return t(time.isOverdue ? 'app.entry.deadline_overdue' : 'app.entry.deadline_left', { span: spanText(time.span) });
+  };
+  const dueLine = (goal: EntrySlaGoal) => {
+    const time = timeOf(goal, now);
+    const moment = goal.due_at ?? goal.breached_at;
+    if (!time || !moment) return undefined;
+    return t(time.isOverdue ? 'app.entry.deadline_was_due' : 'app.entry.deadline_due', { at: at(moment) });
+  };
   const TONE = { breached: 'danger', atRisk: 'warning', running: 'neutral', paused: 'neutral', met: 'success' } as const;
 
   // A kept deadline asks nothing more of anyone: those fold into one line per goal (the scene's
@@ -42,7 +65,8 @@
       id: `${goal.kind}-${goal.policy_key}-${goal.goal}`,
       name: goalName(goal),
       context: whose(goal),
-      words: words(goal),
+      words: remaining(goal),
+      due: dueLine(goal),
       share: shareOf(goal, now),
       tone: TONE[urgencyOf(goal, now)],
       isPaused: goal.standing === 'PAUSED',
@@ -65,7 +89,7 @@
       ? {
           label: first.isBreached
             ? t('app.entry.deadline_chip_breached', { goal: goalName(first.goal) })
-            : t('app.entry.deadline_chip_next', { goal: goalName(first.goal), at: at(first.goal.due_at) }),
+            : t('app.entry.deadline_chip_next', { goal: goalName(first.goal), rest: remaining(first.goal) }),
           tone: first.isBreached ? 'danger' : urgencyOf(first.goal, now) === 'atRisk' ? 'warning' : 'neutral',
         }
       : undefined;

@@ -14716,7 +14716,7 @@
   "app.entry.format_quote": "Zitat",
   "app.entry.all_deadlines": "Alle Fristen als Tabelle",
   "app.entry.deadline_chip_breached": "{goal} verletzt",
-  "app.entry.deadline_chip_next": "nächste: {goal} {at}",
+  "app.entry.deadline_chip_next": "nächste: {goal}, {rest}",
   "app.entry.deadlines_kept": "{goal}: {kept} von {count} eingehalten",
   "app.desk.macro_does": "macht: {actions}",
   "app.desk.snippets": "Textbausteine",
@@ -14773,5 +14773,9 @@
   "app.item.priority_from_matrix": "aus Auswirkung × Dringlichkeit",
   "templates.text.be0a061d": "Hoch",
   "templates.text.09be5f96": "Mittel",
-  "templates.text.b1dd9521": "Niedrig"
+  "templates.text.b1dd9521": "Niedrig",
+  "app.entry.deadline_left": "noch {span}",
+  "app.entry.deadline_overdue": "seit {span} überfällig",
+  "app.entry.deadline_due": "bis {at}",
+  "app.entry.deadline_was_due": "war fällig {at}"
 }

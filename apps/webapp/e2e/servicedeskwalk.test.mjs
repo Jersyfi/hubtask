@@ -447,4 +447,20 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   assert.doesNotMatch(said, /\bHigh\b|\bMedium\b/, 'a stored English option shows');
   assert.equal(await triage.locator('[data-detail="field-priority"] [data-detail-note]').innerText(), 'aus Auswirkung × Dringlichkeit');
   assert.doesNotMatch(said, /Für dich nicht sichtbar/, 'the responding group reads as out of sight to who may read the entry');
+
+  const deadlines = page.locator('[data-entry-sla]');
+  await deadlines.getByText('Plattform-Team · OLA').waitFor({ timeout: 10_000 });
+  const rows = deadlines.locator('.deadline');
+  assert.equal(await rows.count(), 2);
+  // The breached OLA first, in its tone with a mark and a word; the running SLA by what is left.
+  const breached = rows.nth(0);
+  assert.equal(await breached.getAttribute('data-tone'), 'danger');
+  assert.match(await breached.locator('.words').innerText(), /^seit 20 Min\. überfällig$/);
+  assert.equal(await breached.locator('.words svg').count(), 1, 'the breach is a colour alone');
+  assert.match(await breached.locator('.due').innerText(), /^war fällig /);
+  const running = rows.nth(1);
+  assert.match(await running.innerText(), /Störungen · SLA/);
+  assert.match(await running.locator('.words').innerText(), /^noch 2 Std\. 10 Min\.$/);
+  assert.match(await running.locator('.due').innerText(), /^bis /);
+  assert.doesNotMatch(await deadlines.innerText(), /incidents|ola_plattform/, 'a policy shows by its key');
 });

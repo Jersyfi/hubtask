@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import type { EntrySlaGoal } from '@hubtask/sync-engine';
-import { byUrgency, chipOf, shareOf } from './deadlines.ts';
+import { byUrgency, chipOf, shareOf, timeOf, urgencyOf } from './deadlines.ts';
 
 const now = Date.parse('2026-11-12T12:00:00Z');
 const goal = (id: string, standing: string, extra: Partial<EntrySlaGoal> = {}): EntrySlaGoal =>
@@ -41,4 +41,15 @@ test('the chip names what is breached, else the next running one, else nothing',
   assert.equal(chipOf([goal('a', 'RUNNING'), goal('b', 'BREACHED')], now)?.goal.policy_key, 'b');
   assert.equal(chipOf([goal('a', 'RUNNING')], now)?.isBreached, false);
   assert.equal(chipOf([goal('a', 'MET'), goal('b', 'PAUSED')], now), undefined);
+});
+
+test('a row says what is left or how long it is overdue, never the moment alone', () => {
+  assert.deepEqual(timeOf(goal('a', 'RUNNING'), now), { isOverdue: false, span: 2 * 3_600_000 });
+  assert.deepEqual(timeOf(goal('a', 'BREACHED', { due_at: '2026-11-12T11:40:00Z', breached_at: '2026-11-12T11:41:00Z' }), now), { isOverdue: true, span: 20 * 60_000 });
+  // Past due while the sweep has not marked it yet: overdue, and breached in tone.
+  const late = goal('a', 'RUNNING', { due_at: '2026-11-12T11:50:00Z' });
+  assert.deepEqual(timeOf(late, now), { isOverdue: true, span: 10 * 60_000 });
+  assert.equal(urgencyOf(late, now), 'breached');
+  assert.equal(timeOf(goal('a', 'PAUSED'), now), undefined);
+  assert.equal(timeOf(goal('a', 'MET'), now), undefined);
 });
