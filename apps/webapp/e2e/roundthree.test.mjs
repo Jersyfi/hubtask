@@ -121,8 +121,10 @@ test('chromium: the twist only on an entry with parts, and one add for a list gr
     assert.equal(await page.locator(`[data-row="${ITEMS[0].id}"]`).getByRole('button', { name: /Show what is inside/ }).count(), 1, 'the entry with parts has its twist');
     assert.equal(await page.locator(`[data-row="${ITEMS[2].id}"]`).getByRole('button', { name: /Show what is inside/ }).count(), 0, 'an entry without parts has none');
 
-    await page.getByRole('button', { name: 'Group' }).click();
-    await page.getByRole('menuitem', { name: 'Column' }).click();
+    // Grouped by column in the one panel *View* (E-21), which replaced the Group menu.
+    await page.locator('[data-opener="view"]').click();
+    await page.locator('[data-view-panel] [data-grouping="column"]').click();
+    await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
     assert.equal(await page.getByRole('button', { name: 'Add an entry' }).count(), 1, 'one add, at the end');
   } finally {
