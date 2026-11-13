@@ -224,6 +224,9 @@ export const DECLARED = {
     // The composer's formatting bar (ET-5) and its mention.
     'bold',
     'italic',
+    'strikethrough',
+    'quote',
+    'list-checks',
     'list',
     'at-sign',
     // *All deadlines as a table* (ET-6).
