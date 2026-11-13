@@ -75,6 +75,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
+  import { groups } from '../lib/data/groups.svelte.ts';
   import { definitionsFor, fieldName, valueText } from '../lib/data/customfields.ts';
   import { hasForm, panelRows, triageKeys } from '../lib/data/entryforms.ts';
   import { droppedBy, entryTypes, entryTypesOffered, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
@@ -1021,7 +1022,16 @@
     duration: formatDuration,
     nameOf: (id: string) => accounts.nameOf(id),
     titleOf: (id: string) => items.find(id)?.title,
+    // A group field names its group: without this every GROUP value read as one out of sight.
+    // Any member may read the groups; until they arrive the row says nothing rather than that.
+    groupOf: (id: string) => groups.nameOf(id) ?? (groups.state.status === 'ready' ? undefined : ''),
+    moment: (iso: string) => formatDateTime(iso, messages.locale),
     unknown: t('app.fields.value_unnamed'),
+  });
+  const wantsGroups = $derived(fieldRows.some((row) => row.definition.kind === 'GROUP'));
+  $effect(() => {
+    if (wantsGroups) return untrack(() => groups.open());
+    return undefined;
   });
 
   const holdsDetails = $derived.by(() => {

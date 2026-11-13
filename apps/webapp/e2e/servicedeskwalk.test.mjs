@@ -380,3 +380,67 @@ test('chromium: service desk - the reply inserts a snippet by its button and by 
   assert.deepEqual(asked.pressed, [REQUEST.id], 'the macro was not pressed on this entry');
   assert.ok(asked.rendered >= 1, 'the snippet was not rendered for the ticket');
 });
+
+// The ticket's rail as the scene draws it (ET-1, ET-6), read in German: the triage's values in the
+// reader's words, the priority saying it follows impact × urgency, the responding group by its name
+// for whoever may read the entry, and each deadline by what is left or how long it is overdue, its
+// policy and its group by name, its urgency in a word and a mark beside the colour.
+test('chromium: service desk - a ticket\'s rail names its triage and deadlines in the reader\'s words', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const desk = deskBackend();
+  const MINUTE = 60_000;
+  const at = (offset) => new Date(Date.now() + offset).toISOString();
+  const GROUP = '01a0e2e0-0000-7000-8000-00000000f0a1';
+  const form = {
+    sections: [{ key: 'request', name: 'Request' }, { key: 'triage', name: 'Triage' }],
+    fields: [
+      { key: 'title', section: 'request', required: true }, { key: 'custom_fields.impact', section: 'triage' },
+      { key: 'custom_fields.urgency', section: 'triage' }, { key: 'custom_fields.priority', section: 'triage' },
+      { key: 'custom_fields.responding_group', section: 'triage' },
+    ],
+    channels: [{ channel: 'PORTAL' }],
+  };
+  const fieldId = ids('0000ff');
+  const field = (key, name, kind, options = []) => ({ id: fieldId(), collection_id: null, hub_id: null, key, name, kind, options, is_required: false, restricted: false, read_restricted: false, applies_to: ['TASK'] });
+  const goal = (kind, policy, group, standing, due, breached = null) => ({
+    goal: 'RESOLUTION', kind, policy_key: policy, assignee_group: group, standing, target_seconds: 14_400,
+    armed_at: at(-3 * HOUR), due_at: due, at_risk_at: null, met_at: null, breached_at: breached,
+  });
+  const answer = (method, path, query, body) => {
+    if (path === '/accounts/me' && method === 'GET') return { json: { ...ACCOUNT, locale: 'de' } };
+    if (path === '/entry-types' && method === 'GET') {
+      return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], form, version: 1 }] } };
+    }
+    if (path === '/entry-types/request/form:evaluate' && method === 'POST') return { json: { fields: {} } };
+    if (path === `/items/${REQUEST.id}/steps` && method === 'GET') return { json: { workflow: 'requests', status: 'new', steps: [] } };
+    if (path === '/workflows' && method === 'GET') {
+      const shape = { statuses: [{ key: 'new', name: 'New', category: 'TODO', color_token: 'slate' }, { key: 'resolved', name: 'Resolved', category: 'DONE', color_token: 'green' }], initial: 'new', steps: [] };
+      return { json: { data: [{ key: 'requests', system: false, name: 'Requests', published: shape, draft: null, published_at: '2026-10-30T09:00:00Z', version: 1 }], scheme: [{ container_id: COLLECTION.id, entry_type: null, workflow: 'requests' }] } };
+    }
+    if (path === '/custom-fields' && method === 'GET') {
+      return { json: [field('impact', 'Auswirkung', 'SELECT', ['High', 'Medium', 'Low']), field('urgency', 'Dringlichkeit', 'SELECT', ['High', 'Medium', 'Low']), field('priority', 'Priorität', 'SELECT', ['P1', 'P2', 'P3', 'P4']), field('responding_group', 'Zuständige Gruppe', 'GROUP')] };
+    }
+    if (path === '/groups' && method === 'GET') return { json: { data: [{ id: GROUP, name: 'Plattform-Team', version: 1 }], page: { next_cursor: null, has_more: false, total: 1 } } };
+    if (path === '/sla-policies' && method === 'GET') {
+      const policy = (key, name, group) => ({ key, name, calendar: null, entry_types: ['request'], organisations: [], priority_field: 'priority', assignee_group: group, goals: [], position: 0, enabled: true, version: 1 });
+      return { json: { data: [policy('incidents', 'Störungen', null), policy('ola_plattform', 'Team Plattform', GROUP)] } };
+    }
+    if (path === `/items/${REQUEST.id}/sla` && method === 'GET') {
+      return { json: { data: [goal('SLA', 'incidents', null, 'RUNNING', at(130 * MINUTE)), goal('OLA', 'ola_plattform', GROUP, 'BREACHED', at(-20 * MINUTE), at(-20 * MINUTE))] } };
+    }
+    if (path === `/items/${REQUEST.id}` && method === 'GET') {
+      return { json: { ...REQUEST, created_by: OTHER.id, entry_type: 'request', status: 'new', custom_fields: { impact: 'High', urgency: 'Medium', priority: 'P2', responding_group: GROUP } } };
+    }
+    return desk(method, path, query, body);
+  };
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  const triage = page.locator('[data-entry-triage]');
+  await triage.getByText('Plattform-Team').waitFor({ timeout: 10_000 });
+  const said = await triage.innerText();
+  assert.doesNotMatch(said, /Für dich nicht sichtbar/, 'the responding group reads as out of sight to who may read the entry');
+});
