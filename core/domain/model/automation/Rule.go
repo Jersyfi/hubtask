@@ -182,6 +182,20 @@ const (
 
 // Trigger is what starts a run, carrying the fields its own kind needs and no others.
 //
+// FiresOn reports whether an update that changed the fields sets the trigger off: always where it
+// is not narrowed, else when one of its fields is among them.
+func (t Trigger) FiresOn(changed []string) bool {
+	if len(t.ChangedFields) == 0 {
+		return true
+	}
+	for _, field := range t.ChangedFields {
+		if slices.Contains(changed, field) {
+			return true
+		}
+	}
+	return false
+}
+
 // One struct with a kind rather than six types, because that is the shape the `trigger` column has
 // always held and the shape the contract declares. What keeps it honest is that validation is per
 // kind and refuses a field belonging to another one: a trigger carrying a cron expression and an
