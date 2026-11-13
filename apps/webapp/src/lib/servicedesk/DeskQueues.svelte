@@ -246,9 +246,9 @@
 
 <style>
   .request { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
-  /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5), short
-     enough that the six columns beside it fit at a desktop's width rather than behind the edge fade. */
-  .title { display: block; max-inline-size: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
+  /* One line with an ellipsis and the whole title as the tooltip (user-experience.md §2.5), as wide
+     as the request column the table gives it (scene queue). */
+  .title { display: block; max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
   /* A phone's list row has the title's whole line to itself: it wraps there, uncut. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), where DataTable becomes list rows; a media query cannot read a custom property. */
   @media (width < 600px) {

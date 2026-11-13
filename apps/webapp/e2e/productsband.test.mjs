@@ -408,6 +408,18 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     // A request's title is read whole, on a phone's stacked card too, not cut to a few letters.
     const title = await table.locator('.title').first().evaluate((node) => [node.scrollWidth, node.clientWidth]);
     if (width < 600) assert.ok(title[0] <= title[1] + 1 && title[1] >= 150, `the title is cut: ${title}`);
+    // Scene queue: at a desktop's width the request column is the title's; the row's actions, seen
+    // on hover, lie over its end rather than keep a room of their own beside it.
+    if (width >= 600) {
+      const room = await table.locator('tbody tr.row td[data-role="title"]').evaluateAll((cells) => cells.map((cell) => {
+        const title = cell.querySelector('.title');
+        const acts = cell.querySelector('.end-inner');
+        const style = getComputedStyle(cell);
+        const inner = cell.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd);
+        return { cut: title.scrollWidth > title.clientWidth + 1, share: title.clientWidth / inner, acts: acts ? getComputedStyle(acts).position : 'none' };
+      }));
+      assert.ok(room.every((each) => (!each.cut || each.share > 0.85) && each.acts !== 'static'), JSON.stringify(room));
+    }
     // The SLA bar's track stands apart from the row it is drawn on, in dark mode too.
     const track = await table.locator('.sla .track >> visible=true').first().evaluate((node) => {
       const channels = (colour) => (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);

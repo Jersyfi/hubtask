@@ -559,6 +559,15 @@
     .data-table[data-kind='work'] :global(tr.row:hover .end-inner),
     .data-table[data-kind='work'] :global(tr.row:focus-within .end-inner),
     .data-table[data-kind='work'] :global(.end-inner:focus-within) { opacity: 1; }
+    /* Seen only on hover, the title's actions lie over the title's end rather than keep a room of
+       their own beside it, so the title has the whole column at rest. */
+    .data-table[data-kind='work'] .title-line { position: relative; }
+    .data-table[data-kind='work'] .title-line .end-inner {
+      position: absolute;
+      inset-inline-end: 0;
+      padding-inline-start: var(--sp-100);
+      background: var(--bg-surface-hover);
+    }
   }
 
   .stack { display: none; }
