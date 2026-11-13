@@ -4865,6 +4865,8 @@
   "app.agents.request_status.DECLINED": "Declined",
   "app.agents.request_status.FAILED": "Failed",
   "app.agents.requests_empty": "Nothing waits for a person.",
+  "app.agents.waiting_for_you": "Waits for you",
+  "app.agents.waiting_all": "{count, plural, one {All # waiting} other {All # waiting}}",
   "app.agents.approve_act": "Approve and do it",
   "app.agents.held.add_internal_comment": "Add an internal comment to an entry",
   "app.agents.held.add_comment": "Add a comment to an entry",

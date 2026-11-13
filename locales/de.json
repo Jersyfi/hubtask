@@ -4060,6 +4060,8 @@
   "app.agents.request_status.DECLINED": "Abgelehnt",
   "app.agents.request_status.FAILED": "Fehlgeschlagen",
   "app.agents.requests_empty": "Nichts wartet auf eine Person.",
+  "app.agents.waiting_for_you": "Wartet auf dich",
+  "app.agents.waiting_all": "{count, plural, one {Alle # wartenden} other {Alle # wartenden}}",
   "app.agents.approve_act": "Freigeben und ausführen",
   "app.agents.held.add_internal_comment": "Einen internen Kommentar an einen Eintrag schreiben",
   "app.agents.held.add_comment": "Einen Kommentar an einen Eintrag schreiben",

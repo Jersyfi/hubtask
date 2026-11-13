@@ -376,7 +376,12 @@ test('chromium 1280 px: the agents\' home lists the agents, their held acts and 
   const names = page.locator('[data-agent-row]');
   await names.first().waitFor({ timeout: 10_000 });
   assert.deepEqual(await names.allTextContents(), ['Request sorter', 'Duplicate finder', 'Old sorter']);
-  const first = page.getByRole('row').filter({ hasText: 'Request sorter' });
+  // What waits for the reader stands first (scene homeagents): the held act with its two answers.
+  const waiting = page.locator('[data-agents-waiting]');
+  await waiting.locator('[data-held-act]').first().waitFor({ timeout: 10_000 });
+  assert.equal(await waiting.locator('[data-held-act]').count(), 1);
+  assert.ok(await waiting.evaluate((section) => section.compareDocumentPosition(document.querySelector('[data-agent-card]')) & Node.DOCUMENT_POSITION_FOLLOWING), 'the agents come after what waits');
+  const first = page.locator('[data-agent-card]').filter({ hasText: 'Request sorter' });
   assert.match((await first.textContent()) ?? '', /Live/u);
   await first.getByRole('button', { name: '1 waiting' }).click();
   await page.waitForURL(new RegExp(`/agents\\?tab=requests&agent=${AGENTS[1].id}$`));

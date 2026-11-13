@@ -128,7 +128,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await agentDialog.waitFor({ state: 'detached', timeout: 5_000 });
   await page.locator('[data-agent-row]').filter({ hasText: 'Knowledge draft' }).waitFor({ timeout: 5_000 });
 
-  const triage = page.getByRole('row').filter({ hasText: 'Triage helper' });
+  const triage = page.locator('[data-agent-card]').filter({ hasText: 'Triage helper' });
   await chooseInRow(triage, 'Approve');
   await chooseInRow(triage, 'Put live');
   await triage.getByText('Live', { exact: true }).waitFor({ timeout: 5_000 });
@@ -211,7 +211,7 @@ test('chromium: an approved agent\'s head draws its standing as the status butto
   t.after(walk.close);
   const { page } = walk;
   await page.goto(`${served.origin}/agents`);
-  await page.getByRole('row').filter({ hasText: 'Triage helper' }).waitFor({ timeout: 10_000 });
+  await page.locator('[data-agent-card]').filter({ hasText: 'Triage helper' }).waitFor({ timeout: 10_000 });
   await page.goto(`${served.origin}/agents/${shown.id}`);
   const head = page.locator('header.object-head');
   const standing = head.locator('.action-bar .lozenge').first();
