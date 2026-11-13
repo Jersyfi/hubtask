@@ -418,6 +418,22 @@ func ValidatedViewQuery(raw map[string]any) (map[string]any, error) {
 			WithFields(shared.FieldError{Path: "/query", Code: "views.query_required"})
 	}
 
+	// A saved search (UC-WRK-18 check 11) is its line, the query POST /search:all reads over
+	// every kind: it needs no anchor, and a line that does not read is refused here.
+	if rawLine, present := raw["q"]; present {
+		line, isText := rawLine.(string)
+		if !isText || strings.TrimSpace(line) == "" {
+			return nil, fieldError("/query/q", "views.search_line_invalid", nil)
+		}
+		if _, err := ParseQuery(line, "/query/q"); err != nil {
+			return nil, err
+		}
+		_, anchored := raw["scope_container_id"]
+		_, onItem := raw["scope_item_id"]
+		if !anchored && !onItem {
+			return raw, nil
+		}
+	}
 	if err := validatedQueryScope(raw); err != nil {
 		return nil, err
 	}

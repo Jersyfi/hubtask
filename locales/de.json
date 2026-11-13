@@ -1067,6 +1067,7 @@
   "views.scope_id_not_allowed": "Eine Ansicht für den ganzen Arbeitsbereich nennt keinen Container. Lass scope_id weg.",
   "views.scope_container_mismatched": "Der Container ist kein {scope_type}.",
   "views.query_required": "Eine Ansicht ist eine gespeicherte Abfrage. Sende eine.",
+  "views.search_line_invalid": "Eine gespeicherte Suche hält ihre Zeile als Text, der sich als Abfrage lesen lässt.",
   "views.visible_fields_too_many": "Höchstens {maximum} sichtbare Felder.",
   "views.visible_field_malformed": "Ein sichtbares Feld ist ein kurzer Name in einer Zeile.",
   "views.not_found": "Diese Ansicht gibt es nicht.",

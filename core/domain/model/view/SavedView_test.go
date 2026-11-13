@@ -510,3 +510,29 @@ func TestAnUpdateMarksMovesAndUnmarksAQueue(t *testing.T) {
 		t.Errorf("a collection view as a queue answered %v", err)
 	}
 }
+
+// UC-WRK-18 check 11. A search saved as a view keeps its line as q, read by the query's own parser: a line that
+// reads is kept as written, one that does not is refused where it is saved.
+func TestASavedSearchKeepsItsLine(t *testing.T) {
+	for q, code := range map[string]string{
+		"printer type: ticket": "",
+		"budget who: me":       "",
+		"":                     "views.search_line_invalid",
+		"type: printer":        "query.kind_unknown",
+		"budget (who: me":      "query.syntax",
+	} {
+		_, err := ValidatedViewQuery(map[string]any{"q": q})
+		if code == "" {
+			if err != nil {
+				t.Errorf("%q refused: %v", q, err)
+			}
+			continue
+		}
+		if err == nil {
+			t.Errorf("%q kept, want %s", q, code)
+		}
+	}
+	if _, err := ValidatedViewQuery(map[string]any{"q": 7}); err == nil {
+		t.Error("a q that is no text was kept")
+	}
+}

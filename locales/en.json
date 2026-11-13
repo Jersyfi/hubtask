@@ -2056,6 +2056,7 @@
   "views.scope_id_not_allowed": "A workspace-wide view names no container. Leave scope_id out.",
   "views.scope_container_mismatched": "The container is not a {scope_type}.",
   "views.query_required": "A view is a saved query. Send one.",
+  "views.search_line_invalid": "A saved search holds its line as text that reads as a query.",
   "views.visible_fields_too_many": "At most {maximum} visible fields.",
   "views.visible_field_malformed": "A visible field is a short name on one line.",
   "views.not_found": "There is no such view.",
