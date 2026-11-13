@@ -44,7 +44,7 @@ lets the search also match by meaning ("heating" finds "boiler"); the words stil
 8. Results are one continuous list without page numbers; when there are more matches than the
    page reads (500), the page says the list is not complete.
 9. One search answers every kind beside entries - tickets (the entries of a desk), pages,
-   whiteboards, goals, dashboards, inventory items, people, file names and comments - each hit with its kind, title, place, tile, the passage
+   whiteboards, goals, portfolios, dashboards, releases, sprints, inventory items, people, file names and comments - each hit with its kind, title, place, tile, the passage
    that matched where there is one and its state, and a count per kind; every hit and every count
    holds only what the person may read, people are found by their name alone and a file by its
    name alone (`POST /search:all`, work surface E-11).
