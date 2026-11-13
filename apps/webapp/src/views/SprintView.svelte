@@ -239,6 +239,10 @@
   );
   // On a phone one column at a time, the strip above saying which and how many (§7, scene sprint 4).
   const isOneColumn = $derived(viewport.isCompact);
+  // The done column starts folded, as on the board (scene sprint): a closed sprint keeps it open,
+  // its result is what it shows.
+  let unfolded = $state<Record<string, boolean>>({});
+  const isFoldedLane = (lane: { key: string; isDone: boolean }) => lane.isDone && hasStartedLane && !isOneColumn && !unfolded[lane.key];
   let shownLaneId = $state<string | undefined>(undefined);
   const shownLane = $derived(lanes.some((lane) => lane.key === shownLaneId) ? (shownLaneId as string) : (lanes.find((lane) => !lane.isDone && lane.entries.length > 0) ?? lanes[0])?.key ?? '');
   const stripViews = $derived<View[]>(lanes.map((lane) => ({ id: lane.key, label: t('app.board.column_with_count', { name: lane.name, count: String(lane.entries.length) }) })));
@@ -412,8 +416,16 @@
       <div class="board" data-sprint-board data-by-columns={columns ? '' : undefined} data-closed={chosen.state === 'CLOSED' ? '' : undefined} data-one={isOneColumn ? '' : undefined}>
         {#each lanes as lane (lane.key)}
           {#if !isOneColumn || lane.key === shownLane}
-            <div class="lane" data-lane={lane.key}>
-              <BucketColumn name={lane.name} count={detail ? lane.entries.length : null} isDoneBucket={lane.isDone} doneBucketLabel={lane.isDone ? t('app.sprints.done_column_hint') : undefined}>
+            <div class="lane" data-lane={lane.key} data-folded={isFoldedLane(lane) ? '' : undefined}>
+              <BucketColumn
+                name={lane.name}
+                count={detail ? lane.entries.length : null}
+                isDoneBucket={lane.isDone}
+                doneBucketLabel={lane.isDone ? t('app.sprints.done_column_hint') : undefined}
+                isFolded={isFoldedLane(lane)}
+                unfoldLabel={t('app.board.unfold', { name: lane.name })}
+                onunfold={() => (unfolded = { ...unfolded, [lane.key]: true })}
+              >
                 {#snippet actions()}{#if detail}{@render points(lane.entries)}{/if}{/snippet}
                 {#if !detail}
                   <Skeleton lines={2} />
@@ -492,9 +504,10 @@
 
 <style>
   .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
-  .board[data-one] { grid-template-columns: minmax(0, 1fr); }
-  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-board-column)), var(--layout-board-column))); gap: var(--sp-200); align-items: start; }
-  .lane { min-width: 0; border-radius: var(--r-md); }
+  .board { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: flex-start; }
+  .lane { flex: 0 1 var(--layout-board-column); min-width: 0; border-radius: var(--r-md); }
+  .lane[data-folded] { flex: none; }
+  .board[data-one] .lane { flex: 1 1 100%; }
   .cards { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
   .card {
     display: flex;

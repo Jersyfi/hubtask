@@ -39,9 +39,11 @@ const inSprint = (item, value, extra = {}) => ({
   item_id: item.id, title: item.title, added_at: `${addDays(today, -3)}T08:00:00Z`, removed_at: null, committed: true,
   outcome: null, done: false, started: false, completed_at: null, estimate: points(value), ...extra,
 });
+// An entry of the sprint beyond the collection's first read page: its column is read on its own.
+const BEYOND = { ...ITEMS[1], id: '01a0e2e0-0000-7000-8000-0000000e5bf1', title: 'Seal the grout', bucket_id: BUCKETS[1].id };
 const DETAIL = {
   sprint: RUNNING,
-  entries: [inSprint(ITEMS[0], 5, { done: true, completed_at: `${addDays(today, -1)}T15:00:00Z` }), inSprint(ITEMS[1], 3, { started: true })],
+  entries: [inSprint(ITEMS[0], 5, { done: true, completed_at: `${addDays(today, -1)}T15:00:00Z` }), inSprint(ITEMS[1], 3, { started: true }), inSprint(BEYOND, 0)],
   burndown: [
     { day: addDays(today, -3), remaining: 8, scope: 8, ideal: 8 },
     { day: addDays(today, -2), remaining: 8, scope: 8, ideal: 7.4 },
@@ -86,6 +88,7 @@ async function open(browser, at, width = 1280) {
     if (one && method === 'GET') return route.fulfill({ json: one === RUNNING ? DETAIL : { sprint: one, entries: [], burndown: [] } });
     const into = SPRINTS.find((each) => path === `/sprints/${each.id}/entries`);
     if (into && method === 'POST') return route.fulfill({ json: into });
+    if (path === `/items/${BEYOND.id}` && method === 'GET') return route.fulfill({ json: BEYOND });
     const ranked = /^\/items\/([^/:]+):reorder$/.exec(path);
     if (ranked && method === 'POST') return route.fulfill({ json: { ...ITEMS.find((each) => each.id === ranked[1]), version: 2 } });
     if (path === `/sprints/${RUNNING.id}:close` && method === 'POST') {
@@ -146,8 +149,14 @@ test('chromium: 1280 px — the running sprint\'s bar, its columns with their po
   await board.locator('[data-card]').first().waitFor({ timeout: 5_000 });
   await page.locator('[data-sprint-board][data-by-columns]').waitFor({ timeout: 5_000 });
   assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), BUCKETS.map((bucket) => bucket.name));
+  // The done column folded narrow, as on the board (scene sprint); its head unfolds it.
+  const doneLane = board.locator(`[data-lane="${BUCKETS[2].id}"]`);
+  assert.equal(await doneLane.getAttribute('data-folded'), '', 'the done column is not folded');
+  await doneLane.getByTitle(`Show ${BUCKETS[2].name}`).click();
+  await doneLane.locator('[data-card]').first().waitFor({ timeout: 5_000 });
   assert.deepEqual(await board.locator('[data-points]').allInnerTexts(), ['0 points', '3 points', '5 points']);
   assert.equal(await board.locator(`[data-lane="${BUCKETS[1].id}"] [data-card="${ITEMS[1].id}"]`).count(), 1, 'the entry is not in its column');
+  assert.equal(await board.locator(`[data-lane="${BUCKETS[1].id}"] [data-card="${BEYOND.id}"]`).count(), 1, 'an entry beyond the first page is not in its column');
   assert.equal(await board.locator(`[data-lane="${BUCKETS[2].id}"] [data-card="${ITEMS[0].id}"]`).count(), 1, 'the done entry is not in the done column');
   assert.equal(await board.locator(`[data-lane="${BUCKETS[0].id}"] [data-card]`).count(), 0);
 
@@ -238,13 +247,13 @@ test('chromium: 390 px — the sprint as a card over a strip of its columns, one
   const strip = page.locator('[data-sprint-strip]');
   await strip.waitFor({ timeout: 5_000 });
   await page.locator('[data-sprint-board][data-by-columns]').waitFor({ timeout: 5_000 });
-  assert.deepEqual(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label') ?? each.textContent.trim())), ['To do · 0', 'Doing · 1', 'Done · 1']);
+  assert.deepEqual(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label') ?? each.textContent.trim())), ['To do · 0', 'Doing · 2', 'Done · 1']);
   const lanes = page.locator('[data-sprint-board] [data-lane]');
   assert.equal(await lanes.count(), 1);
   assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[1].id, 'the strip does not open on the first column with work');
   await strip.getByRole('radio', { name: 'Done · 1' }).click();
   assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[2].id);
-  for (const target of await strip.getByRole('radio').all()) assert.ok(((await target.boundingBox())?.height ?? 0) >= 24, 'a strip target is under WCAG 2.5.8');
+  for (const target of await strip.getByRole('radio').all()) assert.ok(((await target.boundingBox())?.height ?? 0) >= 44, 'a strip target is under 44 px (§7)');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the sprint scrolls sideways');
 
   await page.goto(page.url().replace(/\/sprint$/u, '/backlog'));
