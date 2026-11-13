@@ -87,9 +87,30 @@ const fold = (text: string) => text.normalize('NFKD').replace(/\p{M}/gu, '').toL
  * otherwise the fields whose key or name contain the word - those that start with it first.
  * Nothing typed, nothing suggested: the list opens with the first character.
  */
-export function suggest(catalogue: FieldCatalogue, typed: string): QuerySuggestion[] {
-  const word = typed.trimStart();
-  if (word === '') return [];
+export function suggest(catalogue: FieldCatalogue, typed: string, { isBrowsing = false }: { isBrowsing?: boolean } = {}): QuerySuggestion[] {
+  const line = typed.trimStart();
+  // Inside an open group - `(label: vip OR ` - the part after the bracket or the last OR is what
+  // is completed, and what comes before it is kept in front of every insert.
+  const isGroupOpen = line.startsWith('(') && !line.includes(')');
+  const or = line.lastIndexOf(' OR ');
+  const cut = isGroupOpen ? Math.max(line.lastIndexOf('(') + 1, or >= 0 ? or + 4 : 0) : 0;
+  const head = line.slice(0, cut);
+  const word = line.slice(cut).trimStart();
+  const grouped = (items: QuerySuggestion[]) => (head === '' ? items : items.map((item) => ({ ...item, insert: `${head}${item.insert}` })));
+  if (word === '') return isBrowsing || isGroupOpen ? grouped(catalogue.fields.map(fieldSuggestion(''))) : [];
+  return grouped(suggestWord(catalogue, word));
+}
+
+const fieldSuggestion = (negation: string) => (field: QueryField): QuerySuggestion => ({
+  id: `field-${field.key}`,
+  group: 'field' as const,
+  label: field.label,
+  detail: field.detail,
+  hint: field.example,
+  insert: `${negation}${field.key}: `,
+});
+
+function suggestWord(catalogue: FieldCatalogue, word: string): QuerySuggestion[] {
   const colon = /^(-?)([\w.]+):\s*(.*)$/.exec(word);
   if (colon) {
     const negation = colon[1] ?? '';
@@ -120,14 +141,7 @@ export function suggest(catalogue: FieldCatalogue, typed: string): QuerySuggesti
     })
     .filter(({ rank }) => rank >= 0)
     .sort((a, b) => a.rank - b.rank);
-  return scored.map(({ field }) => ({
-    id: `field-${field.key}`,
-    group: 'field' as const,
-    label: field.label,
-    detail: field.detail,
-    hint: field.example,
-    insert: `${negation}${field.key}: `,
-  }));
+  return scored.map(({ field }) => fieldSuggestion(negation)(field));
 }
 
 /** The line as text, the spelling that is saved and shared: every token, then what is being typed. */

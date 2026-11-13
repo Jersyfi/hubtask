@@ -11,8 +11,12 @@
   // so the one parser on the server and this line can never disagree about a dialect.
   import type { Snippet } from 'svelte';
 
+  import Button from './Button.svelte';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import Sheet from './Sheet.svelte';
+  import { isCompactWidth, watchCompactWidth } from './media.ts';
+  import { openOverlay } from './overlay.ts';
   import { suggest, type FieldCatalogue, type QueryLanguage, type QuerySuggestion, type QueryToken } from './query.ts';
 
   interface Props {
@@ -38,6 +42,19 @@
     onchange?: (tokens: readonly QueryToken[]) => void;
     /** Enter on a line with nothing left to complete: run the query. */
     onsubmit?: (tokens: readonly QueryToken[]) => void;
+    /**
+     * *+ Condition* and *+ Group (or)* under the line (§6.11): the first opens the fields, the
+     * second starts a group whose conditions are joined by OR. Without them, only typing adds.
+     */
+    addConditionLabel?: string;
+    addGroupLabel?: string;
+    /** A quiet line beside them: *A press on a chip edits it · typing goes on*. */
+    hint?: string;
+    /**
+     * The phone's form (scene qline): the first chips in one strip with "+n", and the filters in a
+     * sheet with a row per condition. `more` names the hidden ones: *+3*.
+     */
+    phone?: { open: string; title: string; close: string; reset: string; show: string; more: (hidden: number) => string };
   }
 
   let {
@@ -56,7 +73,21 @@
     keys,
     onchange,
     onsubmit,
+    addConditionLabel,
+    addGroupLabel,
+    hint,
+    phone,
   }: Props = $props();
+
+  /** The chips a phone's strip shows before "+n". */
+  const STRIP = 2;
+  let isPhone = $state(isCompactWidth());
+  $effect(() => watchCompactWidth((value) => (isPhone = value)));
+  let isSheetOpen = $state(false);
+  /** *+ Condition* pressed: every field is offered before a letter is typed. */
+  let isBrowsing = $state(false);
+  let line = $state<HTMLElement | null>(null);
+  let list = $state<HTMLElement | null>(null);
 
   const uid = $props.id();
   const listId = `query-${uid}-list`;
@@ -64,13 +95,38 @@
   let active = $state(0);
   let isListOpen = $state(false);
 
-  const suggestions = $derived<QuerySuggestion[]>(isListOpen ? suggest(catalogue, text) : []);
+  const suggestions = $derived<QuerySuggestion[]>(isListOpen ? suggest(catalogue, text, { isBrowsing }) : []);
   const fieldRows = $derived(suggestions.filter((item) => item.group === 'field'));
   const valueRows = $derived(suggestions.filter((item) => item.group === 'value'));
   const ordered = $derived([...fieldRows, ...valueRows]);
   const valueField = $derived(/^-?([\w.]+):/.exec(text.trimStart())?.[1]);
   const valueFieldLabel = $derived(catalogue.fields.find((field) => field.key === valueField)?.label ?? valueField ?? '');
   const problems = $derived(tokens.filter((token) => token.problem));
+  const isShown = $derived(isListOpen && ordered.length > 0);
+
+  // The list is drawn in the top layer, anchored under the line: a card, a table region or a sheet
+  // around the line never clips it, and it floats over what follows (ADR-0039).
+  $effect(() => {
+    if (!isShown || !line || !list) return;
+    return openOverlay({ layer: 'popover', trigger: line, surface: list, placement: { side: 'block-end', align: 'start' }, onDismiss: () => (isListOpen = false) });
+  });
+
+  function addCondition() {
+    if (text.trim() !== '') settle(`${text} `);
+    isBrowsing = true;
+    isListOpen = true;
+    active = 0;
+    input?.focus();
+  }
+
+  function addGroup() {
+    if (text.trim() !== '') settle(`${text} `);
+    text = '(';
+    isBrowsing = true;
+    isListOpen = true;
+    active = 0;
+    input?.focus();
+  }
 
   function setTokens(next: readonly QueryToken[]) {
     tokens = next;
@@ -130,6 +186,7 @@
   }
 
   function onInput() {
+    isBrowsing = false;
     isListOpen = true;
     active = 0;
     if (/\s$/.test(text) && !/[:,]\s*$/.test(text)) settle(text);
@@ -140,9 +197,55 @@
 </script>
 
 <div class="query">
-  <div class="line" data-open={isListOpen && ordered.length > 0 ? '' : undefined}>
+  {#if isPhone && phone}
+    <div class="strip">
+      {#each tokens.slice(0, STRIP) as token (token.id)}
+        <span class="chip" data-kind={token.kind} data-problem={token.problem ? '' : undefined}><span class="chip-body">{@render tokenWords(token)}</span></span>
+      {/each}
+      {#if tokens.length > STRIP}<span class="chip more"><span class="value">{phone.more(tokens.length - STRIP)}</span></span>{/if}
+    </div>
+    <div class="phone-bar">
+      <Button tone="secondary" size="sm" icon="funnel" onclick={() => (isSheetOpen = true)}>{phone.open}</Button>
+      {#if count}<span class="count" role="status">{@render count()}</span>{/if}
+    </div>
+    <Sheet title={phone.title} closeLabel={phone.close} bind:isOpen={isSheetOpen}>
+      <ul class="rows">
+        {#each tokens as token (token.id)}
+          <li>
+            <button type="button" class="row" aria-label={editLabel(spelling(token))} onclick={() => edit(token)}>
+              <span class="row-field">{token.kind === 'chip' ? token.fieldLabel : spelling(token)}</span>
+              {#if token.kind === 'chip'}<span class="row-values">{token.values.map((value) => value.label).join(', ')}</span>{/if}
+              <Icon name="chevron-right" size="sm" />
+            </button>
+          </li>
+        {/each}
+      </ul>
+      {@render editor(false)}
+      {#snippet actions()}
+        <Button tone="subtle" onclick={() => setTokens([])}>{phone.reset}</Button>
+        <Button tone="primary" onclick={() => { isSheetOpen = false; onsubmit?.(tokens); }}>{phone.show}</Button>
+      {/snippet}
+    </Sheet>
+  {:else}
+    {@render editor(true)}
+    {#if count}<div class="count" role="status">{@render count()}</div>{/if}
+  {/if}
+</div>
+
+{#snippet tokenWords(token: QueryToken)}
+  {#if token.kind === 'chip'}
+    <span class="field">{token.isNegated ? '−' : ''}{token.fieldLabel}</span>
+    {#if token.operatorLabel}<span class="operator">{token.operatorLabel}</span>{/if}
+    <span class="value">{token.values.map((value) => value.label).join(', ')}</span>
+  {:else}
+    <span class="value" data-text="">{token.text}</span>
+  {/if}
+{/snippet}
+
+{#snippet editor(withChips: boolean)}
+  <div class="line" bind:this={line} data-open={isShown ? '' : undefined}>
     <Icon name="funnel" size="sm" />
-    {#each tokens as token (token.id)}
+    {#each withChips ? tokens : [] as token (token.id)}
       {@const words = spelling(token)}
       <span class="chip" data-kind={token.kind} data-problem={token.problem ? '' : undefined}>
         <button
@@ -152,13 +255,7 @@
           aria-describedby={token.problem ? `query-${uid}-${token.id}-problem` : undefined}
           onclick={() => edit(token)}
         >
-          {#if token.kind === 'chip'}
-            <span class="field">{token.isNegated ? '−' : ''}{token.fieldLabel}</span>
-            {#if token.operatorLabel}<span class="operator">{token.operatorLabel}</span>{/if}
-            <span class="value">{token.values.map((value) => value.label).join(', ')}</span>
-          {:else}
-            <span class="value" data-text="">{token.text}</span>
-          {/if}
+          {@render tokenWords(token)}
           {#if token.problem}<Icon name="circle-alert" size="sm" />{/if}
         </button>
         <span class="remove"><IconButton icon="x" label={removeLabel(words)} tone="subtle" size="sm" onclick={() => remove(token)} /></span>
@@ -172,7 +269,7 @@
       role="combobox"
       aria-label={label}
       aria-autocomplete="list"
-      aria-expanded={isListOpen && ordered.length > 0}
+      aria-expanded={isShown}
       aria-controls={listId}
       aria-activedescendant={isListOpen && ordered[active] ? optionId(ordered[active]!) : undefined}
       autocomplete="off"
@@ -199,7 +296,15 @@
     </ul>
   {/if}
 
-  <div class="list" id={listId} role="listbox" aria-label={suggestionsLabel} hidden={!isListOpen || ordered.length === 0}>
+  {#if addConditionLabel || addGroupLabel || hint}
+    <div class="adds">
+      {#if addConditionLabel}<Button tone="subtle" size="sm" icon="plus" onclick={addCondition}>{addConditionLabel}</Button>{/if}
+      {#if addGroupLabel}<Button tone="subtle" size="sm" icon="plus" onclick={addGroup}>{addGroupLabel}</Button>{/if}
+      {#if hint}<span class="hint-line">{hint}</span>{/if}
+    </div>
+  {/if}
+
+  <div class="list" id={listId} role="listbox" aria-label={suggestionsLabel} hidden={!isShown} bind:this={list}>
     {#if fieldRows.length > 0}
       <div role="group" aria-label={fieldsHeading(text.trim())}>
         <div class="heading" aria-hidden="true">{fieldsHeading(text.trim())}</div>
@@ -218,9 +323,7 @@
     {/if}
     {#if keys}<div class="keys">{@render keys()}</div>{/if}
   </div>
-
-  {#if count}<div class="count" role="status">{@render count()}</div>{/if}
-</div>
+{/snippet}
 
 {#snippet option(item: QuerySuggestion, index: number)}
   <!-- Options are chosen with the pointer here and with the arrows in the field: the field keeps the focus. -->
@@ -287,6 +390,9 @@
     cursor: pointer;
   }
 
+  .chip-body .field,
+  .chip-body .value { padding-block: var(--sp-025); }
+
   .chip-body:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: calc(-1 * var(--bw-ring));
@@ -334,14 +440,12 @@
   }
 
   .list {
-    position: absolute;
-    inset-block-start: calc(100% + var(--sp-050));
-    inset-inline-end: 0;
+    margin-block: var(--sp-050);
     z-index: var(--z-popover);
     display: flex;
     flex-direction: column;
     gap: var(--bw-hairline);
-    inline-size: min(var(--layout-dialog-m), 100%);
+    inline-size: min(var(--layout-dialog-m), calc(100vw - var(--sp-400)));
     max-block-size: 60vh;
     overflow: auto;
     padding: var(--sp-100);
@@ -394,6 +498,37 @@
   }
 
   .count { color: var(--text-secondary); font-size: var(--fs-090); }
+
+  .adds { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .hint-line { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* The phone: one strip that never wraps, the bar under it, the sheet's rows. */
+  .strip { display: flex; flex-wrap: nowrap; gap: var(--sp-050); overflow: hidden; }
+  .strip .chip { flex: 0 1 auto; min-inline-size: 0; }
+  .strip .chip.more { flex: none; }
+  .strip .chip-body { cursor: default; }
+  .more .value { color: var(--text-secondary); }
+  .phone-bar { display: flex; align-items: center; gap: var(--sp-100); }
+  .phone-bar > :global(.button) { flex: none; white-space: nowrap; }
+  .rows { margin: 0 0 var(--sp-200); padding: 0; list-style: none; }
+  .rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    inline-size: 100%;
+    min-block-size: var(--layout-target);
+    padding: var(--sp-100) 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .row:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .row-field { flex: 1; }
+  .row-values { color: var(--text-secondary); font-size: var(--fs-075); }
 
   /* A phone: the list under the line at the line's width. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */

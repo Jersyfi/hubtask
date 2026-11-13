@@ -12,3 +12,12 @@ const COMPACT = '(width < 600px)';
 export function isCompactWidth(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(COMPACT).matches;
 }
+
+/** Calls back whenever the window crosses into or out of the compact width; returns the stop. */
+export function watchCompactWidth(onchange: (isCompact: boolean) => void): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+  const query = window.matchMedia(COMPACT);
+  const listener = () => onchange(query.matches);
+  query.addEventListener('change', listener);
+  return () => query.removeEventListener('change', listener);
+}

@@ -182,6 +182,13 @@ test('after a field and its colon, its values with their counts; a comma keeps t
   assert.deepEqual(suggest(catalogue, 'nofield: x'), []);
 });
 
+test('+ Condition offers every field, and inside an open group the part after OR is completed', () => {
+  assert.equal(suggest(catalogue, '', { isBrowsing: true }).length, catalogue.fields.length);
+  assert.equal(suggest(catalogue, '(').length, catalogue.fields.length, 'a group just opened offers every field');
+  assert.equal(suggest(catalogue, '(type: x OR prio')[0].insert, '(type: x OR priority: ', 'what stands before is kept');
+  assert.equal(suggest(catalogue, '(priority: P1')[0].insert, '(priority: P1 ');
+});
+
 test('the line as text is every token’s spelling, then what is being typed', () => {
   const language = { parse: () => ({ tokens: [], rest: '' }), format: (token) => (token.kind === 'text' ? token.text : `${token.field}: x`) };
   const tokens = [{ kind: 'chip', id: '1', field: 'type', fieldLabel: 'Type', values: [] }, { kind: 'text', id: '2', text: '(a OR b)' }];

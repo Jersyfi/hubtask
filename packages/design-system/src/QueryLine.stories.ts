@@ -13,12 +13,12 @@ export default {
 
 export const filled: Story = {
   name: 'Chips and a text chip in one line (scene qline)',
-  about: 'Q-2: four chips and a group with OR as a text chip, no switch. Press a chip to edit its spelling, × to remove it; Backspace in an empty field takes the last chip back. The language and the field catalogue are a stub here - Phase 2 hands in the real parser.',
+  about: 'Q-2: four chips and a group with OR as a text chip, no switch. Press a chip to edit its spelling, × to remove it; Backspace in an empty field takes the last chip back. *+ Condition* offers every field, *+ Group (or)* opens a group joined by OR. On a phone the first chips stand in one strip with “+n”, and *Change filter* opens a sheet with a row per condition. The language and the field catalogue are a stub here - Phase 2 hands in the real parser.',
 };
 
 export const typing: Story = {
   name: 'Suggestions while typing',
-  about: 'Q-3: focus the field: fields with their kind and an example, then - after `priority:` - the values from the data with their counts. ↑↓ choose, ↵ takes; the count slot answers before Enter (Q-4).',
+  about: 'Q-3: focus the field: fields with their kind and an example, then - after `priority:` - the values from the data with their counts. ↑↓ choose, ↵ takes; the count slot answers before Enter (Q-4). The list is in the top layer and floats over the rows below; nothing around the line clips it.',
   args: { mode: 'typing' },
 };
 
