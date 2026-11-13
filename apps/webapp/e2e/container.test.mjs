@@ -253,8 +253,8 @@ test('chromium: 375 px — the folded head, the panel as a sheet of pages, the b
 
   // The timeline in its own frame.
   await chooseView(page, 'Timeline');
-  await page.locator('.window').waitFor({ timeout: 10_000 });
-  const framed = await page.evaluate(() => { const el = document.querySelector('.window'); return el ? getComputedStyle(el).borderTopWidth !== '0px' : false; });
+  await page.locator('.timeline .scroller').waitFor({ timeout: 10_000 });
+  const framed = await page.evaluate(() => { const el = document.querySelector('.timeline .scroller'); return el ? getComputedStyle(el).borderTopWidth !== '0px' : false; });
   assert.equal(framed, true, 'the timeline has no edge of its own on a phone');
   const labelled = LABELS.length;
   assert.ok(labelled > 0);
