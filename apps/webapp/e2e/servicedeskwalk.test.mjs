@@ -160,13 +160,17 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const requester = page.getByRole('region', { name: 'Requester' });
   await requester.getByText('Acme Plumbing').waitFor({ timeout: 5_000 });
   assert.match(await requester.innerText(), new RegExp(OTHER.display_name));
-  // §5.10: the other requests are the design system's rows, not the browser's blue underline.
+  // The other requests are one line, by their keys (deskentry.d), each a link named with its title -
+  // never the browser's blue underline (§5.10).
   const other = requester.getByRole('link', { name: OTHER_REQUEST.title });
   await other.waitFor({ timeout: 5_000 });
   assert.equal(await other.getAttribute('href'), `/items/${OTHER_REQUEST.id}`);
+  assert.equal((await other.innerText()).trim(), `KITCHEN-${OTHER_REQUEST.number}`, 'the other request is not named by its key');
   assert.equal(await requester.getByRole('link', { name: REQUEST.title }).count(), 0, 'the entry itself is listed among the others');
-  const drawn = await other.evaluate((node) => ({ line: getComputedStyle(node).textDecorationLine, color: getComputedStyle(node).color, row: node.closest('.row') !== null }));
-  assert.equal(drawn.row, true, 'the other request is not a ListRow');
+  const line = requester.locator('[data-requester-open]');
+  assert.match((await line.innerText()).trim(), new RegExp(`^\\d+ other open requests?: KITCHEN-${OTHER_REQUEST.number}`));
+  assert.equal(await requester.getByRole('listitem').filter({ has: other }).count(), 0, 'the other requests are rows, not one line');
+  const drawn = await other.evaluate((node) => ({ line: getComputedStyle(node).textDecorationLine, color: getComputedStyle(node).color }));
   assert.equal(drawn.line, 'none', 'the other request is underlined as a browser link');
   assert.notEqual(drawn.color, 'rgb(0, 0, 238)', 'the other request is the browser\'s blue');
   const beside = page.locator('[data-approval]');
@@ -487,4 +491,5 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   // The conversation's tabs say how many each holds (§6.9).
   const tabs = (await page.locator('#entry-conversation').getByRole('tab').allInnerTexts()).map((text) => text.replace(/\s+/g, ' ').trim());
   assert.deepEqual(tabs.slice(1, 3), ['Antworten 2', 'Interne Notizen 1']);
+
 });

@@ -13768,7 +13768,6 @@
   "app.desk.portal": "Requester portal",
   "app.desk.requester.title": "Requester",
   "app.desk.requester.by_mail": "Filed by mail by someone without an account",
-  "app.desk.requester.open": "Their other open requests",
   "app.desk.requester.none_open": "No other open requests",
   "app.desk.requester.assets": "Their assets",
   "app.planning.tolerance": "Time tolerance",
@@ -14807,5 +14806,8 @@
   "app.entry.rail_more": "More fields",
   "app.goals.goal_subtitle_workspace": "A goal of the workspace",
   "app.goals.goal_subtitle_unread": "A goal of a hub you do not read",
-  "app.portfolios.project_verb": "Change"
+  "app.portfolios.project_verb": "Change",
+  "app.desk.requester.open_one": "1 other open request:",
+  "app.desk.requester.open_many": "{count} other open requests:",
+  "app.desk.requester.other_named": "{key}: {title}"
 }

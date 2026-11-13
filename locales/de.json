@@ -13768,7 +13768,6 @@
   "app.desk.portal": "Anfrageportal",
   "app.desk.requester.title": "Anfragende Person",
   "app.desk.requester.by_mail": "Per Mail eingereicht, von jemandem ohne Konto",
-  "app.desk.requester.open": "Weitere offene Anfragen",
   "app.desk.requester.none_open": "Keine weiteren offenen Anfragen",
   "app.desk.requester.assets": "Zugeordnete Assets",
   "app.planning.tolerance": "Zeittoleranz",
@@ -14807,5 +14806,8 @@
   "app.entry.rail_more": "Weitere Felder",
   "app.goals.goal_subtitle_workspace": "Ein Ziel des Arbeitsbereichs",
   "app.goals.goal_subtitle_unread": "Ein Ziel eines Hubs, den du nicht liest",
-  "app.portfolios.project_verb": "Ändern"
+  "app.portfolios.project_verb": "Ändern",
+  "app.desk.requester.open_one": "1 weitere offene Anfrage:",
+  "app.desk.requester.open_many": "{count} weitere offene Anfragen:",
+  "app.desk.requester.other_named": "{key}: {title}"
 }
