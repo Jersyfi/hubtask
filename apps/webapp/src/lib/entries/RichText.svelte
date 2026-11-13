@@ -87,6 +87,8 @@
         label,
         fallback: t('app.pages.reference_loading'),
         onChange: (written) => {
+          // An editor being destroyed still dispatches: nothing of it is kept then.
+          if (isGone) return;
           // The serializer ends a block with a line break the reader never typed; stored, it would
           // make an unchanged description differ from itself.
           const markdown = written.replace(/\n+$/, '');
@@ -97,6 +99,7 @@
       });
       made.on('focus', () => (isFocused = true));
       made.on('blur', () => {
+        if (isGone) return;
         isFocused = false;
         oncommit?.();
       });
@@ -147,6 +150,13 @@
       if (/^https?:\/\/\S+$/u.test(words)) chain.setLink({ href: words }).run();
       else chain.run();
     }
+  }
+
+  /** Starts the text over - a comment sent, another one to edit - even while the focus is in it. */
+  export function reset(markdown: string): void {
+    current = markdown;
+    isEmpty = markdown.trim() === '';
+    if (editor && library) editor.commands.setContent(library.fromMarkdown(markdown) as never, { emitUpdate: false });
   }
 
   /** Puts Markdown - a mention, a reference - in at the caret, as the writer would have typed it. */

@@ -19,7 +19,7 @@
   import { untrack } from 'svelte';
 
   import { Button, CommentThread, Composer, Stack } from '@hubtask/design-system/components';
-  import type { ComposerMode, ThreadComment, ThreadEvent } from '@hubtask/design-system/components';
+  import type { ComposerMode, IconName, ThreadComment, ThreadEvent } from '@hubtask/design-system/components';
   import type { Comment, CommentPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -38,7 +38,7 @@
   import { DeskTools } from '../servicedesk/desktools.svelte.ts';
   import EntryPresence from '../entries/EntryPresence.svelte';
   import { quietRowsInView } from './quietrows.ts';
-  import RichText from '../entries/RichText.svelte';
+  import RichText, { type Format } from '../entries/RichText.svelte';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -133,7 +133,41 @@
   let isMentionOpen = $state(false);
 
   function mention(text: string) {
-    draft = inserted(draft, draft.length, draft.length, text).text;
+    if (writer) writer.insert(text);
+    else draft = inserted(draft, draft.length, draft.length, text).text;
+  }
+
+  // Written in the pages' editor (E-3, ET-5): the marks a page has, @ for people and entries, / to
+  // insert, still stored as Markdown.
+  let writer = $state<{ format(kind: Format): void; insert(markdown: string): void; reset(markdown: string): void } | undefined>(undefined);
+  let composer = $state<{ openSnippets(): void } | undefined>(undefined);
+  const WRITE_FORMATS: readonly { id: Format; icon: IconName }[] = [
+    { id: 'bold', icon: 'bold' }, { id: 'italic', icon: 'italic' }, { id: 'strike', icon: 'strikethrough' }, { id: 'code', icon: 'code' },
+    { id: 'link', icon: 'link' }, { id: 'list', icon: 'list' }, { id: 'checklist', icon: 'list-checks' }, { id: 'quote', icon: 'quote' },
+  ];
+  /** What `/` offers where no snippets are: the blocks a comment takes, and a mention. */
+  const BLOCKS: readonly Format[] = ['list', 'checklist', 'quote', 'code'];
+  const insertItems = $derived([
+    ...BLOCKS.map((id) => ({ id, label: t(`app.entry.format_${id}`) })),
+    { id: 'mention', label: t('app.mentions.insert') },
+  ]);
+  function pressFormat(id: string) {
+    if (id === 'mention') isMentionOpen = true;
+    else writer?.format(id as Format);
+  }
+  // Caught before the editor, whose own Ctrl+Enter is a line break.
+  function writingKey(event: KeyboardEvent) {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      send();
+    } else if (event.key === '/' && (draft === '' || draft.endsWith('\n'))) {
+      event.preventDefault();
+      composer?.openSnippets();
+    }
+  }
+  /** Starts the editor over with what `draft` now holds: one holding the focus takes no value from outside. */
+  function rewrite() {
+    writer?.reset(draft);
   }
 
   function threadRows(): readonly ThreadComment[] {
@@ -185,6 +219,7 @@
       draft = '';
       replyTo = undefined;
       editing = undefined;
+      rewrite();
       await page.refresh();
     }, editing ? t('app.comments.edited_announced') : t('app.comments.posted_announced'));
   }
@@ -200,6 +235,7 @@
     editing = undefined;
     replyTo = id;
     draft = '';
+    rewrite();
   }
 
   function startEdit(id: string) {
@@ -208,6 +244,7 @@
     replyTo = undefined;
     editing = target;
     draft = target.body ?? '';
+    rewrite();
   }
 
   function remove(id: string) {
@@ -223,6 +260,12 @@
 <!-- No gate here: the entry page draws this panel only where the type carries the capability
      (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
      row, not a dead one (design-system.md §11.8). -->
+  {#snippet writing()}
+    <div class="writing" role="presentation" onkeydowncapture={writingKey}>
+        <RichText bind:this={writer} value={draft} label={editing ? t('app.comments.editing') : replyTo ? t('app.comments.replying') : t('app.comments.write')} placeholder={t('app.comments.write')} editable onchange={(markdown) => (draft = markdown)} />
+    </div>
+  {/snippet}
+
   <Stack gap="200">
     <EntryPresence itemId={item.id} replying={draft.trim() !== ''} />
     {#if failure}
@@ -235,6 +278,8 @@
     {#if mayComment}
       <div data-composer>
         <Composer
+          bind:this={composer}
+          editor={writing}
           label={editing ? t('app.comments.editing') : replyTo ? t('app.comments.replying') : t('app.comments.write')}
           bind:value={draft}
           bind:mode
@@ -246,15 +291,17 @@
           isBusy={isSending || (tools?.isBusy ?? false)}
           busyLabel={t('app.workspace.saving')}
           onsend={() => send()}
-          format={{ label: t('app.comments.format'), items: [{ id: 'mention', label: t('app.mentions.insert'), icon: 'at-sign' }], onformat: () => (isMentionOpen = true) }}
-          snippets={tools && tools.snippets.length > 0 ? { label: t('app.desk.snippets'), items: tools.snippets, onselect: (key) => void tools.insert(key, (text) => (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`)) } : undefined}
+          format={{ label: t('app.comments.format'), items: [...WRITE_FORMATS.map((each) => ({ id: each.id, label: t(`app.entry.format_${each.id}`), icon: each.icon })), { id: 'mention', label: t('app.mentions.insert'), icon: 'at-sign' }], onformat: pressFormat }}
+          snippets={tools && tools.snippets.length > 0
+            ? { label: t('app.desk.snippets'), items: tools.snippets, onselect: (key) => void tools.insert(key, (text) => (writer ? writer.insert(text) : (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`))) }
+            : { label: t('app.comments.insert'), items: insertItems, onselect: pressFormat }}
           macros={tools && tools.macros.length > 0 ? { label: t('app.desk.macros'), title: t('app.desk.macros_title'), items: tools.macros, onselect: (id) => void tools.press(id) } : undefined}
         />
         {#if tooLong}<p class="failure" role="alert">{t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) })}</p>{/if}
         {#if tools?.refusal}<p class="failure" role="alert">{tools.refusal}</p>{/if}
         {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
         {#if replyTo || editing}
-          <Button size="sm" tone="secondary" onclick={() => { replyTo = undefined; editing = undefined; draft = ''; }}>{t('app.workspace.cancel')}</Button>
+          <Button size="sm" tone="secondary" onclick={() => { replyTo = undefined; editing = undefined; draft = ''; rewrite(); }}>{t('app.workspace.cancel')}</Button>
         {/if}
       </div>
     {/if}

@@ -14722,5 +14722,6 @@
   "app.desk.save_note": "Notiz speichern",
   "app.desk.note_audience": "nur Personen im Desk",
   "app.desk.reply_audience": "sieht: {name}",
+  "app.comments.insert": "Einfügen",
   "app.comments.format": "Formatieren"
 }

@@ -637,6 +637,45 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
   assert.deepEqual(unstubbed(), []);
 });
 
+// E-3, ET-5: a comment is written in the pages' editor - a mark from the bar, Ctrl+Enter sends -
+// and is stored as Markdown; `/` at the start opens what can be inserted.
+test('chromium: 1280 px — a comment is written in the pages\' editor and sent as Markdown', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  const posted = [];
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith(`/items/${ENTRY.id}/comments`)) {
+      posted.push(request.postDataJSON());
+      return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-000000000c01', item_id: ENTRY.id, author_id: ACCOUNT.id, body: request.postDataJSON().body, created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z' } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  const writer = page.locator('[data-composer] [contenteditable="true"]');
+  await writer.waitFor({ timeout: 10_000 });
+  await writer.click();
+  await page.keyboard.press('/');
+  await page.getByRole('menuitem', { name: 'Checklist' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await writer.click();
+  await page.locator('[data-composer]').getByRole('button', { name: 'Bold' }).click();
+  // The editor takes the focus back on the next frame.
+  await page.waitForFunction(() => document.activeElement?.getAttribute('contenteditable') === 'true', null, { timeout: 5_000 });
+  await page.keyboard.type('grout');
+  await page.keyboard.press('ControlOrMeta+Enter');
+  await page.waitForFunction((count) => count > 0, posted.length, { timeout: 100 }).catch(() => {});
+  await page.waitForTimeout(500);
+  assert.equal(posted.at(-1)?.body, '**grout**');
+  assert.equal((await writer.textContent()).trim(), '', 'the editor starts over after sending');
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
 test('chromium: a page of history that did not arrive is said beside the button, and the button is the retry', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
