@@ -138,3 +138,7 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
   searches it as words and says so at the chip (Q-2, "never too complex"); the server's
   `query.field_unknown` stays the signal the client turns into that hint.
 * Family 3.1 merged into `ux/work-surface-v2` on 2026-11-13; its review runs on the demo.
+* Goals and time templates (scenes `emptygoals`, `emptytime`): the configuration catalogue cannot ship
+  workspace-level goal sets or kinds of work today. The released concept draws them, so they are built
+  as part of the concept (two workspace sections `goal_sets` and `time_work_types` with workspace-only
+  templates shown as cards), not left out; scheduled after the families, before the coherence pass.
