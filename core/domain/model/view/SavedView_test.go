@@ -511,7 +511,7 @@ func TestAnUpdateMarksMovesAndUnmarksAQueue(t *testing.T) {
 	}
 }
 
-// UC-WRK-18 check 11. A search saved as a view keeps its line as q, read by the query's own parser: a line that
+// UC-WRK-18 check 12. A search saved as a view keeps its line as q, read by the query's own parser: a line that
 // reads is kept as written, one that does not is refused where it is saved.
 func TestASavedSearchKeepsItsLine(t *testing.T) {
 	for q, code := range map[string]string{

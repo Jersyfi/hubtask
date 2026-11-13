@@ -32,7 +32,7 @@ const maxEntryScan = 200
 // words and meaning and narrows them to what the reader may read; the vector is embedded once
 // per search (MeaningMemo). With Tickets it finds the entries of the collections that act as a
 // desk; without, the others where the question keeps them apart, else every entry. A query that is
-// one ticket key finds that entry first (UC-WRK-18 check 10).
+// one ticket key finds that entry first (UC-WRK-18 check 11).
 type Entries struct {
 	Invoker    Invoker
 	Containers workrepo.Containers

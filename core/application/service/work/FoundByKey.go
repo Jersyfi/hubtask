@@ -17,7 +17,7 @@ import (
 )
 
 // ByKey reads the entry a ticket key names, asked of the entry's own path as the entry search
-// asks it, so a key jumps only to what the reader may read (UC-WRK-18 check 10, rule 2).
+// asks it, so a key jumps only to what the reader may read (UC-WRK-18 check 11, rule 2).
 type ByKey struct {
 	Reader     Reader
 	Names      searchrepo.Names

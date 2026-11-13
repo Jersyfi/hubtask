@@ -101,7 +101,7 @@ func TestTicketsStandApartFromTheOtherEntries(t *testing.T) {
 	}
 }
 
-// UC-WRK-18 check 10. A query that is one ticket key finds its entry first, once, in its kind.
+// UC-WRK-18 check 11. A query that is one ticket key finds its entry first, once, in its kind.
 func TestATicketKeyComesFirst(t *testing.T) {
 	calls := 0
 	tickets := Entries{Invoker: entrySearch{calls: &calls}, Containers: collectionsRepo{}, UnitOfWork: passThrough{}, Desks: oneDesk{}, Keys: keyed{}, Tickets: true}

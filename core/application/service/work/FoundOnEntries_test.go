@@ -39,7 +39,7 @@ func TestASearchFindsFilesAndCommentsOnReadableEntriesAlone(t *testing.T) {
 	}
 }
 
-// UC-WRK-18 check 10. A ticket key jumps to its entry only where the reader may read that entry; a key nobody
+// UC-WRK-18 check 11. A ticket key jumps to its entry only where the reader may read that entry; a key nobody
 // holds, or a token without items:read, finds nothing.
 func TestATicketKeyFindsOnlyAReadableEntry(t *testing.T) {
 	readable, hidden := shared.ID("0193a0c0-0000-7000-8000-000000000201"), shared.ID("0193a0c0-0000-7000-8000-000000000202")

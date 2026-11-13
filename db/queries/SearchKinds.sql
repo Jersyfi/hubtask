@@ -167,7 +167,7 @@ ORDER BY changed_at DESC, wc.id
 LIMIT sqlc.arg('batch');
 
 -- name: SearchEntryByKey :many
--- The living entry a ticket key names (UC-WRK-18 check 10): the collection by its key prefix or
+-- The living entry a ticket key names (UC-WRK-18 check 11): the collection by its key prefix or
 -- its handle, as the mail intake reads a key (ItemByKey), the prefix preferred; at most one.
 SELECT i.id, i.title, i.type::text AS level, i.is_completed, i.updated_at, i.number,
        i.collection_id, c.parent_id AS hub_id,

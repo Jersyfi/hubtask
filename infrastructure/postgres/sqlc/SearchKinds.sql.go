@@ -206,7 +206,7 @@ type SearchEntryByKeyRow struct {
 	KeyWord      string
 }
 
-// The living entry a ticket key names (UC-WRK-18 check 10): the collection by its key prefix or
+// The living entry a ticket key names (UC-WRK-18 check 11): the collection by its key prefix or
 // its handle, as the mail intake reads a key (ItemByKey), the prefix preferred; at most one.
 func (q *Queries) SearchEntryByKey(ctx context.Context, arg SearchEntryByKeyParams) ([]SearchEntryByKeyRow, error) {
 	rows, err := q.db.Query(ctx, searchEntryByKey, arg.Word, arg.Number, arg.HubID)

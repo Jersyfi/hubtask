@@ -43,13 +43,18 @@ lets the search also match by meaning ("heating" finds "boiler"); the words stil
    page looks missing or broken.
 8. Results are one continuous list without page numbers; when there are more matches than the
    page reads (500), the page says the list is not complete.
-9. One search answers every kind beside entries - pages, whiteboards, goals, dashboards, inventory
-   items, people, file names and comments - each hit with its kind, title, place, tile, the passage
+9. One search answers every kind beside entries - tickets (the entries of a desk), pages,
+   whiteboards, goals, dashboards, inventory items, people, file names and comments - each hit with its kind, title, place, tile, the passage
    that matched where there is one and its state, and a count per kind; every hit and every count
    holds only what the person may read, people are found by their name alone and a file by its
    name alone (`POST /search:all`, work surface E-11).
 10. Among equally good pages a page verified now comes first, and a page due for review says so;
     the order changes, not what is found (work surface E-8).
+11. A ticket key typed whole, `SA-12`, finds that entry first - by the collection's key prefix or
+    its handle - where the person may read it, and nothing where they may not (work surface §6.11).
+12. A search is saved as a view that keeps its line as it was typed; a line that does not read as a
+    query is refused where it is saved, and opening the view runs the line again with the reader's
+    permissions (work surface §6.11, Q-5).
 
 ## Where it ends
 

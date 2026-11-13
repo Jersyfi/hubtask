@@ -113,7 +113,7 @@ func TestEveryKindIsFoundByItsNameInItsWorkspaceAlone(t *testing.T) {
 	}
 }
 
-// UC-WRK-18 check 10. A ticket key finds its entry by the collection's key prefix or its handle, in its hub, and
+// UC-WRK-18 check 11. A ticket key finds its entry by the collection's key prefix or its handle, in its hub, and
 // never in the workspace next door, which may hold the same key.
 func TestATicketKeyFindsItsEntryInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
