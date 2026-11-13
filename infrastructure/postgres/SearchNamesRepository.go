@@ -6,6 +6,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -334,5 +335,35 @@ func (SearchNamesRepository) WhiteboardComments(ctx context.Context, ask reposit
 	}
 	return mapRows(rows, func(r sqlc.SearchWhiteboardCommentsRow) (repository.Row, error) {
 		return onRow(r.ID, r.WhiteboardID, r.HubID, r.WhiteboardTitle, "", r.Body, r.ChangedAt)
+	})
+}
+
+// EntryByKey answers the living entry a ticket key names.
+func (SearchNamesRepository) EntryByKey(ctx context.Context, key repository.Key, hubID shared.ID) ([]repository.Row, error) {
+	queries, hub, _, err := searchArgs(ctx, repository.Ask{HubID: hubID})
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchEntryByKey(ctx, sqlc.SearchEntryByKeyParams{Word: key.Word, Number: key.Number, HubID: hub})
+	if err != nil {
+		return nil, searchFailed("a key", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchEntryByKeyRow) (repository.Row, error) {
+		id, place, err := hitIDs(r.ID, r.CollectionID, r.HubID)
+		if err != nil {
+			return repository.Row{}, err
+		}
+		state := "OPEN"
+		if r.IsCompleted {
+			state = "DONE"
+		}
+		row := repository.Row{
+			ID: id, CollectionID: place[0], HubID: place[1], Title: r.Title, Tile: r.Level, State: state,
+			UpdatedAt: optionalTime(r.UpdatedAt),
+		}
+		if r.Number != nil {
+			row.Key = r.KeyWord + "-" + strconv.FormatInt(*r.Number, 10)
+		}
+		return row, nil
 	})
 }

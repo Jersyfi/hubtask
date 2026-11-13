@@ -7,6 +7,8 @@ package searchtest
 
 import (
 	"context"
+	"strconv"
+	"strings"
 
 	searchrepo "github.com/Jersyfi/hubtask/core/application/repository/search"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -16,10 +18,21 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// Names answers the same candidates for every kind; Asks, where set, keeps every question.
+// Names answers the same candidates for every kind; Asks, where set, keeps every question; Keys
+// answers a ticket key by its word and number, "sa-12".
 type Names struct {
 	Rows []searchrepo.Row
 	Asks *[]searchrepo.Ask
+	Keys map[string]searchrepo.Row
+}
+
+// EntryByKey answers the row Keys holds for the key, lowered.
+func (n Names) EntryByKey(_ context.Context, key searchrepo.Key, hubID shared.ID) ([]searchrepo.Row, error) {
+	row, found := n.Keys[strings.ToLower(key.Word)+"-"+strconv.FormatInt(key.Number, 10)]
+	if !found || (!hubID.IsZero() && row.HubID != hubID) {
+		return nil, nil
+	}
+	return []searchrepo.Row{row}, nil
 }
 
 func (n Names) all(_ context.Context, ask searchrepo.Ask) ([]searchrepo.Row, error) {

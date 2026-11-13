@@ -173,6 +173,71 @@ func (q *Queries) SearchDashboardNames(ctx context.Context, arg SearchDashboardN
 	return items, nil
 }
 
+const searchEntryByKey = `-- name: SearchEntryByKey :many
+SELECT i.id, i.title, i.type::text AS level, i.is_completed, i.updated_at, i.number,
+       i.collection_id, c.parent_id AS hub_id,
+       coalesce(c.key_prefix, upper(c.handle))::text AS key_word
+FROM work_item i
+JOIN container c ON c.tenant_id = i.tenant_id AND c.id = i.collection_id
+WHERE i.tenant_id = current_tenant_id()
+  AND (c.handle = lower($1::text) OR c.key_prefix = upper($1::text))
+  AND i.number = $2::bigint
+  AND i.deleted_at IS NULL AND i.archived_at IS NULL AND c.deleted_at IS NULL
+  AND ($3::uuid IS NULL OR c.parent_id = $3::uuid)
+ORDER BY (c.key_prefix IS NOT NULL AND c.key_prefix = upper($1::text)) DESC
+LIMIT 1
+`
+
+type SearchEntryByKeyParams struct {
+	Word   string
+	Number int64
+	HubID  pgtype.UUID
+}
+
+type SearchEntryByKeyRow struct {
+	ID           pgtype.UUID
+	Title        string
+	Level        string
+	IsCompleted  bool
+	UpdatedAt    pgtype.Timestamptz
+	Number       *int64
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+	KeyWord      string
+}
+
+// The living entry a ticket key names (UC-WRK-18 check 10): the collection by its key prefix or
+// its handle, as the mail intake reads a key (ItemByKey), the prefix preferred; at most one.
+func (q *Queries) SearchEntryByKey(ctx context.Context, arg SearchEntryByKeyParams) ([]SearchEntryByKeyRow, error) {
+	rows, err := q.db.Query(ctx, searchEntryByKey, arg.Word, arg.Number, arg.HubID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchEntryByKeyRow{}
+	for rows.Next() {
+		var i SearchEntryByKeyRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Level,
+			&i.IsCompleted,
+			&i.UpdatedAt,
+			&i.Number,
+			&i.CollectionID,
+			&i.HubID,
+			&i.KeyWord,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchEntryComments = `-- name: SearchEntryComments :many
 SELECT cm.id, cm.body, coalesce(cm.edited_at, cm.created_at)::timestamptz AS changed_at, i.id AS item_id,
        i.title AS item_title, i.collection_id, c.parent_id AS hub_id

@@ -165,3 +165,19 @@ WHERE wc.tenant_id = current_tenant_id() AND wc.deleted_at IS NULL AND w.deleted
   AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(wc.body), t) = 0)
 ORDER BY changed_at DESC, wc.id
 LIMIT sqlc.arg('batch');
+
+-- name: SearchEntryByKey :many
+-- The living entry a ticket key names (UC-WRK-18 check 10): the collection by its key prefix or
+-- its handle, as the mail intake reads a key (ItemByKey), the prefix preferred; at most one.
+SELECT i.id, i.title, i.type::text AS level, i.is_completed, i.updated_at, i.number,
+       i.collection_id, c.parent_id AS hub_id,
+       coalesce(c.key_prefix, upper(c.handle))::text AS key_word
+FROM work_item i
+JOIN container c ON c.tenant_id = i.tenant_id AND c.id = i.collection_id
+WHERE i.tenant_id = current_tenant_id()
+  AND (c.handle = lower(sqlc.arg('word')::text) OR c.key_prefix = upper(sqlc.arg('word')::text))
+  AND i.number = sqlc.arg('number')::bigint
+  AND i.deleted_at IS NULL AND i.archived_at IS NULL AND c.deleted_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR c.parent_id = sqlc.narg('hub_id')::uuid)
+ORDER BY (c.key_prefix IS NOT NULL AND c.key_prefix = upper(sqlc.arg('word')::text)) DESC
+LIMIT 1;

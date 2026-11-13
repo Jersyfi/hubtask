@@ -43,8 +43,16 @@ type Row struct {
 	// State is a goal's status, an item's stage or an account's status.
 	State string
 	// Text is a comment's body, which the snippet is cut from.
-	Text      string
+	Text string
+	// Key is an entry's ticket key as people write it, "SA-12".
+	Key       string
 	UpdatedAt *time.Time
+}
+
+// Key is a ticket key as typed: the word names a collection by its key prefix or its handle.
+type Key struct {
+	Word   string
+	Number int64
 }
 
 // Names is the store's half of the search.
@@ -64,4 +72,7 @@ type Names interface {
 	// WhiteboardFiles and WhiteboardComments are on living boards, OnID the board.
 	WhiteboardFiles(ctx context.Context, ask Ask) ([]Row, error)
 	WhiteboardComments(ctx context.Context, ask Ask) ([]Row, error)
+	// EntryByKey is the living entry a ticket key names, at most one, in the hub where one is
+	// given; Tile is its level, State OPEN or DONE.
+	EntryByKey(ctx context.Context, key Key, hubID shared.ID) ([]Row, error)
 }

@@ -112,3 +112,64 @@ func TestEveryKindIsFoundByItsNameInItsWorkspaceAlone(t *testing.T) {
 		})
 	}
 }
+
+// UC-WRK-18 check 10. A ticket key finds its entry by the collection's key prefix or its handle, in its hub, and
+// never in the workspace next door, which may hold the same key.
+func TestATicketKeyFindsItsEntryInItsWorkspaceAlone(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	random := freshID(t).String()
+	handle := "k" + random[len(random)-6:]
+	keyed := func(tenant shared.ID, prefix string) (item, hub shared.ID) {
+		item = seedWorkItemForRules(ctx, t, tenant)
+		if err := admin.QueryRow(ctx,
+			`UPDATE container c SET handle = $2, key_prefix = $3 FROM work_item i
+			 WHERE i.id = $1 AND c.id = i.collection_id RETURNING c.parent_id`,
+			item.String(), handle, prefix).Scan(&hub); err != nil {
+			t.Fatalf("keying the collection: %v", err)
+		}
+		if _, err := admin.Exec(ctx, `UPDATE work_item SET number = 7 WHERE id = $1`, item.String()); err != nil {
+			t.Fatalf("numbering the entry: %v", err)
+		}
+		return item, hub
+	}
+	prefix := "K" + strings.ToUpper(random[len(random)-9:len(random)-6])
+	item, hub := keyed(tenantA, prefix)
+	keyed(tenantB, prefix)
+	repo := postgres.NewSearchNamesRepository()
+	for _, word := range []string{strings.ToLower(prefix), handle} {
+		if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+			rows, err := repo.EntryByKey(ctx, repository.Key{Word: word, Number: 7}, "")
+			if err != nil {
+				return err
+			}
+			if len(rows) != 1 || rows[0].ID != item || rows[0].HubID != hub || rows[0].Key != prefix+"-7" {
+				t.Fatalf("%s-7 found %+v, want the entry %s keyed %s-7", word, rows, item, prefix)
+			}
+			if rows, err := repo.EntryByKey(ctx, repository.Key{Word: word, Number: 8}, ""); err != nil || len(rows) != 0 {
+				t.Errorf("a number not held found %+v, %v", rows, err)
+			}
+			if rows, err := repo.EntryByKey(ctx, repository.Key{Word: word, Number: 7}, freshID(t)); err != nil || len(rows) != 0 {
+				t.Errorf("another hub found %+v, %v", rows, err)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		rows, err := repo.EntryByKey(ctx, repository.Key{Word: prefix, Number: 7}, "")
+		if err != nil {
+			return err
+		}
+		for _, row := range rows {
+			if row.ID == item {
+				t.Errorf("the workspace next door found the entry %s", item)
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
