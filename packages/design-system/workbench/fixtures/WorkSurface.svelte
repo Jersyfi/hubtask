@@ -75,7 +75,6 @@
             ]}
           />
           <FoldingSectionDemo prefix="gallery" />
-          <ComposerDemo mode="comment" />
         </div>
         <PropertyRailDemo mode="story" />
       </div>
