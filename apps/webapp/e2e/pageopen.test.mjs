@@ -166,6 +166,16 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'Enter took the choice and wrote nothing');
   await page.keyboard.press('Escape');
   await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
+  // A file among the choices opens the system's file choice.
+  await body.locator(':scope > :last-child').click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/');
+  await panel.waitFor({ timeout: 5_000 });
+  for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowDown');
+  assert.equal(await activeName(), 'Picture or file');
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), page.keyboard.press('Enter')]);
+  assert.ok(chooser, 'the file choice opened');
 
   assert.deepEqual(failures, []);
 });

@@ -457,7 +457,7 @@
     return () => element.removeEventListener('keydown', listKeys, true);
   });
 
-  let fileChooser = $state<HTMLInputElement | undefined>(undefined);
+  let fileChooser = $state<ReturnType<typeof UploadField> | undefined>(undefined);
 
   const insertGroups = $derived([
     {
@@ -502,7 +502,7 @@
       isMentioning = true;
     } else if (id === 'file') {
       closeInsert();
-      fileChooser?.click();
+      fileChooser?.choose();
     } else if (id.startsWith('callout_')) {
       addBlock({ kind: 'callout', tone: id.slice('callout_'.length) as 'info' | 'warning' | 'success' | 'error' });
     } else if (id === 'details') addBlock({ kind: 'details', summary: '' });
@@ -915,7 +915,7 @@
 {#if saveRefusal}<p class="refusal" role="alert">{saveRefusal}</p>{/if}
 
 <div class="editor" bind:this={host}></div>
-<input class="chooser" type="file" tabindex="-1" aria-hidden="true" bind:this={fileChooser} onchange={(event) => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void putFile(file); }} />
+<div class="chooser"><UploadField bind:this={fileChooser} variant="icon" size="sm" label={t('app.pages.tool_file')} chooseLabel={t('app.pages.tool_file')} onChoose={(file) => void putFile(file)} /></div>
 </div>
 
 <MentionDialog bind:isOpen={isMentioning} selfId="" oninsert={insertAddressText} />
