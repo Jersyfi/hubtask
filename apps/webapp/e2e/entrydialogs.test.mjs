@@ -75,3 +75,28 @@ for (const [width, height] of [[1280, 800], [390, 844]]) {
     assert.deepEqual(failures, []);
   });
 }
+
+// The dates dialog's two clears do one kind of thing, so they wear one style (finding of the
+// family 3.1 review): the due date's and the start's, side by side on a phone.
+test('chromium 390×844: the dates dialog clears the due date and the start in one button style', async (t) => {
+  // The fixture's entry, with a start for this walk only: the shared fixture answers every read of it.
+  DATED.start_at = DATED.due_at.replace(/T.*/, 'T07:00:00Z');
+  t.after(() => { delete DATED.start_at; });
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await signedIn(browser, 390, 844);
+  t.after(() => context.close());
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', (route) => stub(route));
+  await page.goto(`${served.origin}/items/${DATED.id}`);
+  await page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(600);
+  await page.locator('[data-opener="entry-menu"]').first().click();
+  await page.getByRole('menuitem', { name: 'Change the due date' }).click();
+  const dialog = page.locator('dialog[open]').last();
+  const clears = [dialog.getByRole('button', { name: 'Clear the due date' }), dialog.getByRole('button', { name: 'Clear the start' })];
+  await clears[1].waitFor({ timeout: 5_000 });
+  const looks = await Promise.all(clears.map((each) => each.evaluate((node) => `${node.dataset.tone}/${node.dataset.size}`)));
+  assert.equal(looks[0], looks[1], `the clears wear two styles: ${looks.join(' and ')}`);
+  assert.deepEqual(failures, []);
+});
