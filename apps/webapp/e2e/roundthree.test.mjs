@@ -148,13 +148,20 @@ test('chromium: a click anywhere on a board card opens it', { timeout: 60_000 },
   }
 });
 
+// The status button is the entry's one control for its column (UC-FLW-06/5): the board's columns
+// are its states, and no second column menu stands beside it.
 test('chromium: the entry\'s column is changed from the entry', { timeout: 60_000 }, async () => {
-  const { page, written, close } = await open(1280, `/items/${ITEMS[2].id}`);
+  const columns = BUCKETS.map((bucket) => ({ id: bucket.id, name: bucket.name, completes: bucket.is_done_bucket }));
+  const answer = (route, request, read) => (read === `/items/${ITEMS[2].id}/steps`
+    ? route.fulfill({ json: { state_mode: 'COLUMNS', columns, column_id: BUCKETS[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } })
+    : null);
+  const { page, written, close } = await open(1280, `/items/${ITEMS[2].id}`, { answer });
   try {
-    const mark = page.locator('[data-column-mark]');
-    await mark.waitFor({ timeout: 10_000 });
-    await mark.click();
-    await page.getByRole('menuitem', { name: BUCKETS[1].name }).click();
+    const status = page.locator('[data-steps]');
+    await status.waitFor({ timeout: 10_000 });
+    assert.equal(await page.locator('[data-column-mark]').count(), 0, 'no second control sets the column');
+    await status.getByRole('button', { name: /Change status/ }).click();
+    await page.getByRole('menuitemradio', { name: new RegExp(`^${BUCKETS[1].name}`) }).click();
     await page.waitForTimeout(400);
     const moved = written.find((each) => each.call === `PATCH /items/${ITEMS[2].id}`);
     assert.equal(moved?.body?.bucket_id, BUCKETS[1].id);
