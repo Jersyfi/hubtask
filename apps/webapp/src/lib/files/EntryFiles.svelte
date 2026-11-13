@@ -11,7 +11,7 @@
   // folders instead of pasting it, and on a Nextcloud may link a read-only share (UC-INT-17).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Checkbox, Dialog, IconButton, Input, Select, Stack, VisuallyHidden, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Button, Icon, Checkbox, Dialog, IconButton, Input, Select, Stack, VisuallyHidden, type SelectOption } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { FileLink, FileLinkList, FileStoreConnection, FileStoreItem } from '@hubtask/sync-engine';
 
@@ -29,9 +29,11 @@
     itemId: string;
     /** Whether the reader may change this entry, which linking and taking off need. */
     mayChange: boolean;
+    /** A grid of cards or a list of rows, as the entry's files are drawn (ET-4). */
+    view?: 'grid' | 'list';
   }
 
-  const { itemId, mayChange }: Props = $props();
+  const { itemId, mayChange, view = 'list' }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<FileLinkList>(untrack(() => fileLinksPath(itemId)));
@@ -109,10 +111,14 @@
       {/if}
     </div>
     {#if links.length > 0}
-      <ul class="rows">
+      <ul class="rows" data-view={view}>
         {#each links as each (each.id)}
           {@const href = fileHref(each.address)}
           <li class="row" data-file-link={each.provider}>
+            {#if view === 'grid'}
+              <!-- The store's mark on the card, where an uploaded file has its ending. -->
+              <span class="picture" aria-hidden="true"><Icon name="link" /></span>
+            {/if}
             <span class="what">
               {#if href}
                 <a {href} target="_blank" rel="noopener noreferrer">{each.name}</a>
@@ -167,4 +173,11 @@
   .what a { color: var(--text-primary); font-weight: var(--fw-medium); }
   .end { display: inline-flex; align-items: center; gap: var(--sp-050); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+
+  .rows[data-view='grid'] { grid-template-columns: repeat(auto-fill, minmax(calc(var(--sp-1600) + var(--sp-400)), 1fr)); gap: var(--sp-150); }
+  .rows[data-view='grid'] .row { position: relative; flex-direction: column; align-items: stretch; gap: var(--sp-050); padding-block-end: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); overflow: hidden; }
+  .rows[data-view='grid'] .what { padding-inline: var(--sp-100); }
+  .rows[data-view='grid'] .what a { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .rows[data-view='grid'] .end { position: absolute; inset-block-start: var(--sp-050); inset-inline: var(--sp-050); justify-content: space-between; }
+  .picture { display: grid; place-items: center; block-size: var(--sp-1000); background: var(--bg-canvas); color: var(--text-subtle); }
 </style>

@@ -133,6 +133,7 @@
   import { entryAsks } from '../lib/data/entryasks.svelte.ts';
   import { hasChoices, suggestionsPath } from '../lib/data/suggestions.ts';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
+  import { deviceStore } from '../lib/entries/layoutmemory.ts';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import CommentPanel from '../lib/people/CommentPanel.svelte';
   import EntryActions from '../lib/entries/EntryActions.svelte';
@@ -323,6 +324,40 @@
   });
   const attachments = resource<MediaPage>({ path: untrack(() => attachmentsPath(id)) });
   const thread = resource<CommentPage>({ path: untrack(() => commentsPath(id)) });
+  /** Files as a grid of cards or a list, the reader's choice on this device (ET-4). */
+  const FILES_VIEW_KEY = 'hubtask.entry.files_view';
+  let filesView = $state<'grid' | 'list'>(deviceStore()?.getItem(FILES_VIEW_KEY) === 'list' ? 'list' : 'grid');
+  function chooseFilesView(next: 'grid' | 'list') {
+    filesView = next;
+    try {
+      deviceStore()?.setItem(FILES_VIEW_KEY, next);
+    } catch {
+      // Storage refused: the choice holds for this page only.
+    }
+  }
+
+  let attachmentPanel = $state<{ attach(files: readonly File[]): Promise<void> } | undefined>(undefined);
+  let isDropping = $state(false);
+  const takesDrop = () => carries('ATTACHMENTS') && isWritable;
+  const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') === true;
+  function dragOver(event: DragEvent) {
+    if (!takesDrop() || !carriesFiles(event)) return;
+    event.preventDefault();
+    isDropping = true;
+  }
+  function dragLeave(event: DragEvent) {
+    // Leaving for a child is no leaving; only out of the entry (or out of the window) is.
+    if (!(event.relatedTarget instanceof Node) || !(event.currentTarget as Node).contains(event.relatedTarget)) isDropping = false;
+  }
+  function dropFiles(event: DragEvent) {
+    isDropping = false;
+    const dropped = [...(event.dataTransfer?.files ?? [])];
+    if (!takesDrop() || dropped.length === 0) return;
+    event.preventDefault();
+    document.getElementById('entry-files')?.scrollIntoView({ block: 'nearest' });
+    void attachmentPanel?.attach(dropped);
+  }
+
   const attachmentCount = $derived(attachments.state.status === 'ready' ? (attachments.state.data.data ?? []).length : undefined);
   const commentCount = $derived(thread.state.status === 'ready' ? (thread.state.data.data ?? []).length : undefined);
   const reminderCount = $derived(reminders.of(id).length);
@@ -1162,6 +1197,10 @@
 {:else if !item}
   <EmptyState kind="filtered" title={t('app.item.not_found')} />
 {:else}
+  <!-- A file dropped anywhere on the entry is attached (ET-4); the button under *Files* is the
+       way without a drag. Display-less, so the page's layout is the DetailPage's own. -->
+  <div class="entry-drop" role="presentation" ondragover={dragOver} ondragleave={dragLeave} ondrop={dropFiles}>
+  {#if isDropping}<div class="drop-veil" aria-hidden="true"><span>{t('app.media.drop_anywhere')}</span></div>{/if}
   <DetailPage {isInPane} details={railSections.length > 0 ? rail : undefined}>
   {#snippet top()}
     <ReplicaMark state={entry.state} />
@@ -1316,10 +1355,10 @@
       {/if}
       <!-- One place for files (ET-4): uploaded and linked together - the store's files by address
            (UC-INT-14 checks 1, 2), the attachments readable by whoever reads the entry. -->
-      <FoldingSection id="entry-files" title={t('app.entry.mark_files')} count={attachmentCount ? String(attachmentCount) : undefined}>
-        {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} />{/key}
+      <FoldingSection id="entry-files" title={t('app.entry.mark_files')} count={attachmentCount ? String(attachmentCount) : undefined} actions={filesActions}>
+        {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} view={filesView} />{/key}
         {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
-          <div data-entry-attachments><AttachmentPanel {item} isChangeable={isWritable} /></div>
+          <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} isChangeable={isWritable} view={filesView} /></div>
         {/if}
       </FoldingSection>
 
@@ -1357,6 +1396,7 @@
       </FoldingSection>
     </div>
   </DetailPage>
+  </div>
 
   {#snippet headTrail()}
     <Breadcrumb label={t('app.workspace.trail')} {trail} expandLabel={t('app.workspace.expand_trail')} onnavigate={goTo} />
@@ -1414,6 +1454,13 @@
       <IconButton icon="at-sign" label={t('app.mentions.insert')} size="sm" tone="subtle" data-mention-entry onclick={() => (isMentionOpen = true)} />
     </span>
     {#if hasAi && isChangeable && item}<AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} />{/if}
+  {/snippet}
+
+  {#snippet filesActions()}
+    <span class="files-view" role="group" aria-label={t('app.entry.files_view')}>
+      <IconButton icon="layout-grid" size="sm" tone="subtle" label={t('app.entry.files_grid')} aria-pressed={filesView === 'grid'} onclick={() => chooseFilesView('grid')} />
+      <IconButton icon="list" size="sm" tone="subtle" label={t('app.entry.files_list')} aria-pressed={filesView === 'list'} onclick={() => chooseFilesView('list')} />
+    </span>
   {/snippet}
 
   {#snippet partsActions()}
@@ -1629,6 +1676,10 @@
 
   /* The capture line closes the parts as the scene's foot row does, under the last row's rule. */
   .parts-capture { padding-block: var(--sp-050); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+
+  .entry-drop { display: contents; }
+  .drop-veil { position: fixed; inset: var(--sp-100); z-index: var(--z-overlay); display: grid; place-items: center; border: var(--bw-thick) dashed var(--accent-primary); border-radius: var(--r-lg); background: var(--accent-primary-subtle); color: var(--text-primary); font-weight: var(--fw-semibold); pointer-events: none; }
+  .files-view { display: inline-flex; gap: var(--sp-025); }
 
   .phone-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .format { display: inline-flex; flex-wrap: wrap; gap: var(--sp-025); }

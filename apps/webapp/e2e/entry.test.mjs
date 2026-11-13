@@ -588,6 +588,55 @@ test('chromium: the attachments announce a page only after the reader asked for 
   assert.deepEqual(unstubbed(), []);
 });
 
+// ET-4: the files as a grid of cards or a list, the reader's choice kept on the device; a file
+// dropped anywhere on the entry is attached, the button under *Files* the way without a drag.
+test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhere is attached', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  const uploads = [];
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/attachments`) && request.method() === 'GET') {
+      return route.fulfill({ json: { data: [{ id: '01a0e2e0-0000-7000-8000-000000000901', file_name: 'plan.pdf', content_type: 'application/pdf', size: 2048, status: 'READY', created_at: '2026-10-01T08:00:00Z' }], page: { next_cursor: null, has_more: false } } });
+    }
+    if (request.method() === 'POST' && url.pathname.includes('/media')) {
+      uploads.push(url.pathname);
+      return route.fulfill({ status: 503, json: { type: 'about:blank', title: 'Unavailable', status: 503, code: 'common.unavailable' } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  const files = page.locator('[data-entry-attachments] .files');
+  await files.waitFor({ timeout: 5_000 });
+  assert.equal(await files.getAttribute('data-view'), 'grid', 'files open as the scene\'s grid');
+  assert.equal((await page.locator('[data-attachment] .ending').textContent()).trim(), 'PDF');
+  await page.getByRole('button', { name: 'Files as a list' }).click();
+  assert.equal(await files.getAttribute('data-view'), 'list');
+  assert.equal(await page.evaluate(() => localStorage.getItem('hubtask.entry.files_view')), 'list');
+  assert.equal(await page.getByRole('button', { name: 'Files as a list' }).getAttribute('aria-pressed'), 'true');
+
+  // A drag carrying files over the entry's head says where it goes; the drop sends the file.
+  const transfer = await page.evaluateHandle(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(['tiles'], 'tiles.txt', { type: 'text/plain' }));
+    return data;
+  });
+  const head = page.getByRole('heading', { level: 1 }).first();
+  await head.dispatchEvent('dragover', { dataTransfer: transfer });
+  await page.getByText('Drop to attach to this entry').waitFor({ timeout: 5_000 });
+  await head.dispatchEvent('drop', { dataTransfer: transfer });
+  await page.waitForFunction(() => !document.querySelector('.drop-veil'), null, { timeout: 5_000 });
+  await page.waitForTimeout(500);
+  assert.ok(uploads.length >= 1, 'the dropped file was not sent');
+  assert.deepEqual(failures.filter((each) => !/503|Unavailable/.test(each)), []);
+  assert.deepEqual(unstubbed(), []);
+});
+
 test('chromium: a page of history that did not arrive is said beside the button, and the button is the retry', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

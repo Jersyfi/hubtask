@@ -19,7 +19,9 @@
   import { untrack } from 'svelte';
 
   import {
+    Icon,
     IconButton,
+    LabelChip,
     ListRow,
     LoadMore,
     Stack,
@@ -41,7 +43,38 @@
    * `isChangeable`: whether the reader may change the entry. Reading and downloading are anybody's
    * who reads it; attaching and detaching are a change the server refuses otherwise (P-05).
    */
-  const { item, isChangeable }: { item: WorkItem; isChangeable: boolean } = $props();
+  interface Props {
+    item: WorkItem;
+    isChangeable: boolean;
+    /** A grid of cards or a list of rows (ET-4); the entry keeps the reader's choice. */
+    view?: 'grid' | 'list';
+  }
+
+  const { item, isChangeable, view = 'list' }: Props = $props();
+
+  /**
+   * A card's picture is its kind - a mark and the name's ending - never the file's content: an
+   * attachment is not rendered inline (T-11 above); a preview is the file viewer's (§6.13 F-2).
+   */
+  function kindOf(object: MediaObject): { icon: 'image' | 'file-spreadsheet' | 'file-archive' | 'file-text'; colour: string } {
+    const type = object.content_type ?? '';
+    if (type.startsWith('image/')) return { icon: 'image', colour: 'violet' };
+    if (type.includes('pdf')) return { icon: 'file-text', colour: 'red' };
+    if (type.includes('sheet') || type.includes('excel') || type.includes('csv')) return { icon: 'file-spreadsheet', colour: 'green' };
+    if (type.includes('zip') || type.includes('compressed') || type.includes('tar')) return { icon: 'file-archive', colour: 'amber' };
+    return { icon: 'file-text', colour: 'blue' };
+  }
+
+  /** The name's ending as the card's tag: *PDF*, *PNG*; none where the name has no ending. */
+  function endingOf(object: MediaObject): string | undefined {
+    const match = /\.([A-Za-z0-9]{1,5})$/.exec(object.file_name ?? '');
+    return match?.[1]?.toUpperCase();
+  }
+
+  /** A file dropped anywhere on the entry comes here, one after another (ET-4). */
+  export async function attach(dropped: readonly File[]): Promise<void> {
+    for (const file of dropped) await choose(file);
+  }
 
   const limit = $derived(uploadLimitOf(manifest.value));
 
@@ -176,9 +209,27 @@
     {#if rows.length === 0}
       {#if !isChangeable}<p class="quiet">{t('app.media.attachments_none')}</p>{/if}
     {:else}
-      <ul class="files">
+      <ul class="files" data-view={view}>
         {#each rows as object (object.id)}
-          <li>
+          <li data-attachment={object.id}>
+            {#if view === 'grid'}
+              {@const kind = kindOf(object)}
+              {@const ending = endingOf(object)}
+              <div class="card">
+                <div class="picture" aria-hidden="true">
+                  <Icon name={kind.icon} />
+                  {#if ending}<span class="ending"><LabelChip name={ending} colorToken={kind.colour} /></span>{/if}
+                </div>
+                <span class="name card-name" title={object.file_name ?? undefined}>{object.file_name ?? t('app.media.unnamed')}</span>
+                <span class="detail">{detailOf(object)}</span>
+                <div class="actions card-acts">
+                  <IconButton icon="download" size="sm" tone="subtle" label={t('app.media.download')} onclick={() => void download(object)} />
+                  {#if isChangeable}
+                    <IconButton icon="x" size="sm" tone="subtle" label={t('app.media.detach')} onclick={() => void detach(object)} />
+                  {/if}
+                </div>
+              </div>
+            {:else}
             <ListRow>
               {#snippet trailing()}
                 <!-- One row a file (ET-4): its acts as icons, named for a screen reader. -->
@@ -192,6 +243,7 @@
               <span class="name">{object.file_name ?? t('app.media.unnamed')}</span>
               <span class="detail">{detailOf(object)}</span>
             </ListRow>
+            {/if}
           </li>
         {/each}
       </ul>
@@ -208,6 +260,7 @@
 
     {#if isChangeable}
       <UploadField
+        variant="button"
         label={t('app.media.attachments')}
         chooseLabel={t('app.media.attach_choose')}
         dropLabel={t('app.media.drop')}
@@ -229,6 +282,15 @@
 
 <style>
   .files { margin: 0; padding: 0; list-style: none; }
+  /* The scene's grid: four across on a desktop's main column, fewer as it narrows. */
+  .files[data-view='grid'] { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--sp-1600) + var(--sp-400)), 1fr)); gap: var(--sp-150); }
+  .card { position: relative; display: grid; gap: var(--sp-025); padding-block-end: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); overflow: hidden; }
+  .card > .name, .card > .detail { padding-inline: var(--sp-100); }
+  .picture { position: relative; display: grid; place-items: center; block-size: var(--sp-1000); margin-block-end: var(--sp-050); background: var(--bg-canvas); color: var(--text-subtle); }
+  .ending { position: absolute; inset-block-start: var(--sp-050); inset-inline-start: var(--sp-050); }
+  .card-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: var(--fw-medium); }
+  .card-acts { position: absolute; inset-block-start: var(--sp-050); inset-inline-end: var(--sp-050); border-radius: var(--r-md); background: var(--bg-surface); opacity: 0; }
+  .card:hover .card-acts, .card:focus-within .card-acts { opacity: 1; }
 
   .name { display: block; overflow-wrap: anywhere; }
 
