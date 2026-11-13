@@ -31,7 +31,7 @@ const job = (n, status, at) => ({ id: `01a0e2e0-0000-7000-8000-00000000022${n}`,
 const JOBS = [job(1, 'FAILED', '2026-11-02T08:00:00Z'), job(2, 'DONE', '2026-11-03T08:00:00Z')];
 const pageOf = (n, title, at, more = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000003${n}`, hub_id: HUB.id, parent_id: null, title, icon: null, position: n, template: false, content_language: null, owner_id: null, verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, restricted: false, daily_for: null, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1, ...more });
 const PAGES = [
-  pageOf('01', 'Onboarding guide', '2026-10-02T09:00:00Z', { verified_until: '2099-01-15T00:00:00Z' }),
+  pageOf('01', 'Onboarding guide', '2026-10-02T09:00:00Z', { verified_until: '2099-01-15T00:00:00Z', excerpt: 'Your first week: the laptop, the accounts and who to ask.' }),
   pageOf('02', 'How we release, step by step, for every team that ships to customers', '2026-10-31T09:00:00Z'),
   pageOf('03', 'Meeting notes template', '2026-11-01T09:00:00Z', { template: true }),
   pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true, verified_until: '2026-09-01T00:00:00Z' }),
@@ -436,6 +436,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     const reading = page.getByRole('region', { name: 'Continue reading' });
     await reading.waitFor({ timeout: 10_000 });
     assert.match(await reading.innerText(), /Onboarding guide[\s\S]*Verified|Verified[\s\S]*Onboarding guide/);
+    assert.match(await reading.innerText(), /Your first week: the laptop/, 'a card shows the page\'s opening words');
     const recent = page.getByRole('region', { name: 'Recently changed pages' });
     assert.deepEqual(await recent.locator('.name').allTextContents(), [PAGES[1].title, 'Onboarding guide', 'Support rota']);
     assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/pages/${PAGES[1].id}`);

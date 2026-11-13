@@ -783,6 +783,7 @@
                     {#if isVerified(each, now)}<StateLozenge size="sm" tone="success" icon="shield" label={t('app.product_home.verified')} />{/if}
                   </span>
                   <span class="read-title">{each.title}</span>
+                  {#if each.excerpt}<span class="read-excerpt">{each.excerpt}</span>{/if}
                   <span class="purpose">{[hubName(each.hub_id), formatRelative(each.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
                 </a>
               </li>
@@ -985,6 +986,7 @@
   .read-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-100); }
   .read-icon { font-size: var(--fs-300); line-height: var(--lh-tight); }
   .read-title { font-weight: var(--fw-semibold); }
+  .read-excerpt { display: -webkit-box; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
   .pages-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; min-inline-size: 0; }
   /* design-system-lint-ignore: `primitive.breakpoint.large` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
