@@ -435,9 +435,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
 
     await checkbox.focus();
     await page.keyboard.press('q');
-    await field.waitFor({ timeout: 5_000 });
+    const line = page.getByRole('textbox', { name: 'A new entry in one sentence' });
+    await line.waitFor({ timeout: 5_000 });
     await page.keyboard.press('Escape');
-    await field.waitFor({ state: 'hidden', timeout: 5_000 });
+    await line.waitFor({ state: 'hidden', timeout: 5_000 });
     assert.ok(await checkbox.evaluate((node) => node === document.activeElement), `${name}: Escape did not return focus`);
     await context.close();
     assert.deepEqual(failures, [], `${name}: the bundle threw in the capture field`);
