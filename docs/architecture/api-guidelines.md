@@ -298,6 +298,17 @@ is a change in two tables: the domain's catalogue and the compiler's column mapp
 
 ---
 
+**The Hubtask query** ([ADR-0102](../adr/ADR-0102-one-query-language.md)) is a third way in and
+adds no fourth way to SQL. Its two spellings - `field: value` and the `=`/`AND`/`ORDER BY` line -
+are read by one parser in the domain (`core/domain/model/view`, `ParseQuery`) into the same filter
+document and sort list a client could send, and from there the same `ParseFilter`, `ParseSort`,
+bounds and price hold. The keys, the time words and the people words are a closed list in the
+domain: `who` names `assignee_id`, `today` names `@today`, `-7d` names `@today-P7D`; a value is a
+bound parameter as every value is. Free words are a `MATCHES` leaf, read by
+`websearch_to_tsquery` as a parameter. `/meta/capabilities` serves the keys under `query_keys`, only
+those the parser reads. The browser's twin (`packages/query`) is held to the parser by
+`test/querylanguage/lines.json`; the server reads every text again.
+
 ## 4. Pagination, sorting, partial responses
 
 * **Cursor pagination** (an opaque, signed cursor with the sort key plus `id`). No offsets.
