@@ -463,13 +463,13 @@
 {/if}
 
 {#if isClosing && chosen}
-  <Dialog size="s" bind:isOpen={isClosing} title={t('app.sprints.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isClosing} title={t('app.sprints.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')} primary={{ label: t('app.sprints.close'), onclick: close }}>
     <Stack gap="150">
       <p class="quiet">{t('app.sprints.close_hint')}</p>
       <Select label={t('app.sprints.carry_to')} bind:value={carryTo}
         options={[{ value: '', label: t('app.sprints.carry_backlog') }, ...targets.map((s) => ({ value: s.id, label: s.name }))]} />
-      <Inline justify="end"><Button onclick={close}>{t('app.sprints.close')}</Button></Inline>
     </Stack>
+    {#snippet actions()}<Button tone="secondary" onclick={() => (isClosing = false)}>{t('app.links.cancel')}</Button>{/snippet}
   </Dialog>
 {/if}
 

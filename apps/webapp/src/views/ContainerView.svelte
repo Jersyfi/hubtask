@@ -1803,6 +1803,7 @@
     bind:isOpen={isTrashing}
     title={t('app.workspace.trash_confirm_title', { name: container.name })}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: t('app.workspace.confirm'), onclick: moveToTrash, tone: 'danger', isBusy: isTrashingNow, busyLabel: t('app.workspace.saving') }}
   >
     <p class="notice">
       {container.type === 'HUB'
@@ -1812,9 +1813,6 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isTrashing = false)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button tone="danger" isBusy={isTrashingNow} busyLabel={t('app.workspace.saving')} onclick={moveToTrash}>
-        {t('app.workspace.confirm')}
       </Button>
     {/snippet}
   </Dialog>
@@ -1830,6 +1828,7 @@
       ? t('app.workspace.shared_confirm_title', { name: container.name })
       : t('app.workspace.private_confirm_title', { name: container.name })}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private'), onclick: changePrivacy, isBusy: isChangingPrivacyNow, busyLabel: container.private ? t('app.workspace.sharing') : t('app.workspace.making_private') }}
   >
     {#if container.private}
       <p class="notice">{t('app.workspace.shared_confirm_body')}</p>
@@ -1846,13 +1845,6 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isChangingPrivacy = false)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button tone="primary"
-        isBusy={isChangingPrivacyNow}
-        busyLabel={container.private ? t('app.workspace.sharing') : t('app.workspace.making_private')}
-        onclick={changePrivacy}
-      >
-        {container.private ? t('app.workspace.make_shared') : t('app.workspace.make_private')}
       </Button>
     {/snippet}
   </Dialog>

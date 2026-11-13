@@ -1186,6 +1186,7 @@
     bind:isOpen={isDeletingColumn}
     title={t('app.board.delete_column')}
     dismissLabel={t('app.workspace.cancel')}
+    primary={{ label: t('app.board.column_actions', { name: column.name }), onclick: deleteColumn, tone: 'danger' }}
   >
     <p class="notice">{t('app.board.delete_confirm')}</p>
     {#if successor !== undefined}
@@ -1199,9 +1200,6 @@
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isDeletingColumn = false)}>
         {t('app.workspace.cancel')}
-      </Button>
-      <Button tone="danger" onclick={deleteColumn}>
-        {t('app.board.column_actions', { name: column.name })}
       </Button>
     {/snippet}
   </Dialog>

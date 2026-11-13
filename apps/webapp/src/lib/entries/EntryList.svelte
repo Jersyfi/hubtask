@@ -1833,14 +1833,10 @@
     title={t('app.entries.change_amount')}
     dismissLabel={t('app.entries.cancel')}
     onClose={() => (amending = undefined)}
+    primary={{ label: t('app.entries.save'), onclick: saveAmount }}
   >
-    <Stack gap="150">
-      <Input label={t('app.entries.amount_label')} bind:value={draftAmount} maxlength={40} />
-      <Inline gap="100">
-        <Button size="sm" onclick={saveAmount}>{t('app.entries.save')}</Button>
-        <Button size="sm" tone="secondary" onclick={() => (amending = undefined)}>{t('app.entries.cancel')}</Button>
-      </Inline>
-    </Stack>
+    <Input label={t('app.entries.amount_label')} bind:value={draftAmount} maxlength={40} />
+    {#snippet actions()}<Button tone="secondary" onclick={() => (amending = undefined)}>{t('app.entries.cancel')}</Button>{/snippet}
   </Dialog>
 {/if}
 

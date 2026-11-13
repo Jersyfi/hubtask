@@ -239,14 +239,12 @@
     title={t('app.feeds.revoke_title')}
     dismissLabel={t('app.workspace.cancel')}
     onClose={() => (revoking = undefined)}
+    primary={{ label: t('app.feeds.revoke'), onclick: confirmRevoke, tone: 'danger', isBusy: isWorking, busyLabel: t('app.workspace.saving') }}
   >
     <Stack gap="150">
       <p class="quiet">{t('app.feeds.revoke_explains')}</p>
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Inline gap="100">
-        <Button tone="danger" isBusy={isWorking} busyLabel={t('app.workspace.saving')} onclick={confirmRevoke}>
-          {t('app.feeds.revoke')}
-        </Button>
         <Button tone="secondary" onclick={() => (revoking = undefined)}>{t('app.workspace.cancel')}</Button>
       </Inline>
     </Stack>

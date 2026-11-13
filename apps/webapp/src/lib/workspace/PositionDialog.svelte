@@ -7,7 +7,7 @@
   // marked, and Up and Down on every row (WCAG 2.5.7). Each press is the same write the drag sends;
   // the list follows at once.
 
-  import { Button, Dialog, IconButton } from '@hubtask/design-system/components';
+  import { Dialog, IconButton } from '@hubtask/design-system/components';
 
   import { t } from '../i18n/i18n.svelte.ts';
 
@@ -25,7 +25,7 @@
   let { isOpen = $bindable(), id, name, siblings, onmove }: Props = $props();
 </script>
 
-<Dialog size="m" bind:isOpen title={t('app.place.position_title', { name })} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="m" bind:isOpen title={t('app.place.position_title', { name })} dismissLabel={t('app.workspace.cancel')} primary={{ label: t('app.place.position_done'), onclick: () => (isOpen = false) }}>
   <ol class="order" aria-label={t('app.place.position_order')} data-position-order>
     {#each siblings as each, index (each.id)}
       <li aria-current={each.id === id ? 'true' : undefined}>
@@ -37,9 +37,6 @@
       </li>
     {/each}
   </ol>
-  {#snippet actions()}
-    <Button onclick={() => (isOpen = false)}>{t('app.place.position_done')}</Button>
-  {/snippet}
 </Dialog>
 
 <style>

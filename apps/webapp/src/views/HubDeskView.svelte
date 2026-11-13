@@ -240,23 +240,21 @@
   {/if}
 </WorkPage>
 
-<Dialog size="s" bind:isOpen={isNaming} title={t('app.hub_desk.save_as_queue')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="s" bind:isOpen={isNaming} title={t('app.hub_desk.save_as_queue')} dismissLabel={t('app.workspace.cancel')} primary={{ label: t('app.hub_desk.save_as_queue'), onclick: saveQueue, isBusy: isSaving, busyLabel: t('app.hub_desk.saving'), disabledReason: newName.trim() === '' ? t('app.workspace.name_required') : undefined }}>
   <Stack gap="150">
     <Input label={t('app.hub_desk.queue_name')} bind:value={newName} />
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isNaming = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="primary" isBusy={isSaving} busyLabel={t('app.hub_desk.saving')} disabledReason={newName.trim() === '' ? t('app.workspace.name_required') : undefined} data-save-queue onclick={saveQueue}>{t('app.hub_desk.save_as_queue')}</Button>
   {/snippet}
 </Dialog>
 
-<Dialog size="s" bind:isOpen={isDeleting} title={t('app.hub_desk.delete_title', { name: queueName })} dismissLabel={t('app.workspace.cancel')}>
+<Dialog size="s" bind:isOpen={isDeleting} title={t('app.hub_desk.delete_title', { name: queueName })} dismissLabel={t('app.workspace.cancel')} primary={{ label: t('app.hub_desk.delete_queue'), onclick: deleteQueue, tone: 'danger', isBusy: isSaving, busyLabel: t('app.hub_desk.deleting') }}>
   <p class="quiet">{t('app.hub_desk.delete_body')}</p>
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.workspace.cancel')}</Button>
-    <Button tone="danger" isBusy={isSaving} busyLabel={t('app.hub_desk.deleting')} data-delete-queue onclick={deleteQueue}>{t('app.hub_desk.delete_queue')}</Button>
   {/snippet}
 </Dialog>
 
