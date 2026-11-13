@@ -11,7 +11,7 @@
   // dialog. Without the right to change the entry neither naming nor removing is drawn (P-05).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Dialog, IconButton, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, IconButton, Skeleton, Stack, VisuallyHidden } from '@hubtask/design-system/components';
   import type { ConfigurationItem, EntryCis, EntryOnCi } from '@hubtask/sync-engine';
 
   import CiPicker from '../assets/CiPicker.svelte';
@@ -103,25 +103,37 @@
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else if answer.cis.length > 0}
-    <ul class="rows">
-      {#each answer.cis as ci (ci.ci_id)}
-        <li class="row" data-affected-ci={ci.ci_id}>
-          <span class="what">
-            <a href={`/cis/${ci.ci_id}`}>{ci.name}</a>
-            <span class="quiet">{classWord(ci.class)}</span>
-            <Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge>
-          </span>
-          {#if mayChange}
-            <IconButton
-              icon="x" size="sm" tone="subtle"
-              label={t('app.affected.remove', { name: ci.name })}
-              data-unaffect-ci={ci.ci_id}
-              onclick={() => void remove(ci.ci_id)}
-            />
-          {/if}
-        </li>
-      {/each}
-    </ul>
+    <!-- A table, as the ticket's scene draws it (§6.9): what it is, its class and its stage in
+         columns, so several items read across rather than as a run of words. -->
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">{t('app.affected.col_name')}</th>
+          <th scope="col">{t('app.affected.col_class')}</th>
+          <th scope="col">{t('app.affected.col_stage')}</th>
+          {#if mayChange}<th scope="col"><VisuallyHidden>{t('app.affected.col_acts')}</VisuallyHidden></th>{/if}
+        </tr>
+      </thead>
+      <tbody>
+        {#each answer.cis as ci (ci.ci_id)}
+          <tr data-affected-ci={ci.ci_id}>
+            <td class="name-cell"><a href={`/cis/${ci.ci_id}`}>{ci.name}</a></td>
+            <td class="quiet">{classWord(ci.class)}</td>
+            <td><Badge size="sm">{t(`app.assets.stage.${ci.stage}`)}</Badge></td>
+            {#if mayChange}
+              <td class="act">
+                <IconButton
+                  icon="x" size="sm" tone="subtle"
+                  label={t('app.affected.remove', { name: ci.name })}
+                  data-unaffect-ci={ci.ci_id}
+                  onclick={() => void remove(ci.ci_id)}
+                />
+              </td>
+            {/if}
+          </tr>
+        {/each}
+      </tbody>
+    </table>
 
     <div class="group">
       <h3 class="relation">{t('app.affected.services')}</h3>
@@ -201,4 +213,11 @@
   .key { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refusal { margin: 0; color: var(--text-danger); }
+
+  .table { inline-size: 100%; border-collapse: collapse; font-size: var(--fs-090); }
+  .table th { padding: var(--sp-050) var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); text-align: start; border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .table td { padding: var(--sp-050) var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); vertical-align: middle; }
+  .name-cell { overflow-wrap: anywhere; }
+  .name-cell a { color: var(--text-primary); font-weight: var(--fw-medium); }
+  .act { inline-size: 1%; text-align: end; }
 </style>
