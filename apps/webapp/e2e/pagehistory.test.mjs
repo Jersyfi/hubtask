@@ -66,8 +66,13 @@ test('a version brought back stands in the live document, and the next save keep
 
   await page.getByRole('button', { name: 'More for this page' }).click();
   await page.getByRole('menuitem', { name: 'History' }).click();
+  await page.getByRole('button', { name: 'Back to the page' }).click();
+  await body.getByText('Welcome to the team.').waitFor({ timeout: 5_000 });
+  await page.getByRole('button', { name: 'More for this page' }).click();
+  await page.getByRole('menuitem', { name: 'History' }).click();
   await page.getByRole('button', { name: /Sent to legal/ }).click();
   await page.getByRole('button', { name: 'Bring this version back' }).click();
+  await page.getByRole('button', { name: 'Back to the page' }).click();
   await body.getByText(OLDER).waitFor({ timeout: 5_000 });
   assert.equal(await body.getByText('Welcome to the team.').count(), 0, 'the live document still holds the text before the restore');
   assert.deepEqual(seen.restores, [1]);
@@ -81,5 +86,40 @@ test('a version brought back stands in the live document, and the next save keep
   assert.equal(seen.saves.length, 1, 'the edit is saved');
   assert.match(seen.saves[0], /An older welcome, brought back\. Still here\./);
   assert.doesNotMatch(seen.saves[0], /Welcome to the team/);
+  assert.deepEqual(failures, []);
+});
+
+test('the history lists the versions with person, time and name, and compares one side by side or by its changes (phist)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, body, failures } = await opened(browser, t);
+
+  await page.getByRole('button', { name: 'More for this page' }).click();
+  await page.getByRole('menuitem', { name: 'History' }).click();
+  const history = page.locator('[data-page-history]');
+  await history.waitFor({ timeout: 5_000 });
+  assert.equal(await body.isVisible(), false, 'the history stands in the text\'s place');
+  await history.getByRole('heading', { name: 'Versions · 2' }).waitFor();
+  const versions = history.getByRole('listitem');
+  assert.match(await versions.nth(0).innerText(), /Now/);
+  assert.match(await versions.nth(2).innerText(), /Nov 4, 2026.*\n(Jérôme Winkel|Somebody in this workspace)/, 'time and person');
+  assert.match(await versions.nth(2).innerText(), /Sent to legal/, 'a named version carries its name');
+  assert.match(await history.innerText(), /Bringing one back adds a new version; nothing is lost\./);
+
+  // The version before the newest is compared at once, side by side: out struck, in marked.
+  const sides = history.locator('[data-history-sides]');
+  await sides.locator('del', { hasText: OLDER }).waitFor({ timeout: 5_000 });
+  await sides.locator('ins', { hasText: 'Welcome to the team.' }).waitFor();
+  assert.equal(await history.getByRole('button', { name: /Sent to legal/ }).getAttribute('aria-pressed'), 'true');
+  assert.match(await history.innerText(), /1 place/);
+  await history.getByRole('radio', { name: 'Changes only' }).click();
+  const changes = history.locator('[data-history-changes]');
+  await changes.locator('del', { hasText: OLDER }).waitFor({ timeout: 5_000 });
+  assert.equal(await changes.locator('p').count(), 2, 'only the changed lines');
+
+  // Naming is a button on top, for the version compared.
+  await history.getByRole('button', { name: 'Name this version' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Name this version' });
+  assert.equal(await dialog.getByRole('textbox').inputValue(), 'Sent to legal');
   assert.deepEqual(failures, []);
 });

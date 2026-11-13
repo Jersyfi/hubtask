@@ -21,7 +21,7 @@
     AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, PageOutline, Select, Sheet, Spinner, Stack, Switch,
     TemplateCard, TemplateGallery, Textarea, TrustLine, VisuallyHidden, WorkPage,
   } from '@hubtask/design-system/components';
-  import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
+  import { type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
     Page, PageBacklinkList, PageComment, PageCommentList, PageList, PageRead, PageVersionList,
     PageVersionRead,
@@ -49,6 +49,7 @@
   import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
+  import PageHistory from '../lib/pages/PageHistory.svelte';
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -385,7 +386,6 @@
     if (state.status === 'ready') comparing = state.data;
     else if (state.status === 'failed') refusal = renderProblem(state.error, messages).message;
   }
-  const compared = $derived(comparing && current ? compareBodies(comparing.body, current.body ?? '') : []);
 
   // The version comes back through the live document too: the editors hold the text before it and
   // would write it back at their next save.
@@ -402,6 +402,16 @@
 
   let namingSeq = $state<number | undefined>(undefined);
   let nameDraft = $state('');
+  function nameAt(seq: number) {
+    namingSeq = seq;
+    nameDraft = versionState.find((each) => each.seq === seq)?.name ?? '';
+  }
+  // Opening the history compares the version before the newest with the page as it stands.
+  $effect(() => {
+    if (side !== 'history' || comparing || versionState.length === 0) return;
+    const first = versionState[1] ?? versionState[0];
+    if (first) untrack(() => void openVersion(first.seq));
+  });
   async function nameVersion() {
     if (!current || namingSeq === undefined) return;
     const seq = namingSeq;
@@ -557,7 +567,13 @@
       <Spinner label={t('app.pages.loading')} />
     {:else}
       {#key current.id}
-        <div class="reading-page" data-page-reading>
+        {#if side === 'history'}
+          <PageHistory title={current.title} body={current.body ?? ''} changedBy={nameOf(current.updated_by)} changedAt={current.updated_at}
+            versions={versionState} chosen={comparing} writable={current.writable} wide={viewport.isLarge} {nameOf} {when}
+            onchoose={openVersion} onrestore={restoreVersion} onname={nameAt} onclose={() => (side = undefined)} />
+        {/if}
+        <!-- Kept while the history stands in its place: its live document is where a version comes back. -->
+        <div class="reading-page" data-page-reading hidden={side === 'history'}>
           <!-- One row on top: only the path and the people (pread 1); the title follows once, under it. -->
           <div class="top-row" data-page-head>
             <Breadcrumb
@@ -795,39 +811,13 @@
             </nav>
           {/if}
 
-          {#if side === 'history' || side === 'backlinks' || side === 'access' || side === 'details'}
+          {#if side === 'backlinks' || side === 'access' || side === 'details'}
             <aside class="side" aria-label={sideTitle} data-page-side={side}>
               <Inline justify="between" align="center">
                 <h2 class="heading">{sideTitle}</h2>
                 <IconButton size="sm" icon="x" label={t('app.pages.side_close')} onclick={() => (side = undefined)} />
               </Inline>
-              {#if side === 'history'}
-                <Stack gap="100">
-                  <ol class="versions">
-                    {#each versionState as version (version.seq)}
-                      <li>
-                        <button type="button" class="version" class:chosen={comparing?.seq === version.seq} onclick={() => openVersion(version.seq)}>
-                          <span class="seq">{version.name ?? t('app.pages.version', { seq: String(version.seq) })}</span>
-                          <span class="meta">{nameOf(version.author_id)} · {when(version.created_at)}{version.restored_from ? ` · ${t('app.pages.version_restored_from', { seq: String(version.restored_from) })}` : ''}</span>
-                        </button>
-                        {#if current.writable}
-                          <IconButton size="sm" icon="pencil" label={t('app.pages.version_name')} onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }} />
-                        {/if}
-                      </li>
-                    {:else}
-                      <li class="quiet">{t('app.pages.no_versions')}</li>
-                    {/each}
-                  </ol>
-                  {#if comparing}
-                    <h3 class="heading">{t('app.pages.compare', { seq: String(comparing.seq) })}</h3>
-                    <pre class="compare">{#each compared as line, at (at)}<span class={`line ${line.kind}`}>{line.kind === 'added' ? '+ ' : line.kind === 'removed' ? '- ' : '  '}{line.text}
-</span>{/each}</pre>
-                    {#if current.writable}
-                      <Button size="sm" tone="secondary" icon="rotate-ccw" onclick={() => restoreVersion(comparing!.seq)}>{t('app.pages.version_restore')}</Button>
-                    {/if}
-                  {/if}
-                </Stack>
-              {:else if side === 'backlinks'}
+              {#if side === 'backlinks'}
                 <ul class="hits">
                   {#each backlinkState as link (link.source_kind + link.source_id)}
                     <li>
@@ -942,17 +932,8 @@
     gap: var(--sp-200);
   }
   .start { display: grid; gap: var(--sp-200); }
-  .head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-100);
-  }
   .heading { display: grid; gap: calc(var(--sp-050) + var(--sp-025)); }
-  .title-line { display: flex; flex: 1 1 24ch; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
   .here { display: inline-flex; }
-  .versions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .excerpt, .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
@@ -977,6 +958,7 @@
   textarea.title { resize: none; overflow: hidden; field-sizing: content; font-family: var(--font-display); }
   textarea.title:hover { border-color: var(--border-subtle); }
   textarea.title:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  .reading-page[hidden] { display: none; }
   .reading-page { display: grid; gap: var(--sp-200); }
   .top-row {
     display: flex;
@@ -1101,33 +1083,4 @@
   .quote::before { content: open-quote; }
   .quote::after { content: close-quote; }
   .comment .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .versions li { display: flex; align-items: center; gap: var(--sp-050); }
-  .version {
-    flex: 1 1 auto;
-    display: grid;
-    text-align: start;
-    padding: var(--sp-050) var(--sp-100);
-    border: var(--bw-hairline) solid transparent;
-    border-radius: var(--r-sm);
-    background: none;
-    color: var(--text-primary);
-    font: inherit;
-    cursor: pointer;
-  }
-  .version:hover { background: var(--bg-surface-hover); }
-  .version.chosen { border-color: var(--border-default); background: var(--bg-surface-sunken); }
-  .seq { font-weight: var(--fw-medium); }
-  .compare {
-    margin: 0;
-    max-block-size: 60vh;
-    overflow: auto;
-    padding: var(--sp-100);
-    border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
-    font-family: var(--font-mono);
-    font-size: var(--fs-075);
-    white-space: pre-wrap;
-  }
-  .line.added { color: var(--text-success); }
-  .line.removed { color: var(--text-danger); text-decoration: line-through; }
 </style>
