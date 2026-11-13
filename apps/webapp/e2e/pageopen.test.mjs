@@ -162,7 +162,7 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await page.keyboard.type('/');
   const panel = page.locator('[data-box-popover] [data-page-blocks]');
   await panel.waitFor({ timeout: 5_000 });
-  assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'the slash opened the blocks and was not typed');
+  assert.equal(await body.getByText('/', { exact: true }).count(), 1, 'the slash stands in the line, as typed');
   assert.equal(await panel.locator('input:not([type=file])').count(), 0, 'no block fields before a choice');
   // A listbox as every menu: the focus stays in the line, the arrows choose (wrapping), Enter takes.
   const list = panel.getByRole('listbox', { name: 'Insert' });
@@ -176,8 +176,21 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   assert.equal(await activeName(), 'Add formula');
   await page.keyboard.press('Enter');
   await panel.locator('input:not([type=file])').waitFor({ timeout: 5_000 });
-  assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'Enter took the choice and wrote nothing');
+  assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'the choice replaced the slash');
   await page.keyboard.press('Escape');
+  await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
+  // What is typed after "/" narrows the list and is marked; with nothing left it says so; erasing the slash closes it.
+  await body.locator(':scope > :last-child').click();
+  await page.keyboard.press(LINE_END);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('/emb');
+  await panel.waitFor({ timeout: 5_000 });
+  assert.equal(await list.getByRole('option').count(), 1, 'only the matching choice stays');
+  assert.match(await list.getByRole('option').innerText(), /^Embed/);
+  assert.equal(await list.locator('mark').first().innerText(), 'Emb', 'the typed words are marked');
+  await page.keyboard.type('zz');
+  await panel.getByText('No block matches').waitFor({ timeout: 5_000 });
+  for (let i = 0; i < 6; i += 1) await page.keyboard.press('Backspace');
   await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
   // A file among the choices opens the system's file choice.
   await body.locator(':scope > :last-child').click();

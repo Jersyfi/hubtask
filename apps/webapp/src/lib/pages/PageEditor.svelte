@@ -326,8 +326,8 @@
       const seen = editor;
       if (event.key !== '/' || !seen?.isEditable || !seen.state.selection.empty) return;
       if (seen.state.selection.$from.parent.textContent !== '') return;
-      event.preventDefault();
       openInsert(true);
+      slashQuery = '';
     };
     element.addEventListener('keydown', slash, true);
     return () => element.removeEventListener('keydown', slash, true);
@@ -436,6 +436,35 @@
   /** Opened by "/", the focus stays in the line and the editor hands the list its keys (`listKeys`). */
   let insertList = $state<ReturnType<typeof InsertList> | undefined>(undefined);
   let isInsertByKey = $state(false);
+  /** The words typed after "/" in its line, which narrow the list; undefined when "/" did not open it. */
+  let slashQuery = $state<string | undefined>(undefined);
+
+  // The "/" stays in the line and what follows it narrows the list; the line no longer starting with
+  // "/" (erased, or the caret gone to another line) closes it.
+  const isSlashOpen = $derived(slashQuery !== undefined);
+  $effect(() => {
+    const seen = editor;
+    if (!seen || !isAddingBlock || !isSlashOpen) return;
+    return untrack(() => {
+      const follow = () => {
+        if (slashQuery === undefined) return;
+        const text = seen.state.selection.$from.parent.textContent;
+        if (text.startsWith('/')) slashQuery = text.slice(1);
+        else closeInsert();
+      };
+      seen.on('transaction', follow);
+      return () => void seen.off('transaction', follow);
+    });
+  });
+
+  /** A choice taken from "/" replaces the "/" and the words typed after it. */
+  function dropSlash() {
+    const seen = editor;
+    if (!seen || slashQuery === undefined) return;
+    slashQuery = undefined;
+    const at = seen.state.selection.$from;
+    if (at.parent.textContent.startsWith('/')) seen.chain().deleteRange({ from: at.start(), to: at.end() }).run();
+  }
 
   function openInsert(byKey = false) {
     blockForm = undefined;
@@ -489,6 +518,7 @@
   ]);
 
   function choose(id: string) {
+    dropSlash();
     const at = line?.box;
     if (id === 'view' || id === 'page' || id === 'emoji') {
       closeInsert();
@@ -514,6 +544,7 @@
   }
 
   function closeInsert() {
+    slashQuery = undefined;
     isAddingBlock = false;
     blockForm = undefined;
     insertBox = undefined;
@@ -834,6 +865,8 @@
         label={t('app.pages.insert')}
         groups={insertGroups}
         takesFocus={!isInsertByKey}
+        query={slashQuery ?? ''}
+        emptyText={t('app.pages.insert_none')}
         keys={{ move: t('app.pages.insert_keys_move'), take: t('app.pages.insert_keys_take'), close: t('app.pages.insert_keys_close') }}
         onchoose={choose}
         onclose={() => { closeInsert(); editor?.commands.focus(); }}

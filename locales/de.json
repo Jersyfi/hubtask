@@ -11526,6 +11526,7 @@
   "app.pages.insert_keys_move": "wählen",
   "app.pages.insert_keys_take": "einfügen",
   "app.pages.insert_keys_close": "schließen",
+  "app.pages.insert_none": "Kein Block passt",
   "app.pages.insert_detail_view": "Eine gespeicherte Ansicht, live",
   "app.pages.insert_detail_mention": "Mit Status, wie du ihn sehen darfst",
   "app.pages.insert_detail_page": "Ein Verweis auf eine andere Seite dieses Bereichs",
