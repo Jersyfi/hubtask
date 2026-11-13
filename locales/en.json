@@ -3433,6 +3433,8 @@
   "app.skip_to_content": "Skip to the content",
   "app.entries.title": "Entries",
   "app.entries.none": "No entries in this collection yet.",
+  "app.entries.none_matching": "No entry matches what is seen.",
+  "app.entries.show_all": "Show all entries",
   "app.entries.add": "Add an entry",
   "app.entries.add_in": "Entry in “{group}”",
   "app.entries.advance": "Move on: {name}",

@@ -1702,6 +1702,8 @@
               {readOnlyReason}
               {readOnlyNoticeId}
               {query}
+              onshowall={() => { line = ''; kept = undefined; }}
+              ontemplate={!readOnlyReason && templates.of(container.id).length > 0 ? () => (isUsingTemplates = true) : undefined}
               isExpanded={layout === 'LIST_EXPANDED'}
               {lastResults}
               onopen={opensBeside ? openBeside : undefined}

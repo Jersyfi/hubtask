@@ -115,6 +115,10 @@
     readOnlyNoticeId?: string;
     /** What the reader has asked of this level: a filter, an order. Built from the manifest. */
     query?: ItemsQuery;
+    /** Empties what is seen, for the filtered empty state's one act (§4.2). */
+    onshowall?: () => void;
+    /** Opens the templates, the empty collection's side way in (WB-6). */
+    ontemplate?: () => void;
     /**
      * `LIST_EXPANDED` rather than `LIST_COLLAPSED`: every row that takes children shows them.
      *
@@ -211,6 +215,8 @@
     readOnlyReason,
     readOnlyNoticeId,
     query,
+    onshowall,
+    ontemplate,
     isExpanded = false,
     lastResults,
     onopen,
@@ -1386,14 +1392,24 @@
           {/each}
         {/if}
       </div>
+    {:else if rows.length === 0 && query?.filter && !root}
+      <!-- §4.2: empty because of what is seen, not because nothing is there - said so, with the way
+           back to everything, never the empty collection's invitation. -->
+      <EmptyState kind="filtered" title={t('app.entries.none_matching')} icon="funnel">
+        {#snippet action()}
+          {#if onshowall}<Button tone="secondary" onclick={onshowall}>{t('app.entries.show_all')}</Button>{/if}
+        {/snippet}
+      </EmptyState>
     {:else if rows.length === 0}
-      <!-- §4.1's empty state, the one that carries a call to action: capture, pointed here. -->
+      <!-- §4.1's empty state, the one that carries a call to action: capture, pointed here; a
+           template is the side way in (WB-6). -->
       <EmptyState kind="unused" title={t(root ? 'app.item.no_children' : 'app.entries.none')} icon="task">
         {#snippet action()}
           {#if !isReadOnly && mayCreate && topTypes().length > 0}
             {#each addControls as control (control.label)}
               <Button data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{control.label}</Button>
             {/each}
+            {#if ontemplate && !root}<Button tone="secondary" icon="copy" onclick={ontemplate}>{t('app.templates.from')}</Button>{/if}
           {/if}
         {/snippet}
       </EmptyState>

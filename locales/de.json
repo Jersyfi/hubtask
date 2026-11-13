@@ -3416,6 +3416,8 @@
   "app.skip_to_content": "Zum Inhalt springen",
   "app.entries.title": "Einträge",
   "app.entries.none": "Noch keine Einträge in dieser Sammlung.",
+  "app.entries.none_matching": "Kein Eintrag passt zu dem, was gezeigt wird.",
+  "app.entries.show_all": "Alle Einträge zeigen",
   "app.entries.add": "Eintrag hinzufügen",
   "app.entries.add_in": "Eintrag in „{group}“",
   "app.entries.advance": "Weiter: {name}",
