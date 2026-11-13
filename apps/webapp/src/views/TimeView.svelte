@@ -28,7 +28,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, ProductBand, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
+    Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, ProductBand, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { CapacityList, PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
@@ -130,7 +130,6 @@
   });
   const grid = $derived(sheet ? weekGrid(sheet.records, days) : []);
   const isOpen = $derived(sheet?.state === 'OPEN' || sheet?.state === 'REJECTED');
-  const stateTone = (state: Timesheet['state']) => (state === 'APPROVED' ? 'success' : state === 'REJECTED' ? 'warning' : state === 'SUBMITTED' ? 'info' : 'neutral');
   const entryChoices = $derived.by(() => {
     const seen = new Map<string, string>();
     for (const record of sheet?.records ?? []) if (record.entry_id && !seen.has(record.entry_id)) seen.set(record.entry_id, record.entry_title);
@@ -150,13 +149,19 @@
     { id: 'note', label: t('app.time.col_note'), priority: 3 },
   ]);
   /** A row of a week's grid, the totals last: the grid's foot is its last row (DataTable has no foot row). */
-  type GridLine = { key: string; entryId?: string | null; title?: string; workType?: string; minutes: readonly number[]; total: number; isTotal?: boolean; capacity?: readonly number[] };
-  /** The rows, then the totals, then - on the reader's own week - the day's capacity as a bar (scene time). */
-  const gridLines = (rows: readonly GridLine[], totals?: { days: readonly { minutes: number }[]; minutes: number }, perDay?: readonly number[]): GridLine[] => {
+  type GridLine = { key: string; entryId?: string | null; title?: string; workType?: string; minutes: readonly number[]; total: number; isTotal?: boolean; capacity?: readonly number[]; isAdd?: boolean };
+  /**
+   * The rows, then - while the week takes time - a row that adds an entry, then the totals, then -
+   * on the reader's own week - the day's capacity as a bar (scene time).
+   */
+  const gridLines = (rows: readonly GridLine[], totals?: { days: readonly { minutes: number }[]; minutes: number }, perDay?: readonly number[], isAdding = false): GridLine[] => {
     if (!totals) return [...rows];
+    const lines = isAdding ? [...rows, { key: '__add', minutes: [], total: 0, isAdd: true }] : [...rows];
     const total = { key: '__total', minutes: totals.days.map((day) => day.minutes), total: totals.minutes, isTotal: true };
-    return perDay && perDay.some((each) => each > 0) ? [...rows, total, { ...total, key: '__capacity', isTotal: false, capacity: perDay }] : [...rows, total];
+    return perDay && perDay.some((each) => each > 0) ? [...lines, total, { ...total, key: '__capacity', isTotal: false, capacity: perDay }] : [...lines, total];
   };
+  /** The week's state for the band's lozenge (scene time). */
+  const sheetState = (state: Timesheet['state']) => state.toLowerCase();
   // The verb repeats in the menu: a phone draws the menu's sheet, not the verb.
   const isCorrectable = (record: PlacedTimeRecord) =>
     !!sheet && record.source !== 'CORRECTION' && (sheet.state === 'APPROVED' || sheet.days.some((d) => d.day === record.day && d.locked));
@@ -257,7 +262,6 @@
       ? [
           weekCapacity > 0 ? t('app.time.week_of_capacity', { minutes: minutesText(sheet.minutes), capacity: minutesText(weekCapacity) }) : t('app.time.week_total', { minutes: minutesText(sheet.minutes) }),
           weekText,
-          t(`app.time.state_${sheet.state}`),
         ]
       : [],
   );
@@ -440,28 +444,6 @@
             <span><Button size="sm" tone="subtle" icon="plus" onclick={() => openRecord(undefined, shownDay)}>{t('app.time.record_on', { day: longDay(shownDay), minutes: minutesText(dayRecords.reduce((sum, each) => sum + each.minutes, 0)) })}</Button></span>
           {/if}
         </section>
-      {:else if sheet.records.length === 0}
-      <ol class="days" aria-label={t('app.time.days', { week: weekText })}>
-        {#each strip as each (each.day)}
-          <li>
-            {#if mayRecord && !each.isLocked}
-              <button type="button" class="day" data-today={each.isToday ? '' : undefined}
-                aria-label={t('app.time.record_on', { day: longDay(each.day), minutes: minutesText(each.minutes) })}
-                onclick={() => openRecord(undefined, each.day)}>
-                <span class="weekday">{dayHeading(each.day, locale)}</span>
-                <span class="sum" data-none={each.minutes === 0 ? '' : undefined}>{minutesText(each.minutes)}</span>
-                <span class="add" aria-hidden="true"><Icon name="plus" size="sm" /></span>
-              </button>
-            {:else}
-              <div class="day" data-today={each.isToday ? '' : undefined} data-locked={each.isLocked ? '' : undefined}>
-                <span class="weekday">{dayHeading(each.day, locale)}</span>
-                <span class="sum" data-none={each.minutes === 0 ? '' : undefined}>{minutesText(each.minutes)}</span>
-                {#if each.isLocked}<span class="note"><Icon name="lock" size="sm" /><span>{t('app.time.locked')}</span></span>{/if}
-              </div>
-            {/if}
-          </li>
-        {/each}
-      </ol>
       {/if}
 
       {#if sheet.records.length === 0}
@@ -472,7 +454,7 @@
         {#if !viewport.isCompact}
           <section class="block" aria-labelledby="time-grid">
             <h2 id="time-grid" class="heading">{t('app.time.grid', { minutes: minutesText(sheet.minutes) })}</h2>
-            <DataTable label={t('app.time.grid', { minutes: minutesText(sheet.minutes) })} columns={gridColumns} rows={gridLines(grid, sheet, capacity)} key={(row: GridLine) => row.key}>
+            <DataTable label={t('app.time.grid', { minutes: minutesText(sheet.minutes) })} columns={gridColumns} rows={gridLines(grid, sheet, capacity, mayRecord)} key={(row: GridLine) => row.key}>
               {#snippet cell(row: GridLine, column: DataColumn)}{@render gridCell(row, column, days, true)}{/snippet}
             </DataTable>
           </section>
@@ -602,7 +584,9 @@
 </WorkPage>
 
 {#snippet gridCell(row: GridLine, column: DataColumn, columnDays: readonly string[], isLinked: boolean)}
-  {#if row.capacity}
+  {#if row.isAdd}
+    {#if column.id === 'entry'}<button type="button" class="add-row" data-add-entry onclick={() => openRecord(undefined)}><Icon name="plus" size="sm" /><span>{t('app.time.add_row')}</span></button>{/if}
+  {:else if row.capacity}
     {#if column.id === 'entry'}{t('app.time.capacity_row')}
     {:else if column.id !== 'kind' && column.id !== 'total'}{@const at = columnDays.indexOf(column.id)}{@const of = row.capacity[at] ?? 0}
       {#if of > 0}<span class="cap" data-capacity={of} role="img" aria-label={t('app.time.day_of_capacity', { minutes: minutesText(row.minutes[at] ?? 0), capacity: minutesText(of) })}><span class="cap-fill" style:inline-size={`${Math.min(100, Math.round(((row.minutes[at] ?? 0) / of) * 100))}%`}></span></span>{/if}
@@ -619,6 +603,7 @@
 {#snippet top()}
   <div class="top" data-head="time">
     <ProductBand product="time" icon="clock" name={current === 'week' ? t('app.time.tab_week') : t('app.time.title')} figures={bandFigures}
+      state={sheet && current === 'week' ? { label: t(`app.time.state_${sheet.state}`), vocabulary: 'timesheet', state: sheetState(sheet.state) } : undefined}
       primary={current === 'week' ? recordPrimary : undefined}
       breadcrumb={{
         trail: [
@@ -647,7 +632,6 @@
       </div>
       {#if sheet}
         <div class="acts">
-          <Badge size="sm" tone={stateTone(sheet.state)}>{t(`app.time.state_${sheet.state}`)}</Badge>
           {#if isOpen}
             <Button size="sm" tone="secondary" icon="copy" onclick={() => void act(async () => {
               const copied = await time.copyPrevious(monday);
@@ -745,14 +729,14 @@
   .booking-title { overflow: hidden; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; }
   .hand-in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .hand-in p { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
-  .add { position: absolute; inset-block-start: var(--sp-050); inset-inline-end: var(--sp-050); color: var(--text-subtle); opacity: 0; }
-  button.day:hover .add, button.day:focus-visible .add { opacity: 1; }
+  .add-row { display: inline-flex; align-items: center; gap: var(--sp-050); padding: 0; border: 0; background: none; color: var(--text-secondary); font: inherit; cursor: pointer; white-space: nowrap; }
+  .add-row:hover { color: var(--text-primary); }
+  .add-row:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-ring); border-radius: var(--r-sm); }
   .share { display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--sp-100); inline-size: 100%; min-inline-size: var(--sp-800); }
   .bar { display: block; max-inline-size: var(--sp-800); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--accent-primary); }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .day { padding: var(--sp-050); }
     .sum { font-size: var(--fs-100); }
-    .note span { display: none; }
   }
 </style>

@@ -126,6 +126,12 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   assert.equal(await page.locator('[data-capacity="480"]').count(), 5, 'each weekday says its capacity');
   assert.match((await page.locator('[data-capacity]').first().getAttribute('aria-label')) ?? '', / of 8:00$/u);
   assert.equal(await page.getByRole('row').filter({ hasText: 'Capacity' }).count(), 1, 'the capacity is a row of the grid');
+  // An entry is added from a row inside the grid, and the week's state is a lozenge in the band.
+  await page.getByRole('row').locator('[data-add-entry]').filter({ hasText: 'Add an entry' }).click();
+  await page.getByRole('dialog', { name: 'Record time' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await page.locator('.band .figures .lozenge[data-tone="neutral"]').filter({ hasText: 'Open' }).locator('svg').waitFor();
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).count(), 0, 'the desktop draws the grid, no day strip');
   // Handing in says what happens next, under the week.
   await page.locator('[data-hand-in]').getByText(/sends the week for approval/u).waitFor();
   await page.getByRole('button', { name: 'Hand in the week' }).click();
@@ -264,8 +270,8 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   assert.deepEqual(walk.unstubbed(), []);
 });
 
-// A locked day is drawn as a card that is not a button, so both kinds are measured.
-for (const isLocked of [false, true]) test(`chromium: time - 1280 px, each ${isLocked ? 'locked' : 'open'} day card keeps inside its own cell and the content edge`, async (t) => {
+// The strip is the phone's (scene time); a locked day is measured as well as an open one.
+for (const isLocked of [false, true]) test(`chromium: time - 390 px, each ${isLocked ? 'locked' : 'open'} day of the strip keeps inside its own cell and the content edge`, async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const backend = timeBackend();
@@ -274,7 +280,7 @@ for (const isLocked of [false, true]) test(`chromium: time - 1280 px, each ${isL
     if (isLocked && answered?.json?.days) return { json: { ...answered.json, days: answered.json.days.map((day) => ({ ...day, locked: true })) } };
     return answered;
   };
-  const walk = await productWalk(browser, { modules: ['TIME'], answer, width: 1280, height: 900 });
+  const walk = await productWalk(browser, { modules: ['TIME'], answer, width: 390, height: 844 });
   t.after(walk.close);
   const { page } = walk;
 
