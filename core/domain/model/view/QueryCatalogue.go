@@ -30,7 +30,7 @@ var entryObjects = []string{"task", "workpackage", "activity", "ticket"}
 
 // QueryKeys is the catalogue the doors serve (GET /query/keys): only keys the server answers, so
 // a client never offers what the server refuses (api-guidelines.md §3.1). A product prefix with no
-// key here - plan., asset., page., post., goal., time. - has none the server answers yet.
+// key here - asset., page., post., goal., time. - has none the server answers yet.
 func QueryKeys() []QueryKey {
 	isValues := []string{"open", "done", "blocked", "blocking", "archived", "trashed"}
 	times := []string{"due: <today", "updated: -7d", "due: this-week", "created: 2026-10-01..2026-10-31"}
@@ -56,6 +56,13 @@ func QueryKeys() []QueryKey {
 		{Key: "desk.sla", Field: FieldSLADue, Value: "time", Product: "desk", Objects: entryObjects, Examples: []string{"desk.sla: <+1d"}},
 		{Key: "desk.standing", Field: FieldSLAStanding, Value: "choice", Product: "desk", Objects: entryObjects, Values: lower(SLAStandings()), Examples: []string{"desk.standing: at_risk, breached"}},
 		{Key: "desk.satisfaction", Field: FieldSatisfaction, Value: "number", Product: "desk", Objects: entryObjects, Examples: []string{"desk.satisfaction: <=2"}},
+		{Key: "hub", Field: FieldHub, Value: "place", Objects: entryObjects, Examples: []string{"hub: here"}},
+		{Key: "under", Field: FieldUnder, Value: "relation", Objects: entryObjects, Examples: []string{"under: TAMA-1"}},
+		{Key: "blocks", Field: FieldBlocks, Value: "relation", Objects: entryObjects, Examples: []string{"blocks: TAMA-1"}},
+		{Key: "affects", Field: FieldAffects, Value: "relation", Objects: entryObjects},
+		{Key: "plan.sprint", Field: FieldSprint, Value: "relation", Product: "plan", Objects: entryObjects, Values: []string{"none"}, Examples: []string{"plan.sprint: none"}},
+		{Key: "plan.release", Field: FieldRelease, Value: "relation", Product: "plan", Objects: entryObjects, Values: []string{"none"}, Examples: []string{"plan.release: none"}},
+		{Key: "plan.slip", Field: FieldSlip, Value: "number", Product: "plan", Objects: entryObjects, Examples: []string{"plan.slip: >0", "plan.slip: >=5"}},
 		{Key: CustomKeyPrefix, Field: CustomFieldPrefix, Value: "custom", Product: "cf", Objects: entryObjects, Examples: []string{"cf.priority: >=3"}},
 		{Key: "sort", Value: "sort", Objects: entryObjects, Examples: []string{"sort: -updated", "sort: due"}},
 	}

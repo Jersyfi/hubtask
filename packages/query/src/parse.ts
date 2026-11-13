@@ -57,7 +57,9 @@ const FIELDS: readonly Field[] = [
   { name: 'text', kind: 'text' }, { name: 'blocked', kind: 'boolean' }, { name: 'blocking', kind: 'boolean' },
   { name: 'linked_to', kind: 'id' }, { name: 'sla_due', kind: 'timestamp', sortable: true },
   { name: 'sla_standing', kind: 'enum', values: SLA_STANDINGS }, { name: 'group_queue_of', kind: 'id' },
-  { name: 'satisfaction', kind: 'integer' },
+  { name: 'satisfaction', kind: 'integer' }, { name: 'hub_id', kind: 'id' }, { name: 'under', kind: 'id' },
+  { name: 'blocks', kind: 'id' }, { name: 'affects', kind: 'id' }, { name: 'sprint_id', kind: 'id' },
+  { name: 'release_id', kind: 'id' }, { name: 'slip_days', kind: 'integer' },
 ];
 
 export const READER_KEYS: Readonly<Record<string, string>> = {
@@ -65,6 +67,8 @@ export const READER_KEYS: Readonly<Record<string, string>> = {
   label: 'labels', created: 'created_at', updated: 'updated_at', due: 'due_at', start: 'start_at',
   done: 'completed_at', title: 'title', text: 'text', note: 'notes', linked: 'linked_to', parent: 'parent_id',
   'desk.sla': 'sla_due', 'desk.standing': 'sla_standing', 'desk.satisfaction': 'satisfaction',
+  hub: 'hub_id', under: 'under', blocks: 'blocks', affects: 'affects', 'plan.sprint': 'sprint_id',
+  'plan.release': 'release_id', 'plan.slip': 'slip_days',
 };
 const FIELD_KEYS: Record<string, string> = Object.fromEntries(Object.entries(READER_KEYS).map(([k, v]) => [v, k]));
 

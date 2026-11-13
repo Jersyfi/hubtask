@@ -47,7 +47,8 @@ var readerKeys = map[string]string{
 	"updated": FieldUpdatedAt, "due": FieldDueAt, "start": FieldStartAt, "done": FieldCompletedAt,
 	"title": FieldTitle, "text": FieldText, "note": FieldNotes, "linked": FieldLinkedTo,
 	"parent": FieldParentID, "desk.sla": FieldSLADue, "desk.standing": FieldSLAStanding,
-	"desk.satisfaction": FieldSatisfaction,
+	"desk.satisfaction": FieldSatisfaction, "hub": FieldHub, "under": FieldUnder, "blocks": FieldBlocks,
+	"affects": FieldAffects, "plan.sprint": FieldSprint, "plan.release": FieldRelease, "plan.slip": FieldSlip,
 }
 
 // fieldKeys is readerKeys turned round, for the formatter.

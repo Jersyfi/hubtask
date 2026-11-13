@@ -913,6 +913,15 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldGroupQueueOf:
 		b.groupQueue(node)
 		return
+	case view.FieldUnder:
+		b.under(node)
+		return
+	case view.FieldBlocks:
+		b.blocks(node)
+		return
+	case view.FieldAffects:
+		b.affects(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
@@ -1026,6 +1035,38 @@ func (b *builder) linkedTo(node view.Node) {
 	b.write(`)) OR (ln.target_id = wi.id AND ln.source_id = ANY(`)
 	b.array(node.Field, node.Values)
 	b.write(`))))`)
+}
+
+// under writes whether the entry stands below one of the given entries: every path ends with the
+// separator and holds the entry's own identifier, so a descendant's path starts with the
+// ancestor's and the ancestor itself is left out by identity.
+func (b *builder) under(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM work_item up WHERE up.tenant_id = wi.tenant_id AND up.id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`) AND up.id <> wi.id AND starts_with(wi.path, up.path))`)
+}
+
+// blocks writes whether the entry holds one of the given entries up over a link whose type
+// waits: the given entry is the waiting side (waitingLink's direction for blocking).
+func (b *builder) blocks(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM entry_link bl`)
+	b.write(` LEFT JOIN link_type lt ON lt.tenant_id = bl.tenant_id AND lt.key = bl.own_type`)
+	b.write(` CROSS JOIN LATERAL (SELECT CASE bl.link_type WHEN 'blocks' THEN 'TARGET'`)
+	b.write(` WHEN 'depends_on' THEN 'SOURCE' ELSE lt.waits END AS waits) lw`)
+	b.write(` WHERE bl.tenant_id = wi.tenant_id AND (`)
+	b.write(`(lw.waits = 'TARGET' AND bl.source_id = wi.id AND bl.target_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`)) OR (lw.waits = 'SOURCE' AND bl.target_id = wi.id AND bl.source_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`))))`)
+}
+
+// affects writes whether the entry names one of the given configuration items as affected.
+func (b *builder) affects(node view.Node) {
+	b.write(`EXISTS (SELECT 1 FROM cmdb_affected ca WHERE ca.tenant_id = wi.tenant_id AND ca.item_id = wi.id`)
+	b.write(` AND ca.ci_id = ANY(`)
+	b.array(node.Field, node.Values)
+	b.write(`))`)
 }
 
 // groupQueue writes whether the entry's collection has an auto-assign policy naming, as a GROUP
