@@ -216,7 +216,7 @@ body {
   padding-inline: clamp(var(--sp-300), 4vw, var(--sp-500));
 }
 
-.narrow {
+.site-narrow {
   max-width: 74ch;
 }
 
@@ -614,17 +614,17 @@ main {
   display: block;
 }
 
-.section {
+.site-section {
   padding-block: var(--sp-1000);
   border-block-start: var(--bw-hairline) solid var(--border-subtle);
 }
 
-.section:first-of-type {
+.site-section:first-of-type {
   border-block-start: none;
 }
 
-.section > .wrap > p,
-.section > .wrap > .lede {
+.site-section > .wrap > p,
+.site-section > .wrap > .lede {
   max-width: 72ch;
 }
 
@@ -829,7 +829,7 @@ main {
 
 /* ── Numbers ──────────────────────────────────────────────────────────────── */
 
-.figures {
+.site-figures {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(16ch, 100%), 1fr));
   gap: var(--sp-500) var(--sp-300);
@@ -1043,7 +1043,7 @@ td .site-part {
 
 /* ── The roadmap rail ─────────────────────────────────────────────────────── */
 
-.rail {
+.site-rail {
   list-style: none;
   margin: var(--sp-500) 0 0;
   padding: 0 0 0 var(--sp-400);
@@ -1052,11 +1052,11 @@ td .site-part {
   gap: var(--sp-500);
 }
 
-.rail li {
+.site-rail li {
   position: relative;
 }
 
-.rail li::before {
+.site-rail li::before {
   content: '';
   position: absolute;
   inset-inline-start: calc(-1 * var(--sp-400) - var(--sp-050));
@@ -1067,11 +1067,11 @@ td .site-part {
   background: var(--border-default);
 }
 
-.rail li[data-state='done']::before {
+.site-rail li[data-state='done']::before {
   background: var(--accent-signature);
 }
 
-.rail li[data-state='now']::before {
+.site-rail li[data-state='now']::before {
   background: var(--accent-primary);
   box-shadow: 0 0 0 var(--sp-050) var(--accent-primary-subtle);
 }
@@ -1098,15 +1098,15 @@ td .site-part {
   color: var(--text-subtle);
 }
 
-.rail li[data-state='done'] .rail-state {
+.site-rail li[data-state='done'] .rail-state {
   color: var(--accent-signature);
 }
 
-.rail li[data-state='now'] .rail-state {
+.site-rail li[data-state='now'] .rail-state {
   color: var(--accent-primary);
 }
 
-.rail p {
+.site-rail p {
   margin-block-start: var(--sp-100);
   font-size: var(--fs-100);
   max-width: 84ch;

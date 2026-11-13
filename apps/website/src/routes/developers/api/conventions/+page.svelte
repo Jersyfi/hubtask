@@ -67,7 +67,7 @@ If-Match: "3"
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="site-api-operations">
       <section class="site-api-schema" id="authentication">

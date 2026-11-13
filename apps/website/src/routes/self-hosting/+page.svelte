@@ -31,7 +31,7 @@ docker compose -f deploy/docker/compose.yaml up -d
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">What it needs</p>
@@ -79,7 +79,7 @@ docker compose -f deploy/docker/compose.yaml up -d
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Backups</p>
@@ -125,7 +125,7 @@ docker compose -f deploy/docker/compose.yaml up -d
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Running it</p>
@@ -181,7 +181,7 @@ docker compose -f deploy/docker/compose.yaml up -d
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">A fleet</p>

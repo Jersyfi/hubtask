@@ -25,13 +25,13 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The milestones</p>
       <h2>What was built, and in which order</h2>
     </div>
-    <ol class="rail">
+    <ol class="site-rail">
       <li data-state="done">
         <div class="rail-head"><span class="rail-version">0.1</span><span class="rail-state">Foundation</span></div>
         <p>
@@ -139,7 +139,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The method</p>
@@ -191,19 +191,19 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">After 1.0</p>
       <h2>What the freeze means</h2>
     </div>
-    <p class="narrow">
+    <p class="site-narrow">
       From the convergence milestone onwards there are no new features until the release — only
       defects. A stabilisation phase that still accepts features is not a stabilisation phase, and
       every date after it is a guess. New requirements go to the next minor, or they arrive with a
       decision record that says what the exception costs.
     </p>
-    <p class="narrow">
+    <p class="site-narrow">
       After 1.0, API v1 is stable, event schemas are versioned, and a client regression blocks a
       release exactly as an API regression does.
     </p>

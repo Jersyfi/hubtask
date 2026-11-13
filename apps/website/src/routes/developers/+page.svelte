@@ -31,7 +31,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">One registry</p>
@@ -73,7 +73,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Ask before you guess</p>
@@ -117,7 +117,7 @@ POST /api/v1/items:query
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Agents</p>
@@ -153,7 +153,7 @@ POST /api/v1/items:query
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The rest of the surface</p>
@@ -200,7 +200,7 @@ POST /api/v1/items:query
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Stability</p>

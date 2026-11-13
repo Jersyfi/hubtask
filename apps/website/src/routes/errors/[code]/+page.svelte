@@ -18,9 +18,9 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
-    <div class="narrow">
+    <div class="site-narrow">
       <h2>What to do</h2>
       <p>{entry.action}</p>
       <p>

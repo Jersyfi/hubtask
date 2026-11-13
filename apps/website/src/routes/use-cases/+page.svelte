@@ -25,7 +25,7 @@
   </div>
 </section>
 
-<section class="section" id="individual">
+<section class="site-section" id="individual">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">01 · A private person</p>
@@ -67,7 +67,7 @@
   </div>
 </section>
 
-<section class="section" id="family">
+<section class="site-section" id="family">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">02 · A family</p>
@@ -104,7 +104,7 @@
   </div>
 </section>
 
-<section class="section" id="club">
+<section class="site-section" id="club">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">03 · A club or a small team</p>
@@ -149,7 +149,7 @@
   </div>
 </section>
 
-<section class="section" id="team">
+<section class="site-section" id="team">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">04 · A company running it itself</p>
@@ -233,7 +233,7 @@
   </div>
 </section>
 
-<section class="section" id="consumers">
+<section class="site-section" id="consumers">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">05 · A provider for consumers</p>
@@ -274,7 +274,7 @@
   </div>
 </section>
 
-<section class="section" id="provider">
+<section class="site-section" id="provider">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">06 · A provider for companies</p>
@@ -322,7 +322,7 @@
   </div>
 </section>
 
-<section class="section" id="msp">
+<section class="site-section" id="msp">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">07 · A managed service provider</p>
@@ -356,7 +356,7 @@
   </div>
 </section>
 
-<section class="section" id="builder">
+<section class="site-section" id="builder">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">And across all seven · The builder</p>

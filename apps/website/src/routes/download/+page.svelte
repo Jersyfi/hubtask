@@ -30,7 +30,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The server</p>
@@ -62,7 +62,7 @@ helm upgrade --install hubtask ./k8s \
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">The clients</p>
@@ -111,7 +111,7 @@ helm upgrade --install hubtask ./k8s \
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">First five minutes</p>
@@ -136,7 +136,7 @@ hubctl item complete "$ITEM"</code></pre>
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="callout">
       <p>

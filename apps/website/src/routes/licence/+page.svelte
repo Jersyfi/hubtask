@@ -25,7 +25,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">What it means</p>
@@ -45,7 +45,7 @@
         </tbody>
       </table>
     </div>
-    <p class="narrow section-gap">
+    <p class="site-narrow section-gap">
       What the licence asks is that a copy you pass on carries the licence and the
       <code>NOTICE</code> file, and that changed files say they were changed. It comes with no
       warranty: Hubtask is provided as is, with no support period and no maintenance commitment,
@@ -56,7 +56,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">One edition</p>
@@ -72,7 +72,7 @@
   </div>
 </section>
 
-<section class="section">
+<section class="site-section">
   <div class="wrap">
     <div class="section-head">
       <p class="kicker">Two more things</p>
