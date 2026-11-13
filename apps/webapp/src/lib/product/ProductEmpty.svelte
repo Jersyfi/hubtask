@@ -139,7 +139,7 @@
       {#each templates as template (template.label)}
         <li>
           <!-- The whole card starts it; its name is the button's. -->
-          <button type="button" class="card" data-shape={templateShape} onclick={template.onclick}>
+          <button type="button" class="card" data-shape={templateShape} aria-label={template.label} onclick={template.onclick}>
             {#if template.icon && tile}<span class="mark"><ProductTile icon={template.icon} product={tile} size="sm" /></span>{/if}
             <span class="name">{template.label}</span>
             {#if template.description}<span class="line">{template.description}</span>{/if}

@@ -359,7 +359,7 @@
     <ProductEmpty product="AGENTS"
       kind="unused"
       icon="zap"
-      title={t('app.agents.empty_title')}
+      title={t('app.modules.name_agents')}
       description={t('app.agents.empty_body')}
       create={administers ? { label: t('app.agents.add_agent'), onclick: () => (drafting = {}) } : undefined}
       templates={administers ? SHIPPED_ROLES.slice(0, 3).map((kind) => ({ label: t(`app.agents.kind.${kind}`), description: t(`app.agents.role_purpose.${kind}`), icon: 'zap' as const, onclick: () => (drafting = { role: kind }) })) : []}

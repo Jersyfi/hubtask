@@ -9,7 +9,7 @@
 
   import { untrack } from 'svelte';
   import type { DeadlinesKept, HubQueueList, ResourceState } from '@hubtask/sync-engine';
-  import { Button, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import { Button, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, ViewBar, WorkPage, type IconName, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -34,7 +34,7 @@
     /** The act that starts a hub, where the reader may; a desk is a template's collection in one. */
     createHub?: { label: string; onclick: () => void };
     /** The desk's templates while no desk exists (user-experience.md §4), each starting a hub from one. */
-    templates?: readonly { label: string; onclick: () => void }[];
+    templates?: readonly { label: string; onclick: () => void; description?: string; icon?: IconName }[];
     onnavigate: (path: string) => void;
   }
   const { hubs, isReading, tab, createHub, templates = [], onnavigate }: Props = $props();
@@ -145,7 +145,8 @@
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {/if}
   {:else if desks.length === 0}
-    <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.desk_home.no_desk')} description={t('app.desk_home.no_desk_body')} create={createHub} isInHead {templates} />
+    <ProductEmpty product="SERVICE_DESK" place={{ type: 'TENANT' }} kind="unused" icon="inbox" title={t('app.desk_home.no_desk')} description={t('app.desk_home.no_desk_body')} create={createHub} isInHead {templates}
+      isProductHome side={createHub && templates.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: createHub.onclick } : undefined} />
   {:else if current === 'desks'}
     <ul class="rows" aria-label={t('app.desk_queues.desks')}>
       {#each desks as { desk, hub } (desk.id)}
