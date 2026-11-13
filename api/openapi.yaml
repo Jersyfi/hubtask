@@ -25181,6 +25181,16 @@ components:
             phrase, an exclusion and a word followed by a space are all finished, and are matched
             whole. A hit on a beginning ranks below one on a whole word, because it is weaker
             evidence that these are the words somebody meant.
+        query:
+          type: string
+          maxLength: 4000
+          description: >
+            The search as one Hubtask query instead of `q`, `filter` and `sort`: its free words
+            and phrases are what is looked for and ranked, every `field: value` narrows -
+            `passkey "zweites Gerät" who: me is: open`. Either spelling `POST /items:query`
+            takes; `GET /meta/capabilities` lists the keys under `query_keys`. A `type:` other
+            than an entry's level is `query.kind_not_here`, and the query sent with `q`,
+            `filter` or `sort` is `query.line_with_filter`.
         container_id:
           type: [string, "null"]
           format: uuid
@@ -38228,6 +38238,16 @@ components:
             item_id: { type: string, format: uuid }
             include_descendants: { type: boolean, default: true }
             workspace: { type: boolean, default: false }
+        q:
+          type: string
+          maxLength: 4000
+          description: >
+            The filter as one Hubtask query instead of `filter`, in either spelling `POST
+            /items:query` takes - what a query line counts while somebody types (`who: me
+            is: open` with `scope.workspace` and `COUNT`), and, grouped by a field, the values it
+            suggests with their counts. Free words count the entries they find; a `sort:` is
+            refused with `query.sort_not_here`, and a line sent with `filter` with
+            `query.line_with_filter`.
         filter: { $ref: "#/components/schemas/FilterNode" }
         include_archived: { type: boolean, default: false }
         include_trashed: { type: boolean, default: false }
@@ -38352,7 +38372,15 @@ components:
           type: string
           maxLength: 4000
           description: >
-            The filter and the order as one line instead of `filter` and `sort`, for example
+            The filter and the order as one Hubtask query instead of `filter` and `sort`, in
+            either of its two spellings. The first is `field: value` - `who: me, none is: open
+            due: <today -label: intern sort: -updated`: a comma is or, a space and, a leading `-`
+            not, `<`, `<=`, `>`, `>=` compare, `a..b` is a range, `( … OR … )` and `NOT` group,
+            words without a field find entries by their words, `today`, `-7d`, `+2w`,
+            `this-week` and `overdue` are times the server resolves, `me` and `none` are people;
+            `GET /meta/capabilities` lists the keys under `query_keys`. A key or value it cannot
+            read is `query.field_unknown` or `query.value_unknown` with the character it stops at
+            (`at`) and, where one is near, a `suggestion`. The second is
             `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are
             `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`,
             `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`,
@@ -41128,6 +41156,43 @@ components:
         sortable: { type: boolean }
         groupable: { type: boolean }
 
+    QueryKey:
+      type: object
+      required: [key, value, objects, examples, values]
+      description: >
+        One key of the Hubtask query's `field: value` spelling.
+      properties:
+        key:
+          type: string
+          description: >
+            What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the
+            custom fields, followed by a custom field's key.
+        field:
+          type: string
+          description: >
+            The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which
+            choose a state, the kinds or the order.
+        value:
+          type: string
+          enum: [state, kind, person, place, label, time, number, text, words, choice, flag, relation, sort, custom]
+          description: What kind of value the key takes, which decides the suggestions a client offers.
+        product:
+          type: string
+          description: >
+            The product the key's prefix belongs to (`desk`, `cf`); absent for the keys of
+            every kind.
+        objects:
+          type: array
+          description: The kinds of object the key asks about.
+          items: { type: string }
+        examples:
+          type: array
+          items: { type: string }
+        values:
+          type: array
+          description: The words a key with a closed list takes; empty for the others.
+          items: { type: string }
+
     Capabilities:
       type: object
       description: Self-description; clients configure themselves from this.
@@ -41192,6 +41257,14 @@ components:
             a field whose use case this version does not have is not in it, and filtering on it is
             refused rather than silently matching nothing.
           items: { $ref: "#/components/schemas/QueryField" }
+        query_keys:
+          type: array
+          description: >
+            The keys of the Hubtask query's `field: value` spelling, in the order a client offers
+            them: only keys this installation answers. A client names them in its own language;
+            the key, the value words and the examples stay English, so a saved query survives a
+            change of language.
+          items: { $ref: "#/components/schemas/QueryKey" }
         text_languages:
           type: array
           description: >

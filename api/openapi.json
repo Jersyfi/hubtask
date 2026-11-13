@@ -36611,6 +36611,11 @@
             "maxLength": 200,
             "description": "What to look for. Quoted phrases, `or` between words and a leading minus for exclusion work as they do in a web search box; anything else is read as words to find. Optional where a `filter` is sent: a filtered search with no words is a work list rather than a search, and it is ordered rather than ranked.\n\n**The last word is also matched as a beginning**, so that a search answers while it is still being typed: `Ann` finds *Anna's moments*, and `Momente Chall` finds an entry holding both. Only the last word, and only where it is one plain word - a quoted phrase, an exclusion and a word followed by a space are all finished, and are matched whole. A hit on a beginning ranks below one on a whole word, because it is weaker evidence that these are the words somebody meant.\n"
           },
+          "query": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "The search as one Hubtask query instead of `q`, `filter` and `sort`: its free words and phrases are what is looked for and ranked, every `field: value` narrows - `passkey \"zweites Gerät\" who: me is: open`. Either spelling `POST /items:query` takes; `GET /meta/capabilities` lists the keys under `query_keys`. A `type:` other than an entry's level is `query.kind_not_here`, and the query sent with `q`, `filter` or `sort` is `query.line_with_filter`.\n"
+          },
           "container_id": {
             "type": [
               "string",
@@ -62225,6 +62230,11 @@
               }
             }
           },
+          "q": {
+            "type": "string",
+            "maxLength": 4000,
+            "description": "The filter as one Hubtask query instead of `filter`, in either spelling `POST /items:query` takes - what a query line counts while somebody types (`who: me is: open` with `scope.workspace` and `COUNT`), and, grouped by a field, the values it suggests with their counts. Free words count the entries they find; a `sort:` is refused with `query.sort_not_here`, and a line sent with `filter` with `query.line_with_filter`.\n"
+          },
           "filter": {
             "$ref": "#/components/schemas/FilterNode"
           },
@@ -62390,7 +62400,7 @@
           "q": {
             "type": "string",
             "maxLength": 4000,
-            "description": "The filter and the order as one line instead of `filter` and `sort`, for example `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `\"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.\n"
+            "description": "The filter and the order as one Hubtask query instead of `filter` and `sort`, in either of its two spellings. The first is `field: value` - `who: me, none is: open due: <today -label: intern sort: -updated`: a comma is or, a space and, a leading `-` not, `<`, `<=`, `>`, `>=` compare, `a..b` is a range, `( … OR … )` and `NOT` group, words without a field find entries by their words, `today`, `-7d`, `+2w`, `this-week` and `overdue` are times the server resolves, `me` and `none` are people; `GET /meta/capabilities` lists the keys under `query_keys`. A key or value it cannot read is `query.field_unknown` or `query.value_unknown` with the character it stops at (`at`) and, where one is near, a `suggestion`. The second is `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `\"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.\n"
           },
           "filter": {
             "$ref": "#/components/schemas/FilterNode"
@@ -67516,6 +67526,71 @@
           }
         }
       },
+      "QueryKey": {
+        "type": "object",
+        "required": [
+          "key",
+          "value",
+          "objects",
+          "examples",
+          "values"
+        ],
+        "description": "One key of the Hubtask query's `field: value` spelling.\n",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the custom fields, followed by a custom field's key.\n"
+          },
+          "field": {
+            "type": "string",
+            "description": "The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order.\n"
+          },
+          "value": {
+            "type": "string",
+            "enum": [
+              "state",
+              "kind",
+              "person",
+              "place",
+              "label",
+              "time",
+              "number",
+              "text",
+              "words",
+              "choice",
+              "flag",
+              "relation",
+              "sort",
+              "custom"
+            ],
+            "description": "What kind of value the key takes, which decides the suggestions a client offers."
+          },
+          "product": {
+            "type": "string",
+            "description": "The product the key's prefix belongs to (`desk`, `cf`); absent for the keys of every kind.\n"
+          },
+          "objects": {
+            "type": "array",
+            "description": "The kinds of object the key asks about.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "values": {
+            "type": "array",
+            "description": "The words a key with a closed list takes; empty for the others.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "Capabilities": {
         "type": "object",
         "description": "Self-description; clients configure themselves from this.",
@@ -67602,6 +67677,13 @@
             "description": "What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.\n",
             "items": {
               "$ref": "#/components/schemas/QueryField"
+            }
+          },
+          "query_keys": {
+            "type": "array",
+            "description": "The keys of the Hubtask query's `field: value` spelling, in the order a client offers them: only keys this installation answers. A client names them in its own language; the key, the value words and the examples stay English, so a saved query survives a change of language.\n",
+            "items": {
+              "$ref": "#/components/schemas/QueryKey"
             }
           },
           "text_languages": {

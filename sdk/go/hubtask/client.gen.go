@@ -6195,22 +6195,22 @@ func (e ItemAggregateQueryAggregateFunction) Valid() bool {
 
 // Defines values for ItemAggregateQueryAggregateSource.
 const (
-	Entries ItemAggregateQueryAggregateSource = "entries"
-	Links   ItemAggregateQueryAggregateSource = "links"
-	Pages   ItemAggregateQueryAggregateSource = "pages"
-	Time    ItemAggregateQueryAggregateSource = "time"
+	ItemAggregateQueryAggregateSourceEntries ItemAggregateQueryAggregateSource = "entries"
+	ItemAggregateQueryAggregateSourceLinks   ItemAggregateQueryAggregateSource = "links"
+	ItemAggregateQueryAggregateSourcePages   ItemAggregateQueryAggregateSource = "pages"
+	ItemAggregateQueryAggregateSourceTime    ItemAggregateQueryAggregateSource = "time"
 )
 
 // Valid indicates whether the value is a known member of the ItemAggregateQueryAggregateSource enum.
 func (e ItemAggregateQueryAggregateSource) Valid() bool {
 	switch e {
-	case Entries:
+	case ItemAggregateQueryAggregateSourceEntries:
 		return true
-	case Links:
+	case ItemAggregateQueryAggregateSourceLinks:
 		return true
-	case Pages:
+	case ItemAggregateQueryAggregateSourcePages:
 		return true
-	case Time:
+	case ItemAggregateQueryAggregateSourceTime:
 		return true
 	default:
 		return false
@@ -8302,6 +8302,60 @@ func (e QueryFieldKind) Valid() bool {
 	case QueryFieldKindText:
 		return true
 	case QueryFieldKindTimestamp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for QueryKeyValue.
+const (
+	QueryKeyValueChoice   QueryKeyValue = "choice"
+	QueryKeyValueCustom   QueryKeyValue = "custom"
+	QueryKeyValueFlag     QueryKeyValue = "flag"
+	QueryKeyValueKind     QueryKeyValue = "kind"
+	QueryKeyValueLabel    QueryKeyValue = "label"
+	QueryKeyValueNumber   QueryKeyValue = "number"
+	QueryKeyValuePerson   QueryKeyValue = "person"
+	QueryKeyValuePlace    QueryKeyValue = "place"
+	QueryKeyValueRelation QueryKeyValue = "relation"
+	QueryKeyValueSort     QueryKeyValue = "sort"
+	QueryKeyValueState    QueryKeyValue = "state"
+	QueryKeyValueText     QueryKeyValue = "text"
+	QueryKeyValueTime     QueryKeyValue = "time"
+	QueryKeyValueWords    QueryKeyValue = "words"
+)
+
+// Valid indicates whether the value is a known member of the QueryKeyValue enum.
+func (e QueryKeyValue) Valid() bool {
+	switch e {
+	case QueryKeyValueChoice:
+		return true
+	case QueryKeyValueCustom:
+		return true
+	case QueryKeyValueFlag:
+		return true
+	case QueryKeyValueKind:
+		return true
+	case QueryKeyValueLabel:
+		return true
+	case QueryKeyValueNumber:
+		return true
+	case QueryKeyValuePerson:
+		return true
+	case QueryKeyValuePlace:
+		return true
+	case QueryKeyValueRelation:
+		return true
+	case QueryKeyValueSort:
+		return true
+	case QueryKeyValueState:
+		return true
+	case QueryKeyValueText:
+		return true
+	case QueryKeyValueTime:
+		return true
+	case QueryKeyValueWords:
 		return true
 	default:
 		return false
@@ -14296,6 +14350,9 @@ type Capabilities struct {
 	// QueryFields What `POST /items:query` accepts. A client builds its filter editor from this rather than from a hard-coded list, because the set grows with the installation's features - a field whose use case this version does not have is not in it, and filtering on it is refused rather than silently matching nothing.
 	QueryFields *[]QueryField `json:"query_fields,omitempty"`
 
+	// QueryKeys The keys of the Hubtask query's `field: value` spelling, in the order a client offers them: only keys this installation answers. A client names them in its own language; the key, the value words and the examples stay English, so a saved query survives a change of language.
+	QueryKeys *[]QueryKey `json:"query_keys,omitempty"`
+
 	// RetentionDataKinds The classes of data a retention rule may name, and what this build can do to each. A client builds its rule editor from this rather than from a table compiled into it: a new kind is configurable through the API as soon as the server knows it, and a client with its own list would be the one place that still needed a code change.
 	// `actions` is empty for a kind this build names and nothing removes yet. That is not the same as a kind that does not exist, and it is why the entry is answered at all: a rule for one of those is refused with a code that says which of the two it is.
 	RetentionDataKinds *[]RetentionDataKind `json:"retention_data_kinds,omitempty"`
@@ -19028,6 +19085,9 @@ type ItemAggregateQuery struct {
 	IncludeArchived *bool       `json:"include_archived,omitempty"`
 	IncludeTrashed  *bool       `json:"include_trashed,omitempty"`
 
+	// Q The filter as one Hubtask query instead of `filter`, in either spelling `POST /items:query` takes - what a query line counts while somebody types (`who: me is: open` with `scope.workspace` and `COUNT`), and, grouped by a field, the values it suggests with their counts. Free words count the entries they find; a `sort:` is refused with `query.sort_not_here`, and a line sent with `filter` with `query.line_with_filter`.
+	Q *string `json:"q,omitempty"`
+
 	// Scope Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either identifier, for every collection the caller may read (at most 2000; archived ones with `include_archived`), and every entry shared with the caller alone in a collection they do not read (at most 5000).
 	Scope struct {
 		ContainerId        *openapi_types.UUID `json:"container_id,omitempty"`
@@ -19169,7 +19229,7 @@ type ItemQuery struct {
 		Size   *int    `json:"size,omitempty"`
 	} `json:"page,omitempty"`
 
-	// Q The filter and the order as one line instead of `filter` and `sort`, for example `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
+	// Q The filter and the order as one Hubtask query instead of `filter` and `sort`, in either of its two spellings. The first is `field: value` - `who: me, none is: open due: <today -label: intern sort: -updated`: a comma is or, a space and, a leading `-` not, `<`, `<=`, `>`, `>=` compare, `a..b` is a range, `( … OR … )` and `NOT` group, words without a field find entries by their words, `today`, `-7d`, `+2w`, `this-week` and `overdue` are times the server resolves, `me` and `none` are people; `GET /meta/capabilities` lists the keys under `query_keys`. A key or value it cannot read is `query.field_unknown` or `query.value_unknown` with the character it stops at (`at`) and, where one is near, a `suggestion`. The second is `status = open AND custom_fields.priority >= 3 ORDER BY due_at DESC`. Comparisons are `=`, `!=`, `<`, `<=`, `>`, `>=`, `~` (contains), `IN (…)`, `NOT IN (…)`, `IS EMPTY`, `IS NOT EMPTY`, `BETWEEN … AND …`, `CONTAINS`, `CONTAINS ANY (…)`, `CONTAINS ALL (…)`, `STARTS WITH` and `MATCHES`, joined by `AND`, `OR`, `NOT` and brackets; a text is quoted with `'` or `"` and a backslash escapes the next character. The line is read into the same filter and order, so the fields, operators and bounds are the same; a line that cannot be read is `query.line_malformed` with the character it stops at, and a line sent with `filter` or `sort` is `query.line_with_filter`.
 	Q *string `json:"q,omitempty"`
 
 	// Scope Where to look. Exactly one of `container_id` and `item_id`, and it is required: an unanchored query is a scan of the whole tenant, and the permission is checked against this scope once for the whole result.
@@ -19251,6 +19311,9 @@ type ItemSearchQuery struct {
 	//
 	// **The last word is also matched as a beginning**, so that a search answers while it is still being typed: `Ann` finds *Anna's moments*, and `Momente Chall` finds an entry holding both. Only the last word, and only where it is one plain word - a quoted phrase, an exclusion and a word followed by a space are all finished, and are matched whole. A hit on a beginning ranks below one on a whole word, because it is weaker evidence that these are the words somebody meant.
 	Q *string `json:"q,omitempty"`
+
+	// Query The search as one Hubtask query instead of `q`, `filter` and `sort`: its free words and phrases are what is looked for and ranked, every `field: value` narrows - `passkey "zweites Gerät" who: me is: open`. Either spelling `POST /items:query` takes; `GET /meta/capabilities` lists the keys under `query_keys`. A `type:` other than an entry's level is `query.kind_not_here`, and the query sent with `q`, `filter` or `sort` is `query.line_with_filter`.
+	Query *string `json:"query,omitempty"`
 
 	// Sort Only meaningful without `q`: with words there is a ranking and it is the ranking. Sent with words it is refused by `search.sort_with_words`, rather than being ignored. Without them it defaults to `due_at ASC NULLS LAST`, because a filtered workspace read with no words is a work list and a work list is ordered by when it is due. Always completed by `id ASC`, so a cursor is unambiguous.
 	Sort *[]SortTerm `json:"sort,omitempty"`
@@ -22920,6 +22983,32 @@ type QueryField struct {
 
 // QueryFieldKind What a value for this field looks like. `text` is free text a full-text operator reads, `id_set` a relation an entry has several of.
 type QueryFieldKind string
+
+// QueryKey One key of the Hubtask query's `field: value` spelling.
+type QueryKey struct {
+	Examples []string `json:"examples"`
+
+	// Field The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order.
+	Field *string `json:"field,omitempty"`
+
+	// Key What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the custom fields, followed by a custom field's key.
+	Key string `json:"key"`
+
+	// Objects The kinds of object the key asks about.
+	Objects []string `json:"objects"`
+
+	// Product The product the key's prefix belongs to (`desk`, `cf`); absent for the keys of every kind.
+	Product *string `json:"product,omitempty"`
+
+	// Value What kind of value the key takes, which decides the suggestions a client offers.
+	Value QueryKeyValue `json:"value"`
+
+	// Values The words a key with a closed list takes; empty for the others.
+	Values []string `json:"values"`
+}
+
+// QueryKeyValue What kind of value the key takes, which decides the suggestions a client offers.
+type QueryKeyValue string
 
 // QuotaSource Which level set the ceiling in force: Hubtask's default for the mode, the installation, the workspace's plan, the operator's exception for this one workspace, or - for the workspace's own AI budget only - the workspace itself.
 type QuotaSource string

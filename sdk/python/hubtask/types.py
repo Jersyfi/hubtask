@@ -32,6 +32,7 @@ class ContainerPage(TypedDict, total=False):
 class ItemSearchQuery(TypedDict, total=False):
     """One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers."""
     q: str
+    query: str
     container_id: str | None
     language: str | None
     mode: "SearchMode"
@@ -4819,6 +4820,7 @@ class FilterNode(TypedDict, total=False):
 
 class ItemAggregateQuery(TypedDict, total=False):
     scope: Required[dict[str, Any]]
+    q: str
     filter: "FilterNode"
     include_archived: bool
     include_trashed: bool
@@ -5755,6 +5757,16 @@ class QueryField(TypedDict, total=False):
     sortable: Required[bool]
     groupable: Required[bool]
 
+class QueryKey(TypedDict, total=False):
+    """One key of the Hubtask query's `field: value` spelling."""
+    key: Required[str]
+    field: str
+    value: Required[Literal["state", "kind", "person", "place", "label", "time", "number", "text", "words", "choice", "flag", "relation", "sort", "custom"]]
+    product: str
+    objects: Required[list[str]]
+    examples: Required[list[str]]
+    values: Required[list[str]]
+
 class Capabilities(TypedDict, total=False):
     """Self-description; clients configure themselves from this."""
     product_version: str
@@ -5768,6 +5780,7 @@ class Capabilities(TypedDict, total=False):
     completion_policies: list["CompletionPolicy"]
     auto_assign_strategies: list["AutoAssignStrategy"]
     query_fields: list["QueryField"]
+    query_keys: list["QueryKey"]
     text_languages: list[str]
     supported_locales: list[dict[str, Any]]
     automation: dict[str, Any]

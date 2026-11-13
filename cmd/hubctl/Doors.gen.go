@@ -1525,6 +1525,7 @@ var generatedCommands = []door{
 			{Name: "filter", Kind: "json", Help: "Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with `nodes`)", Required: false},
 			{Name: "include_archived", Kind: "boolean", Help: "", Required: false},
 			{Name: "include_trashed", Kind: "boolean", Help: "", Required: false},
+			{Name: "q", Kind: "string", Help: "The filter as one Hubtask query instead of `filter`, in either spelling `POST /items:query` takes - …", Required: false},
 			{Name: "scope", Kind: "json", Help: "Where to look, exactly as `POST /items:query` takes it - or `workspace`, instead of either …", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"count", "group", "period", "value"}},
