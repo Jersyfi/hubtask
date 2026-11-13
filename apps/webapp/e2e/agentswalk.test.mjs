@@ -180,7 +180,7 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
   // The product's own empty state (scene homeagents): its tile, one sentence, the roles as cards.
   await page.locator('[data-empty-templates]').getByRole('button', { name: /^Ticket triage/u }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('.empty[data-kind="unused"] > .tile').count(), 1, 'the agents\' tile');
-  // The agents' mockup draws its template cards as rows, with no Use mark (the desk's draws one).
+  // The agents' mockup draws its template cards as rows, with no Use mark (UC-WRK-36 check 22).
   assert.equal(await page.locator('[data-empty-templates] .card[data-shape="row"]').count(), 3, 'three role rows');
   assert.equal(await page.locator('[data-empty-templates] .use').count(), 0, 'no Use mark');
   await page.getByRole('button', { name: 'Ticket triage' }).click();

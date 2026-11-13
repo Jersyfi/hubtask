@@ -118,7 +118,7 @@ test('chromium: the service desk page with the module off says so, reads nothing
   assert.deepEqual(walk.errors(), []);
 });
 
-// Scenes homeplans/homeassets/homeagents: a product switched off is drawn as its first empty state -
+// Scenes homeplans/homeassets/homeagents, UC-WRK-36 check 22: a product switched off is drawn as its first empty state -
 // its tile in its colour, its sentence, the switch, and that nothing kept for it is lost.
 test('chromium: a product\'s home with its module off is drawn as its empty state with the switch', async (t) => {
   const browser = await chromium.launch();

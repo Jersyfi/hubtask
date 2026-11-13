@@ -398,7 +398,7 @@ test('chromium 1280 px: the agents\' home lists the agents, their held acts and 
   assert.ok(await waiting.evaluate((section) => section.compareDocumentPosition(document.querySelector('[data-agent-card]')) & Node.DOCUMENT_POSITION_FOLLOWING), 'the agents come after what waits');
   const first = page.locator('[data-agent-card]').filter({ hasText: 'Request sorter' });
   assert.match((await first.textContent()) ?? '', /Live/u);
-  // Its share of the day's budget and its last run, as the list answers them (scene homeagents).
+  // Its share of the day's budget and its last run, as the list answers them (scene homeagents, UC-AGT-01 check 10).
   assert.equal((await first.locator('[data-agent-spend]').textContent())?.trim(), '34 % of the daily budget · last run 12 minutes ago');
   await first.getByRole('button', { name: '1 waiting' }).click();
   await page.waitForURL(new RegExp(`/agents\\?tab=requests&agent=${AGENTS[1].id}$`));
@@ -714,7 +714,7 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   // says first, the tool it leads to at its end.
   const lines = page.getByRole('list', { name: 'What the products say here' });
   for (const id of ['plan', 'assets', 'contents']) await lines.locator(`[data-product-line="${id}"]`).waitFor({ timeout: 10_000 });
-  // UC-WRK-36 (E-6): the hub's tools as tiles - the tool, one figure with its word, a line.
+  // UC-WRK-36 (E-6), UC-WRK-29 check 9: the hub's tools as tiles - the tool, one figure about the hub's work with its word, a line.
   assert.deepEqual(await lines.locator('[data-product-line]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-product-line'))), ['plan', 'assets', 'contents']);
   assert.match(await lines.locator('[data-product-line="plan"]').innerText(), /^Plan\s+\d+ days?\s+to the sprint's end\s+Sprint Kranich\s+Autumn fixes on [A-Z][a-z]{2} \d+$/);
   assert.equal(await lines.locator('[data-product-line="plan"] a').getAttribute('href'), `/hubs/${HUB.id}/plan`);

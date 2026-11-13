@@ -44,6 +44,8 @@ does and puts it live. When it misbehaves, Ana pulls its switch and it stops mid
 8. REST, MCP and hubctl register, read, approve, put live, stop and retire agents alike.
 9. The web app's administration lists the agents with their state and lets an administrator
    approve, put live, stop and retire them.
+10. The agents' home shows first the held acts the reader may decide, then the agents as cards,
+    each with its state, its share of the day's budget and its last run.
 
 ## Where it ends
 

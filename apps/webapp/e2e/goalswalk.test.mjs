@@ -93,7 +93,7 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   t.after(walk.close);
   const { page } = walk;
 
-  // The current quarter is offered in one press where no period is set yet (user-experience.md §4).
+  // The current quarter is offered in one press where no period is set yet (user-experience.md §4, UC-GOL-01 check 10).
   await page.goto(`${served.origin}/goals`);
   const now = new Date();
   const q = Math.floor(now.getUTCMonth() / 3) + 1;
@@ -207,12 +207,12 @@ for (const width of [1280, 375]) {
     const { page } = walk;
 
     await page.goto(`${served.origin}/goals`);
-    // The goals' band (E-1): its figures, the first one the headline.
+    // The goals' band (E-1, UC-GOL-01 check 10): its figures, the first one the headline.
     await page.locator('.band .figure').first().waitFor({ timeout: 10_000 });
     assert.deepEqual((await page.locator('.band .figure').allTextContents()).map((each) => each.trim()), ['2 goals', '1 needs a look', 'until Dec 31, 2026']);
     const results = page.getByRole('list', { name: 'Key results of Customers renew because the product helps them every day' });
     await results.getByText('82 % of 90 %').waitFor({ timeout: 5_000 });
-    // Progress and confidence stand apart (UC-GOL-02), and the state is a word with its glyph.
+    // Progress and confidence stand apart (UC-GOL-02 check 7), and the state is a word with its glyph.
     assert.deepEqual((await page.locator('[data-goal-confidence]').allTextContents()).map((each) => each.trim()), ['Confidence 6 of 10']);
     assert.equal(await page.locator('.goal .lozenge').filter({ hasText: 'At risk' }).locator('svg').count(), 1, 'the state has no glyph');
     await results.getByText('3 tickets of 1').waitFor({ timeout: 5_000 });

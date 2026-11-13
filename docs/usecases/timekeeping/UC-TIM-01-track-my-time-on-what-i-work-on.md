@@ -46,6 +46,8 @@ meeting on no entry.
    once the server is back, the record a stop wrote holds the minutes the timer ran on the device,
    a start more than a day old is refused with `timers.ran_too_long`, and every device shows the
    one timer.
+10. Time's home opens with a band: *My week*, the week's time of its capacity, its dates and its
+    state as a word with a glyph, and the timer beside *Record time*.
 
 ## Where it ends
 

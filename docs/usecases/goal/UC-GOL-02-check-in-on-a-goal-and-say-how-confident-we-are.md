@@ -38,6 +38,8 @@ a check-in on it afterwards is refused.
 4. A check-in's note never reaches the audit trail.
 5. REST, MCP and hubctl check in and list check-ins alike.
 6. The web app checks in on a goal from its page and shows its history.
+7. On the goals' home a goal's progress and its confidence stand apart - a bar for the progress,
+   "Confidence n of 10" beside it - and its status is a word with its glyph.
 
 ## Where it ends
 

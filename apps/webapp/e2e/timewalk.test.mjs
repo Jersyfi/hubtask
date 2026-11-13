@@ -120,13 +120,13 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
 
   await page.goto(`${served.origin}/time`);
   await page.getByText(ENTRY.title).first().waitFor({ timeout: 5_000 });
-  // The band opens the home (E-1) with the timer beside its act; the grid's last row is the
+  // The band opens the home (E-1, UC-TIM-01 check 10) with the timer beside its act; the grid's last row is the
   // capacity, each weekday measured against eight hours (scene time).
   await page.locator('.band[data-product="time"]').locator('[data-timer]').waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-capacity="480"]').count(), 5, 'each weekday says its capacity');
   assert.match((await page.locator('[data-capacity]').first().getAttribute('aria-label')) ?? '', / of 8:00$/u);
   assert.equal(await page.getByRole('row').filter({ hasText: 'Capacity' }).count(), 1, 'the capacity is a row of the grid');
-  // An entry is added from a row inside the grid, and the week's state is a lozenge in the band.
+  // An entry is added from a row inside the grid (UC-TIM-02 check 9), and the week's state is a lozenge in the band.
   await page.getByRole('row').locator('[data-add-entry]').filter({ hasText: 'Add an entry' }).click();
   await page.getByRole('dialog', { name: 'Record time' }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
@@ -270,7 +270,7 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   assert.deepEqual(walk.unstubbed(), []);
 });
 
-// The strip is the phone's (scene time); a locked day is measured as well as an open one.
+// The strip is the phone's (scene time, UC-TIM-02 check 9); a locked day is measured as well as an open one.
 for (const isLocked of [false, true]) test(`chromium: time - 390 px, each ${isLocked ? 'locked' : 'open'} day of the strip keeps inside its own cell and the content edge`, async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

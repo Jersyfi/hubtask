@@ -45,6 +45,8 @@ view's count for whoever looks.
 8. REST, MCP and hubctl set, read, link and list goals alike.
 9. The web app shows a period's goals as an alignment tree with each goal's progress, and a goal with
    its key results, linked entries and check-ins.
+10. The goals' home opens with a band that counts the period's goals, those that need a look and
+    the period's end; with no period yet it offers the current quarter in one press.
 
 ## Where it ends
 

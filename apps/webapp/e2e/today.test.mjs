@@ -333,6 +333,7 @@ test('chromium: Sections hides and orders Today\'s cards and tiles, on the accou
 
 // §7: on a phone the cards swipe and *Your day | Overview* is a switch, reached within one and a
 // half screens.
+// UC-WRK-20 check 8: the phone's cards are one row it swipes, and it switches between your day and the overview.
 test('chromium 390 px: the phone swipes the cards and switches between your day and the overview', async (t) => {
   showToday();
   const browser = await chromium.launch();
