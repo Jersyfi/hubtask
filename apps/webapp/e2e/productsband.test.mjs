@@ -537,6 +537,44 @@ test('chromium 1280 px: a desk collection\'s own list is its queue, grouped by s
   assert.deepEqual(failures, []);
 });
 
+// UC-WRK-45 check 9 (scene queue 4): on a phone a request is its title, one meta line with key,
+// status and priority, one SLA bar and the person at the end of the title's line - no line of
+// its own for labels or ⋯, whose menu a swipe or a long press opens.
+test('chromium 390 px: a desk collection\'s phone row is title, one meta line, one SLA bar and the person', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 390, path: `/collections/${DESK.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskFlow: true, role: 'OWNER' });
+  t.after(close);
+  const row = page.locator('[data-row][data-desk-phone]').filter({ hasText: 'VPN drops at noon' }).first();
+  await row.waitFor({ timeout: 15_000 });
+  await row.locator('.desk-sla .sla').waitFor({ timeout: 10_000 });
+  const parts = await row.evaluate((element) => {
+    const box = (selector) => element.querySelector(selector)?.getBoundingClientRect();
+    const visible = (each) => { const rect = each.getBoundingClientRect(); return rect.width > 2 && rect.height > 2; };
+    return {
+      title: box('.task-row .content'),
+      meta: box('.desk-meta'),
+      sla: box('.desk-sla'),
+      person: box('.desk-person'),
+      metaText: element.querySelector('.desk-meta')?.textContent ?? '',
+      bars: element.querySelectorAll('.sla').length,
+      chips: element.querySelectorAll('.desk-meta [data-state-chip], .desk-meta button').length,
+      shownButtons: [...element.querySelectorAll('button')].filter(visible).map((each) => each.getAttribute('aria-label') ?? each.textContent?.trim()),
+      menus: element.querySelectorAll('.desk-menu button').length,
+    };
+  });
+  assert.equal(parts.bars, 1, 'the SLA is drawn more than once');
+  assert.match(parts.metaText, /INC-\d+/u);
+  assert.ok(parts.meta.y >= parts.title.y + parts.title.height - 1, 'the meta line is not under the title');
+  assert.ok(parts.meta.height < 40, `the meta line wraps: ${parts.meta.height}`);
+  assert.ok(parts.sla.y >= parts.meta.y + parts.meta.height - 1, 'the SLA bar is not under the meta line');
+  assert.ok(parts.person.x >= parts.title.x + parts.title.width - 1 && Math.abs(parts.person.y - parts.title.y) < 16, 'the person is not at the end of the title\'s line');
+  assert.equal(parts.menus, 1, 'the row\'s menu is gone');
+  assert.ok(!parts.shownButtons.some((label) => /labels|more|⋯/iu.test(label ?? '')), `a line of row tools is drawn: ${parts.shownButtons}`);
+  await noSidewaysScroll(page, 'desk list 390');
+  assert.deepEqual(failures, []);
+});
+
 // §2.2: the plans' home lists the releases still to go out, the soonest first.
 test('chromium 375 px, dark: the plans\' home lists the releases to come', async (t) => {
   const browser = await chromium.launch();

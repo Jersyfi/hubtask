@@ -313,6 +313,8 @@
    */
   const isKeyFirst = $derived(withSla && fields.includes('key'));
   const cellFields = $derived(isKeyFirst ? fields.filter((field) => field !== 'key') : fields);
+  /** A desk's queue on a phone (scene queue 4): title, one meta line, one SLA bar, the person at the end. */
+  const isDeskPhone = $derived(withSla && viewport.isCompact && !root);
   const statusNameOf = (key: string) => {
     const status = workflow?.statuses.find((each) => each.key === key);
     return status ? statusLabel(status, t) : key;
@@ -1628,6 +1630,7 @@
     <div
       class="row"
       data-row={row.item.id}
+      data-desk-phone={isDeskPhone ? '' : undefined}
       data-celebrating={moment && moment.tier !== 3 && slotRowId === row.item.id ? '' : undefined}
       data-archived={row.archival !== 'active' ? '' : undefined}
       data-dragging={drag.id === row.item.id ? '' : undefined}
@@ -1754,9 +1757,6 @@
 
           <!-- The row's tools, over the row's end where the pointer or the focus is: they take no
                column, so the columns stand straight with and without them. -->
-          {#if withSla && viewport.isCompact}
-            <span class="sla">{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}</span>
-          {/if}
           <span class="tools">
             <!-- The row's one act on hover (WB-4): its ⋯ menu opens it too. -->
             {#if !root}
@@ -1810,6 +1810,23 @@
           </span>
         </span>
       {/snippet}
+      {#snippet deskPhoneEnd()}
+        {@const rowChip = chipFor(row.item)}
+        {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
+        {@const priority = priorityOf(row.item, [])}
+        <span class="desk-person"><PeopleMarks assigneeId={row.item.assignee_id} memberIds={[]} /></span>
+        <span class="desk-meta">
+          <span class="desk-key">{#if type}<span class="type-mark" data-entry-type={type.key} title={typeName(type.key)}><Icon name={iconOf(type)} size="sm" /></span>{/if}<EntryKey collection={keyedCollection} number={row.item.number} /></span>
+          {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+          {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
+        </span>
+        <span class="desk-sla">{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}</span>
+        <!-- No ⋯ of its own on the row: a swipe to the start or a long press opens this menu, and
+             it stays reachable for a keyboard and a screen reader. -->
+        <span class="desk-menu">
+          <EntryMenu bind:this={menus[row.item.id]} title={row.item.title} items={menuItems(row)} onselect={(id) => chose(row, id)} />
+        </span>
+      {/snippet}
       {#snippet chipCell()}
         {@const rowChip = chipFor(row.item)}
         {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
@@ -1846,8 +1863,8 @@
           (expanded = expanded.includes(row.item.id)
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
-        trailing={rowEnd}
-        state={chipFor(row.item) || isKeyFirst ? chipCell : undefined}
+        trailing={isDeskPhone ? deskPhoneEnd : rowEnd}
+        state={!isDeskPhone && (chipFor(row.item) || isKeyFirst) ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />
@@ -2278,7 +2295,6 @@
   .twist:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
   .group-add { padding-inline: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .foot { padding: var(--sp-100); }
-  .sla { display: inline-flex; min-inline-size: calc(var(--sp-1000) * 2); }
   .swipe-hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   /* A finger's sideways swipe is the row's (§7); scrolling stays the browser's. */
   .columns[data-table] .row { touch-action: pan-y; }
@@ -2287,6 +2303,28 @@
     /* A phone opens a row by its press; the act would only crowd the meta line. */
     .act { display: none; }
   }
+
+  /* The desk's phone row (scene queue 4): the check and the title, the person at the end of the
+     title's line; under the title the meta line and the SLA bar, each one line. */
+  .row[data-desk-phone] { position: relative; }
+  .row[data-desk-phone] :global(.task-row > .row) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: var(--sp-150);
+    row-gap: var(--sp-100);
+  }
+  .row[data-desk-phone] :global(.task-row > .row > .leading) { grid-column: 1; grid-row: 1; }
+  .row[data-desk-phone] :global(.task-row > .row > .content) { grid-column: 2; grid-row: 1; font-weight: var(--fw-semibold); }
+  .row[data-desk-phone] :global(.task-row > .row > .trailing) { display: contents; }
+  /* A twist only where the entry holds parts: a leaf's empty slot would push the check in. */
+  .row[data-desk-phone] :global(.task-row .twist:empty) { display: none; }
+  .desk-person { grid-column: 3; grid-row: 1; display: inline-flex; }
+  .desk-meta { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; font-size: var(--fs-075); }
+  .desk-key { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .desk-sla { grid-column: 2 / 4; grid-row: 3; display: flex; min-inline-size: 0; }
+  .desk-sla :global(.sla), .desk-sla :global(.deadline) { flex: 1; }
+  .desk-menu { position: absolute; inset-block-start: 0; inset-inline-end: 0; inline-size: var(--bw-hairline); block-size: var(--bw-hairline); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */
