@@ -105,6 +105,24 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await page.getByRole('menuitem', { name: 'Move down' }).click();
   await body.locator(':scope > :first-child', { hasText: 'Next line' }).waitFor({ timeout: 5_000 });
 
+  // A checklist line offers *task from it* at its end; the collections open under the line (S-4).
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('[ ] Book the train');
+  const taskFrom = page.locator('[data-page-task-from]');
+  await taskFrom.waitFor({ timeout: 5_000 });
+  const chip = await taskFrom.boundingBox();
+  const item = await body.locator('li p', { hasText: 'Book the train' }).boundingBox();
+  assert.ok(chip && item && Math.abs(chip.y + chip.height / 2 - (item.y + item.height / 2)) < item.height, 'level with the line');
+  await taskFrom.click();
+  await page.locator('[data-box-popover]').getByRole('list', { name: 'Make this line a task in' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
+  await body.locator('li p', { hasText: 'Book the train' }).click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+
   // "/" on an empty line opens what can be inserted at that line; a block's fields come after the choice.
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');

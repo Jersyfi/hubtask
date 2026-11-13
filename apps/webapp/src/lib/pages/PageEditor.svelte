@@ -16,7 +16,7 @@
   //
   // A reader's editor is not connected: what they read is the body as last saved.
 
-  import { mount, unmount, untrack } from 'svelte';
+  import { mount, tick, unmount, untrack } from 'svelte';
   import { BlockHandle, BoxPopover, Button, FloatingToolbar, IconButton, Inline, Menu, Toolbar, UploadField } from '@hubtask/design-system/components';
   import {
     Doc, LiveDocument, actOnLine, createPageEditor, lineAt, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
@@ -40,7 +40,7 @@
   import { live } from '../data/live.svelte.ts';
   import { isLiveUnreachable } from '../data/liveunreachable.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
-  import BoardView from '../whiteboards/BoardView.svelte';
+  import LiveEmbed from './LiveEmbed.svelte';
   import PagePicture from './PagePicture.svelte';
   import EmojiPicker from './EmojiPicker.svelte';
   import { pictureColours } from '../data/whiteboards.ts';
@@ -136,8 +136,9 @@
         const view = mount(PagePicture, { target: into, props: { mediaId: ref.id } });
         return () => void unmount(view);
       }
-      if (kind !== 'WHITEBOARD') return undefined;
-      const view = mount(BoardView, { target: into, props: { boardId: ref.id, frame: ref.anchor, onopen: onnavigate } });
+      // A view and a whiteboard live in the page under one head (S-4).
+      if (kind !== 'WHITEBOARD' && kind !== 'VIEW') return undefined;
+      const view = mount(LiveEmbed, { target: into, props: { ref, drawing, canOpen: () => targets.get(keyOf(ref))?.available === true, onnavigate } });
       return () => void unmount(view);
     },
     // A child-pages block lists the pages under this one in the space, as the tree holds them.
@@ -406,6 +407,20 @@
   // A field that appears after a choice takes the focus once it is drawn, never while it is drawn:
   // focus moving during the drawing would change the state the drawing reads.
   const focusSoon = (element: HTMLElement) => void queueMicrotask(() => element.focus());
+
+  // A checklist line not yet a task offers *task from it* at its end (S-4, UC-DOC-03).
+  const taskBox = $derived.by((): Box | undefined => {
+    void marks;
+    const seen = editor;
+    const body = host;
+    if (!seen || !body || !taskLine || taskLine.entryId || taskLine.text === '' || !isWriting || hasPanel) return undefined;
+    const at = seen.view.coordsAtPos(Math.min(taskLine.pos + 2, seen.state.doc.content.size));
+    const frame = body.getBoundingClientRect();
+    return { top: at.top, left: frame.right - 1, width: 1, height: Math.max(1, at.bottom - at.top) }; // design-system-lint-ignore: a viewport box, as the browser measures it
+  });
+
+  /** A panel opened by a button takes the focus, as a menu does; one opened by "/" leaves it in the line. */
+  const focusPanel = () => void tick().then(() => zone?.querySelector<HTMLElement>('[data-box-popover] button')?.focus());
 
   function openInsert() {
     blockForm = undefined;
@@ -732,10 +747,10 @@
       <!-- What "/" and "+" offer: Hubtask's own first, then the blocks; a block's fields only after it is chosen. -->
       <p class="group">{t('app.pages.insert_hubtask')}</p>
       <ul class="menu" aria-label={t('app.pages.insert_hubtask')}>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isEmbedding = true; insertBox = line?.box; }}>{t('app.pages.tool_view')}</button></li>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isEmbedding = true; insertBox = line?.box; focusPanel(); }}>{t('app.pages.tool_view')}</button></li>
         <li><button type="button" class="choice" onclick={() => { closeInsert(); isMentioning = true; }}>{t('app.pages.tool_mention')}</button></li>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isLinkingPage = true; insertBox = line?.box; }}>{t('app.pages.tool_page')}</button></li>
-        <li><button type="button" class="choice" onclick={() => { closeInsert(); isPickingEmoji = true; insertBox = line?.box; }}>{t('app.pages.tool_emoji')}</button></li>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isLinkingPage = true; insertBox = line?.box; focusPanel(); }}>{t('app.pages.tool_page')}</button></li>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isPickingEmoji = true; insertBox = line?.box; focusPanel(); }}>{t('app.pages.tool_emoji')}</button></li>
         <li>
           <UploadField
             variant="button"
@@ -809,6 +824,9 @@
       <input type="url" bind:value={linkAddress} use:focusSoon placeholder="https://" aria-label={t('app.pages.link_address')} onkeydown={(event) => { if (event.key === 'Escape') { isLinkingWeb = false; editor?.commands.focus(); } }} />
       <Button size="sm" tone="subtle" type="submit">{linkAddress.trim() === '' ? t('app.pages.link_remove') : t('app.pages.tool_link')}</Button>
     </form>
+  </FloatingToolbar>
+  <FloatingToolbar label={t('app.pages.tool_task')} container={zone} box={selectionBox ? undefined : taskBox} placement={{ side: 'inline-start', align: 'center' }}>
+    <Button size="sm" tone="subtle" icon="square-check" data-page-task-from onclick={() => { insertBox = taskBox; isMakingTask = true; focusPanel(); }}>{t('app.pages.task_from')}</Button>
   </FloatingToolbar>
   <BlockHandle
     container={zone}

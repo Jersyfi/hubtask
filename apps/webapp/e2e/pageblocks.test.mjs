@@ -72,3 +72,33 @@ test('a formula, a diagram and coloured code are drawn under the policy', async 
     await browser.close();
   }
 });
+
+test('a view embedded in a page lives under its head: tile, Live in words (S-4)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, context } = await signedIn(browser, 1280, 900);
+    const view = '01a0e2e0-0000-7000-8000-000000000952';
+    await context.unroute('**/api/v1/**');
+    await context.route('**/api/v1/**', async (route) => {
+      const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
+      if (path === `/hubs/${HUB.id}/pages`) return route.fulfill({ json: { ...empty, data: [PAGE] } });
+      if (path === `/hubs/${HUB.id}/page-labels` || path === `/hubs/${HUB.id}/trashed-pages`) return route.fulfill({ json: empty });
+      if (path === `/hubs/${HUB.id}/page-drafts`) return route.fulfill({ json: { hub_id: HUB.id, drafts: false } });
+      if (path === `/pages/${PAGE_ID}`) {
+        return route.fulfill({ json: { ...PAGE, body: `Before\n\n![](hubtask:view/${view})\n\nAfter\n`, ancestors: [], writable: false, shared: false, drafts: false, unpublished: false, draft: null } });
+      }
+      if (/^\/pages\/[^/]+\/(comments|versions|backlinks)$/.test(path)) return route.fulfill({ json: empty });
+      if (/^\/pages\/[^/]+\/language-variants$/.test(path)) return route.fulfill({ json: { page_id: PAGE_ID, source_page_id: null, language: null, variants: [] } });
+      if (/^\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { page_id: PAGE_ID, labels: [] } });
+      return stub(route);
+    });
+    await page.goto(`${served.origin}/pages/${PAGE_ID}`);
+    const live = page.locator('[data-live-block]');
+    await live.waitFor({ timeout: 20_000 });
+    assert.match(await live.innerText(), /Live/u, 'Live is said in words, not by a colour alone');
+    assert.deepEqual(failures, []);
+    await context.close();
+  } finally {
+    await browser.close();
+  }
+});

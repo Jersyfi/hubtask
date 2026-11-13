@@ -27,9 +27,11 @@
     /** One frame of the board, by its identifier; the whole board without. */
     frame?: string | null;
     onopen: (path: string) => void;
+    /** Drawn under a page's live block head (S-4), which names the board and opens it. */
+    isUnderHead?: boolean;
   }
 
-  const { boardId, frame, onopen }: Props = $props();
+  const { boardId, frame, onopen, isUnderHead = false }: Props = $props();
 
   const read = untrack(() => resource<WhiteboardRead>(boardPath(boardId)));
   const board = $derived(read.state.status === 'ready' ? read.state.data : undefined);
@@ -99,10 +101,10 @@
   {:else if !board}
     <p class="quiet">{t('app.whiteboards.loading')}</p>
   {:else}
-    <figcaption class="head">
+    {#if !isUnderHead}<figcaption class="head">
       <span class="name">{frameElement?.text ? `${board.title} · ${frameElement.text}` : board.title}</span>
       <Button size="sm" tone="subtle" icon="external-link" onclick={() => onopen(path)}>{t('app.whiteboards.open_board')}</Button>
-    </figcaption>
+    </figcaption>{/if}
     {#if frame && !frameElement}
       <p class="quiet">{t('whiteboards.frame_not_found')}</p>
     {:else}
