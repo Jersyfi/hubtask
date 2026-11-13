@@ -29,6 +29,8 @@
 
   const { part }: Props = $props();
   const shows = (name: string) => part === undefined || part === name;
+  /** The entry's section in view; on a phone the jump marks are the switch and show only it. */
+  let mark = $state('gallery-description');
 </script>
 
 {#snippet end()}
@@ -63,8 +65,9 @@
         {#snippet status()}<StatusButton current={IN_PROGRESS} steps={STORY_STEPS} label="Status: In progress. Change status" menuTitle="From “In progress” on" closeLabel="Close" />{/snippet}
       </ObjectHead>
       <div class="entry">
-        <div class="main">
+        <div class="main" data-show={mark}>
           <JumpMarks
+            bind:current={mark}
             label="Sections of TAMA-18"
             marks={[
               { id: 'gallery-description', label: 'Description' },
@@ -76,7 +79,7 @@
           />
           <FoldingSectionDemo prefix="gallery" />
         </div>
-        <PropertyRailDemo mode="story" />
+        <div class="rail"><PropertyRailDemo mode="story" /></div>
       </div>
     </section>
   {/if}
@@ -139,5 +142,16 @@
   @media (width < 905px) {
     .gallery { padding: var(--sp-200); }
     .entry { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* The entry on a phone (§7, scene task): *All properties* right under the head, the jump marks
+     as the switch between sections, one section shown, the composer docked. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .rail { order: -1; }
+    .main[data-show] :global(section[id^='gallery-']) { display: none; }
+    .main[data-show='gallery-description'] :global(#gallery-description),
+    .main[data-show='gallery-links'] :global(#gallery-links),
+    .main[data-show='gallery-conversation'] :global(#gallery-conversation) { display: block; }
   }
 </style>
