@@ -226,9 +226,9 @@ test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keep
   const head = main(page).locator('header.head');
   assert.equal(await head.locator('[data-tour="queue-save"]').count(), 0, 'Save as queue before the filter differs from the queue');
   await head.locator('[data-tour="queue-filter"]').click();
-  const line = main(page).locator('[data-queue-filter]').getByRole('textbox', { name: 'As a line' });
-  await line.fill('title = "Printer"');
-  await line.press('Enter');
+  // The queue's filter is the query line, as over every list (§6.11).
+  await main(page).locator('[data-queue-filter]').getByRole('combobox', { name: 'What is seen' }).click();
+  await page.keyboard.type('title: Printer ');
   // The queue is asked again with the condition joined to its own.
   await head.locator('[data-tour="queue-save"]').waitFor({ timeout: 10_000 });
   const narrowed = asked.filter((body) => JSON.stringify(body.filter ?? {}).includes('"title"'));

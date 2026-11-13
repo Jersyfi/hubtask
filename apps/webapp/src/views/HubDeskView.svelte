@@ -28,7 +28,12 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import DeskQueues from '../lib/servicedesk/DeskQueues.svelte';
-  import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import { QueryLine, lineText, type QueryToken } from '@hubtask/design-system/components';
+  import { createCatalogue, type QueryKey } from '@hubtask/query';
+  import { language, wording } from '../lib/entries/viewLanguage.ts';
+  import { readQuery, type Names } from '../lib/data/viewquery.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -102,7 +107,28 @@
   // *Filter*: the reader's conditions joined to the queue's own; the queue's order stays.
   let isFiltering = $state(false);
   let narrowing = $state<ItemsQuery['filter']>(undefined);
-  let filterCount = $state(0);
+  // The queue's filter is the Hubtask query typed, as over every list (§6.11, scene qline): one
+  // line, read into the condition joined to the queue's own.
+  let tokens = $state<readonly QueryToken[]>([]);
+  let text = $state('');
+  let line = $state('');
+  const queryKeys = $derived<readonly QueryKey[]>(
+    ((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')),
+  );
+  const catalogue = $derived(createCatalogue(queryKeys, wording, () => []));
+  const names: Names = {
+    person: (name) => people.candidates({ hubId }).find((each) => accounts.nameOf(each)?.toLowerCase() === name.toLowerCase()),
+    label: () => undefined,
+    collection: (name) => containers.collectionsOf(hubId).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    nameOf: (field, value) => (field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+  };
+  function lineChanged(next: readonly QueryToken[]) {
+    line = lineText(language, next, '');
+    const read = readQuery(line, names);
+    if (!read.ok) return;
+    narrowing = read.query.filter;
+  }
+  const filterCount = $derived(tokens.length);
   function narrowed<T extends { query?: Record<string, unknown> }>(each: T): T {
     if (!narrowing || !each.query) return each;
     const own = each.query['filter'] as { op?: string; nodes?: unknown[] } | undefined;
@@ -131,6 +157,9 @@
       isNaming = false;
       isFiltering = false;
       narrowing = undefined;
+      tokens = [];
+      text = '';
+      line = '';
       // Known here before the hub's queues are read again, so its address is not taken for an
       // unknown one and sent to the first queue; the read brings its count.
       queues = [...(queues ?? []), { view_id: made.id, key: made.key, name: made.name, count: 0, at_risk: 0 }];
@@ -228,7 +257,23 @@
     />
   {:else}
     <div class="filter" hidden={!isFiltering} data-queue-filter>
-      <QueryPanel layout="LIST_COLLAPSED" onquery={(asked) => (narrowing = asked.filter)} oncount={(count) => (filterCount = count)} />
+      <QueryLine
+        label={t('app.viewcfg.query')}
+        {language}
+        {catalogue}
+        bind:tokens
+        bind:text
+        placeholder={t('app.viewcfg.query_placeholder')}
+        suggestionsLabel={t('app.viewcfg.suggestions')}
+        fieldsHeading={(typed) => t('app.viewcfg.fields_heading', { typed })}
+        valuesHeading={(field) => t('app.viewcfg.values_heading', { field })}
+        editLabel={(spelling) => t('app.viewcfg.edit_chip', { spelling })}
+        removeLabel={(spelling) => t('app.viewcfg.remove_chip', { spelling })}
+        onchange={lineChanged}
+        addConditionLabel={t('app.viewcfg.add_condition')}
+        addGroupLabel={t('app.viewcfg.add_group')}
+        hint={t('app.viewcfg.chip_hint')}
+      />
     </div>
     {#if only}
       {#key `${only.queue}:${chosen?.view_id ?? chosen?.key}`}
