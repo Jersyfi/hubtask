@@ -7513,6 +7513,27 @@ func (e PageBacklinkListDataStrength) Valid() bool {
 	}
 }
 
+// Defines values for PageCoverSource.
+const (
+	PageCoverSourceGALLERY  PageCoverSource = "GALLERY"
+	PageCoverSourceGRADIENT PageCoverSource = "GRADIENT"
+	PageCoverSourceIMAGE    PageCoverSource = "IMAGE"
+)
+
+// Valid indicates whether the value is a known member of the PageCoverSource enum.
+func (e PageCoverSource) Valid() bool {
+	switch e {
+	case PageCoverSourceGALLERY:
+		return true
+	case PageCoverSourceGRADIENT:
+		return true
+	case PageCoverSourceIMAGE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PageExportFilesEncoding.
 const (
 	PageExportFilesEncodingBASE64 PageExportFilesEncoding = "BASE64"
@@ -21559,9 +21580,12 @@ type Page struct {
 	Body *string `json:"body,omitempty"`
 
 	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
-	ContentLanguage *string            `json:"content_language"`
-	CreatedAt       time.Time          `json:"created_at"`
-	CreatedBy       openapi_types.UUID `json:"created_by"`
+	ContentLanguage *string `json:"content_language"`
+
+	// Cover The picture over the page's content; null for none. Absent in a tree's rows.
+	Cover     *PageCover         `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
 
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`
@@ -21679,9 +21703,12 @@ type PageChange struct {
 	Archived        *bool   `json:"archived,omitempty"`
 	Body            *string `json:"body,omitempty"`
 	ContentLanguage *string `json:"content_language,omitempty"`
-	Icon            *string `json:"icon,omitempty"`
-	Template        *bool   `json:"template,omitempty"`
-	Title           *string `json:"title,omitempty"`
+
+	// Cover The picture over the page's content; null takes it away.
+	Cover    *PageCover `json:"cover,omitempty"`
+	Icon     *string    `json:"icon,omitempty"`
+	Template *bool      `json:"template,omitempty"`
+	Title    *string    `json:"title,omitempty"`
 }
 
 // PageComment defines model for PageComment.
@@ -21727,6 +21754,19 @@ type PageCommentCreate struct {
 type PageCommentList struct {
 	Data []PageComment `json:"data"`
 }
+
+// PageCover A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there.
+type PageCover struct {
+	// Key A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
+	Key string `json:"key"`
+
+	// Position How far down the picture is shown from: 0 its top, 100 its foot.
+	Position int             `json:"position"`
+	Source   PageCoverSource `json:"source"`
+}
+
+// PageCoverSource defines model for PageCover.Source.
+type PageCoverSource string
 
 // PageCreate defines model for PageCreate.
 type PageCreate struct {
@@ -21913,9 +21953,12 @@ type PageRead struct {
 	Body string `json:"body"`
 
 	// ContentLanguage The BCP-47 tag search stems the page by; null for the workspace's.
-	ContentLanguage *string            `json:"content_language"`
-	CreatedAt       time.Time          `json:"created_at"`
-	CreatedBy       openapi_types.UUID `json:"created_by"`
+	ContentLanguage *string `json:"content_language"`
+
+	// Cover The picture over the page's content; null for none. Absent in a tree's rows.
+	Cover     *PageCover         `json:"cover,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
+	CreatedBy openapi_types.UUID `json:"created_by"`
 
 	// DailyFor The day a daily note of a personal space is for.
 	DailyFor *openapi_types.Date `json:"daily_for"`

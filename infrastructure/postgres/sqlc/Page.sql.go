@@ -214,7 +214,7 @@ func (q *Queries) FindDailyNote(ctx context.Context, arg FindDailyNoteParams) (p
 const findPage = `-- name: FindPage :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = $1
 `
@@ -242,6 +242,7 @@ type FindPageRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 func (q *Queries) FindPage(ctx context.Context, id pgtype.UUID) (FindPageRow, error) {
@@ -270,6 +271,7 @@ func (q *Queries) FindPage(ctx context.Context, id pgtype.UUID) (FindPageRow, er
 		&i.Version,
 		&i.Restricted,
 		&i.DailyFor,
+		&i.Cover,
 	)
 	return i, err
 }
@@ -347,7 +349,7 @@ func (q *Queries) FindPageDraft(ctx context.Context, pageID pgtype.UUID) (FindPa
 const findPageForUpdate = `-- name: FindPageForUpdate :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = $1
 FOR UPDATE
@@ -376,6 +378,7 @@ type FindPageForUpdateRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPageForUpdateRow, error) {
@@ -404,6 +407,7 @@ func (q *Queries) FindPageForUpdate(ctx context.Context, id pgtype.UUID) (FindPa
 		&i.Version,
 		&i.Restricted,
 		&i.DailyFor,
+		&i.Cover,
 	)
 	return i, err
 }
@@ -1475,7 +1479,7 @@ WITH RECURSIVE down (id, depth) AS (
 )
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p JOIN down ON down.id = p.id
 WHERE p.tenant_id = current_tenant_id()
 ORDER BY down.depth, p.order_key, p.id
@@ -1511,6 +1515,7 @@ type PageSubtreeRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 // The page and every page under it, the page first, bodies included, bounded.
@@ -1546,6 +1551,7 @@ func (q *Queries) PageSubtree(ctx context.Context, arg PageSubtreeParams) ([]Pag
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.Cover,
 		); err != nil {
 			return nil, err
 		}
@@ -2142,11 +2148,11 @@ UPDATE page SET
   verified_until = $9, verified_at = $10,
   verified_by = $11, archived_at = $12,
   deleted_at = $13, updated_by = $14,
-  updated_at = $15, version = version + 1,
+  updated_at = $15, version = version + 1, cover = $16,
   -- Who trashed it is TrashPageSubtree's to write; a page no longer trashed names nobody.
   deleted_by_type = CASE WHEN $13::timestamptz IS NULL THEN NULL ELSE deleted_by_type END,
   deleted_by_id = CASE WHEN $13::timestamptz IS NULL THEN NULL ELSE deleted_by_id END
-WHERE tenant_id = current_tenant_id() AND id = $16 AND version = $17
+WHERE tenant_id = current_tenant_id() AND id = $17 AND version = $18
 `
 
 type UpdatePageParams struct {
@@ -2165,6 +2171,7 @@ type UpdatePageParams struct {
 	DeletedAt       pgtype.Timestamptz
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
+	Cover           []byte
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -2187,6 +2194,7 @@ func (q *Queries) UpdatePage(ctx context.Context, arg UpdatePageParams) (int64, 
 		arg.DeletedAt,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.Cover,
 		arg.ID,
 		arg.ExpectedVersion,
 	)

@@ -69379,6 +69379,17 @@
             ],
             "maxLength": 16
           },
+          "cover": {
+            "description": "The picture over the page's content; null for none. Absent in a tree's rows.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageCover"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "position": {
             "type": "string",
             "description": "Its place among its siblings: they sort by this, as text."
@@ -69851,6 +69862,47 @@
           },
           "archived": {
             "type": "boolean"
+          },
+          "cover": {
+            "description": "The picture over the page's content; null takes it away.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageCover"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PageCover": {
+        "type": "object",
+        "description": "A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there.\n",
+        "required": [
+          "source",
+          "key",
+          "position"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "GRADIENT",
+              "GALLERY",
+              "IMAGE"
+            ]
+          },
+          "key": {
+            "type": "string",
+            "maxLength": 40,
+            "description": "A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id."
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "How far down the picture is shown from: 0 its top, 100 its foot."
           }
         }
       },

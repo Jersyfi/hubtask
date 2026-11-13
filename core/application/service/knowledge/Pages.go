@@ -668,6 +668,7 @@ func (h UpdatePage) Descriptor() usecase.Descriptor {
 			{Name: "template", Kind: usecase.KindBool, Description: "Offer the page as a template of the space."},
 			{Name: "content_language", Kind: usecase.KindString, Description: "The BCP-47 tag search stems the page by; empty for the workspace's."},
 			{Name: "archived", Kind: usecase.KindBool, Description: "Archive (true) or bring back (false)."},
+			{Name: "cover", Kind: usecase.KindObject, Description: "The picture over the content: {source: GRADIENT|GALLERY|IMAGE, key, position 0-100}; null takes it away."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a page changed since is refused."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PageChangedAction, TargetType: pageTarget, Severity: audit.SeverityInfo, Required: true},
@@ -676,12 +677,16 @@ func (h UpdatePage) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
+			cover, err := coverChange(in)
+			if err != nil {
+				return nil, err
+			}
 			written, err := h.write(ctx, actor, UpdatePageCommand{
 				PageID: id, ExpectedVersion: in.Int("expected_version"),
 				Change: domain.Change{
 					Title: in.OptionalString("title"), Body: rawText(in, "body"), Icon: in.OptionalString("icon"),
 					Template: optionalBool(in, "template"), ContentLanguage: in.OptionalString("content_language"),
-					Archived: optionalBool(in, "archived"),
+					Archived: optionalBool(in, "archived"), Cover: cover,
 				},
 			})
 			if err != nil {
@@ -1180,4 +1185,47 @@ func ancestorIDs(ancestors []repositoryAncestor) []shared.ID {
 		ids = append(ids, ancestor.ID)
 	}
 	return ids
+}
+
+// coverChange reads the cover asked for: absent leaves it, null takes it away, a document sets it.
+// What each member may be is the domain's question (NewCover).
+func coverChange(in usecase.Input) (*domain.CoverChange, error) {
+	raw, sent := in["cover"]
+	if !sent {
+		return nil, nil
+	}
+	if raw == nil {
+		return &domain.CoverChange{}, nil
+	}
+	document, isDocument := raw.(map[string]any)
+	if !isDocument {
+		return nil, shared.ErrValidation.WithDetail("pages.cover_malformed").
+			WithFields(shared.FieldError{Path: "/cover", Code: "pages.cover_malformed"})
+	}
+	source, _ := document["source"].(string)
+	key, _ := document["key"].(string)
+	position := 0
+	switch number := document["position"].(type) {
+	case float64:
+		position = int(number)
+		if float64(position) != number {
+			position = -1
+		}
+	case int:
+		position = number
+	case int64:
+		position = int(number)
+	}
+	cover, err := domain.NewCover(domain.CoverSource(source), key, position)
+	if err != nil {
+		return nil, err
+	}
+	return &domain.CoverChange{Cover: &cover}, nil
+}
+
+func coverOutput(cover *domain.Cover) any {
+	if cover == nil {
+		return nil
+	}
+	return usecase.Output{"source": string(cover.Source), "key": cover.Key, "position": cover.Position}
 }

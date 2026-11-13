@@ -2049,6 +2049,7 @@ var generatedCommands = []door{
 			{Name: "archived", Kind: "boolean", Help: "", Required: false},
 			{Name: "body", Kind: "string", Help: "", Required: false},
 			{Name: "content_language", Kind: "string", Help: "", Required: false},
+			{Name: "cover", Kind: "json", Help: "The picture over the page's content; null takes it away", Required: false},
 			{Name: "icon", Kind: "string", Help: "", Required: false},
 			{Name: "template", Kind: "boolean", Help: "", Required: false},
 			{Name: "title", Kind: "string", Help: "", Required: false},

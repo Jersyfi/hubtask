@@ -756,3 +756,61 @@ func TestAVerifiedPageRanksBeforeAnEquallyGoodUnverifiedOne(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A page's cover is read as it was written and taken away again (migration 0400, UC-DOC-16); the
+// workspace next door neither reads nor writes it.
+func TestAPagesCoverIsReadAsWrittenInItsWorkspaceAlone(t *testing.T) {
+	ctx := context.Background()
+	_, root, _ := seedSpace(ctx, t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 29, 11, 0, 0, 0, time.UTC)
+	cover := knowledge.Cover{Source: knowledge.CoverGradient, Key: "indigo-teal", Position: 30}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.FindForUpdate(ctx, root)
+		if err != nil {
+			return err
+		}
+		page.Cover, page.UpdatedAt = &cover, at
+		return repo.Update(ctx, page, page.Version)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.Find(ctx, root)
+		if err != nil || page.Cover == nil || *page.Cover != cover {
+			t.Errorf("the cover read back: %+v, %v", page.Cover, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.Find(ctx, root); err == nil {
+			t.Error("the workspace next door read the covered page")
+		}
+		if err := repo.Update(ctx, knowledge.Page{ID: root, Title: "x", OrderKey: "a0", UpdatedBy: authorB, UpdatedAt: at, Version: 2}, 2); err == nil {
+			t.Error("the workspace next door took the cover away")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		page, err := repo.FindForUpdate(ctx, root)
+		if err != nil || page.Cover == nil {
+			t.Errorf("the workspace next door changed the cover: %+v, %v", page.Cover, err)
+			return err
+		}
+		page.Cover = nil
+		if err := repo.Update(ctx, page, page.Version); err != nil {
+			return err
+		}
+		again, err := repo.Find(ctx, root)
+		if err != nil || again.Cover != nil {
+			t.Errorf("the cover taken away: %+v, %v", again.Cover, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}

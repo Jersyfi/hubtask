@@ -2476,6 +2476,7 @@ type Page struct {
 	LanguageVariant  *string
 	DeletedByType    *string
 	DeletedByID      pgtype.UUID
+	Cover            []byte
 }
 
 type PageArticle struct {

@@ -2613,7 +2613,7 @@ func (q *Queries) SnapshotOwnTimesheets(ctx context.Context, arg SnapshotOwnTime
 const snapshotPages = `-- name: SnapshotPages :many
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p
 WHERE p.tenant_id = current_tenant_id() AND p.id > $1 AND p.deleted_at IS NULL
   AND NOT page_behind_restriction(p.id)
@@ -2649,6 +2649,7 @@ type SnapshotPagesRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	Cover           []byte
 }
 
 // The workspace's living pages with their bodies (migration 0238), for reading offline; each is
@@ -2686,6 +2687,7 @@ func (q *Queries) SnapshotPages(ctx context.Context, arg SnapshotPagesParams) ([
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.Cover,
 		); err != nil {
 			return nil, err
 		}

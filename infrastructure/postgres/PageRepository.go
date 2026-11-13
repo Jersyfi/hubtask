@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -150,8 +151,12 @@ func (PageRepository) Update(ctx context.Context, page knowledge.Page, expected 
 	if err != nil {
 		return err
 	}
+	cover, err := pageCoverDocument(page.Cover)
+	if err != nil {
+		return err
+	}
 	rows, err := queries.UpdatePage(ctx, sqlc.UpdatePageParams{
-		ParentID: nullable[0], Title: page.Title, Body: page.Body, Icon: page.Icon, OrderKey: page.OrderKey,
+		Cover: cover, ParentID: nullable[0], Title: page.Title, Body: page.Body, Icon: page.Icon, OrderKey: page.OrderKey,
 		Template: page.Template, ContentLanguage: optionalText(page.ContentLanguage), OwnerID: nullable[1],
 		VerifiedUntil: optionalTimestamp(page.VerifiedUntil), VerifiedAt: optionalTimestamp(page.VerifiedAt),
 		VerifiedBy: nullable[2], ArchivedAt: optionalTimestamp(page.ArchivedAt),
@@ -824,6 +829,9 @@ func pageFrom(row sqlc.FindPageRow) (knowledge.Page, error) {
 		day := row.DailyFor.Time
 		page.DailyFor = &day
 	}
+	if page.Cover, err = pageCoverFrom(row.Cover); err != nil {
+		return knowledge.Page{}, err
+	}
 	if row.ContentLanguage != nil {
 		page.ContentLanguage = *row.ContentLanguage
 	}
@@ -1210,4 +1218,33 @@ func (PageRepository) CountMedia(ctx context.Context, pageID shared.ID) (int, er
 		return 0, pageFailed("counting the files", err)
 	}
 	return int(count), nil
+}
+
+// storedCover is a page's cover as the column holds it (migration 0400).
+type storedCover struct {
+	Source   string `json:"source"`
+	Key      string `json:"key"`
+	Position int    `json:"position"`
+}
+
+func pageCoverDocument(cover *knowledge.Cover) ([]byte, error) {
+	if cover == nil {
+		return nil, nil
+	}
+	document, err := json.Marshal(storedCover{Source: string(cover.Source), Key: cover.Key, Position: cover.Position})
+	if err != nil {
+		return nil, pageFailed("writing the cover", err)
+	}
+	return document, nil
+}
+
+func pageCoverFrom(document []byte) (*knowledge.Cover, error) {
+	if len(document) == 0 {
+		return nil, nil
+	}
+	var stored storedCover
+	if err := json.Unmarshal(document, &stored); err != nil {
+		return nil, pageFailed("reading the cover", err)
+	}
+	return &knowledge.Cover{Source: knowledge.CoverSource(stored.Source), Key: stored.Key, Position: stored.Position}, nil
 }

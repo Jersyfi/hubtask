@@ -15,14 +15,14 @@ INSERT INTO page (
 -- name: FindPage :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
 -- name: FindPageForUpdate :one
 SELECT id, hub_id, parent_id, title, body, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for, cover
 FROM page
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
 FOR UPDATE;
@@ -36,7 +36,7 @@ UPDATE page SET
   verified_until = sqlc.narg('verified_until'), verified_at = sqlc.narg('verified_at'),
   verified_by = sqlc.narg('verified_by'), archived_at = sqlc.narg('archived_at'),
   deleted_at = sqlc.narg('deleted_at'), updated_by = sqlc.arg('updated_by'),
-  updated_at = sqlc.arg('updated_at'), version = version + 1,
+  updated_at = sqlc.arg('updated_at'), version = version + 1, cover = sqlc.narg('cover'),
   -- Who trashed it is TrashPageSubtree's to write; a page no longer trashed names nobody.
   deleted_by_type = CASE WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL ELSE deleted_by_type END,
   deleted_by_id = CASE WHEN sqlc.narg('deleted_at')::timestamptz IS NULL THEN NULL ELSE deleted_by_id END
@@ -91,7 +91,7 @@ WITH RECURSIVE down (id, depth) AS (
 )
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.template, p.content_language,
        p.owner_id, p.verified_until, p.verified_at, p.verified_by, p.archived_at, p.deleted_at,
-       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for
+       p.created_by, p.created_at, p.updated_by, p.updated_at, p.version, p.restricted, p.daily_for, p.cover
 FROM page p JOIN down ON down.id = p.id
 WHERE p.tenant_id = current_tenant_id()
 ORDER BY down.depth, p.order_key, p.id

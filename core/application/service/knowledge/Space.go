@@ -335,7 +335,7 @@ func PageOutput(page domain.Page, withBody bool, now time.Time) usecase.Output {
 		"updated_by": page.UpdatedBy.String(), "updated_at": page.UpdatedAt, "version": page.Version,
 	}
 	if withBody {
-		out["body"] = page.Body
+		out["body"], out["cover"] = page.Body, coverOutput(page.Cover)
 	}
 	return out
 }

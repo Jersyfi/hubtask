@@ -5982,6 +5982,7 @@ class Page(TypedDict, total=False):
     body: str
     excerpt: str
     icon: Required[str | None]
+    cover: "PageCover" | Any
     position: Required[str]
     template: Required[bool]
     content_language: Required[str | None]
@@ -6054,6 +6055,7 @@ class PageRead(TypedDict, total=False):
     body: Required[str]
     excerpt: str
     icon: Required[str | None]
+    cover: "PageCover" | Any
     position: Required[str]
     template: Required[bool]
     content_language: Required[str | None]
@@ -6106,6 +6108,13 @@ class PageChange(TypedDict, total=False):
     template: bool
     content_language: str
     archived: bool
+    cover: "PageCover" | Any
+
+class PageCover(TypedDict, total=False):
+    """A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there."""
+    source: Required[Literal["GRADIENT", "GALLERY", "IMAGE"]]
+    key: Required[str]
+    position: Required[int]
 
 class PageMove(TypedDict, total=False):
     parent_id: str
