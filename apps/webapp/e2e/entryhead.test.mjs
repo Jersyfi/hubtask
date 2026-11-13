@@ -70,9 +70,10 @@ async function open(width, { runs, asks = false, requires = false, path = `/item
     if (board && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { state_mode: 'COLUMNS', columns: BOARD, column_id: BOARD[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } });
     }
-    if (board && read === `/items/${ENTRY.id}` && request.method() === 'PATCH') {
+    // A column chosen in the status menu is the board's drop (`:drop`); the server completes it.
+    if (board && read === `/items/${ENTRY.id}:drop` && request.method() === 'POST') {
       patches.push(request.postDataJSON());
-      return route.fulfill({ json: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } });
+      return route.fulfill({ json: { outcome: 'MOVED', steps: [], item: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } } });
     }
     if (!runs && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { workflow: null, status: null, steps: [], blocked: [], done_route: [], picture: SHAPE, by_default: true, may_design: false } });
@@ -339,7 +340,7 @@ test('chromium: on a board without a workflow the menu lists its columns, the do
     assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done stays the main action');
     await rows.nth(2).click();
     await page.waitForTimeout(400);
-    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column moves the entry into it');
+    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column drops the entry into it, the server keeping the done column');
   } finally {
     await close();
   }
