@@ -346,6 +346,31 @@ func TestTakingAStepAnswersTheEntry(t *testing.T) {
 	}
 }
 
+// A drop answers what it did and the entry; a choice carries the steps (UC-WRK-05, UC-FLW-06).
+func TestADropAnswersTheOutcomeAndTheEntry(t *testing.T) {
+	item := "0192f000-0000-7000-8000-000000000011"
+	column := "0192f000-0000-7000-8000-000000000012"
+	registry := &catalogue{out: usecase.Output{
+		"outcome": "CHOOSE",
+		"steps":   []usecase.Output{{"key": "accept", "name": nil, "to": "done"}, {"key": "reject", "name": nil, "to": "rejected"}},
+		"item":    usecase.Output{"id": item, "type": "TASK", "title": "Buy milk", "status": "review", "version": 4},
+	}}
+	recorder := callDoor(t, registry, http.MethodPost, "/items/"+item+":drop", `{"bucket_id":"`+column+`"}`,
+		map[string]string{"Content-Type": "application/json", "If-Match": `"4"`})
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "DropItemOnColumn" || registry.in["item_id"] != item || registry.in["bucket_id"] != column ||
+		registry.in["expected_version"] != 4 {
+		t.Errorf("%s %v", registry.name, registry.in)
+	}
+	for _, want := range []string{`"outcome":"CHOOSE"`, `"key":"reject"`, `"status":"review"`} {
+		if !strings.Contains(recorder.Body.String(), want) {
+			t.Errorf("the answer is %s, want %s", recorder.Body, want)
+		}
+	}
+}
+
 // A secret shown once is marked so for a cache and the idempotency record (T-18) - only when the
 // answer carries it: an invitation sent by mail shows no link and is not marked.
 func TestAGeneratedAnswerShowingASecretOnceIsMarkedSo(t *testing.T) {
