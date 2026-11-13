@@ -14599,5 +14599,14 @@
   "containers.move_keeps_releases": "{count} Einträge bleiben in Releases des Hubs, den es verlässt.",
   "containers.move_keeps_sla_policies": "{count} laufende SLA-Uhren behalten die Richtlinien des Hubs, den es verlässt.",
   "templates.text.69261aa6": "Priorität aus Auswirkung und Dringlichkeit setzen, wenn eine Anfrage eingeht",
-  "templates.text.1da2492d": "Priorität neu setzen, wenn sich Auswirkung oder Dringlichkeit ändert"
+  "templates.text.1da2492d": "Priorität neu setzen, wenn sich Auswirkung oder Dringlichkeit ändert",
+  "query.bracket_unclosed": "Eine vor Zeichen {at} geöffnete Klammer ist nicht geschlossen. Ergänze {suggestion}.",
+  "query.flag_in_group": "is: {value} erweitert die ganze Suche und kann nicht in einer Gruppe oder nach einem Minus stehen (Zeichen {at}).",
+  "query.kind_in_group": "type: bestimmt, was die ganze Suche findet, und kann nicht in einer Gruppe oder nach einem Minus stehen (Zeichen {at}).",
+  "query.kind_not_here": "Diese Liste enthält Einträge, darum lässt sich type: {kind} hier nicht fragen.",
+  "query.sort_in_group": "sort: ordnet die ganze Suche und kann nicht in einer Gruppe oder nach einem Minus stehen (Zeichen {at}).",
+  "query.sort_not_here": "Eine Anzahl hat keine Reihenfolge. Lass sort: in dieser Suche weg.",
+  "query.value_needs_place": "here steht für den Ort, an dem du bist, und diese Suche kam von keinem (Zeichen {at}).",
+  "query.value_unknown": "Der Wert an Zeichen {at} ist keiner, den {field} kennt.",
+  "query.values_not_allowed": "{field} vergleicht hier mit einem Wert, nicht mit einer Liste (Zeichen {at})."
 }

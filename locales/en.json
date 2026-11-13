@@ -14599,5 +14599,14 @@
   "containers.move_keeps_releases": "{count} entries stay in releases of the hub it leaves.",
   "containers.move_keeps_sla_policies": "{count} running SLA clocks keep the policies of the hub it leaves.",
   "templates.text.69261aa6": "Set the priority from impact and urgency when a request comes in",
-  "templates.text.1da2492d": "Set the priority again when impact or urgency changes"
+  "templates.text.1da2492d": "Set the priority again when impact or urgency changes",
+  "query.bracket_unclosed": "A bracket opened before character {at} is not closed. Add {suggestion}.",
+  "query.flag_in_group": "is: {value} widens the whole search and cannot stand inside a group or after a minus (character {at}).",
+  "query.kind_in_group": "type: names what is searched for the whole query and cannot stand inside a group or after a minus (character {at}).",
+  "query.kind_not_here": "This list holds entries, so type: {kind} cannot be asked here.",
+  "query.sort_in_group": "sort: orders the whole query and cannot stand inside a group or after a minus (character {at}).",
+  "query.sort_not_here": "A count has no order. Leave sort: out of this query.",
+  "query.value_needs_place": "here stands for the place you are in, and this query was sent from none (character {at}).",
+  "query.value_unknown": "The value at character {at} is not one {field} takes.",
+  "query.values_not_allowed": "{field} compares with one value here, not a list (character {at})."
 }
