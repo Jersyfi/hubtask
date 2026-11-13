@@ -229,7 +229,7 @@ test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboar
     return grip && drawn === (value === 1);
   }, [ITEMS[0].id, wanted], { timeout: 5_000 });
   await waitFor(0);
-  assert.equal(await row.locator('.tools .on-hover').count(), 3, 'labels, ＋ and ⋯');
+  assert.equal(await row.locator('.tools .on-hover').count(), 4, 'Open, labels, ＋ and ⋯ (WB-4)');
   // The label chip stays: it is what the row says.
   assert.equal(await row.locator('[data-token]').first().evaluate((chip) => Number(getComputedStyle(chip).opacity)), 1);
   // The pointer over the row.

@@ -49,7 +49,9 @@
   import { buckets } from '../data/buckets.svelte.ts';
   import { statusLabel } from '../data/workflows.ts';
   import StateChip from './StateChip.svelte';
-  import { chipOf, type Chip } from './statechip.ts';
+  import { advanceOf, chipOf, type Chip } from './statechip.ts';
+  import { takeChoice } from './statetake.ts';
+  import SlaRemaining from '../servicedesk/SlaRemaining.svelte';
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { classify, edgeInset, HOLD_MS as GESTURE_HOLD_MS, startsAtEdge, swipeThreshold, type Point } from './swipe.ts';
@@ -193,6 +195,8 @@
     stateMode?: StateMode;
     /** The workflow the collection runs, for the status chip's names and steps. */
     workflow?: WorkflowShape;
+    /** A desk's collection with its module on: a phone's row carries the SLA bar (§7). */
+    withSla?: boolean;
   }
 
   const {
@@ -223,6 +227,7 @@
     isAddedInPlace = false,
     stateMode,
     workflow,
+    withSla = false,
   }: Props = $props();
 
   // A column chip reads the board's columns (an engine subscription, shared with the board's own).
@@ -254,6 +259,35 @@
     const past = rows.findIndex((row) => row.depth === 0 && ++tops > rowLimit);
     return past < 0 ? rows.length : past;
   });
+
+  /** The groups folded now (WB-4): a group's head is a twist; kept while the list is open. */
+  let folded = $state<string[]>([]);
+  const isFolded = (fold: string) => folded.includes(fold);
+  const toggleFold = (fold: string) => (folded = isFolded(fold) ? folded.filter((each) => each !== fold) : [...folded, fold]);
+
+  /** Where a swipe towards the end - and the menu's *advance* - carries an entry at L1 and L2. */
+  function advanceFor(item: WorkItem) {
+    const chip = chipFor(item);
+    return chip ? advanceOf(chip) : undefined;
+  }
+
+  /**
+   * A row's one act (work-surface concept §7): at L0 it completes - or reopens - the entry, at L1
+   * and L2 it carries it to the next column or along the first step. Its menu offers the same.
+   */
+  async function act(id: string) {
+    const row = rowById.get(id);
+    if (!row || isFrozen(row)) return;
+    if (!chipFor(row.item)) return void toggleComplete(row.item);
+    const next = advanceFor(row.item);
+    if (!next) return;
+    writeFailure = undefined;
+    try {
+      await takeChoice(row.item, next);
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
 
   /** The columns beside each title: the view's, or for a subtree what an entry carries. */
   // The collection the keys are read from (ticket.ts); a list is always one collection's.
@@ -885,7 +919,9 @@
     const onKeydown = (event: KeyboardEvent) => {
       const id = (event.target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row');
       const row = rows.find((each) => each.item.id === id);
-      if (!row || isFrozen(row)) return;
+      if (!row) return;
+      if (walk(event, node, row.item.id)) return;
+      if (isFrozen(row)) return;
 
       const target = rankIntent(event, row.index, row.siblings.length);
       if (target === null) return;
@@ -897,6 +933,28 @@
     node.addEventListener('keydown', onKeydown);
     return () => node.removeEventListener('keydown', onKeydown);
   });
+
+  /**
+   * The table's keys (WB-4): ↑ and ↓ walk from a row's title to the next one's, Enter opens it (the
+   * title is a link), Space on it picks it for the bulk bar. Alt with the arrows stays the rank's.
+   */
+  function walk(event: KeyboardEvent, node: HTMLElement, id: string): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey) return false;
+    const title = (event.target as Element).closest('.content');
+    if (!title) return false;
+    if (event.key === ' ' && isSelectable) {
+      event.preventDefault();
+      selection.pick(visibleIds, id, { range: event.shiftKey });
+      return true;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return false;
+    const titles = [...node.querySelectorAll<HTMLElement>('[data-row] .content')];
+    const next = titles[titles.indexOf(title as HTMLElement) + (event.key === 'ArrowDown' ? 1 : -1)];
+    if (!next) return false;
+    event.preventDefault();
+    next.focus();
+    return true;
+  }
 
   /** Which command a press was, once `rankIntent` has said it is one at all. */
   function keyCommand(event: KeyboardEvent): RankCommand {
@@ -965,7 +1023,8 @@
    * (ADR-0088).
    */
   function menuItems(row: Row) {
-    return entryMenu(
+    const next = isFrozen(row) ? undefined : advanceFor(row.item);
+    const menu = entryMenu(
       {
         sendsLinks: platform.sendLink !== undefined,
         surface: root ? 'subtree' : isSimple ? 'simple' : isSelectable ? 'list' : 'subtree',
@@ -994,6 +1053,11 @@
       },
       t,
     );
+    if (!next) return menu;
+    // The swipe's act at L1 and L2, without the gesture (WCAG 2.5.7): after *Select* and *Open*.
+    const at = menu.findIndex((item) => item.id !== 'select' && item.id !== 'open');
+    const advance = { id: 'advance', label: t('app.entries.advance', { name: next.label }) };
+    return at === -1 ? [...menu, advance] : [...menu.slice(0, at), advance, ...menu.slice(at)];
   }
 
   /** The menus of the rows, so a right click, a key or a long press can open one. */
@@ -1027,6 +1091,7 @@
       idAt: rowIdAt,
       open: (id) => menus[id]?.open(0),
       ignore: '[data-grip]',
+      swipe: selection.isOn ? undefined : { toEnd: (id) => void act(id), toStart: (id) => menus[id]?.open(0) },
     });
   });
 
@@ -1086,8 +1151,11 @@
       if (gesture === 'swipe-end') {
         press.acted = true;
         swallowsClick = true;
-        const row = rowById.get(press.id);
-        if (row && !isFrozen(row)) void toggleComplete(row.item);
+        void act(press.id);
+      } else if (gesture === 'swipe-start') {
+        press.acted = true;
+        swallowsClick = true;
+        menus[press.id]?.open(0);
       } else if (gesture !== 'pending' && gesture !== 'hold') {
         press = undefined;
       }
@@ -1234,6 +1302,10 @@
 
   /** One chosen item: what only the list knows answers here, the rest is the screen's actions. */
   function chose(row: Row, id: string) {
+    if (id === 'advance') {
+      void act(row.item.id);
+      return;
+    }
     if (id === 'select') {
       selection.pick(visibleIds, row.item.id);
       return;
@@ -1329,7 +1401,9 @@
       {/if}
       <!-- The column heads (L2): what each column beside the titles is, the sortable ones as
            buttons that order by it. From `expanded` up, where the fields stand in columns. -->
-      <div class="columns" data-subtree={root ? '' : undefined}>
+      <!-- One region with hairlines (WB-4): the heads, the groups with their counts and adds, the
+           rows ruled apart, and the foot that continues the list. -->
+      <div class="columns" data-subtree={root ? '' : undefined} role={root ? undefined : 'region'} aria-label={root ? undefined : t('app.entries.region', { name: keyedCollection?.name ?? '' })} data-table={root ? undefined : ''}>
       {#if (arrangement || root) && fields.length > 0}
         <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
           {#if sortOf('title') && onsort}
@@ -1368,13 +1442,17 @@
           <!-- While the capture line holds words, what they match under *Recently* stands right
                under it: one tap brings an entry back where its name was being typed. -->
           {#each sections.open as group (group.category ?? '')}
-            {#if group.category !== null || sections.open.length > 1}
-              {@render groupHead(categoryName(group.category), group.entries.length)}
+            {@const fold = `category:${group.category ?? ''}`}
+            {@const isHeaded = group.category !== null || sections.open.length > 1}
+            {#if isHeaded}
+              {@render groupHead(categoryName(group.category), group.entries.length, fold)}
             {/if}
-            {#each group.entries as entry (entry.id)}
-              {@const row = rowById.get(entry.id)}
-              {#if row}{@render entryRow(row)}{/if}
-            {/each}
+            {#if !isHeaded || !isFolded(fold)}
+              {#each group.entries as entry (entry.id)}
+                {@const row = rowById.get(entry.id)}
+                {#if row}{@render entryRow(row)}{/if}
+              {/each}
+            {/if}
           {/each}
           {#if sections.done.length > 0}
             {#if renamingDone}
@@ -1407,12 +1485,23 @@
           {#if recentlyShown.length > 0}{@render recentlySection()}{/if}
         {:else if arranged}
           {#each arranged.groups as group (group.key ?? '')}
-            {#if arrangement && arrangement.grouping !== 'none'}
-              {@render groupHead(groupName(group.key), group.rows.filter((row) => row.depth === 0).length)}
+            {@const fold = `group:${group.key ?? ''}`}
+            {@const isHeaded = arrangement !== undefined && arrangement.grouping !== 'none'}
+            {#if isHeaded}
+              {@render groupHead(groupName(group.key), group.rows.filter((row) => row.depth === 0).length, fold)}
             {/if}
-            {#each group.rows as row (row.item.id)}
-              {@render entryRow(row)}
-            {/each}
+            {#if !isHeaded || !isFolded(fold)}
+              {#each group.rows as row (row.item.id)}
+                {@render entryRow(row)}
+              {/each}
+              <!-- "+ Entry in <column>": capture, pointed at the group's column (C-4). Only where
+                   capture can place an entry in the group; the other groupings keep the one add at
+                   the foot rather than an add that would land elsewhere. -->
+              {#if isHeaded && arrangement?.grouping === 'column' && group.key !== null && !isReadOnly && mayCreate && topTypes().length > 0}
+                {@const bucketId = group.key}
+                <div class="group-add"><AddRow label={t('app.entries.add_in', { group: groupName(group.key) })} onclick={() => captureField.open({ collectionId, types: topTypes(), bucketId })} /></div>
+              {/if}
+            {/if}
           {/each}
           {#if arranged.done.length > 0}
             <!-- What is done, gathered at the end and folded (L5): one press away, never gone. -->
@@ -1433,26 +1522,31 @@
           {/each}
         {/if}
       </div>
+        <!-- The collection's list is read a page at a time: what is not on the first page is said
+             and offered, never silently left out. -->
+        {#if !root && listPage.hasMore}
+          <div class="foot">
+          <LoadMore
+            label={listPage.total === undefined
+              ? t('app.entries.load_more', { shown: String(listPage.shown) })
+              : t('app.entries.load_more_of', { shown: String(listPage.shown), total: String(listPage.total) })}
+            busyLabel={t('app.entries.loading_more')}
+            hasMore
+            isBusy={isLoadingMore}
+            {...(moreFailed ? { failedLabel: moreFailed } : {})}
+            onLoadMore={() => void loadMore()}
+          />
+          </div>
+        {/if}
+
       </div>
+      {#if !root && !isReadOnly && viewport.isCompact}
+        <p class="swipe-hint">{t('app.list.swipe_hint')}</p>
+      {/if}
       {#if rowLimit && rows.length > cutAt}
         <button type="button" class="all-rows" aria-expanded={isAllRowsShown} onclick={() => (isAllRowsShown = !isAllRowsShown)}>
           <Icon name={isAllRowsShown ? 'chevron-up' : 'chevron-down'} size="sm" />{isAllRowsShown ? t('app.entry.show_less') : t('app.entry.show_all', { count: String(rows.length) })}
         </button>
-      {/if}
-
-      <!-- The collection's list is read a page at a time: what is not on the first page is said
-           and offered, never silently left out. -->
-      {#if !root && listPage.hasMore}
-        <LoadMore
-          label={listPage.total === undefined
-            ? t('app.entries.load_more', { shown: String(listPage.shown) })
-            : t('app.entries.load_more_of', { shown: String(listPage.shown), total: String(listPage.total) })}
-          busyLabel={t('app.entries.loading_more')}
-          hasMore
-          isBusy={isLoadingMore}
-          {...(moreFailed ? { failedLabel: moreFailed } : {})}
-          onLoadMore={() => void loadMore()}
-        />
       {/if}
 
       {#if !isReadOnly && mayCreate && topTypes().length > 0 && !isAddedInPlace}
@@ -1471,9 +1565,10 @@
   {/if}
 </Stack>
 
-{#snippet groupHead(name: string, count: number)}
-  <!-- One group head for every grouping (L4): its name and how many, the same in every list. -->
-  <h2 class="group-head"><span>{name}</span><span class="group-count">{count}</span></h2>
+{#snippet groupHead(name: string, count: number, fold: string)}
+  <!-- One group head for every grouping (L4): its name and how many, the same in every list; its
+       twist folds the group (WB-4). -->
+  <h2 class="group-head" data-fold={fold}><span class="group-name"><button type="button" class="twist" aria-expanded={!isFolded(fold)} aria-label={t(isFolded(fold) ? 'app.list.unfold_group' : 'app.list.fold_group', { group: name })} onclick={() => toggleFold(fold)}><Icon name={isFolded(fold) ? 'chevron-right' : 'chevron-down'} size="sm" /></button>{name}</span><span class="group-count">{count}</span></h2>
 {/snippet}
 
 {#snippet entryRow(row: Row)}
@@ -1533,115 +1628,124 @@
         <CelebrationSlot current={moment} />
       {/if}
       {#snippet rowEnd()}
-        <!-- The fields as cells (L2): each in its column, in the arrangement's order, and only
-             where the entry's type carries it here (UC-WRK-23 check 4) - an empty cell keeps the
-             column's width so the columns stand straight. -->
-        <span class="cells">
-          {#if showsTypes && !fields.includes('type')}
-            {@const mark = rowMarkOf(entryTypes.all, row.item.type, row.item.entry_type)}
-            {#if mark}
-              <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
-            {/if}
-          {/if}
-          {#each fields as field (field)}
-            <span class="cell" data-field={field}>
-              {#if field === 'key'}
-                <EntryKey collection={keyedCollection} number={row.item.number} />
-              {:else if field === 'type'}
-                <!-- The type as a column (S-03): every row's, the level's own included, so the
-                     column reads as a value rather than as a mark only some rows carry. -->
-                {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
-                {#if type}
-                  <span class="type-mark" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" /><LabelChip name={typeName(type.key)} colorToken={type.color_token} /></span>
-                {/if}
-              {:else if field === 'amount' && row.item.amount}
-                <span class="amount">{row.item.amount}</span>
-              {:else if field === 'column' && row.item.bucket_id}
-                {@const column = buckets.of(collectionId).find((bucket) => bucket.id === row.item.bucket_id)}
-                {#if column}<span class="column-chip">{column.name}</span>{/if}
-              {:else if field === 'due' && supports(row.item.type, 'DUE_DATE').status === 'permitted'}
-                <DueMark item={row.item} />
-              {:else if field === 'people' && (supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted')}
-                <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
-              {:else if field === 'labels' && supports(row.item.type, 'LABELS').status === 'permitted'}
-                {@const carried = (row.item.label_ids ?? []).flatMap((labelId) => available.filter((each) => each.id === labelId && !(isSimple && categories.includes(each.id))))}
-                {#each carried.slice(0, 2) as entry (entry.id)}
-                  <LabelChip
-                    name={entry.name}
-                    colorToken={entry.colorToken}
-                    description={entry.description}
-                    removeLabel={isFrozen(row) ? undefined : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
-                    onRemove={() => toggleLabel(row.item, entry.id)}
-                  />
-                {/each}
-                {#if carried.length > 2}<span class="more-labels" title={carried.slice(2).map((entry) => entry.name).join(', ')}>+{carried.length - 2}</span>{/if}
-              {:else if field === 'progress' && row.takesChildren}
-                <!-- What a row that takes children holds, done of total (ADR-0061 decision 4); the
-                     server's count where the read carried one, else the level once it is read. -->
-                {@const progress = row.item.counts ? { done: row.item.counts.parts_done, total: row.item.counts.parts } : progressOf(row.item.id)}
-                {#if progress && progress.total > 0}
-                  <!-- In a subtree a bar beside the count, as the `task` scene's parts draw it. -->
-                  {#if root}<span class="progress-bar" aria-hidden="true"><ProgressBar size="sm" label="" value={Math.round((progress.done / progress.total) * 100)} /></span>{/if}
-                  <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
-                {/if}
+        <span class="row-end">
+          <!-- The fields as cells (L2): each in its column, in the arrangement's order, and only
+               where the entry's type carries it here (UC-WRK-23 check 4) - an empty cell keeps the
+               column's width so the columns stand straight. -->
+          <span class="cells">
+            {#if showsTypes && !fields.includes('type')}
+              {@const mark = rowMarkOf(entryTypes.all, row.item.type, row.item.entry_type)}
+              {#if mark}
+                <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
               {/if}
-            </span>
-          {/each}
-        </span>
-        <!-- UC-WRK-24 check 4: what the collection's levels hide under this entry, so nobody
-             believes it lost. -->
-        {#if (row.item.hidden?.below ?? 0) > 0}
-          {@const below = row.item.hidden?.below ?? 0}
-          <span class="hidden-below" title={t('app.entries.hidden_below_title', { count: below })}>{t('app.entries.hidden_below', { count: below })}</span>
-        {/if}
-        <!-- Rule 3: an entry archived in its own right says the word. -->
-        {#if row.archival === 'archived' && !isReadOnly}
-          <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
-        {/if}
-
-        <!-- The row's tools, over the row's end where the pointer or the focus is: they take no
-             column, so the columns stand straight with and without them. -->
-        <span class="tools">
-          {#if supports(row.item.type, 'LABELS').status === 'permitted' && !isFrozen(row) && !isSimple}
-            <span class="on-hover">
-              <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
-                {#snippet trigger(props)}
-                  <IconButton icon="tag" size="sm" label={t('app.labels.on_entry', { title: row.item.title })} {...props} />
-                {/snippet}
-                <LabelPicker
-                  label={t('app.labels.on_entry', { title: row.item.title })}
-                  labels={available}
-                  selected={row.item.label_ids ?? []}
-                  filterLabel={t('app.labels.filter')}
-                  locale={messages.locale}
-                  emptyLabel={t('app.labels.none_yet')}
-                  noMatchLabel={t('app.labels.no_match')}
-                  onToggle={(labelId) => toggleLabel(row.item, labelId)}
-                />
-              </Popover>
-            </span>
+            {/if}
+            {#each fields as field (field)}
+              <span class="cell" data-field={field}>
+                {#if field === 'key'}
+                  <EntryKey collection={keyedCollection} number={row.item.number} />
+                {:else if field === 'type'}
+                  <!-- The type as a column (S-03): every row's, the level's own included, so the
+                       column reads as a value rather than as a mark only some rows carry. -->
+                  {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
+                  {#if type}
+                    <span class="type-mark" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" /><LabelChip name={typeName(type.key)} colorToken={type.color_token} /></span>
+                  {/if}
+                {:else if field === 'amount' && row.item.amount}
+                  <span class="amount">{row.item.amount}</span>
+                {:else if field === 'column' && row.item.bucket_id}
+                  {@const column = buckets.of(collectionId).find((bucket) => bucket.id === row.item.bucket_id)}
+                  {#if column}<span class="column-chip">{column.name}</span>{/if}
+                {:else if field === 'due' && supports(row.item.type, 'DUE_DATE').status === 'permitted'}
+                  <DueMark item={row.item} />
+                {:else if field === 'people' && (supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted')}
+                  <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+                {:else if field === 'labels' && supports(row.item.type, 'LABELS').status === 'permitted'}
+                  {@const carried = (row.item.label_ids ?? []).flatMap((labelId) => available.filter((each) => each.id === labelId && !(isSimple && categories.includes(each.id))))}
+                  {#each carried.slice(0, 2) as entry (entry.id)}
+                    <LabelChip
+                      name={entry.name}
+                      colorToken={entry.colorToken}
+                      description={entry.description}
+                      removeLabel={isFrozen(row) ? undefined : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
+                      onRemove={() => toggleLabel(row.item, entry.id)}
+                    />
+                  {/each}
+                  {#if carried.length > 2}<span class="more-labels" title={carried.slice(2).map((entry) => entry.name).join(', ')}>+{carried.length - 2}</span>{/if}
+                {:else if field === 'progress' && row.takesChildren}
+                  <!-- What a row that takes children holds, done of total (ADR-0061 decision 4); the
+                       server's count where the read carried one, else the level once it is read. -->
+                  {@const progress = row.item.counts ? { done: row.item.counts.parts_done, total: row.item.counts.parts } : progressOf(row.item.id)}
+                  {#if progress && progress.total > 0}
+                    <!-- In a subtree a bar beside the count, as the `task` scene's parts draw it. -->
+                    {#if root}<span class="progress-bar" aria-hidden="true"><ProgressBar size="sm" label="" value={Math.round((progress.done / progress.total) * 100)} /></span>{/if}
+                    <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
+                  {/if}
+                {/if}
+              </span>
+            {/each}
+          </span>
+          <!-- UC-WRK-24 check 4: what the collection's levels hide under this entry, so nobody
+               believes it lost. -->
+          {#if (row.item.hidden?.below ?? 0) > 0}
+            {@const below = row.item.hidden?.below ?? 0}
+            <span class="hidden-below" title={t('app.entries.hidden_below_title', { count: below })}>{t('app.entries.hidden_below', { count: below })}</span>
           {/if}
-          {#if row.archival === 'active' && mayCreate && row.takesChildren}
+          <!-- Rule 3: an entry archived in its own right says the word. -->
+          {#if row.archival === 'archived' && !isReadOnly}
+            <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
+          {/if}
+
+          <!-- The row's tools, over the row's end where the pointer or the focus is: they take no
+               column, so the columns stand straight with and without them. -->
+          {#if withSla && viewport.isCompact}
+            <span class="sla">{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}</span>
+          {/if}
+          <span class="tools">
+            <!-- The row's one act on hover (WB-4): its ⋯ menu opens it too. -->
+            {#if !root}
+              <span class="on-hover act"><Button size="sm" tone="subtle" onclick={() => (onopen ? onopen(row.item.id) : onnavigate?.(`/items/${row.item.id}`))}>{t('app.entry_menu.open')}</Button></span>
+            {/if}
+            {#if supports(row.item.type, 'LABELS').status === 'permitted' && !isFrozen(row) && !isSimple}
+              <span class="on-hover">
+                <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
+                  {#snippet trigger(props)}
+                    <IconButton icon="tag" size="sm" label={t('app.labels.on_entry', { title: row.item.title })} {...props} />
+                  {/snippet}
+                  <LabelPicker
+                    label={t('app.labels.on_entry', { title: row.item.title })}
+                    labels={available}
+                    selected={row.item.label_ids ?? []}
+                    filterLabel={t('app.labels.filter')}
+                    locale={messages.locale}
+                    emptyLabel={t('app.labels.none_yet')}
+                    noMatchLabel={t('app.labels.no_match')}
+                    onToggle={(labelId) => toggleLabel(row.item, labelId)}
+                  />
+                </Popover>
+              </span>
+            {/if}
+            {#if row.archival === 'active' && mayCreate && row.takesChildren}
+              <span class="on-hover">
+                <IconButton
+                  icon="plus"
+                  label={childTypes(row.item.type).length === 1
+                    ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
+                    : t('app.entries.add_child', { title: row.item.title })}
+                  size="sm"
+                  onclick={() => startAdding(row.item.id)}
+                />
+              </span>
+            {/if}
+            <!-- The entry menu every surface shares (UC-WRK-28 check 1), the single-pointer
+                 alternative to a drag (SC 2.5.7). -->
             <span class="on-hover">
-              <IconButton
-                icon="plus"
-                label={childTypes(row.item.type).length === 1
-                  ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
-                  : t('app.entries.add_child', { title: row.item.title })}
-                size="sm"
-                onclick={() => startAdding(row.item.id)}
+              <EntryMenu
+                bind:this={menus[row.item.id]}
+                title={row.item.title}
+                items={menuItems(row)}
+                onselect={(id) => chose(row, id)}
               />
             </span>
-          {/if}
-          <!-- The entry menu every surface shares (UC-WRK-28 check 1), the single-pointer
-               alternative to a drag (SC 2.5.7). -->
-          <span class="on-hover">
-            <EntryMenu
-              bind:this={menus[row.item.id]}
-              title={row.item.title}
-              items={menuItems(row)}
-              onselect={(id) => chose(row, id)}
-            />
           </span>
         </span>
       {/snippet}
@@ -1683,6 +1787,7 @@
         trailing={rowEnd}
         state={chipFor(row.item) ? chipCell : undefined}
         isOneLine={root !== undefined}
+        isRuled={root === undefined}
       />
 
     </div>
@@ -1830,12 +1935,11 @@
 
   .bulk-note { margin: 0 0 0 var(--sp-300); color: var(--text-danger); font-size: var(--fs-075); }
 
-  /* The row's tools - the labels, ＋ and ⋯ - where a pointer that hovers is pointing, or the
-     keyboard is (ux-inventory.md §E5). They take no column: from `medium` up, where a pointer
-     hovers, they are drawn over the row's end, on the row's own surface, so the fields stand in
-     straight columns with them and without them; a touch screen and a narrow window keep them in
-     the row. */
+  /* The row's tools - Open, the labels, ＋ and ⋯ - where a pointer that hovers is pointing, or
+     the keyboard is (ux-inventory.md §E5). They take no column: the fields stand at the row's end
+     with them and without them; a touch screen and a narrow window keep them in the row. */
   .tools { display: inline-flex; align-items: center; gap: var(--sp-025); }
+  .row-end { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
   .on-hover { display: inline-flex; align-items: center; }
 
   @media (hover: hover) {
@@ -1854,16 +1958,11 @@
   @media (hover: hover) and (width >= 600px) {
     .row { position: relative; }
 
-    .tools {
-      position: absolute;
-      inset-block: var(--bw-hairline);
-      inset-inline-end: var(--sp-100);
-      z-index: var(--z-raised);
-      padding-inline-start: var(--sp-300);
-      background: linear-gradient(to right, transparent, var(--bg-surface) var(--sp-300));
-    }
-
-    :global([dir='rtl']) .tools { background: linear-gradient(to left, transparent, var(--bg-surface) var(--sp-300)); }
+    /* After the title, where the queue's mockup draws the act and ⋯ (WB-4): first in the row's end
+       and in its flow, so drawn they shorten the title rather than cover it or a field - the
+       fields stay where they stand, a label's ✕ stays pressable. */
+    .row-end { flex-wrap: nowrap; }
+    .tools { order: -1; }
 
     /* Out of sight until then, never out of reach: still in the reading order and focusable, so
        a screen reader finds a row's menu and the Tab key brings it into view. */
@@ -2043,6 +2142,51 @@
   :global([data-motion='reduced']) .row[data-dragging] { translate: none; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+
+  /* The calm table (WB-4): one region with hairlines - the heads, the groups as sunken heads with
+     their counts and adds, the rows ruled apart (`TaskRow isRuled`), the foot. No clip: the grip
+     stands in the gutter before the region. */
+  .columns[data-table] {
+    gap: 0;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+  }
+  .columns[data-table] .level { gap: 0; }
+  .columns[data-table] .group-head {
+    margin: 0;
+    padding: var(--sp-050) var(--sp-100);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-surface-sunken);
+    font-size: var(--fs-075);
+  }
+  .columns[data-table] .done-head { border-radius: 0; inline-size: 100%; }
+  .columns[data-table] .section-row .group-head { flex: 1; }
+  .group-name { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .twist {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .twist:hover { background: var(--bg-surface-hover); }
+  .twist:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .group-add { padding-inline: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .foot { padding: var(--sp-100); }
+  .sla { display: inline-flex; min-inline-size: calc(var(--sp-1000) * 2); }
+  .swipe-hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  /* A finger's sideways swipe is the row's (§7); scrolling stays the browser's. */
+  .columns[data-table] .row { touch-action: pan-y; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    /* A phone opens a row by its press; the act would only crowd the meta line. */
+    .act { display: none; }
+  }
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */
