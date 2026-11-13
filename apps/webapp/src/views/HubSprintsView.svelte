@@ -10,7 +10,7 @@
   // **The server counts; this page draws.** Commitment, burndown and velocity are the answers of
   // `/sprints/{id}` and `/collections/{id}/velocity`, as the sprint's own view reads them.
   import { untrack } from 'svelte';
-  import { Button, EmptyState, Icon, ProgressBar, Skeleton, StateLozenge, VisuallyHidden, WorkPage } from '@hubtask/design-system/components';
+  import { Button, DataTable, EmptyState, Icon, ProgressBar, Skeleton, StateLozenge, WorkPage, type DataColumn } from '@hubtask/design-system/components';
   import type { Sprint, SprintDetail, SprintList, Velocity } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -104,6 +104,13 @@
     return read.length === 1 ? read[0] : undefined;
   });
   /** The longest bar of the closed table: the most any of them committed or did. */
+  const closedColumns = $derived<DataColumn[]>([
+    { id: 'sprint', label: t('app.hubsprints.col_sprint'), priority: 1 },
+    { id: 'collection', label: t('app.hubsprints.col_collection'), priority: 2 },
+    { id: 'committed', label: t('app.hubsprints.col_committed'), align: 'end', priority: 2 },
+    { id: 'done', label: t('app.hubsprints.col_done'), align: 'end', priority: 2 },
+    { id: 'compare', label: t('app.hubsprints.col_compare'), isLabelHidden: true, priority: 3 },
+  ]);
   const closedTop = $derived(Math.max(1, ...closed.map((each) => Math.max(each.committed_value, each.completed_value))));
 </script>
 
@@ -196,35 +203,25 @@
             <h2 class="label" id="hub-sprints-closed">{t('app.hubsprints.closed')}</h2>
             {#if velocityShown}<span class="quiet">{t('app.sprints.velocity', { value: String(velocityShown.average), unit: t(`app.sprints.unit_${velocityShown.unit}`) })}</span>{/if}
           </div>
-          <table class="closed" data-closed-sprints>
-            <thead>
-              <tr>
-                <th scope="col">{t('app.hubsprints.col_sprint')}</th>
-                <th scope="col">{t('app.hubsprints.col_collection')}</th>
-                <th scope="col" class="number">{t('app.hubsprints.col_committed')}</th>
-                <th scope="col" class="number">{t('app.hubsprints.col_done')}</th>
-                <th scope="col" class="bars-head"><VisuallyHidden>{t('app.hubsprints.col_compare')}</VisuallyHidden></th>
-              </tr>
-            </thead>
-            <tbody>
-              {#each closed as sprint (sprint.id)}
-                <tr data-closed-sprint={sprint.id}>
-                  <td>{sprint.name}</td>
-                  <td class="quiet">{nameOf(sprint.collection_id)}</td>
-                  <td class="number">{sprint.committed_value}</td>
-                  <td class="number">{sprint.completed_value}</td>
-                  <td>
-                    <span class="versus" role="img" aria-label={t('app.hubsprints.committed_vs_done', { committed: String(sprint.committed_value), done: String(sprint.completed_value) })}>
-                      <!-- design-system-lint-ignore: a bar's length is its value's share of the longest. -->
-                      <i class="committed" style:inline-size={`${(sprint.committed_value / closedTop) * 100}%`}></i>
-                      <!-- design-system-lint-ignore: a bar's length is its value's share of the longest. -->
-                      <i class="achieved" style:inline-size={`${(sprint.completed_value / closedTop) * 100}%`}></i>
-                    </span>
-                  </td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
+          <div data-closed-sprints>
+            <DataTable label={t('app.hubsprints.closed')} columns={closedColumns} rows={closed}
+              key={(sprint: Sprint) => sprint.id} rowLabel={(sprint: Sprint) => sprint.name}>
+              {#snippet cell(sprint: Sprint, column: DataColumn)}
+                {#if column.id === 'sprint'}<span data-closed-sprint={sprint.id}>{sprint.name}</span>
+                {:else if column.id === 'collection'}<span class="quiet">{nameOf(sprint.collection_id)}</span>
+                {:else if column.id === 'committed'}<span class="number" data-committed>{sprint.committed_value}</span>
+                {:else if column.id === 'done'}<span class="number" data-done>{sprint.completed_value}</span>
+                {:else}
+                  <span class="versus" role="img" aria-label={t('app.hubsprints.committed_vs_done', { committed: String(sprint.committed_value), done: String(sprint.completed_value) })}>
+                    <!-- design-system-lint-ignore: a bar's length is its value's share of the longest. -->
+                    <i class="committed" style:inline-size={`${(sprint.committed_value / closedTop) * 100}%`}></i>
+                    <!-- design-system-lint-ignore: a bar's length is its value's share of the longest. -->
+                    <i class="achieved" style:inline-size={`${(sprint.completed_value / closedTop) * 100}%`}></i>
+                  </span>
+                {/if}
+              {/snippet}
+            </DataTable>
+          </div>
         </section>
       {/if}
     </div>
@@ -256,12 +253,8 @@
   .remaining { fill: none; stroke: var(--accent-primary); stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
   .load { display: flex; flex-direction: column; gap: var(--sp-050); inline-size: var(--layout-field-md); max-inline-size: 100%; font-size: var(--fs-075); }
   .closed-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
-  .closed { inline-size: 100%; border-collapse: collapse; font-size: var(--fs-075); }
-  .closed th { padding: var(--sp-100); color: var(--text-secondary); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-align: start; text-transform: uppercase; border-block-end: var(--bw-hairline) solid var(--border-default); }
-  .closed td { padding: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .closed .number { text-align: end; font-variant-numeric: tabular-nums; }
-  .bars-head { inline-size: 30%; }
-  .versus { display: flex; flex-direction: column; gap: var(--sp-025); }
+  .number { font-variant-numeric: tabular-nums; }
+  .versus { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: var(--layout-field-sm); }
   .versus i { display: block; block-size: var(--sp-050); border-radius: var(--r-full); }
   .committed { background: var(--text-subtle); }
   .achieved { background: var(--accent-primary); }

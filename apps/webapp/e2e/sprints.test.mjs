@@ -433,9 +433,9 @@ test('chromium: 1280 px — the hub\'s sprints: running with its burndown, plann
   await page.goBack();
 
   // The closed ones: committed against done, the velocity named once.
-  const closed = page.locator(`[data-closed-sprint="${CLOSED.id}"]`);
-  await closed.waitFor({ timeout: 10_000 });
-  assert.deepEqual((await closed.locator('td').allInnerTexts()).slice(2, 4), ['8', '5']);
+  await page.locator(`[data-closed-sprint="${CLOSED.id}"]`).waitFor({ timeout: 10_000 });
+  const closed = page.locator('[data-closed-sprints]').getByRole('row', { name: CLOSED.name });
+  assert.deepEqual([await closed.locator('[data-committed]').innerText(), await closed.locator('[data-done]').innerText()], ['8', '5']);
   assert.equal(await closed.getByRole('img', { name: '8 committed, 5 done' }).count(), 1);
   await page.getByText('Velocity: 5 Points a sprint').waitFor({ timeout: 5_000 });
 
