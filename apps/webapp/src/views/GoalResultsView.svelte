@@ -61,7 +61,10 @@
   });
   $effect(() => frame.entitle(t('app.goals.edit_results')));
   $effect(() => untrack(() => views.open()));
-  const summaryViews = $derived<SavedView[]>(views.of().filter((each) => each.query && 'aggregate' in each.query));
+  // Any saved query feeds a key result (§6.11): a summary by its total, any other view by the
+  // number of entries it lists - both counted by the server for whoever looks.
+  const savedQueries = $derived<SavedView[]>(views.of().filter((each) => each.query));
+  const isSummary = (each: SavedView) => each.query !== null && typeof each.query === 'object' && 'aggregate' in each.query;
 
   // Who may write: WRITE_ITEMS at the goal's place - the hub's role, or the workspace's.
   $effect(() => {
@@ -174,7 +177,7 @@
               {/if}
               {#if result.source === 'VIEW' && (result.kind === 'NUMBER' || result.kind === 'PERCENT')}
                 <div class="md"><Select label={t('app.goals.kr_view')} hint={t('app.goals.kr_view_hint')} bind:value={result.viewId} placeholder={t('app.goals.kr_view_pick')}
-                  options={summaryViews.map((each) => ({ value: each.id, label: each.name }))} /></div>
+                  options={savedQueries.map((each) => ({ value: each.id, label: isSummary(each) ? each.name : t('app.goals.kr_view_counts', { name: each.name }) }))} /></div>
               {:else if result.kind === 'MILESTONE'}
                 {#if result.entry}<p class="quiet">{t('app.goals.kr_waits_for', { title: result.entry.title })}</p>{/if}
                 <EntryPicker onchoose={(item) => { if (item) result.entry = { id: item.id, title: item.title }; }} />
