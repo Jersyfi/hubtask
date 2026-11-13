@@ -6,6 +6,8 @@ package work
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -372,5 +374,35 @@ func TestADataFeedReadsAsItsOwnerAtEveryFetch(t *testing.T) {
 				t.Errorf("after: the feed still answered (%v)", err)
 			}
 		})
+	}
+}
+
+// UC-INT-15 check 6. A data feed's $filter is a Hubtask query in either spelling that narrows the view's rows and
+// never widens them; a sort or a kind beyond entries in it, or a query that does not parse, is
+// refused (P-08, UC-INT-15).
+func TestADataFeedsFilterNarrowsTheViewWithAQuery(t *testing.T) {
+	h := newFeedReadHarness(t)
+	token := h.subscribe(t, accountID, feed.DataKind)
+	h.items.result = repository.ItemQueryResult{Items: exportedItems(2)}
+	data := h.read
+	data.Kind = feed.DataKind
+
+	for _, line := range []string{"is: open -title: draft", "is_completed = false AND title ~ invoice"} {
+		h.items.searched = nil
+		if _, err := data.ExecuteFiltered(t.Context(), token, line); err != nil {
+			t.Fatalf("%q: %v", line, err)
+		}
+		if len(h.items.searched) == 0 || h.items.searched[0].Spec.Filter == nil {
+			t.Fatalf("%q: the rows were read without the filter", line)
+		}
+		filter := h.items.searched[0].Spec.Filter
+		if filter.Op != view.OpAnd || !strings.Contains(fmt.Sprint(filter), string(view.FieldIsCompleted)) || !strings.Contains(fmt.Sprint(filter), string(view.FieldTitle)) {
+			t.Errorf("%q narrowed with %+v", line, filter)
+		}
+	}
+	for _, refused := range []string{"is: open sort: -updated", "type: page", "due: <<", "is:"} {
+		if _, err := data.ExecuteFiltered(t.Context(), token, refused); !errors.Is(err, shared.ErrValidation) {
+			t.Errorf("%q answered %v, want a validation error", refused, err)
+		}
 	}
 }

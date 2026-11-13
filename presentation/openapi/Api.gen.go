@@ -29707,8 +29707,9 @@ type RegisterOauthClientParams struct {
 
 // GetDataFeedEntriesParams defines parameters for GetDataFeedEntries.
 type GetDataFeedEntriesParams struct {
-	Top  *int `form:"$top,omitempty" json:"$top,omitempty"`
-	Skip *int `form:"$skip,omitempty" json:"$skip,omitempty"`
+	Filter *string `form:"$filter,omitempty" json:"$filter,omitempty"`
+	Top    *int    `form:"$top,omitempty" json:"$top,omitempty"`
+	Skip   *int    `form:"$skip,omitempty" json:"$skip,omitempty"`
 }
 
 // ChangePageCommentParams defines parameters for ChangePageComment.
@@ -54951,6 +54952,19 @@ func (siw *ServerInterfaceWrapper) GetDataFeedEntries(w http.ResponseWriter, r *
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params GetDataFeedEntriesParams
+
+	// ------------- Optional query parameter "$filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "$filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "$filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "$filter", Err: err})
+		}
+		return
+	}
 
 	// ------------- Optional query parameter "$top" -------------
 

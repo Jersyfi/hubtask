@@ -29713,8 +29713,9 @@ type RegisterOauthClientParams struct {
 
 // GetDataFeedEntriesParams defines parameters for GetDataFeedEntries.
 type GetDataFeedEntriesParams struct {
-	Top  *int `form:"$top,omitempty" json:"$top,omitempty"`
-	Skip *int `form:"$skip,omitempty" json:"$skip,omitempty"`
+	Filter *string `form:"$filter,omitempty" json:"$filter,omitempty"`
+	Top    *int    `form:"$top,omitempty" json:"$top,omitempty"`
+	Skip   *int    `form:"$skip,omitempty" json:"$skip,omitempty"`
 }
 
 // ChangePageCommentParams defines parameters for ChangePageComment.
@@ -40210,7 +40211,7 @@ type ClientInterface interface {
 
 	// GetDataFeedEntries A data feed's rows
 	//
-	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 	//
 	// Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
 	GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -60321,7 +60322,7 @@ func (c *Client) GetDataFeedMetadata(ctx context.Context, token DataFeedToken, r
 
 // GetDataFeedEntries A data feed's rows
 //
-// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 //
 // Corresponds with GET /odata/{token}/Entries (the `GetDataFeedEntries` operationId).
 func (c *Client) GetDataFeedEntries(ctx context.Context, token DataFeedToken, params *GetDataFeedEntriesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -95835,6 +95836,18 @@ func NewGetDataFeedEntriesRequest(server string, token DataFeedToken, params *Ge
 		// per the OpenAPI spec (e.g. "color=blue,black,brown").
 		var rawQueryFragments []string
 
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "$filter", *params.Filter, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
 		if params.Top != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "$top", *params.Top, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
@@ -116796,7 +116809,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetDataFeedEntriesWithResponse A data feed's rows
 	//
-	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+	// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -176081,7 +176094,7 @@ func (c *ClientWithResponses) GetDataFeedMetadataWithResponse(ctx context.Contex
 
 // GetDataFeedEntriesWithResponse A data feed's rows
 //
-// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says, and other query options are not served.
+// The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number, level and type, title, status, completion, dates, assignee, collection and parent, never its notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows the view's rows and never widens them; a sort or a kind other than entries in it is refused. Other query options are not served.
 //
 // Returns a wrapper object for the known response body format(s).
 //

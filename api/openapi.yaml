@@ -8776,8 +8776,15 @@ paths:
         The view's rows as OData v4 JSON, read as the owner reads now: each entry's identifier, number,
         level and type, title, status, completion, dates, assignee, collection and parent, never its
         notes. At most a thousand per answer, with `@odata.nextLink` to the rest, up to the export
-        cap; `$top` and `$skip` page as OData says, and other query options are not served.
+        cap; `$top` and `$skip` page as OData says. `$filter` takes a Hubtask query in either
+        spelling (`is: open who: me`, `is_completed = false AND due_at < @today`), which narrows
+        the view's rows and never widens them; a sort or a kind other than entries in it is
+        refused. Other query options are not served.
       parameters:
+        - name: $filter
+          in: query
+          required: false
+          schema: { type: string, maxLength: 4000 }
         - name: $top
           in: query
           required: false

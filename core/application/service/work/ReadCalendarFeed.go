@@ -59,7 +59,43 @@ func (h ReadCalendarFeed) Execute(
 	scope := persistence.Scope{TenantID: token.TenantID()}
 	return h.read(ctx, scope, func(ctx context.Context) (domain.CalendarFeed, error) {
 		return h.Feeds.FindByToken(ctx, token)
-	})
+	}, nil)
+}
+
+// ExecuteFiltered answers a data feed's rows narrowed by a Hubtask query in either spelling - an
+// OData client's `$filter` (P-08, UC-INT-15). The query is joined to the view's own filter with
+// AND, so it narrows what the owner may see and never widens it; its order belongs to `$orderby`
+// and other kinds than entries to the search, so a sort or a `type:` beyond entries is refused.
+func (h ReadCalendarFeed) ExecuteFiltered(ctx context.Context, token domain.FeedToken, line string) (ExportedView, error) {
+	query, err := view.ParseQuery(line, "/$filter")
+	if err != nil {
+		return ExportedView{}, err
+	}
+	if query.Sort != nil || len(query.Kinds) > 0 {
+		return ExportedView{}, shared.ErrValidation.WithDetail("feeds.filter_not_a_filter").
+			WithFields(shared.FieldError{Path: "/$filter", Code: "feeds.filter_not_a_filter"})
+	}
+	narrowing := query.Filter
+	if query.Words != "" {
+		narrowing = joinFilters(narrowing, map[string]any{"field": view.FieldText, "op": string(view.OpMatches), "value": query.Words})
+	}
+	if token.IsZero() {
+		return ExportedView{}, feedGone()
+	}
+	return h.read(ctx, persistence.Scope{TenantID: token.TenantID()}, func(ctx context.Context) (domain.CalendarFeed, error) {
+		return h.Feeds.FindByToken(ctx, token)
+	}, narrowing)
+}
+
+// joinFilters is both filters at once; a nil one is no condition.
+func joinFilters(a, b any) any {
+	switch {
+	case a == nil:
+		return b
+	case b == nil:
+		return a
+	}
+	return map[string]any{"op": "AND", "nodes": []any{a, b}}
 }
 
 // ExecuteFeed answers what one calendar feed contains by its identifier, for a push that writes
@@ -68,11 +104,12 @@ func (h ReadCalendarFeed) ExecuteFeed(ctx context.Context, tenantID, feedID shar
 	h.Kind = domain.CalendarKind
 	return h.read(ctx, persistence.Scope{TenantID: tenantID}, func(ctx context.Context) (domain.CalendarFeed, error) {
 		return h.Feeds.Find(ctx, feedID)
-	})
+	}, nil)
 }
 
 func (h ReadCalendarFeed) read(
 	ctx context.Context, scope persistence.Scope, lookup func(context.Context) (domain.CalendarFeed, error),
+	narrowing any,
 ) (ExportedView, error) {
 	var (
 		feed  domain.CalendarFeed
@@ -123,6 +160,14 @@ func (h ReadCalendarFeed) read(
 	saved, err := h.view(ctx, owner, feed.ViewID)
 	if err != nil {
 		return ExportedView{}, err
+	}
+	if narrowing != nil {
+		narrowed := make(map[string]any, len(saved.Query)+1)
+		for k, v := range saved.Query {
+			narrowed[k] = v
+		}
+		narrowed["filter"] = joinFilters(saved.Query["filter"], narrowing)
+		saved.Query = narrowed
 	}
 
 	exported, err := h.Export.rows(ctx, owner, saved)

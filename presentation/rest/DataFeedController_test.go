@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-func fetchData(t *testing.T, reader CalendarFeedReader, path string) *httptest.ResponseRecorder {
+func fetchData(t *testing.T, reader DataFeedReader, path string) *httptest.ResponseRecorder {
 	t.Helper()
 	controller := NewRestController()
 	controller.Feeds = &FeedDoor{Data: reader, Links: &movingLinks{base: "https://hubtask.example.com"}}
@@ -76,5 +77,19 @@ func TestADataFeedRefusesAsTheCalendarDoes(t *testing.T) {
 	quiet := &feedReader{}
 	if got := fetchData(t, quiet, "/odata/not-a-token/$metadata"); got.Code != http.StatusNotFound || quiet.invoked {
 		t.Errorf("a malformed token answered %d, looked up %v", got.Code, quiet.invoked)
+	}
+}
+
+// $filter is a Hubtask query the application narrows the view with (P-08, UC-INT-15).
+func TestADataFeedsFilterIsHandedOnAndKeptInTheNextLink(t *testing.T) {
+	token := wellFormedToken(t)
+	reader := &feedReader{out: feedFixture()}
+	answer := fetchData(t, reader, "/odata/"+token+"/Entries?$top=1&$filter="+url.QueryEscape("is: open who: me"))
+	if answer.Code != http.StatusOK || reader.filtered != "is: open who: me" {
+		t.Fatalf("%d, filtered %q: %s", answer.Code, reader.filtered, answer.Body)
+	}
+	reader.filtered = "untouched"
+	if plain := fetchData(t, reader, "/odata/"+token+"/Entries"); plain.Code != http.StatusOK || reader.filtered != "untouched" {
+		t.Errorf("a feed without $filter was filtered: %d %q", plain.Code, reader.filtered)
 	}
 }

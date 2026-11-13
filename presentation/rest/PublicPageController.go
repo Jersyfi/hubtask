@@ -39,7 +39,7 @@ type PictureSender interface {
 type FeedDoor struct {
 	Calendar CalendarFeedReader
 	// Data serves a data feed's OData routes (UC-INT-15).
-	Data CalendarFeedReader
+	Data DataFeedReader
 	// Pages serves a page's public link (UC-DOC-08).
 	Pages PublicPageReader
 	// Pictures sends the bytes of a public page's pictures (UC-DOC-08 check 5); nil draws none.

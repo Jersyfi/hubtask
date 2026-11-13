@@ -462,6 +462,7 @@ func TestCountsAreStampedOnEveryRowAndZeroWhereNothingIsHeld(t *testing.T) {
 
 // UC-WRK-17 check 12: a line is read into the same filter and order the tree would be, its
 // placeholders resolved alike; a line beside a tree is refused rather than one of them guessed.
+// UC-INT-10 check 10: the = / AND spelling reads as the filter and the order.
 func TestQueryItemsReadsALineAsTheFilterAndTheOrder(t *testing.T) {
 	store, containerStore, uow := queryFixture()
 	_, err := queryHandler(store, containerStore, uow, &authorizer{}).invoke(t.Context(), actorFixture(), usecase.Input{

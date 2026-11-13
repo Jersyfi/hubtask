@@ -27,6 +27,15 @@ type feedReader struct {
 	err     error
 	asked   integration.FeedToken
 	invoked bool
+	// filtered is the $filter a data feed was read with.
+	filtered string
+}
+
+func (f *feedReader) ExecuteFiltered(
+	ctx context.Context, token integration.FeedToken, line string,
+) (work.ExportedView, error) {
+	f.filtered = line
+	return f.Execute(ctx, token)
 }
 
 func (f *feedReader) Execute(

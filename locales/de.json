@@ -984,6 +984,7 @@
   "search.too_many_words": "Suche mit höchstens acht Wörtern.",
   "search.size_out_of_range": "Frage nach 1 bis 25 Treffern je Art.",
   "search.kind_unknown": "Diese Art kennt die Suche nicht.",
+  "feeds.filter_not_a_filter": "Der Filter eines Feeds grenzt seine Einträge ein; sortiere mit $orderby und lass andere Arten weg.",
   "search.sort_with_words": "Eine Suche nach Wörtern ist danach geordnet, wie gut jeder Eintrag zu ihnen passt, darum lässt sie sich nicht zusätzlich sortieren. Lass die Wörter weg, um zu sortieren, oder lass die Sortierung weg.",
   "search.words_too_long": "Eine Suche darf höchstens {maximum} Zeichen lang sein.",
   "search.mode_unknown": "„{value}“ ist kein Suchmodus. Verwende AUTO oder LEXICAL.",

@@ -1962,6 +1962,7 @@
   "search.too_many_words": "Search with at most eight words.",
   "search.size_out_of_range": "Ask for 1 to 25 hits per kind.",
   "search.kind_unknown": "This is not a kind the search knows.",
+  "feeds.filter_not_a_filter": "A feed's filter narrows its entries; sort with $orderby and leave other kinds out.",
   "search.sort_with_words": "A search for words is ordered by how well each entry matches them, so it cannot also be sorted. Drop the words to sort, or drop the sort.",
   "search.words_too_long": "A search may be at most {maximum} characters long.",
   "search.mode_unknown": "\"{value}\" is not a search mode. Use AUTO or LEXICAL.",
