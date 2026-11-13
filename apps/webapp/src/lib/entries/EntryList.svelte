@@ -2031,6 +2031,16 @@
       clip-path: inset(50%);
       white-space: nowrap;
     }
+
+    /* An entry's parts narrow their columns to stand beside the rail: drawn in the flow the tools
+       would push the row onto a second line under the pointer, so there they stand over its end. */
+    .columns[data-subtree] .row:is(:hover, :focus-within, :has(:global([aria-expanded='true']))) .tools {
+      position: absolute;
+      inset-block: 0;
+      inset-inline-end: var(--sp-150);
+      padding-inline-start: var(--sp-100);
+      background: var(--bg-surface-hover);
+    }
   }
 
   /* The fields as cells (L2): chips that wrap on a narrow window; from `expanded` columns of one
