@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs, core/application/service/work/AggregateView_test.go]
 ---
 
 # Set goals for a period and connect them to the work
@@ -47,6 +47,8 @@ view's count for whoever looks.
    its key results, linked entries and check-ins.
 10. The goals' home opens with a band that counts the period's goals, those that need a look and
     the period's end; with no period yet it offers the current quarter in one press.
+11. A key result counts what any saved query lists: a view without a summary is counted as the
+    number of its entries, as the reader's own query counts them.
 
 ## Where it ends
 

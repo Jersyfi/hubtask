@@ -79,7 +79,7 @@ func TestASavedViewsSummaryRefusesWhatItCannotAnswer(t *testing.T) {
 	}
 }
 
-// UC-GOL-01 check 13: a key result fed by any saved query counts what it lists - a view that
+// UC-GOL-01 check 11: a key result fed by any saved query counts what it lists - a view that
 // stores no aggregate answers its count when asked as one, through the same statement and the
 // reader's own permission.
 func TestAnySavedViewAnswersItsCountWhenAskedAsOne(t *testing.T) {

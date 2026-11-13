@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// UC-GOL-04 check 16: the kinds *list of entries* and *text* hold their own rules, and the
+// UC-GOL-04 check 19: the kinds *list of entries* and *text* hold their own rules, and the
 // dashboard's filter is a query without an order that every QUERY widget inherits but for what it
 // released.
 func TestTheListAndTextKindsAndTheFilterHoldTheirRules(t *testing.T) {

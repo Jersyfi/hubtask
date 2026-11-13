@@ -24,7 +24,7 @@ func (f *firstHits) Invoke(_ context.Context, _ appshared.ActorContext, in useca
 	return usecase.Output{"data": data, "page": usecase.Output{"next_cursor": nil}}, nil
 }
 
-// UC-GOL-04 check 16: every QUERY widget inherits the dashboard's filter but for the fields it
+// UC-GOL-04 check 18: every QUERY widget inherits the dashboard's filter but for the fields it
 // released; a LIST widget answers its first entries as the reader, a TEXT widget runs nothing.
 func TestEveryWidgetInheritsTheDashboardsFilter(t *testing.T) {
 	s, _, _, sum := newSteward(t)

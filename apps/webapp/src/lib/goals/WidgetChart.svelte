@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // One dashboard widget's content in its kind's shape (UC-GOL-04 check 16, scene wcat): a figure
+  // One dashboard widget's content in its kind's shape (UC-GOL-04 check 19, scene wcat): a figure
   // with its change, bars lying down, a ring, up to two lines, a table, a matrix in steps of one
   // colour, goals' progress, a query's first entries or a short text. Every chart has its table as
   // a toggle (`isTable`), the same rows read rather than seen (P-13). Colours are the

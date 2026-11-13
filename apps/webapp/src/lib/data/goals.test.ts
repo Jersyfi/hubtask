@@ -210,7 +210,7 @@ test('goals at risk or off track need a look', () => {
   assert.equal(needingALook([]), 0);
 });
 
-// UC-GOL-04 check 17 (E-7): a chart draws at most as many parts as it may tell apart - the rest
+// UC-GOL-04 check 19 (E-7): a chart draws at most as many parts as it may tell apart - the rest
 // is one row, *Others*, holding their sum.
 test('a chart folds what is past its parts into one row', () => {
   const rows = figureRows(['a', 'b', 'c', 'd', 'e', 'f'].map((group, i) => ({ group, period: null, count: i + 1, value: null })));
@@ -220,7 +220,7 @@ test('a chart folds what is past its parts into one row', () => {
   assert.equal(folded(rows, 8, 'Others').length, 6);
 });
 
-// UC-GOL-04 check 16: each of the nine kinds is drawn in its own shape (wcat).
+// UC-GOL-04 check 19: each of the nine kinds is drawn in its own shape (wcat).
 test('a number over periods is the last period, its change and eight periods as a line', () => {
   const rows = figureRows(['2026-01-05', '2026-01-12', '2026-01-19'].map((period, i) => ({ period, count: [30, 44, 38][i] })));
   const figure = numberFigure(rows);
