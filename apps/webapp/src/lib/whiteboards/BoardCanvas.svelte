@@ -1975,7 +1975,7 @@
 
     {#if sheet}
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-      <aside class="sheet" aria-label={t('app.whiteboards.side')} data-board-side onkeydown={(event) => { if (event.key === 'Escape' && sheet) { event.stopPropagation(); closeSheet(); } }}>
+      <aside class="sheet" class:at-corner={sheet === 'frames'} aria-label={t('app.whiteboards.side')} data-board-side onkeydown={(event) => { if (event.key === 'Escape' && sheet) { event.stopPropagation(); closeSheet(); } }}>
         {#if sheet}
           <section class="part" aria-labelledby="board-sheet-title" data-board-part={sheet}>
             <div class="part-head">
@@ -2050,33 +2050,37 @@
                 onshow={showThread}
               />
             {:else if sheet === 'history'}
-              <Stack gap="050">
-                {#if !history}
-                  <Button size="sm" tone="subtle" icon="clock" onclick={() => void openHistory()}>{t('app.whiteboards.history_show')}</Button>
-                {:else}
-                  <ol class="choices" aria-label={t('app.whiteboards.history')}>
-                    {#each history as version (version.seq)}
-                      <li class="version">
-                        <span>{version.name ?? formatDateTime(version.created_at, messages.locale)} · {t('app.whiteboards.objects', { count: String(version.element_count) })}</span>
-                        {#if writable && isLive}
-                          <Inline gap="050">
-                            <Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => { restoring = version; isRestoreAsked = true; }}>{t('app.whiteboards.version_restore')}</Button>
-                            <Button size="sm" tone="subtle" icon="tag" onclick={() => { namingSeq = version.seq; nameDraft = version.name ?? ''; }}>{t('app.whiteboards.version_name')}</Button>
-                          </Inline>
-                          {#if namingSeq === version.seq}
-                            <Inline gap="050" align="end">
-                              <Input size="sm" label={t('app.whiteboards.version_name')} bind:value={nameDraft} maxlength={120} />
-                              <Button size="sm" tone="primary" onclick={() => void nameVersion(version.seq)}>{t('app.whiteboards.version_name_save')}</Button>
-                            </Inline>
-                          {/if}
-                        {/if}
-                      </li>
-                    {:else}
-                      <li class="quiet">{t('app.whiteboards.history_empty')}</li>
-                    {/each}
-                  </ol>
-                {/if}
-              </Stack>
+              <!-- A log as the page system draws one: newest first, a named version bold, its verbs under ⋯. -->
+              {#if !history}
+                <Button size="sm" tone="subtle" icon="clock" onclick={() => void openHistory()}>{t('app.whiteboards.history_show')}</Button>
+              {:else}
+                <ol class="rows" aria-label={t('app.whiteboards.history')}>
+                  {#each history as version (version.seq)}
+                    <li class="row version" data-board-version={version.seq}>
+                      <Icon name={version.name ? 'tag' : 'clock'} size="sm" />
+                      <span class="row-text">
+                        <span class="row-name">{version.name ?? formatDateTime(version.created_at, messages.locale)}</span>
+                        <span class="quiet small">{version.name ? `${formatDateTime(version.created_at, messages.locale)} · ` : ''}{t('app.whiteboards.objects', { count: String(version.element_count) })}</span>
+                      </span>
+                      {#if writable && isLive}
+                        <Menu label={t('app.whiteboards.version_more')}
+                          items={[{ id: 'restore', label: t('app.whiteboards.version_restore'), icon: 'rotate-ccw' }, { id: 'name', label: t('app.whiteboards.version_name'), icon: 'tag' }]}
+                          onselect={(id) => { if (id === 'restore') { restoring = version; isRestoreAsked = true; } else { namingSeq = version.seq; nameDraft = version.name ?? ''; } }}>
+                          {#snippet trigger(props)}<IconButton {...props} size="sm" tone="subtle" icon="ellipsis" label={t('app.whiteboards.version_more')} />{/snippet}
+                        </Menu>
+                      {/if}
+                      {#if namingSeq === version.seq}
+                        <span class="row-form">
+                          <Input size="sm" label={t('app.whiteboards.version_name')} bind:value={nameDraft} maxlength={120} />
+                          <Button size="sm" tone="primary" onclick={() => void nameVersion(version.seq)}>{t('app.whiteboards.version_name_save')}</Button>
+                        </span>
+                      {/if}
+                    </li>
+                  {:else}
+                    <li class="quiet none">{t('app.whiteboards.history_empty')}</li>
+                  {/each}
+                </ol>
+              {/if}
             {:else if sheet === 'links'}
               <Stack gap="050">
                 {#if !backlinks}
@@ -2095,13 +2099,22 @@
                 {/if}
               </Stack>
             {:else if sheet === 'frames'}
-              <Stack gap="050">
-                {#each frames as frame (frame.id)}
-                  <button type="button" class="choice" onclick={() => { view = fit(view, box(frame)); choose([frame.id]); }}>{frame.text || t('app.whiteboards.kind_frame')}</button>
+              <!-- The frames in reading order, numbered as the phone pages them; a press fits one. -->
+              <ol class="rows" aria-label={t('app.whiteboards.frames')}>
+                {#each frames as frame, at (frame.id)}
+                  <li>
+                    <button type="button" class="row choice" class:current={selected.includes(frame.id)} data-board-frame-row={frame.id} onclick={() => { view = fit(view, box(frame)); choose([frame.id]); }}>
+                      <span class="number">{at + 1}</span>
+                      <span class="row-text">
+                        <span class="row-name">{frame.text || t('app.whiteboards.kind_frame')}</span>
+                        <span class="quiet small">{t('app.whiteboards.objects', { count: String(withinFrame(elements, frame).length - 1) })}</span>
+                      </span>
+                    </button>
+                  </li>
                 {:else}
-                  <p class="quiet">{t('app.whiteboards.no_frames')}</p>
+                  <li class="quiet none">{t('app.whiteboards.no_frames')}</li>
                 {/each}
-              </Stack>
+              </ol>
             {:else if sheet === 'export'}
               <Stack gap="050">
                 <Inline gap="050">
@@ -2392,7 +2405,22 @@
     box-shadow: var(--shadow-overlay);
     z-index: 2;
   }
-  .part { display: grid; gap: var(--sp-100); }
+  .sheet.at-corner {
+    inset-block: auto calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200));
+    inline-size: min(calc(var(--layout-pane-width) * 0.8), calc(100% - 2 * var(--sp-200)));
+  }
+  .part { display: grid; gap: var(--sp-150); }
+  .rows { display: grid; gap: var(--sp-025); margin: 0; padding: 0; list-style: none; }
+  .row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-100); padding: var(--sp-100); border-radius: var(--r-md); color: var(--text-secondary); }
+  .row.choice { inline-size: 100%; border: 0; background: none; font: inherit; text-align: start; cursor: pointer; }
+  .row.choice:hover { background: var(--bg-surface-hover); }
+  .row.choice.current { background: var(--accent-primary-subtle); }
+  .row-text { display: grid; min-inline-size: 0; }
+  .row-name { overflow: hidden; color: var(--text-primary); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
+  .row-form { display: flex; grid-column: 1 / -1; align-items: end; gap: var(--sp-050); }
+  .number { display: inline-grid; place-items: center; inline-size: var(--sp-300); block-size: var(--sp-300); border-radius: var(--r-md); background: var(--bg-surface-sunken); color: var(--text-primary); font-size: var(--fs-075); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
+  .small { font-size: var(--fs-075); }
+  .none { padding: var(--sp-200) 0; text-align: center; }
   .part-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .part-title { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .part-title:focus { outline: none; }
@@ -2487,7 +2515,6 @@
   .swatch { inline-size: var(--sp-200); block-size: var(--sp-200); padding: 0; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); cursor: pointer; }
   .swatch[aria-checked='true'] { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--bw-hairline); }
   .choices { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
-  .version { display: grid; gap: var(--sp-025); }
-  .choice { all: unset; cursor: pointer; padding: var(--sp-050); border-radius: var(--r-sm); color: var(--text-primary); }
+  .choice:not(.row) { all: unset; cursor: pointer; padding: var(--sp-050); border-radius: var(--r-sm); color: var(--text-primary); }
   .choice:hover, .choice:focus-visible { background: var(--bg-surface-hover); }
 </style>

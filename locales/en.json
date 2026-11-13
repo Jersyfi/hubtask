@@ -15518,5 +15518,6 @@
   "app.product_home.band_boards_today": "{count} changed today",
   "app.product_home.band_boards_comments": "{count, plural, one {# open comment} other {# open comments}}",
   "app.whiteboards.new_more": "More ways to start a whiteboard",
-  "app.whiteboards.import_menu": "From an exported whiteboard…"
+  "app.whiteboards.import_menu": "From an exported whiteboard…",
+  "app.whiteboards.version_more": "More for this version"
 }

@@ -7,7 +7,7 @@
   // resolves a thread; only its author takes a comment back. A reader reads them and writes none.
 
   import { untrack } from 'svelte';
-  import { Button, Inline, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Avatar, Button, IconButton, Inline, Stack, Switch, Textarea } from '@hubtask/design-system/components';
   import type { WhiteboardComment } from '@hubtask/sync-engine';
 
   import PersonPicker from '../people/PersonPicker.svelte';
@@ -15,7 +15,7 @@
   import { accounts } from '../data/accounts.svelte.ts';
   import { commentParts, mentionOf, threadsOf, whiteboards } from '../data/whiteboards.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -93,71 +93,85 @@
   const nameOf = (id: string | null) => (id ? (accounts.nameOf(id) ?? t('app.people.unnamed')) : t('app.people.unnamed'));
 </script>
 
-<Stack gap="050">
-  <Inline gap="050" align="center" justify="between">
-    <h3 class="heading">{t('app.whiteboards.comments', { count: String(threads.filter((each) => !each.thread.resolved).length) })}</h3>
-    <Switch label={t('app.whiteboards.comments_resolved')} bind:checked={withResolved} />
-  </Inline>
+<!-- The sheet as scene wboard draws a conversation: a thread a card, each comment its face, name and
+     time, the thread's verbs in one quiet row, the composer at the foot. -->
+<Stack gap="100">
+  <Switch label={t('app.whiteboards.comments_resolved')} bind:checked={withResolved} />
   <ol class="threads" aria-label={t('app.whiteboards.comments_list')}>
     {#each threads as { thread, replies } (thread.id)}
-      <li class="thread" class:open={open === thread.id} class:resolved={thread.resolved}>
+      <li class="thread" class:open={open === thread.id} class:resolved={thread.resolved} data-board-thread={thread.id}>
         {#each [thread, ...replies] as comment (comment.id)}
-          <div class="comment">
-            <p class="meta">{nameOf(comment.author_id)} · {formatDateTime(comment.created_at, messages.locale)}</p>
-            <p class="text">
-              {#if comment.deleted}
-                {t('app.whiteboards.comment_removed')}
-              {:else}
-                {#each commentParts(comment.body) as part, i (i)}
-                  {#if 'person' in part}<strong class="person">@{accounts.nameOf(part.person) ?? part.name}</strong>{:else}{part.text}{/if}
-                {/each}
-              {/if}
-            </p>
+          <div class="comment" class:reply={comment.parent_id !== null}>
+            <Avatar name={nameOf(comment.author_id)} size="sm" />
+            <div class="body">
+              <p class="meta"><strong class="name">{nameOf(comment.author_id)}</strong> <span title={formatDateTime(comment.created_at, messages.locale)}>{formatRelative(comment.created_at, messages.locale)}</span></p>
+              <p class="text">
+                {#if comment.deleted}
+                  {t('app.whiteboards.comment_removed')}
+                {:else}
+                  {#each commentParts(comment.body) as part, i (i)}
+                    {#if 'person' in part}<strong class="person">@{accounts.nameOf(part.person) ?? part.name}</strong>{:else}{part.text}{/if}
+                  {/each}
+                {/if}
+              </p>
+            </div>
             {#if comment.author_id === actor.account?.id && !comment.deleted && writable}
-              <Button size="sm" tone="subtle" onclick={() => act(() => whiteboards.deleteComment(comment))}>{t('app.whiteboards.comment_delete')}</Button>
+              <IconButton size="sm" tone="subtle" icon="trash" label={t('app.whiteboards.comment_delete')} onclick={() => act(() => whiteboards.deleteComment(comment))} />
             {/if}
           </div>
         {/each}
-        <Inline gap="050">
+        <div class="verbs">
           <Button size="sm" tone="subtle" icon="eye" onclick={() => { open = thread.id; onshow(thread); }}>{t('app.whiteboards.comment_show')}</Button>
           {#if writable && !thread.deleted}
-            <Button size="sm" tone="subtle" onclick={() => act(() => whiteboards.changeComment(thread, { resolved: !thread.resolved }))}>
+            <Button size="sm" tone="subtle" icon="message-square" onclick={() => { replyTo = thread.id; replyDraft = ''; }}>{t('app.whiteboards.comment_reply')}</Button>
+            <Button size="sm" tone="subtle" icon={thread.resolved ? 'rotate-ccw' : 'check'} onclick={() => act(() => whiteboards.changeComment(thread, { resolved: !thread.resolved }))}>
               {thread.resolved ? t('app.whiteboards.comment_reopen') : t('app.whiteboards.comment_resolve')}
             </Button>
-            <Button size="sm" tone="subtle" onclick={() => { replyTo = thread.id; replyDraft = ''; }}>{t('app.whiteboards.comment_reply')}</Button>
           {/if}
-        </Inline>
+        </div>
         {#if replyTo === thread.id}
           <Stack gap="050">
             <Textarea label={t('app.whiteboards.comment_reply')} isLabelHidden rows={2} bind:value={replyDraft} />
             <PersonPicker label={t('app.whiteboards.comment_name')} noneLabel={t('app.person_picker.choose')} bind:value={namingReply} />
-            <Button size="sm" disabledReason={replyDraft.trim() === '' ? t('app.whiteboards.comment_needs_words') : undefined} onclick={() => void reply(thread)}>{t('app.whiteboards.comment_send')}</Button>
+            <Inline gap="050" justify="end">
+              <Button size="sm" tone="subtle" onclick={() => (replyTo = undefined)}>{t('app.links.cancel')}</Button>
+              <Button size="sm" tone="primary" disabledReason={replyDraft.trim() === '' ? t('app.whiteboards.comment_needs_words') : undefined} onclick={() => void reply(thread)}>{t('app.whiteboards.comment_send')}</Button>
+            </Inline>
           </Stack>
         {/if}
       </li>
     {:else}
-      <li class="quiet">{t('app.whiteboards.no_comments')}</li>
+      <li class="quiet none">{t('app.whiteboards.no_comments')}</li>
     {/each}
   </ol>
   {#if writable}
-    <Stack gap="050">
-      <Textarea label={t('app.whiteboards.comment_new')} rows={3} bind:value={draft} />
+    <div class="composer">
+      <Textarea label={t('app.whiteboards.comment_new')} isLabelHidden placeholder={t('app.whiteboards.comment_new')} rows={2} bind:value={draft} />
       <PersonPicker label={t('app.whiteboards.comment_name')} noneLabel={t('app.person_picker.choose')} bind:value={naming} />
-      <p class="quiet">{pinLabel}</p>
-      <Button size="sm" disabledReason={draft.trim() === '' ? t('app.whiteboards.comment_needs_words') : undefined} onclick={() => void add()}>{t('app.whiteboards.comment_send')}</Button>
-    </Stack>
+      <Inline gap="050" align="center" justify="between">
+        <p class="quiet small">{pinLabel}</p>
+        <Button size="sm" tone="primary" disabledReason={draft.trim() === '' ? t('app.whiteboards.comment_needs_words') : undefined} onclick={() => void add()}>{t('app.whiteboards.comment_send')}</Button>
+      </Inline>
+    </div>
   {/if}
 </Stack>
 
 <style>
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); }
+  .small { font-size: var(--fs-075); }
+  .none { padding: var(--sp-200) 0; text-align: center; }
   .threads { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
-  .thread { display: grid; gap: var(--sp-050); padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); }
-  .thread.open { border-color: var(--accent-primary); }
+  .thread { display: grid; gap: var(--sp-100); padding: var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .thread.open { border-color: var(--accent-primary); box-shadow: 0 0 0 var(--bw-hairline) var(--accent-primary); }
+  .thread.resolved { background: var(--bg-surface-sunken); }
   .thread.resolved .text { color: var(--text-subtle); }
-  .comment { display: grid; gap: var(--sp-025); }
+  .comment { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: var(--sp-100); }
+  .comment.reply { padding-inline-start: var(--sp-300); }
+  .body { display: grid; gap: var(--sp-025); min-inline-size: 0; }
   .meta { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .name { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
   .person { color: var(--text-brand); font-weight: var(--fw-semibold); }
+  .verbs { display: flex; flex-wrap: wrap; gap: var(--sp-025); margin-inline-start: calc(-1 * var(--sp-050)); }
+  .composer { display: grid; gap: var(--sp-100); padding-block-start: var(--sp-150); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 </style>
