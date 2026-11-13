@@ -26,6 +26,7 @@ import { CodeBlocks, type DiagramColours } from './code.ts';
 import { EmojiShortcodes } from './emoji.ts';
 import { MathBlock } from './math.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
+import { lineBelow, lineStart, moveLine, removeLine } from './lines.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
 /** How the application draws a reference: its label, kept current as the resolver answers. */
@@ -654,6 +655,27 @@ export function passageTops(editor: Editor): Map<string, number> {
   const ranges = passagesKey.getState(editor.state)?.ranges;
   for (const [id, range] of ranges ?? []) tops.set(id, editor.view.coordsAtPos(range.from).top);
   return tops;
+}
+
+/** The line (top-level block) at a viewport point, or the caret's: its start and its element. */
+export function lineAt(editor: Editor, point?: { left: number; top: number }): { start: number; element: HTMLElement } | undefined {
+  if (editor.isDestroyed) return undefined;
+  const pos = point ? editor.view.posAtCoords(point)?.pos : editor.state.selection.from;
+  if (pos === undefined) return undefined;
+  const start = lineStart(editor.state, pos);
+  if (start === undefined) return undefined;
+  const element = editor.view.nodeDOM(start);
+  return element instanceof HTMLElement ? { start, element } : undefined;
+}
+
+/** Applies a line's act (`lines.ts`) to the line starting at `start`; answers whether it did. */
+export function actOnLine(editor: Editor, start: number, act: 'up' | 'down' | 'remove' | 'below'): boolean {
+  const { state } = editor;
+  const tr = act === 'up' ? moveLine(state, start, -1) : act === 'down' ? moveLine(state, start, 1) : act === 'remove' ? removeLine(state, start) : lineBelow(state, start);
+  if (!tr) return false;
+  editor.view.dispatch(tr.scrollIntoView());
+  editor.view.focus();
+  return true;
 }
 
 export type { Editor };
