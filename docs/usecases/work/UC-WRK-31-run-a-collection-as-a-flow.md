@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-07, P-11]
 state: partial
 tasks: [UX-26]
-checked_by: [core/domain/model/work/Flow_test.go, core/domain/model/work/StartingColumns_test.go, test/integration/starting_columns_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/FlowGate_test.go, core/application/service/work/FigureReader_test.go, test/integration/flow_gate_test.go, test/integration/figure_repository_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/e2e/flow.test.mjs, apps/webapp/e2e/figure.test.mjs]
+checked_by: [core/domain/model/work/Flow_test.go, core/domain/model/work/StartingColumns_test.go, test/integration/starting_columns_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/FlowGate_test.go, core/application/service/work/FigureReader_test.go, test/integration/flow_gate_test.go, test/integration/figure_repository_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/e2e/flow.test.mjs, apps/webapp/e2e/figure.test.mjs, apps/webapp/e2e/boardlevels.test.mjs]
 ---
 
 # Run a collection as a flow
@@ -37,4 +37,4 @@ The support team's "Requests" collection uses *Flow*: columns *New*, *In progres
 
 ## Today
 
-* Check 5: not met — the server keeps the mapping (`bucket_status`) and places entries by status; a collection created under a workflow does not yet get one column per status, and the web *Ohne Spalte* is work surface family 3.2.
+* Check 5: met — a collection created under a workflow starts with one column per status (`core/domain/model/work/StartingColumns_test.go`, `test/integration/starting_columns_test.go`); the web board names each column's statuses and folds *Ohne Spalte*, a drop target (`apps/webapp/e2e/boardlevels.test.mjs`).

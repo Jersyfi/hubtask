@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-13]
 state: partial
 tasks: [B-09, F2-11, F2-12, F9-07, F10-11]
-checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs]
+checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts]
 ---
 
 # Run a collection as a board
@@ -75,7 +75,7 @@ column at a time.
 ## Today
 
 * Check 2: not met in the web app — the board never reorders columns; they stay in creation order unless reordered through the API.
-* Check 6: not met — the web board still couples in the client; it uses the server's coupling and `POST /items/{id}:drop` in work surface family 3.2 (`docs/backlog/work-surface/build-plan.md`).
-* Check 9: not met — the web mapping and *Ohne Spalte*, work surface family 3.2.
-* Check 10: not met — the web drop picker, work surface family 3.2.
-* Check 11: not met in the web app — the server switches (`POST /containers/{id}/board:switch`, `dry_run` first) and answers the level as `state_mode`; the web control is work surface family 3.2.
+* Check 6: met — the server couples on every door; the web board drops through `POST /items/{id}:drop` and completes nothing itself (`apps/webapp/e2e/board.test.mjs`, `flow.test.mjs`, `boardlevels.test.mjs`).
+* Check 9: partly met — each column names its statuses, *Ohne Spalte* stands folded and is a drop target (`boardlevels.test.mjs`); the mapping is edited per status in the scheme change's preview (`boardlevel.test.ts`), not yet walked on screen and not yet on the board itself.
+* Check 10: met — a `CHOOSE` opens the step picker and nothing is written until one is chosen (`boardlevels.test.mjs`); a column the carried card may not enter dims with the server's reason (`boardlevel.test.ts`), a refused drop says it (`flow.test.mjs`).
+* Check 11: partly met — *Show as board* and *Back to the list* each preview the server's dry run before switching (`boardlevels.test.mjs`); they sit in the collection's menu, not yet on the row, the card and the phone sheet.

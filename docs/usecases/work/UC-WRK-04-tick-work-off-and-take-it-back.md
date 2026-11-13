@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
 state: partial
 tasks: [B-07, F2-09, F6-13]
-checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/structure.test.mjs, test/integration/capability_profile_test.go]
+checked_by: [test/integration/completion_test.go, test/integration/rollup_test.go, core/domain/model/work/Completion_test.go, core/domain/model/work/CompletionPolicy_test.go, core/application/service/work/CompleteWorkItem_test.go, apps/webapp/e2e/entry.test.mjs, apps/webapp/e2e/structure.test.mjs, test/integration/capability_profile_test.go, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts]
 ---
 
 # Tick work off, and take it back
@@ -55,4 +55,4 @@ it.
 
 ## Today
 
-* Check 1: not met — the column and status chips in place of the checkbox, work surface family 3.2 (`docs/backlog/work-surface/build-plan.md`).
+* Check 1: partly met — the list row and the card show the column chip (L1) or the status chip (L2) in the checkbox's place, the checkbox at L0 (`boardlevels.test.mjs`, `statechip.test.ts`); the entry head's menu by level is family 3.1's; the phone sheet is not yet walked.
