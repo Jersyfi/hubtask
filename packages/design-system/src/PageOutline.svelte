@@ -19,14 +19,16 @@
     /** The heading in view. */
     current?: string;
     onselect?: (id: string) => void;
+    /** Finds a heading's element by its id; by default the document's element of that id. */
+    locate?: (id: string) => HTMLElement | null;
   }
 
-  let { label, headings, current = $bindable(headings[0]?.id), onselect }: Props = $props();
+  let { label, headings, current = $bindable(headings[0]?.id), onselect, locate = (id) => document.getElementById(id) }: Props = $props();
 
   function jump(id: string) {
     current = id;
     onselect?.(id);
-    const target = typeof document === 'undefined' ? null : document.getElementById(id);
+    const target = typeof document === 'undefined' ? null : locate(id);
     if (!target) return;
     target.scrollIntoView({ block: 'start' });
     if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
@@ -39,7 +41,7 @@
       const line = window.innerHeight / 3;
       let seen: string | undefined = headings[0]?.id;
       for (const heading of headings) {
-        const element = document.getElementById(heading.id);
+        const element = locate(heading.id);
         if (element && element.getBoundingClientRect().top <= line) seen = heading.id;
       }
       if (seen) current = seen;

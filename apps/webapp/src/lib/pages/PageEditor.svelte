@@ -70,9 +70,11 @@
     collections?: readonly { id: string; name: string }[];
     /** Called with the names of the other writers in the live document, whenever they change. */
     onpresent?: (names: string[]) => void;
+    /** Called with the page's headings of levels 2 and 3 whenever they change: the outline (S-3). */
+    onheadings?: (headings: { id: string; label: string; level: number }[]) => void;
   }
 
-  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith, onpresent }: Props = $props();
+  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith, onpresent, onheadings }: Props = $props();
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -260,6 +262,31 @@
       element.removeEventListener('focusout', leave);
       release?.();
     };
+  });
+
+  // The outline writes itself from the headings (S-3); a heading without words is left out.
+  $effect(() => {
+    const seen = editor;
+    if (!seen || !onheadings) return;
+    let last = '';
+    const read = () => {
+      const headings: { id: string; label: string; level: number }[] = [];
+      seen.state.doc.forEach((node) => {
+        const level = Number(node.attrs['level'] ?? 0);
+        const id = node.attrs['blockId'] as string | null;
+        if (node.type.name === 'heading' && id && (level === 2 || level === 3) && node.textContent.trim() !== '') {
+          headings.push({ id, label: node.textContent.trim(), level });
+        }
+      });
+      const key = JSON.stringify(headings);
+      if (key !== last) {
+        last = key;
+        onheadings(headings);
+      }
+    };
+    read();
+    seen.on('update', read);
+    return () => void seen.off('update', read);
   });
 
   // --- The editor and its live document ------------------------------------------------------------
@@ -552,16 +579,19 @@
   .choice:hover { background: var(--bg-surface-hover); }
   .quiet { color: var(--text-secondary); }
 
+  /* Reading first (S-1): running text at the reading size and the loose line height, no box. */
   .editor :global(.page-body) {
     min-block-size: var(--sp-1000);
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    background: var(--bg-surface);
+    padding-block: var(--sp-100);
     color: var(--text-primary);
-    line-height: var(--lh-normal);
+    font-size: var(--fs-250);
+    line-height: var(--lh-loose);
     outline: none;
   }
+  .editor :global(.page-body h2),
+  .editor :global(.page-body h3) { scroll-margin-block-start: var(--sp-1000); }
+  /* The column is the measure (`layout.reading`), not the frame's narrower one for a paragraph. */
+  .editor :global(.page-body p) { max-inline-size: none; color: var(--text-primary); }
   .editor :global(.page-body:focus-visible) { outline: var(--bw-ring) solid var(--focus-ring); }
   .editor :global(.page-body h1),
   .editor :global(.page-body h2),

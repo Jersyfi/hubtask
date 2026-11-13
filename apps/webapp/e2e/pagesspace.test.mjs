@@ -111,22 +111,30 @@ test('an empty space offers its templates and starts one in a single press', asy
   }
 });
 
-test('a full space opens on its home page, with one head row and comments beside it on demand', async () => {
+test('a full space opens on its home page: the path on top, the title once, the trust line, comments beside it (S-1, S-2, S-5)', async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, close } = await opened(browser, FULL);
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(`${served.origin}/hubs/${HUB.id}/pages`);
     await page.waitForURL(`**/pages/${HOME.id}`, { timeout: 15_000 });
     const head = page.locator('[data-page-head]');
-    await head.getByLabel('Title').waitFor({ timeout: 10_000 });
+    const reading = page.locator('[data-page-reading]');
+    await reading.getByLabel('Title').waitFor({ timeout: 10_000 });
+    assert.equal(await head.getByLabel('Title').count(), 0, 'the top row holds only the path and the people');
     assert.equal(await page.getByRole('button', { name: 'Put in the trash' }).count(), 0, 'the trash is not a button in the head');
+    await reading.locator('[data-trust-line]').waitFor();
+    // From 1240 px the comments stand beside the reading column, writing at their foot.
+    const margin = page.locator('[data-page-margin]');
+    await margin.waitFor();
     assert.equal(await page.locator('[data-page-side]').count(), 0, 'the side sheet is closed at first');
+    await head.locator('[data-page-comments]').click();
+    assert.equal(await margin.locator('[data-page-comment-new] textarea').evaluate((field) => field === document.activeElement), true, 'the count leads to the writing field');
+    // The reading column keeps its measure.
+    const column = await reading.locator('article').boundingBox();
+    assert.ok(column && column.width <= 720, `the reading column is at most 720 px wide, not ${column?.width}`);
     // The filters wait behind one control.
     assert.equal(await page.getByLabel('Only pages I wrote').count(), 0);
-    await head.locator('[data-page-comments]').click();
-    await page.locator('[data-page-side="comments"]').waitFor();
-    await head.locator('[data-page-comments]').click();
-    assert.equal(await page.locator('[data-page-side]').count(), 0);
     await head.getByRole('button', { name: 'More for this page' }).click();
     await page.getByRole('menuitem', { name: 'Put in the trash' }).waitFor();
     assert.deepEqual(failures, []);

@@ -63,6 +63,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: var(--sp-050) var(--sp-150);
+    max-inline-size: none;
     margin: 0;
     font-size: var(--fs-090);
     color: var(--text-primary);

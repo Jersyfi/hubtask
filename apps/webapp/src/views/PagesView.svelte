@@ -18,8 +18,8 @@
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { untrack } from 'svelte';
   import {
-    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, Select, Spinner, Stack, Switch,
-    TemplateCard, TemplateGallery, Textarea, VisuallyHidden, WorkPage,
+    AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, PageOutline, Select, Sheet, Spinner, Stack, Switch,
+    TemplateCard, TemplateGallery, Textarea, TrustLine, VisuallyHidden, WorkPage,
   } from '@hubtask/design-system/components';
   import { compareBodies, type Passage, type SelectedBlock } from '@hubtask/editor';
   import type {
@@ -44,7 +44,7 @@
   import { views } from '../lib/data/views.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDay, formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import PageAccess from '../lib/pages/PageAccess.svelte';
   import PageLabels from '../lib/pages/PageLabels.svelte';
@@ -267,8 +267,12 @@
 
   // --- Beside the page: comments, history, backlinks ---------------------------------------------
 
-  // The side sheet the head toggles; closed, the page has the width (user-experience.md §7.1).
-  let side = $state<'comments' | 'history' | 'backlinks' | 'access' | 'details' | undefined>(undefined);
+  // Beside the reading column from 1240 px the outline and the comments stand open (S-3, S-5);
+  // narrower, they are a sheet the head (or the phone's foot) opens. History, what links here,
+  // access and details are the side sheet the head's menu opens.
+  let side = $state<'outline' | 'comments' | 'history' | 'backlinks' | 'access' | 'details' | undefined>(undefined);
+  let outline = $state<{ id: string; label: string; level: number }[]>([]);
+  const locateHeading = (id: string) => bodyElement?.querySelector<HTMLElement>(`[data-block="${CSS.escape(id)}"]`) ?? null;
   const toggleSide = (which: NonNullable<typeof side>) => (side = side === which ? undefined : which);
   let present = $state<string[]>([]);
   let block = $state<SelectedBlock | undefined>(undefined);
@@ -371,6 +375,7 @@
 
   const nameOf = (id: string | null) => (id ? accounts.nameOf(id) : undefined) ?? t('app.people.unnamed');
   const when = (iso: string) => formatDateTime(iso, messages.locale);
+  const day = (iso: string) => formatDay(iso, messages.locale);
 
   // History (UC-DOC-06): a version opened is compared with the page as it stands.
   let comparing = $state<PageVersionRead | undefined>(undefined);
@@ -547,10 +552,9 @@
       <Spinner label={t('app.pages.loading')} />
     {:else}
       {#key current.id}
-        <Stack gap="150">
-          <!-- The trail close above the title, as on every other head (PageHeader). -->
-          <div class="heading">
-            <!-- The trail: the hub, the pages above, this one (UC-DOC-01 check 6). -->
+        <div class="reading-page" data-page-reading>
+          <!-- One row on top: only the path and the people (pread 1); the title follows once, under it. -->
+          <div class="top-row" data-page-head>
             <Breadcrumb
               label={t('app.pages.breadcrumb')}
               expandLabel={t('app.pages.breadcrumb_more')}
@@ -561,114 +565,126 @@
                 { id: current.id, label: current.title },
               ]}
             />
-            <!-- The head's one row (user-experience.md §7.1): the title once, who else is here, the
-                 comments' toggle, sharing, and the rest in the page's menu. -->
-            <div class="head" data-page-head>
-              <div class="title-line">
-                {#if current.writable}
-                  <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
-                       heading is read, the field is what is seen: the title appears once. -->
-                  <VisuallyHidden as="h1">{current.title}</VisuallyHidden>
-                  <textarea
-                    class="title"
-                    rows="1"
-                    aria-label={t('app.pages.page_title')}
-                    value={titleDraft ?? current.title}
-                    oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
-                    onblur={rename}
-                    onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
-                  ></textarea>
-                {:else}
-                  <h1 class="title">{current.title}</h1>
-                {/if}
-                <StarToggle kind="PAGE" id={current.id} name={current.title} />
-              </div>
-              <Inline gap="100" align="center">
-                {#if present.length > 0}
-                  <span class="here" data-page-here>
-                    <AvatarGroup
-                      people={present.map((name) => ({ name }))}
-                      max={3}
-                      size="sm"
-                      overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
-                    />
-                    <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
-                  </span>
-                {/if}
-                <Button
-                  size="sm"
-                  tone="secondary"
-                  icon="message-square"
-                  aria-pressed={side === 'comments'}
-                  data-page-comments
-                  onclick={() => toggleSide('comments')}
-                >{t('app.pages.side_comments', { count: String(openThreads) })}</Button>
-                {#if !current.shared && hubId}
-                  <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
-                {/if}
-                <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
-                  {#snippet trigger(props)}
-                    <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
-                  {/snippet}
-                </Menu>
-              </Inline>
-            </div>
-          </div>
-          {#if current.template || current.restricted || current.shared || current.due_for_review || current.verified_until}
-            <Inline gap="050" isWrapping>
-              {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
-              {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
-              {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
-              {#if current.due_for_review}
-                <Badge tone="warning" size="sm">{t('app.pages.due_for_review')}</Badge>
-              {:else if current.verified_until}
-                <Badge tone="success" size="sm">{t('app.pages.verified_until', { date: when(current.verified_until) })}</Badge>
+            <Inline gap="100" align="center">
+              {#if present.length > 0}
+                <span class="here" data-page-here>
+                  <AvatarGroup
+                    people={present.map((name) => ({ name }))}
+                    max={3}
+                    size="sm"
+                    overflowLabel={t('app.pages.here_more', { count: Math.max(0, present.length - 3) })}
+                  />
+                  <VisuallyHidden>{t('app.pages.here')}: {present.join(', ')}</VisuallyHidden>
+                </span>
               {/if}
+              {#if !viewport.isLarge && !viewport.isCompact && outline.length > 0}
+                <IconButton size="sm" tone="secondary" icon="list" label={t('app.pages.outline')} aria-pressed={side === 'outline'} data-page-outline-open onclick={() => toggleSide('outline')} />
+              {/if}
+              <Button
+                size="sm"
+                tone="subtle"
+                icon="message-square"
+                aria-pressed={!viewport.isLarge && side === 'comments'}
+                data-page-comments
+                onclick={() => (viewport.isLarge ? document.querySelector<HTMLElement>('[data-page-comment-new] textarea')?.focus() : toggleSide('comments'))}
+              >{String(openThreads)}<VisuallyHidden>{` ${t('app.pages.comments_open', { count: String(openThreads) })}`}</VisuallyHidden></Button>
+              {#if !current.shared && hubId}
+                <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
+              {/if}
+              <StarToggle kind="PAGE" id={current.id} name={current.title} />
+              <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
+                {#snippet trigger(props)}
+                  <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
+                {/snippet}
+              </Menu>
             </Inline>
-          {/if}
-          {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
-          {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
-            <Banner tone="info">
-              {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
-              {#snippet action()}
-                <Inline gap="050">
-                  <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
-                  {#if pageDraft === 'draft'}<Button size="sm" tone="subtle" onclick={discard}>{t('app.pages.discard_draft')}</Button>{/if}
-                </Inline>
-              {/snippet}
-            </Banner>
-          {:else if current.writable && pageDraft === 'published'}
-            <p class="quiet">{t('app.pages.published_hint')}</p>
-          {/if}
+          </div>
 
-          <div class="body-and-side" class:with-side={side !== undefined}>
-            <div class="body" bind:this={bodyElement}>
-              <PageEditor
-                page={current}
-                {spacePages}
-                views={hubViews}
-                collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
-                {onnavigate}
-                {reveal}
-                replaceWith={discarded}
-                passages={side === 'comments' ? passages : []}
-                onpassages={passagesMoved}
-                onpresent={(names) => (present = names)}
-                onblock={(seen) => {
-                  block = seen;
-                  // Words selected are a comment's passage, unless the person chooses the page.
-                  if (seen?.selected) isAtBlock = true;
-                }}
-              />
-            </div>
+          <div class="reader" class:with-beside={viewport.isLarge}>
+            <article class="column" aria-labelledby="page-title">
+              {#if current.icon}<span class="icon" aria-hidden="true">{current.icon}</span>{/if}
+              {#if current.writable}
+                <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
+                     heading is read, the field is what is seen: the title appears once. -->
+                <VisuallyHidden as="h1" id="page-title">{current.title}</VisuallyHidden>
+                <textarea
+                  class="title"
+                  rows="1"
+                  aria-label={t('app.pages.page_title')}
+                  value={titleDraft ?? current.title}
+                  oninput={(event) => (titleDraft = (event.currentTarget as HTMLTextAreaElement).value.replace(/\n/gu, ' '))}
+                  onblur={rename}
+                  onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); (event.currentTarget as HTMLTextAreaElement).blur(); } }}
+                ></textarea>
+              {:else}
+                <h1 class="title" id="page-title">{current.title}</h1>
+              {/if}
+              <TrustLine
+                owner={current.owner_id ? nameOf(current.owner_id) : undefined}
+                ownerRole={t('app.pages.owner_role')}
+                ownerless={t('app.pages.ownerless')}
+                verification={current.due_for_review
+                  ? { state: 'due', label: t('app.pages.due_for_review') }
+                  : current.verified_until ? { state: 'verified', label: t('app.pages.verified_until', { date: day(current.verified_until) }) } : undefined}
+                changed={t('app.pages.changed_ago', { when: formatRelative(current.updated_at, messages.locale), name: nameOf(current.updated_by) })}
+                onverification={current.writable ? () => (side = 'details') : undefined}
+              >
+                {#snippet labels()}
+                  {#if current.template}<Badge size="sm">{t('app.pages.is_template')}</Badge>{/if}
+                  {#if current.restricted}<Badge size="sm" icon="lock">{t('app.pages.access_restricted_badge')}</Badge>{/if}
+                  {#if current.shared}<Badge size="sm" tone="info">{t('app.pages.shared_with_you')}</Badge>{/if}
+                  {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
+                {/snippet}
+              </TrustLine>
+              {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
+                <Banner tone="info">
+                  {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
+                  {#snippet action()}
+                    <Inline gap="050">
+                      <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
+                      {#if pageDraft === 'draft'}<Button size="sm" tone="subtle" onclick={discard}>{t('app.pages.discard_draft')}</Button>{/if}
+                    </Inline>
+                  {/snippet}
+                </Banner>
+              {:else if current.writable && pageDraft === 'published'}
+                <p class="quiet">{t('app.pages.published_hint')}</p>
+              {/if}
 
-            {#if side}
-            <aside class="side" aria-label={sideTitle} data-page-side={side}>
-              <Inline justify="between" align="center">
-                <h2 class="heading">{sideTitle}</h2>
-                <IconButton size="sm" icon="x" label={t('app.pages.side_close')} onclick={() => (side = undefined)} />
-              </Inline>
+              <div class="body" bind:this={bodyElement}>
+                <PageEditor
+                  page={current}
+                  {spacePages}
+                  views={hubViews}
+                  collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
+                  {onnavigate}
+                  {reveal}
+                  replaceWith={discarded}
+                  passages={viewport.isLarge || side === 'comments' ? passages : []}
+                  onpassages={passagesMoved}
+                  onpresent={(names) => (present = names)}
+                  onheadings={(seen) => (outline = seen)}
+                  onblock={(seen) => {
+                    block = seen;
+                    // Words selected are a comment's passage, unless the person chooses the page.
+                    if (seen?.selected) isAtBlock = true;
+                  }}
+                />
+              </div>
 
+              <!-- What links here, at the page's end (§3 knowledge): a quiet list, not a panel. -->
+              {#if backlinkState.length > 0}
+                <section class="backlinks" aria-labelledby="page-backlinks" data-page-backlinks>
+                  <h2 class="caps" id="page-backlinks">{t('app.pages.links_here', { count: String(backlinkState.length) })}</h2>
+                  <ul class="hits">
+                    {#each backlinkState as link (link.source_kind + link.source_id)}
+                      <li><a href={link.page_id ? `/pages/${link.page_id}` : `/items/${link.entry_id}`}>{link.title}</a></li>
+                    {/each}
+                  </ul>
+                </section>
+              {/if}
+            </article>
+
+            {#snippet beside()}
               {#snippet threadCard(thread: (typeof threads)[number])}
                 <article class="thread" class:resolved={thread.first.resolved}>
                   {#if thread.first.quote}
@@ -697,33 +713,85 @@
                   {/if}
                 </article>
               {/snippet}
-              {#if side === 'comments'}
-                <Stack gap="150">
-                  <Switch label={t('app.pages.show_resolved')} checked={showResolved} onchange={(event: Event) => (showResolved = (event.currentTarget as HTMLInputElement).checked)} />
-                  {#if shownThreads.length === 0}
-                    <p class="quiet">{t('app.pages.no_comments')}</p>
-                  {/if}
-                  <div class="margin" class:level={isLevel} bind:this={marginElement} style:--margin-height={isLevel ? `${margin.height}px` : undefined}>
-                    {#each passageOrder as thread (thread.first.id)}
-                      <div
-                        class="placed"
-                        bind:offsetHeight={heights[thread.first.id]}
-                        style:--thread-top={isLevel ? `${margin.tops.get(thread.first.id) ?? 0}px` : undefined}
-                      >
-                        {@render threadCard(thread)}
-                      </div>
-                    {/each}
-                  </div>
-                  {#each pageThreads as thread (thread.first.id)}
-                    {@render threadCard(thread)}
+
+              {#if outline.length > 0 && viewport.isLarge}
+                <PageOutline label={t('app.pages.outline')} headings={outline} locate={locateHeading} />
+              {/if}
+              <section class="comments" aria-labelledby="page-comments-head" data-page-margin>
+                <div class="comments-head">
+                  <h2 class="caps" id="page-comments-head">{t('app.pages.comments_count', { count: String(openThreads) })}</h2>
+                  <span class="which" role="group" aria-label={t('app.pages.comments_which')}>
+                    <button type="button" aria-pressed={!showResolved} onclick={() => (showResolved = false)}>{t('app.pages.comments_open_tab')}</button>
+                    <button type="button" aria-pressed={showResolved} data-page-resolved onclick={() => (showResolved = true)}>{t('app.pages.comments_resolved_tab')}</button>
+                  </span>
+                </div>
+                <!-- Whole-page comments on top of the same column (S-5), the passages' beside them. -->
+                {#each pageThreads as thread (thread.first.id)}
+                  {@render threadCard(thread)}
+                {/each}
+                <div class="margin" class:level={isLevel} bind:this={marginElement} style:--margin-height={isLevel ? `${margin.height}px` : undefined}>
+                  {#each passageOrder as thread (thread.first.id)}
+                    <div
+                      class="placed"
+                      bind:offsetHeight={heights[thread.first.id]}
+                      style:--thread-top={isLevel ? `${margin.tops.get(thread.first.id) ?? 0}px` : undefined}
+                    >
+                      {@render threadCard(thread)}
+                    </div>
                   {/each}
-                  <Textarea label={t('app.pages.comment_new')} rows={3} bind:value={commentDraft} />
+                </div>
+                {#if shownThreads.length === 0}
+                  <p class="quiet">{showResolved ? t('app.pages.no_resolved') : t('app.pages.no_comments')}</p>
+                {/if}
+                <!-- Writing at the column's foot. -->
+                <div class="write" data-page-comment-new>
+                  <Textarea label={t('app.pages.comment_on_page')} isLabelHidden placeholder={t('app.pages.comment_on_page')} rows={2} bind:value={commentDraft} />
                   {#if block}
                     <Switch label={t('app.pages.comment_at_block', { words: (block.selected ?? block.text).slice(0, 60) })} checked={isAtBlock} onchange={(event: Event) => (isAtBlock = (event.currentTarget as HTMLInputElement).checked)} />
                   {/if}
-                  <Button size="sm" disabledReason={commentDraft.trim() === '' ? t('app.pages.comment_needs_words') : undefined} onclick={addComment}>{t('app.pages.comment_send')}</Button>
-                </Stack>
-              {:else if side === 'history'}
+                  {#if commentDraft.trim() !== ''}
+                    <Button size="sm" onclick={addComment}>{t('app.pages.comment_send')}</Button>
+                  {/if}
+                </div>
+              </section>
+            {/snippet}
+
+            {#if viewport.isLarge}
+              <aside class="beside" aria-label={t('app.pages.beside')}>{@render beside()}</aside>
+            {:else}
+              <Sheet
+                title={side === 'outline' ? t('app.pages.outline') : t('app.pages.comments_count', { count: String(openThreads) })}
+                closeLabel={t('app.pages.side_close')}
+                isOpen={side === 'outline' || side === 'comments'}
+                onClose={() => (side = undefined)}
+              >
+                {#if side === 'outline'}
+                  <PageOutline label={t('app.pages.outline')} headings={outline} locate={locateHeading} onselect={() => (side = undefined)} />
+                {:else}
+                  {@render beside()}
+                {/if}
+              </Sheet>
+            {/if}
+          </div>
+
+          {#if viewport.isCompact}
+            <!-- The phone: reading first, the rest at the foot (§7). -->
+            <nav class="foot" aria-label={t('app.pages.foot')} data-page-foot>
+              <Button size="sm" tone="subtle" icon="list" disabledReason={outline.length === 0 ? t('app.pages.outline_empty') : undefined} onclick={() => toggleSide('outline')}>{t('app.pages.foot_contents')}</Button>
+              <Button size="sm" tone="subtle" icon="message-square" onclick={() => toggleSide('comments')}>{t('app.pages.foot_comments', { count: String(openThreads) })}</Button>
+              {#if current.writable}
+                <Button size="sm" tone="subtle" icon="pencil" onclick={() => bodyElement?.querySelector<HTMLElement>('[contenteditable="true"]')?.focus()}>{t('app.pages.foot_edit')}</Button>
+              {/if}
+            </nav>
+          {/if}
+
+          {#if side === 'history' || side === 'backlinks' || side === 'access' || side === 'details'}
+            <aside class="side" aria-label={sideTitle} data-page-side={side}>
+              <Inline justify="between" align="center">
+                <h2 class="heading">{sideTitle}</h2>
+                <IconButton size="sm" icon="x" label={t('app.pages.side_close')} onclick={() => (side = undefined)} />
+              </Inline>
+              {#if side === 'history'}
                 <Stack gap="100">
                   <ol class="versions">
                     {#each versionState as version (version.seq)}
@@ -796,9 +864,8 @@
                 </Stack>
               {/if}
             </aside>
-            {/if}
-          </div>
-        </Stack>
+          {/if}
+        </div>
       {/key}
     {/if}
   </section>
@@ -900,14 +967,79 @@
   textarea.title { resize: none; overflow: hidden; field-sizing: content; font-family: var(--font-display); }
   textarea.title:hover { border-color: var(--border-subtle); }
   textarea.title:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
-  .body-and-side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); }
-  /* design-system-lint-ignore: `primitive.breakpoint.large` (1240px); a media query cannot read a custom property. */
-  @media (width >= 1240px) {
-    .body-and-side.with-side { grid-template-columns: minmax(0, 1fr) minmax(28ch, 40ch); }
+  .reading-page { display: grid; gap: var(--sp-200); }
+  .top-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-100);
+  }
+  /* The reading column and, from 1240 px, the outline and the comments beside it (S-1, S-3, S-5). */
+  .reader { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-400); align-items: start; }
+  .reader.with-beside { grid-template-columns: minmax(0, 1fr) var(--layout-rail); }
+  .column {
+    display: grid;
+    gap: var(--sp-100);
+    inline-size: 100%;
+    max-inline-size: var(--layout-reading);
+    min-inline-size: 0;
+    justify-self: center;
+  }
+  .icon { font-size: var(--fs-700); line-height: var(--lh-tight); }
+  .column .title { font-size: var(--fs-600); }
+  .beside {
+    position: sticky;
+    inset-block-start: var(--sp-200);
+    display: grid;
+    gap: var(--sp-300);
+    max-block-size: calc(100dvh - var(--sp-400));
+    overflow-y: auto;
+  }
+  .comments { display: grid; gap: var(--sp-150); }
+  .comments-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
+  .caps {
+    margin: 0;
+    color: var(--text-subtle);
+    font-size: var(--fs-065);
+    font-weight: var(--fw-semibold);
+    /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .which { display: inline-flex; gap: var(--sp-050); font-size: var(--fs-075); }
+  .which button {
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+  }
+  .which button[aria-pressed='true'] { color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .which button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .write { display: grid; gap: var(--sp-050); }
+  .backlinks {
+    display: grid;
+    gap: var(--sp-100);
+    margin-block-start: var(--sp-400);
+    padding-block-start: var(--sp-200);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+  .hits { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
+  .foot {
+    position: sticky;
+    inset-block-end: 0;
+    display: flex;
+    justify-content: space-around;
+    padding-block: var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-canvas);
   }
   .body { display: grid; gap: var(--sp-100); min-inline-size: 0; }
   .side {
     display: grid;
+    max-inline-size: var(--layout-reading);
     gap: var(--sp-150);
     align-content: start;
     padding: var(--sp-150);
