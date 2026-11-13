@@ -14648,6 +14648,7 @@
   "app.workflows.status_button": "Status: {status}. Status ändern",
   "app.workflows.from_status": "Von „{status}“ weiter",
   "app.workflows.default_title": "Status · ohne Workflow",
+  "app.workflows.columns_title": "Status · Spalten des Boards",
   "app.workflows.done_note": "schließt den Eintrag ab",
   "app.workflows.done_route": "Erledigt erreicht man über: {steps}",
   "app.workflows.view": "Workflow ansehen",

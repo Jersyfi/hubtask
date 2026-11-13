@@ -54,4 +54,4 @@ to do, in progress and done, and the main button is *Done*, which completes the 
 
 ## Today
 
-* Check 5: not met — the server answers `state_mode` and `columns` in `/items/{id}/steps`; the web app's menu offers to do and done without a workflow and the columns at L1 once work surface family 3.2 builds them (`docs/backlog/work-surface/build-plan.md` §5).
+* Check 5: not met — the entry's status menu reads `state_mode` from `/items/{id}/steps`: open and done at L0, the board's columns at L1 with the done column marked as completing, choosing one moves the entry into it (`entrysteps.test.ts`, `entryhead.test.mjs`); the list's and the board's own status control follow with work surface family 3.2 (`docs/backlog/work-surface/build-plan.md` §5).

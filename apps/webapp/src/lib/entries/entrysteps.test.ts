@@ -62,3 +62,26 @@ test('without a workflow: to do and done, done is the next step, and a completed
   assert.equal(done.current.category, 'done');
   assert.deepEqual(done.steps.map((step) => [step.to.category, step.isNext]), [['todo', false]]);
 });
+
+test('on a board without a workflow (L1): the columns are the states, the done column completes', () => {
+  const columns = [
+    { id: 'c1', name: 'Ideas', completes: false },
+    { id: 'c2', name: 'Doing', completes: false },
+    { id: 'c3', name: 'Shipped', completes: true },
+  ];
+  const answer = { state_mode: 'COLUMNS', columns, column_id: 'c2', workflow: null, status: null, steps: [], by_default: true } as unknown as EntrySteps;
+  const model = readSteps(answer, false, words);
+  assert.equal(model.columns, true);
+  assert.deepEqual(model.current, { id: 'c2', label: 'Doing', category: 'progress' });
+  assert.deepEqual(model.statuses?.map((state) => [state.label, state.category]), [['Ideas', 'todo'], ['Doing', 'progress'], ['Shipped', 'done']]);
+  assert.deepEqual(model.steps.map((step) => [step.id, step.isNext]), [['c1', false], ['c3', true]]);
+  const unplaced = readSteps({ ...answer, column_id: null } as EntrySteps, true, words);
+  assert.equal(unplaced.current.id, 'c3');
+});
+
+test('in a list (L0, state_mode NONE): open and done, no columns', () => {
+  const answer = { state_mode: 'NONE', columns: [], column_id: null, workflow: null, status: null, steps: [], by_default: true } as unknown as EntrySteps;
+  const model = readSteps(answer, false, words);
+  assert.equal(model.columns, undefined);
+  assert.deepEqual(model.statuses?.map((state) => state.category), ['todo', 'done']);
+});

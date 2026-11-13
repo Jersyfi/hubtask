@@ -4,8 +4,8 @@
   // An entry's status as a button with where it can go next (E-23, UC-FLW-06, UC-WRK-44): the
   // allowed steps with their target and what they ask, the blocked ones with their reason as
   // information (P-05), how done is reached, and *View workflow* read only for every reader; *Open
-  // in designer* only with the right to the structure. Without a workflow the default holds and
-  // the next step is *Done*, which completes the entry. A step that asks for fields opens a small
+  // in designer* only with the right to the structure. Without a workflow the level holds: open and
+  // done in a list, the board's columns on a board (UC-FLW-06 check 5); the next step is *Done*. A step that asks for fields opens a small
   // form first (UC-FLW-04 check 3). It replaces the row of step buttons (StepControl).
   import { tick, untrack } from 'svelte';
   import { Banner, Button, Dialog, Input, Stack, StateLozenge, StatusButton } from '@hubtask/design-system/components';
@@ -15,6 +15,7 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { fieldName } from '../data/customfields.ts';
   import { groups } from '../data/groups.svelte.ts';
+  import { items } from '../data/items.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { workflows } from '../data/workflows.svelte.ts';
   import { statusLabel } from '../data/workflows.ts';
@@ -100,6 +101,10 @@
 
   function choose(step: WorkflowStep) {
     refusal = undefined;
+    if (model?.columns) {
+      void moveInto(step);
+      return;
+    }
     if (model?.byDefault) {
       oncomplete();
       return;
@@ -113,6 +118,21 @@
       return;
     }
     void take(verdict, step.label);
+  }
+
+  // A column move: the server completes into the done column and reopens out of it (Board).
+  async function moveInto(step: WorkflowStep) {
+    isTaking = true;
+    try {
+      await items.setBucket(item.id, step.to.id, item.version);
+      toast.show({ text: t('app.workflows.step_taken', { name: step.label }), tone: 'success' });
+      void read.refresh();
+    } catch (error) {
+      const rendered = renderProblem(error as never, messages);
+      refusal = { message: rendered.message, details: [...rendered.fields.values(), ...(rendered.wholes ?? [])], fields: rendered.fields };
+    } finally {
+      isTaking = false;
+    }
   }
 
   async function take(step: StepVerdict, name: string) {
@@ -182,7 +202,7 @@
       steps={model.steps}
       statuses={model.statuses}
       label={t('app.workflows.status_button', { status: model.current.label })}
-      menuTitle={model.byDefault ? t('app.workflows.default_title') : t('app.workflows.from_status', { status: model.current.label })}
+      menuTitle={model.columns ? t('app.workflows.columns_title') : model.byDefault ? t('app.workflows.default_title') : t('app.workflows.from_status', { status: model.current.label })}
       doneNote={t('app.workflows.done_note')}
       doneHint={model.doneHint}
       workflow={answer.picture && !model.byDefault ? { label: t('app.workflows.view'), onview: () => (isPictureOpen = true) } : undefined}

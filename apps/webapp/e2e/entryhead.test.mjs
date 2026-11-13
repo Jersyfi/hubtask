@@ -38,8 +38,13 @@ const TYPE = {
   completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], position: 1, archived: false, version: 1,
 };
 const ENTRY = ITEMS[3];
+const BOARD = [
+  { id: '00000000-0000-4000-8000-00000000c001', name: 'Ideas', completes: false },
+  { id: '00000000-0000-4000-8000-00000000c002', name: 'Building', completes: false },
+  { id: '00000000-0000-4000-8000-00000000c003', name: 'Shipped', completes: true },
+];
 
-async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, title }) {
+async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, title, board, patches = [] }) {
   const browser = await chromium.launch();
   const { context, page } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -58,6 +63,13 @@ async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, ti
       const blocked = asks ? [] : [{ key: 'resolve', name: 'Resolve', to: 'resolved', reason: 'workflows.step_who_unmet', roles: ['ADMIN'], people: [], groups: [] }];
       const picture = { ...SHAPE, steps: SHAPE.steps.map((step) => ({ name: null, limited: step.key === 'resolve', approval: false, ...step })) };
       return route.fulfill({ json: { workflow: 'incident', status: 'new', steps, blocked, done_route: [{ key: 'resolve', name: 'Resolve', to: 'resolved' }], picture, by_default: false, may_design: false } });
+    }
+    if (board && read === `/items/${ENTRY.id}/steps`) {
+      return route.fulfill({ json: { state_mode: 'COLUMNS', columns: BOARD, column_id: BOARD[0].id, workflow: null, status: null, steps: [], blocked: [], done_route: [], by_default: true, may_design: false } });
+    }
+    if (board && read === `/items/${ENTRY.id}` && request.method() === 'PATCH') {
+      patches.push(request.postDataJSON());
+      return route.fulfill({ json: { ...ENTRY, bucket_id: BOARD[2].id, version: ENTRY.version + 1, completion: { is_completed: true } } });
     }
     if (!runs && read === `/items/${ENTRY.id}/steps`) {
       return route.fulfill({ json: { workflow: null, status: null, steps: [], blocked: [], done_route: [], picture: SHAPE, by_default: true, may_design: false } });
@@ -127,6 +139,26 @@ test('chromium: without a workflow the default holds and the primary button is D
     assert.equal(await page.locator('[data-steps]').getAttribute('data-status'), 'todo');
     assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done is the primary button');
     assert.equal(await page.locator('[data-column-mark]').count(), 1, 'the column is still changed in the head');
+  } finally {
+    await close();
+  }
+});
+
+test('chromium: on a board without a workflow the menu lists its columns, the done one completing (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
+  const patches = [];
+  const { page, close } = await open(1280, { runs: false, board: true, patches });
+  try {
+    const status = page.locator('[data-steps]');
+    await status.waitFor({ timeout: 10_000 });
+    assert.equal(await status.getAttribute('data-status'), BOARD[0].id);
+    await status.getByRole('button', { name: /Change status/ }).click();
+    const rows = page.getByRole('menuitemradio');
+    assert.deepEqual((await rows.allInnerTexts()).map((text) => text.split('\n')[0].trim()), ['Ideas', 'Building', 'Shipped']);
+    assert.match(await rows.nth(2).innerText(), /completes the entry/, 'the done column is marked as completing');
+    assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done stays the main action');
+    await rows.nth(2).click();
+    await page.waitForTimeout(400);
+    assert.deepEqual(patches, [{ bucket_id: BOARD[2].id }], 'choosing a column moves the entry into it');
   } finally {
     await close();
   }

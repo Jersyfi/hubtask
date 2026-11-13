@@ -4,7 +4,8 @@
 // Where an entry can go next, as `StatusButton` draws it (work-surface concept §6.9, E-23): the
 // server's answer to `GET /items/{id}/steps` turned into the button's model. The server decides
 // what is allowed and why the rest is not (`WorkflowGate`, rule 2); this only names and orders it.
-// Without a workflow the default holds (`by_default`): to do and done, and completing reaches done.
+// Without a workflow the entry's level holds (UC-FLW-06 check 5): in a list (L0) to do and done; on
+// a board (L1, `state_mode` COLUMNS) the board's columns are the states, the `completes` one done.
 
 import type { StatusCategory, StatusRef, WorkflowStep } from '@hubtask/design-system/components';
 import type { EntrySteps, StepVerdict, WorkflowStatus } from '@hubtask/sync-engine';
@@ -29,6 +30,8 @@ export interface EntryStatusModel {
   readonly statuses?: readonly StatusRef[];
   readonly doneHint?: string;
   readonly byDefault: boolean;
+  /** At L1: choosing a state moves the entry into this column (the server completes or reopens). */
+  readonly columns?: boolean;
 }
 
 export function categoryOf(category: WorkflowStatus['category']): StatusCategory {
@@ -37,9 +40,31 @@ export function categoryOf(category: WorkflowStatus['category']): StatusCategory
   return 'todo';
 }
 
-// Without a workflow an entry holds no "in progress" of its own until board columns carry it
-// (build-plan.md §5, L1); the default offers what the server keeps: to do and done.
+// In a list (L0) an entry holds no "in progress" of its own; the default offers what the server
+// keeps: to do and done.
 const DEFAULT_KEYS = ['todo', 'done'] as const;
+
+/** At L1 the board's columns as states: the first open, the done one done, the rest in progress. */
+function readColumns(answer: EntrySteps, isCompleted: boolean): EntryStatusModel | undefined {
+  const columns = answer.state_mode === 'COLUMNS' ? (answer.columns ?? []) : [];
+  const states: StatusRef[] = columns.map((column, index) => ({
+    id: column.id,
+    label: column.name,
+    category: column.completes ? 'done' : index === 0 ? 'todo' : 'progress',
+  }));
+  // An entry in no column reads as the first when open, as the done one when completed (Board).
+  const current = states.find((each) => each.id === answer.column_id)
+    ?? (isCompleted ? states.find((each) => each.category === 'done') : undefined)
+    ?? states[0];
+  if (!current) return undefined;
+  return {
+    current,
+    byDefault: true,
+    columns: true,
+    statuses: states,
+    steps: states.filter((each) => each.id !== current.id).map((to) => ({ id: to.id, label: to.label, to, isNext: to.category === 'done' })),
+  };
+}
 
 export function readSteps(answer: EntrySteps, isCompleted: boolean, words: StepWords): EntryStatusModel {
   const statuses = answer.picture?.statuses ?? [];
@@ -52,6 +77,8 @@ export function readSteps(answer: EntrySteps, isCompleted: boolean, words: StepW
   const stepName = (name: string | null | undefined, to: string) => name ?? ref(to).label;
 
   if (answer.by_default || !answer.workflow || !answer.status) {
+    const board = readColumns(answer, isCompleted);
+    if (board) return board;
     const current = ref(isCompleted ? 'done' : 'todo');
     const choices = DEFAULT_KEYS.map(ref);
     return {
