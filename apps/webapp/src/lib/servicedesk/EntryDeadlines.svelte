@@ -35,8 +35,10 @@
     : t('app.portal.goal_due', { at: at(goal.due_at) });
   const TONE = { breached: 'danger', atRisk: 'warning', running: 'neutral', paused: 'neutral', met: 'success' } as const;
 
+  // A kept deadline asks nothing more of anyone: those fold into one line per goal (the scene's
+  // *First reply: 3 of 3 kept*); the table still holds each.
   const rows = $derived<Deadline[]>(
-    byUrgency(goals, now).map((goal) => ({
+    byUrgency(goals, now).filter((goal) => goal.standing !== 'MET').map((goal) => ({
       id: `${goal.kind}-${goal.policy_key}-${goal.goal}`,
       name: goalName(goal),
       context: whose(goal),
@@ -45,6 +47,15 @@
       tone: TONE[urgencyOf(goal, now)],
       isPaused: goal.standing === 'PAUSED',
     })),
+  );
+
+  const keptLabel = $derived(
+    [...new Set(goals.filter((goal) => goal.standing === 'MET').map((goal) => goal.goal))]
+      .map((kind) => {
+        const ofKind = goals.filter((goal) => goal.goal === kind);
+        return t('app.entry.deadlines_kept', { goal: t(`app.portal.goal.${kind}`), kept: String(ofKind.filter((goal) => goal.standing === 'MET').length), count: String(ofKind.length) });
+      })
+      .join(' · ') || undefined,
   );
 
   $effect(() => {
@@ -67,9 +78,9 @@
     goals.find((goal) => goal.kind === policy.kind && goal.policy_key === policy.policy_key && goal.assignee_group === policy.assignee_group && goal.goal === kind);
 </script>
 
-{#if rows.length > 0}
+{#if goals.length > 0}
   <div data-entry-sla>
-    <DeadlineList deadlines={rows} table={{ label: t('app.entry.all_deadlines'), onclick: () => (isTableOpen = true) }} />
+    <DeadlineList deadlines={rows} {keptLabel} table={{ label: t('app.entry.all_deadlines'), onclick: () => (isTableOpen = true) }} />
   </div>
 {/if}
 

@@ -14712,6 +14712,7 @@
   "app.entry.all_deadlines": "All deadlines as a table",
   "app.entry.deadline_chip_breached": "{goal} breached",
   "app.entry.deadline_chip_next": "next: {goal} {at}",
+  "app.entry.deadlines_kept": "{goal}: {kept} of {count} kept",
   "app.desk.macro_does": "does: {actions}",
   "app.desk.snippets": "Snippets",
   "app.desk.macros": "Macros",

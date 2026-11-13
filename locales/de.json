@@ -14712,6 +14712,7 @@
   "app.entry.all_deadlines": "Alle Fristen als Tabelle",
   "app.entry.deadline_chip_breached": "{goal} verletzt",
   "app.entry.deadline_chip_next": "nächste: {goal} {at}",
+  "app.entry.deadlines_kept": "{goal}: {kept} von {count} eingehalten",
   "app.desk.macro_does": "macht: {actions}",
   "app.desk.snippets": "Textbausteine",
   "app.desk.macros": "Makros",
