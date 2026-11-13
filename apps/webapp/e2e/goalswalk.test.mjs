@@ -207,9 +207,14 @@ for (const width of [1280, 375]) {
     const { page } = walk;
 
     await page.goto(`${served.origin}/goals`);
-    await page.getByText(/^2 goals · 1 needs a look · until Dec 31, 2026$/).waitFor({ timeout: 10_000 });
+    // The goals' band (E-1): its figures, the first one the headline.
+    await page.locator('.band .figure').first().waitFor({ timeout: 10_000 });
+    assert.deepEqual((await page.locator('.band .figure').allTextContents()).map((each) => each.trim()), ['2 goals', '1 needs a look', 'until Dec 31, 2026']);
     const results = page.getByRole('list', { name: 'Key results of Customers renew because the product helps them every day' });
     await results.getByText('82 % of 90 %').waitFor({ timeout: 5_000 });
+    // Progress and confidence stand apart (UC-GOL-02), and the state is a word with its glyph.
+    assert.deepEqual((await page.locator('[data-goal-confidence]').allTextContents()).map((each) => each.trim()), ['Confidence 6 of 10']);
+    assert.equal(await page.locator('.goal .lozenge').filter({ hasText: 'At risk' }).locator('svg').count(), 1, 'the state has no glyph');
     await results.getByText('3 tickets of 1').waitFor({ timeout: 5_000 });
     await page.getByText('Reached', { exact: true }).waitFor({ timeout: 5_000 });
     assert.equal(await page.getByRole('progressbar').count(), 5, 'two goals and three key results');

@@ -20,7 +20,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, Icon, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
+    Badge, Button, Dialog, Icon, Inline, Input, ProductBand, ProgressBar, StateLozenge, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type ViewLink,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -44,7 +44,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
-  import { goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone } from '../lib/goals/tone.ts';
   import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   interface Props {
@@ -159,15 +159,16 @@
       onnavigate(address({ period: made.id }));
     }, t('app.goals.period_defined'));
   }
-  const figureText = $derived(
+  const figureParts = $derived(
     current !== 'goals' || !chosen || !goalList
-      ? ''
+      ? []
       : [
           t('app.goals.figure_goals', { count: goalList.length }),
           ...(needingALook(goalList) > 0 ? [t('app.goals.figure_look', { count: needingALook(goalList) })] : []),
           chosen.state === 'OPEN' ? t('app.goals.figure_until', { day: formatPlainDay(chosen.end_on, messages.locale) }) : t('app.goals.figure_closed'),
-        ].join(' · '),
+        ],
   );
+  const figureText = $derived(figureParts.join(' · '));
   const resultValue = (result: KeyResult) =>
     result.kind === 'BINARY' || result.kind === 'MILESTONE' ? (result.progress >= 1 ? t('app.goals.kr_reached') : t('app.goals.kr_not_reached'))
       : result.kind === 'PERCENT' ? t('app.goals.kr_of_target', { value: t('app.goals.percent', { percent: String(result.current) }), target: t('app.goals.percent', { percent: String(result.target) }) })
@@ -288,10 +289,10 @@
   {#if hub}
     <ToolHead hubId={hub} tool="goals" {current} {onnavigate} {primary} figure={goalsFigure} />
   {:else}
-  <PageHeader
-    title={heading}
-    subtitle={t('app.modules.hint_goals')}
-    isTitleInBar={viewport.isCompact}
+  <ProductBand
+    product="goals"
+    icon="flag"
+    name={heading}
     {primary}
     breadcrumb={{
       trail: [
@@ -301,7 +302,7 @@
       label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-    figure={goalsFigure}
+    figures={figureParts}
   />
   {/if}
   {/snippet}
@@ -346,12 +347,11 @@
             <li class="goal" style:--depth={Math.min(depth, 4)} data-depth={depth > 0 ? '' : undefined}>
               <div class="goal-head">
                 <a class="goal-title" href={`/goals/${goal.id}`}>{goal.title}</a>
-                {#if goal.status !== 'NONE'}<Badge size="sm" tone={goalTone(goal.status)}>{t(`app.goals.status_${goal.status}`)}</Badge>{/if}
+                {#if goal.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(goal.status)} label={t(`app.goals.status_${goal.status}`)} />{/if}
               </div>
               <p class="meta">
                 <span>{placeName(goal)}</span>
                 {#if goal.owner_id}<span>{t('app.goals.owned_by', { name: personName(goal.owner_id) })}</span>{/if}
-                {#if goal.confidence !== null}<span>{t('app.goals.confidence_line', { value: String(goal.confidence) })}</span>{/if}
                 {#if goal.child_count > 0}<span>{t('app.goals.children', { count: goal.child_count })}</span>{/if}
               </p>
               <div class="overall">
@@ -362,6 +362,8 @@
                 {:else}
                   <ProgressBar label={t('app.goals.progress_of', { title: goal.title })} value={percentOf(goal.progress)} valueLabel={t('app.goals.percent', { percent: percentText(goal.progress) })} />
                 {/if}
+                <!-- Confidence stands apart from progress (UC-GOL-02): how far it is, and how sure the owner is. -->
+                {#if goal.confidence !== null}<span class="confidence" data-goal-confidence>{t('app.goals.confidence_line', { value: String(goal.confidence) })}</span>{/if}
               </div>
               {#if goal.key_results.length > 0}
                 <ul class="results" aria-label={t('app.goals.key_results_of', { title: goal.title })}>
@@ -509,6 +511,9 @@
   .goal-title { min-width: 0; color: var(--text-brand); font-size: var(--fs-200); font-weight: var(--fw-semibold); overflow-wrap: anywhere; text-decoration: none; }
   .goal-title:hover { text-decoration: underline; }
   .meta { display: flex; flex-wrap: wrap; gap: var(--sp-050) var(--sp-150); margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .overall { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-300); }
+  .overall > :global(*:first-child) { flex: 1 1 24ch; min-inline-size: 0; }
+  .confidence { flex: none; color: var(--text-secondary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
   .results { gap: var(--sp-100); padding-block-start: var(--sp-100); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: center; gap: var(--sp-150); }
   .result-title { overflow-wrap: anywhere; font-size: var(--fs-075); }
