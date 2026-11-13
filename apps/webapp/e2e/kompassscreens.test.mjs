@@ -147,8 +147,8 @@ test('UC-WRK-36 check 9: a collection draws one view bar - board, the running sp
   await at(page, `/collections/${WEB.id}/sprint`);
   await main(page).getByRole('navigation', { name: WEB.name }).getByRole('link', { name: 'Backlog', exact: true }).click();
   await at(page, `/collections/${WEB.id}/backlog`);
-  await main(page).locator('[data-sprint-board][data-backlog]').waitFor({ timeout: 10_000 });
-  assert.equal(await main(page).locator('[data-sprint-board] [data-drop="sprint"]').count(), 0, 'the backlog draws the sprint\'s lanes');
+  await main(page).locator('section[data-backlog]').waitFor({ timeout: 10_000 });
+  assert.equal(await main(page).locator('[data-sprint-board]').count(), 0, 'the backlog draws the sprint\'s board');
   assert.equal(await main(page).getByRole('navigation', { name: WEB.name }).getByRole('link', { name: 'Backlog', exact: true }).getAttribute('aria-current'), 'page');
   assert.deepEqual(failures, []);
 });
@@ -237,7 +237,8 @@ test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keep
   await head.locator('[data-tour="queue-save"]').click();
   const dialog = page.getByRole('dialog', { name: 'Save as queue' });
   await dialog.getByRole('textbox', { name: 'Name of the queue' }).fill('Printers');
-  await dialog.locator('[data-save-queue]').click();
+  // The dialog's own primary (page-system §5.1), named with its verb.
+  await dialog.getByRole('button', { name: 'Save as queue', exact: true }).click();
   await at(page, `/hubs/${IT.id}/desk?queue=${SAVED.id}`);
   assert.equal(saved.length, 1);
   assert.equal(saved[0].scope_type, 'HUB');
