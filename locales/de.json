@@ -10190,6 +10190,7 @@
   "app.list.fold_group": "„{group}“ einklappen",
   "app.list.unfold_group": "„{group}“ zeigen",
   "app.list.acts": "Aktionen",
+  "app.list.tools": "Werkzeuge der Liste",
   "app.list.swipe_hint": "Nach rechts wischen erledigt, nach links öffnet das Menü – das Menü kann dasselbe.",
   "app.mail.copied_announced": "Adresse kopiert.",
   "app.mail.jumble_lead": "Mails an diese Adresse ohne Kennung landen hier:",

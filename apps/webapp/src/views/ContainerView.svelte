@@ -1292,8 +1292,11 @@
     {#snippet barTools()}
       {@render insideToggle()}
       {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
+      <!-- Narrower than `expanded` the list's tools live in the filter's drawer; the button stays here. -->
+      {#if viewport.isBelowExpanded}{@render filterTool()}{/if}
+    {/snippet}
+    {#snippet filterTool()}
       <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
-      {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
     {/snippet}
     {#snippet compactTools()}
       {@render insideToggle()}
@@ -1401,6 +1404,11 @@
            `query_fields` decides what can be asked, and nothing here is a list written down. The
            panel stays mounted while it is hidden, because the conditions are its state; inline from
            `expanded`, a drawer from the bottom below it. -->
+      {#if !viewport.isBelowExpanded}
+        <!-- The list's toolbar in words (work-surface concept §6.2, the queue's mockup): its own
+             line over the list, so no tool shrinks to a bare mark beside the views. -->
+        <div class="list-tools" role="group" aria-label={t('app.list.tools')}>{@render filterTool()}{@render entryTools()}</div>
+      {/if}
       {#if viewport.isBelowExpanded}
         <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
           <div class="sheet-tools">{@render entryTools()}</div>
@@ -1487,6 +1495,7 @@
               sortable={sortFields}
               {stateMode}
               workflow={boardShape}
+              withSla={isDesk && modulesOn.includes('SERVICE_DESK')}
             />
             </div>
           {/if}
@@ -1670,6 +1679,7 @@
   .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 
   .filter[hidden] { display: none; }
+  .list-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .filter {
     padding: var(--sp-200);

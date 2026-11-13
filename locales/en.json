@@ -10190,6 +10190,7 @@
   "app.list.fold_group": "Fold “{group}”",
   "app.list.unfold_group": "Show “{group}”",
   "app.list.acts": "Actions",
+  "app.list.tools": "The list’s tools",
   "app.list.swipe_hint": "Swipe right to complete, left for the menu – the menu does the same.",
   "app.mail.copied_announced": "Address copied.",
   "app.mail.jumble_lead": "Mail to this address without a handle lands here:",

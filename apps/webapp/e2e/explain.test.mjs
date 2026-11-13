@@ -361,9 +361,8 @@ for (const width of WIDTHS) {
     const sent = writes(context);
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
     await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
-    // Selecting is the toolbar's; below `expanded` its *Filter* sheet holds it.
-    const toolbar = viewBar(page);
-    if ((await toolbar.getByRole('button', { name: 'Select entries' }).count()) === 0) await toolbar.getByRole('button', { name: 'Filter' }).click();
+    // Selecting is the list's tools' from `expanded`; narrower, the bar's *Filter* sheet holds it.
+    if ((await page.getByRole('button', { name: 'Select entries' }).count()) === 0) await viewBar(page).getByRole('button', { name: 'Filter' }).click();
     await page.getByRole('button', { name: 'Select entries' }).click();
     await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
     await page.getByLabel('Do this').selectOption({ label: 'Give to somebody' });

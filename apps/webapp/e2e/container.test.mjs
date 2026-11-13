@@ -50,13 +50,15 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   assert.equal(await head.getByRole('button', { name: 'Filter' }).count(), 0, 'the filter is the toolbar\'s, not the head\'s');
   assert.equal(await head.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).count(), 0, 'a ⚙ beside the menu');
 
-  // The view bar under it (the navigation concept §3): the views at the start; the filter, the
-  // order, the views and selecting at its end.
+  // The view bar under it (the navigation concept §3) holds the views; the filter, the order, the
+  // views and selecting stand in words on the list's own line under it (work-surface concept §6.2).
   const toolbar = viewBar(page);
   assert.equal(await toolbar.count(), 1);
   assert.equal(await toolbar.getByRole('navigation', { name: COLLECTION.name }).count(), 1);
+  const tools = page.getByRole('group', { name: 'The list’s tools' });
   for (const name of ['Filter', 'Sort', 'Views', 'Select entries']) {
-    assert.equal(await toolbar.getByRole('button', { name }).count(), 1, `${name} is not in the toolbar`);
+    assert.equal(await tools.getByRole('button', { name }).count(), 1, `${name} is not in the list's tools`);
+    assert.ok((await tools.getByRole('button', { name }).innerText()).trim().length > 0, `${name} is a bare mark`);
   }
   assert.equal(await toolbar.evaluate((el) => getComputedStyle(el).position), 'sticky', 'the toolbar stays under the bar');
 
@@ -84,7 +86,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   }
 
   // The daily ways: the *Views* menu saves a view, the faces open the people.
-  await toolbar.getByRole('button', { name: 'Views' }).click();
+  await tools.getByRole('button', { name: 'Views' }).click();
   await page.getByRole('menuitem', { name: 'Save this view…' }).click();
   await page.locator('dialog[open]').getByRole('heading', { name: /Save this view/ }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
@@ -114,14 +116,14 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the list came back as it was left');
 
   // The filter: inline, not a drawer, from expanded.
-  await toolbar.getByRole('button', { name: 'Filter' }).click();
+  await tools.getByRole('button', { name: 'Filter' }).click();
   const panel = page.getByRole('group', { name: 'Which entries to show' });
   await panel.waitFor({ state: 'visible', timeout: 5_000 });
   assert.equal(await page.locator('dialog[open]').count(), 0, 'inline, not a drawer, from expanded');
   // The order is its own menu, and the button says the order chosen.
-  await toolbar.getByRole('button', { name: 'Sort' }).click();
+  await tools.getByRole('button', { name: 'Sort' }).click();
   await page.getByRole('menuitem', { name: 'title', exact: true }).click();
-  await toolbar.getByRole('button', { name: 'Sorted by title' }).waitFor({ timeout: 5_000 });
+  await tools.getByRole('button', { name: 'Sorted by title' }).waitFor({ timeout: 5_000 });
 
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
@@ -320,7 +322,7 @@ test('chromium: 1280 px — the filter as a line is read into the conditions and
     if (new URL(request.url()).pathname.endsWith('/items:query')) sent.push(request.postDataJSON());
   });
 
-  await viewBar(page).getByRole('button', { name: 'Filter' }).click();
+  await page.getByRole('group', { name: 'The list’s tools' }).getByRole('button', { name: 'Filter' }).click();
   const panel = page.getByRole('group', { name: 'Which entries to show' });
   await panel.waitFor({ state: 'visible', timeout: 5_000 });
   const line = page.getByRole('textbox', { name: 'As a line' });
