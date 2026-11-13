@@ -113,6 +113,11 @@
   const errorId = $derived(error ? `error-${instanceId}` : undefined);
   const isUploading = $derived(progress !== undefined);
 
+  /** Opens the system's file choice: for an offer that names a file among other choices ("/"). */
+  export function choose() {
+    input?.click();
+  }
+
   function take(files: FileList | null | undefined) {
     const chosen = files?.[0];
     // Emptied at once, so the same file chosen again after a refusal is a change again.
