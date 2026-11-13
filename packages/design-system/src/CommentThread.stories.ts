@@ -41,7 +41,7 @@ export const paged: Story = {
 export const inTableRow: Story = {
   name: 'In a table row',
   about:
-    'A comment whose edit and remove are off, beside the same comment with both on: the reasons are bubbles at the buttons, so the two rows are the same height.',
+    'A comment whose edit and remove are off, beside the same comment with both on: the two wait in the ⋯ with their reasons, so the two rows are the same height.',
   args: { mode: 'table' },
 };
 
