@@ -39,7 +39,7 @@ func schemeDesk(ctx context.Context, t *testing.T) workflowservice.Desk {
 		},
 		Authorizer: columns.Authorizer, Changes: columns.Changes, Audit: columns.Audit,
 		UnitOfWork: columns.UnitOfWork, Clock: columns.Clock, IDs: columns.IDs, HLC: columns.HLC, Text: text.Composing{},
-		Boards: work.SchemeBoards{Columns: columns},
+		Boards: work.SchemeBoards{Columns: columns}, Gate: work.WorkflowGate{Workflows: workflows},
 	}
 }
 
@@ -165,4 +165,77 @@ func TestASchemeChangeCarriesTheBoard(t *testing.T) {
 			t.Errorf("answered %v", err)
 		}
 	})
+}
+
+// Workflow aus diesen Spalten (domain-model.md §3.5a): a status per column, run for the tasks,
+// each column showing its own, every entry taking its column's status; a dry run writes nothing.
+func TestAWorkflowIsMadeFromABoardsColumns(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	administrator := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenantA, AccountID: authorA}
+	desk := schemeDesk(ctx, t)
+	maker := workflowservice.MakeBoardWorkflow{Desk: desk}
+
+	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
+	todo := seedRepairColumn(ctx, t, tenantA, collection, "a0", false)
+	doing := seedRepairColumn(ctx, t, tenantA, collection, "a1", false)
+	done := seedRepairColumn(ctx, t, tenantA, collection, "a2", true)
+	inDoing := seedOnBoard(ctx, t, tenantA, authorA, collection, doing.ID, false, "")
+	loose := seedOnBoard(ctx, t, tenantA, authorA, collection, "", true, "")
+
+	dry, err := maker.Execute(ctx, administrator, collection, "", true)
+	if err != nil {
+		t.Fatalf("the dry run: %v", err)
+	}
+	if len(dry.Statuses) != 3 || dry.Entries != 2 || dry.Statuses[0].Status.Category != domain.CategoryTodo ||
+		dry.Statuses[2].Status.Category != domain.CategoryDone || dry.Statuses[2].Count != 1 {
+		t.Fatalf("dry run %+v", dry)
+	}
+	if mapping := readMapping(ctx, t, tenantA, collection); len(mapping) != 0 {
+		t.Fatal("the dry run wrote a mapping")
+	}
+
+	made, err := maker.Execute(ctx, administrator, collection, "", false)
+	if err != nil {
+		t.Fatalf("making the workflow: %v", err)
+	}
+	mapping := readMapping(ctx, t, tenantA, collection)
+	want := []domain.ColumnStatus{{BucketID: todo.ID, Status: "s1"}, {BucketID: doing.ID, Status: "s2"}, {BucketID: done.ID, Status: "s3"}}
+	if !slices.Equal(mapping, want) {
+		t.Errorf("mapping %v, want %v", mapping, want)
+	}
+	if entry := readEntry(ctx, t, tenantA, inDoing); entry.Status != "s2" || entry.BucketID != doing.ID {
+		t.Errorf("the entry in Doing: %q in %s", entry.Status, entry.BucketID)
+	}
+	if entry := readEntry(ctx, t, tenantA, loose); entry.Status != "s3" || entry.BucketID != done.ID || !entry.Completion.IsCompleted {
+		t.Errorf("the completed entry without a column: %q in %s", entry.Status, entry.BucketID)
+	}
+	runs := false
+	err = read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		_, runs, err = desk.Gate.InForce(ctx, mustCollection(ctx, t, collection), "task")
+		return err
+	})
+	if err != nil || !runs {
+		t.Errorf("the workflow %s does not run for the tasks: %v", made.Key, err)
+	}
+
+	_, err = maker.Execute(ctx, administrator, collection, "", true)
+	var coded *shared.Error
+	if !errors.As(err, &coded) || coded.DetailCode != "board.workflow_runs" {
+		t.Errorf("a second time: %v", err)
+	}
+}
+
+func mustCollection(ctx context.Context, t *testing.T, id shared.ID) domain.Container {
+	t.Helper()
+	var found domain.Container
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		found, err = containerRepo().Find(ctx, id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return found
 }

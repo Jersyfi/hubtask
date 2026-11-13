@@ -2816,6 +2816,7 @@ func run() error {
 		workflowservice.DeleteWorkflow{Desk: workflowDesk}.Descriptor(),
 		workflowservice.PreviewWorkflowScheme{Desk: workflowDesk}.Descriptor(),
 		workflowservice.SetWorkflowScheme{Desk: workflowDesk}.Descriptor(),
+		workflowservice.MakeBoardWorkflow{Desk: workflowDesk}.Descriptor(),
 		workflowservice.TryWorkflowStep{Desk: workflowDesk}.Descriptor(),
 		work.TakeStep{Completion: completion, Rules: stepRules, Approvals: stepApprovals}.Descriptor(),
 		work.ListEntrySteps{Completion: completion}.Descriptor(),

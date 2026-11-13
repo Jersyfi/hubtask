@@ -449,6 +449,7 @@ func Descriptors() []usecase.Descriptor {
 		workflowservice.DeleteWorkflow{}.Descriptor(),
 		workflowservice.PreviewWorkflowScheme{}.Descriptor(),
 		workflowservice.SetWorkflowScheme{}.Descriptor(),
+		workflowservice.MakeBoardWorkflow{}.Descriptor(),
 		workflowservice.TryWorkflowStep{}.Descriptor(),
 		work.TakeStep{}.Descriptor(),
 		work.ListEntrySteps{}.Descriptor(),
