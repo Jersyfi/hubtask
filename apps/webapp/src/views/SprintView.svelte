@@ -1,9 +1,10 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Sprints* of a collection (M2, UC-PLN-06, UC-PLN-07): the chosen sprint as a board - the
-  // backlog, what is still to do, what is in progress and what is done, an estimate as a chip on each card - with its
-  // burndown in the head and the team's velocity below (user-experience.md §7.5).
+  // *Sprints* of a collection (M2, UC-PLN-06, UC-PLN-07): the chosen sprint as one bar - goal, days
+  // left, points, a small burndown, *close sprint* - over a board of what is still to do, in
+  // progress and done, each column with its points; the backlog is its own tab, never a column of
+  // the sprint (work-surface concept §6.2, E-22). The velocity stays below (user-experience.md §7.5).
   //
   // **The server counts; this screen draws and writes.** Commitment, result, burndown and velocity
   // are the answers of `/sprints/{id}` and `/collections/{id}/velocity`; every start, close, move
@@ -19,7 +20,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    BucketColumn, Button, Dialog, Disclosure, IconButton, Inline, Input, Select, Skeleton, Stack, Textarea,
+    BucketColumn, Button, Dialog, Disclosure, Icon, IconButton, Inline, Input, Select, Skeleton, Stack, Textarea,
     hasLeftTheHandle, DataTable, WorkPage, type DataColumn, type PageAction,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -32,7 +33,7 @@
   import { people } from '../lib/data/people.svelte.ts';
   import {
     backlogPath, burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintDays, sprintPath,
-    sprints, sprintShown, sprintsPath, velocityPath,
+    sprints, sprintShown, sprintsPath, valueOf, velocityPath,
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -264,7 +265,7 @@
 
   const headActs = $derived.by((): readonly [] | readonly [PageAction] => {
     const sprint = chosen;
-    if (!mayWrite || !sprint) return [];
+    if (!mayWrite || !sprint || !isBacklog) return [];
     if (sprint.state === 'PLANNED') {
       return [{ label: t('app.sprints.start'), icon: 'play' as const, onclick: (): void => void act(() => sprints.start(collectionId, zone, sprint.id), t('app.sprints.started', { name: sprint.name })) }];
     }
@@ -275,6 +276,13 @@
     ...(mayWrite && chosen && chosen.state !== 'CLOSED' ? [{ id: 'edit', label: t('app.sprints.edit'), icon: 'pencil' as const }] : []),
     ...(mayWrite && chosen?.state === 'PLANNED' ? [{ id: 'delete', label: t('app.sprints.delete'), icon: 'trash' as const, hasSeparatorBefore: true }] : []),
   ]);
+  const startSprint = (sprint: Sprint) => void act(() => sprints.start(collectionId, zone, sprint.id), t('app.sprints.started', { name: sprint.name }));
+  const askClose = () => { carryTo = targets[0]?.id ?? ''; isClosing = true; };
+  /** A column's points: its entries' estimates in the sprint's unit (UC-PLN-07 check 2). */
+  const columnFigure = (entries: readonly SprintEntry[]) => (chosen ? t('app.sprints.column_value', { value: String(valueOf(entries, chosen.unit)), unit: unitLabel }) : '');
+  const daysLeft = $derived(chosen ? Math.max(0, Math.round((Date.parse(`${chosen.end_on}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000) + 1) : 0);
+  const lastPoint = $derived(detail?.burndown.at(-1));
+
   function onMenu(id: string) {
     const sprint = chosen;
     if (!sprint) return;
@@ -334,9 +342,46 @@
 {/snippet}
 
 {#snippet sprintFigure()}
-  <!-- The sprint's own figure in the collection's figure's place: its days and how far it is. -->
+  <!-- The sprint's own figure in the collection's figure's place: its days and how far it is; the
+       burndown's picture is the bar's, on the sprint's tab. -->
   <span data-sprint-figure>{figure}</span>
-  {@render burndownPicture()}
+  {#if isBacklog}{@render burndownPicture()}{/if}
+{/snippet}
+
+{#snippet points(entries: readonly SprintEntry[])}
+  <span class="points" data-points>{columnFigure(entries)}</span>
+{/snippet}
+
+{#snippet sprintBar(sprint: Sprint)}
+  <!-- One bar for the sprint (scene sprint 2): which, its goal, the days left, the points done, the
+       burndown small, and its one act. -->
+  <section class="sprint-bar" aria-label={t('app.sprints.bar')} data-sprint-bar>
+    {#if list && list.length > 1}
+      <Select label={t('app.sprints.sprint')} size="sm" value={sprint.id} options={states}
+        onchange={(event: Event) => { chosenId = (event.currentTarget as HTMLSelectElement).value; }} />
+    {:else}
+      <b class="sprint-name">{sprint.name}</b>
+    {/if}
+    <span class="state" data-state={sprint.state}>{t(`app.sprints.state_${sprint.state}`)}</span>
+    <dl class="facts">
+      <div class="fact goal"><dt>{t('app.sprints.goal')}</dt><dd title={sprint.goal}>{sprint.goal || '—'}</dd></div>
+      {#if sprint.state === 'ACTIVE'}
+        <div class="fact"><dt>{t('app.sprints.left')}</dt><dd><b>{t('app.sprints.days_left', { count: String(daysLeft) })}</b>
+          <span>{t('app.sprints.span', { from: formatPlainDay(sprint.start_on, messages.locale), to: formatPlainDay(sprint.end_on, messages.locale) })}</span></dd></div>
+      {:else}
+        <div class="fact"><dt>{t('app.sprints.left')}</dt><dd><span>{t('app.sprints.span', { from: formatPlainDay(sprint.start_on, messages.locale), to: formatPlainDay(sprint.end_on, messages.locale) })}</span></dd></div>
+      {/if}
+      <div class="fact"><dt>{t('app.sprints.done_label')}</dt><dd data-sprint-done>
+        <b>{lastPoint ? t('app.sprints.done_of', { done: String(lastPoint.scope - lastPoint.remaining), scope: String(lastPoint.scope), unit: unitLabel }) : t('app.sprints.done_of', { done: String(valueOf(done, sprint.unit)), scope: String(valueOf(open, sprint.unit)), unit: unitLabel })}</b>
+        <span>{t('app.sprints.entries_planned', { count: String(open.length) })}</span></dd></div>
+    </dl>
+    {@render burndownPicture()}
+    {#if mayWrite && sprint.state === 'ACTIVE'}
+      <Button tone="secondary" icon="check" onclick={askClose}>{t('app.sprints.close')}</Button>
+    {:else if mayWrite && sprint.state === 'PLANNED'}
+      <Button tone="primary" icon="play" onclick={() => startSprint(sprint)}>{t('app.sprints.start')}</Button>
+    {/if}
+  </section>
 {/snippet}
 
 <WorkPage>
@@ -362,6 +407,8 @@
     {#if list.length === 0}
       <ProductEmpty product="PLANNING" place={{ type: 'COLLECTION', id: collectionId }} kind="unused" title={t('app.sprints.none_title')} description={t('app.sprints.none_hint')} create={mayWrite ? { label: t('app.sprints.plan'), onclick: () => openPlan(undefined) } : undefined} />
     {:else if chosen}
+      {#if !isBacklog}{@render sprintBar(chosen)}{/if}
+      {#if isBacklog}
       <div class="controls">
         {#if list.length > 1}
           <Select label={t('app.sprints.sprint')} size="sm" value={chosen.id} options={states}
@@ -369,9 +416,10 @@
         {/if}
         {#if chosen.goal}<p class="goal">{t('app.sprints.goal_is', { goal: chosen.goal })}</p>{/if}
       </div>
+      {/if}
 
       <div class="board" data-sprint-board data-backlog={isBacklog ? '' : undefined} data-closed={chosen.state === 'CLOSED' ? '' : undefined}>
-        {#if chosen.state !== 'CLOSED'}
+        {#if isBacklog && chosen.state !== 'CLOSED'}
           <div class="lane" data-drop="backlog" data-over={over === 'backlog' ? '' : undefined}>
             <BucketColumn name={t('app.sprints.backlog_column')} count={backlog.length}>
               {#if backlog.length === 0}
@@ -387,6 +435,7 @@
         {#if !isBacklog}
         <div class="lane" data-drop="sprint" data-over={over === 'sprint' ? '' : undefined}>
           <BucketColumn name={t('app.sprints.todo_column')} count={detail ? toDo.length : null}>
+            {#snippet actions()}{#if detail}{@render points(toDo)}{/if}{/snippet}
             {#if !detail}
               <Skeleton lines={3} />
             {:else if toDo.length === 0}
@@ -401,6 +450,7 @@
         {#if hasStartedLane}
           <div class="lane" data-lane="in-progress">
             <BucketColumn name={t('app.sprints.in_progress_column')} count={detail ? inProgress.length : null}>
+            {#snippet actions()}{#if detail}{@render points(inProgress)}{/if}{/snippet}
               {#if !detail}
                 <Skeleton lines={2} />
               {:else if inProgress.length === 0}
@@ -415,6 +465,7 @@
         {/if}
         <div class="lane">
           <BucketColumn name={t('app.sprints.done_column')} count={detail ? done.length : null} isDoneBucket doneBucketLabel={t('app.sprints.done_column_hint')}>
+            {#snippet actions()}{#if detail}{@render points(done)}{/if}{/snippet}
             {#if detail && done.length === 0}
               <p class="quiet">{t('app.sprints.done_empty')}</p>
             {:else if detail}
@@ -426,6 +477,8 @@
         </div>
         {/if}
       </div>
+
+      {#if !isBacklog && chosen.state !== 'CLOSED'}<p class="quiet hint"><Icon name="info" size="sm" />{t('app.sprints.from_backlog')}</p>{/if}
 
       {#if detail && detail.burndown.length > 0 && !isBacklog}
         <Disclosure label={t('app.sprints.burndown')} description={t('app.sprints.burndown_hint')} tone="quiet">
@@ -508,6 +561,18 @@
   .card-foot :global(input) { inline-size: var(--sp-1000); }
   .chip { padding: 0 var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); color: var(--text-secondary); font-size: var(--fs-075); }
   .goal { margin: 0; }
+  .sprint-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-200); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .sprint-name { font-weight: var(--fw-semibold); }
+  .state { padding: 0 var(--sp-100); border-radius: var(--r-sm); font-size: var(--fs-075); color: var(--text-brand); background: var(--accent-primary-subtle); }
+  .facts { display: flex; flex-wrap: wrap; gap: var(--sp-300); flex: 1; min-inline-size: 0; margin: 0; }
+  .fact { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
+  .fact dt { font-size: var(--fs-075); color: var(--text-secondary); }
+  .fact dd { display: flex; flex-direction: column; margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  .fact dd b { color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .fact.goal { flex: 1 1 var(--sp-1600); }
+  .fact.goal dd { display: block; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .points { font-size: var(--fs-075); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .hint { display: flex; align-items: center; gap: var(--sp-050); }
   .spark { flex: none; inline-size: var(--sp-1600); block-size: var(--sp-400); border-radius: var(--r-sm); background: var(--bg-surface-sunken); }
   .spark polyline { fill: none; stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
   .spark .remaining { stroke: var(--accent-primary); }

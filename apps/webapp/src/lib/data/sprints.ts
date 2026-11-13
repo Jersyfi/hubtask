@@ -84,6 +84,23 @@ export function sprintShown(sprints: readonly Sprint[]): Sprint | undefined {
   return sprints.find((s) => s.state === 'ACTIVE') ?? carryTargets(sprints, '')[0] ?? sprints[0];
 }
 
+/** What a T-shirt size counts as in a sprint of points (UC-PLN-07 check 1). */
+const SIZE_POINTS: Readonly<Record<Size, number>> = { XS: 1, S: 2, M: 3, L: 5, XL: 8, XXL: 13 };
+
+/**
+ * The estimates of some entries added up in the sprint's unit, as the server counts a sprint's
+ * (UC-PLN-07 check 2): points and sizes in a sprint of points, hours in one of hours; an entry
+ * without an estimate or in the other unit adds nothing. A column's figure, not a commitment.
+ */
+export function valueOf(entries: readonly { estimate?: Estimate | null }[], unit: 'POINTS' | 'HOURS'): number {
+  const sum = entries.reduce((total, { estimate }) => {
+    if (!estimate) return total;
+    if (estimate.unit === 'SIZE') return unit === 'POINTS' && estimate.size ? total + SIZE_POINTS[estimate.size as Size] : total;
+    return estimate.unit === unit ? total + (estimate.value ?? 0) : total;
+  }, 0);
+  return round(sum);
+}
+
 function round(n: number): number {
   return Math.round(n * 10) / 10;
 }

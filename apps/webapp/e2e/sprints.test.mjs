@@ -109,17 +109,23 @@ async function open(browser, at) {
 const wrote = (written, method, path) => written.find((each) => each.method === method && each.path === path);
 const settle = (page) => page.waitForTimeout(300);
 
-test('chromium: 1280 px — the running sprint, its burndown and velocity, a move, an estimate and a close', async (t) => {
+test('chromium: 1280 px — the running sprint\'s bar, its columns with their points, a move and an estimate in the backlog, and a close', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprints`);
   t.after(close);
 
-  // It opens on the running sprint, not the first in the list, with its goal said.
-  const chooser = page.getByLabel('Sprint', { exact: true });
+  // UC-PLN-06 check 7, UC-PLN-07 check 5: it opens on the running sprint, not the first in the
+  // list, in one bar (work-surface §6.2, E-22): its goal, the days left, the points done and the burndown, and *Close sprint*.
+  const bar = page.getByRole('region', { name: 'The sprint' });
+  const chooser = bar.getByLabel('Sprint', { exact: true });
   await chooser.waitFor({ timeout: 15_000 });
   assert.equal(await chooser.inputValue(), RUNNING.id);
-  await page.getByText(`Goal: ${RUNNING.goal}`).waitFor({ timeout: 5_000 });
+  await bar.getByText(RUNNING.goal).waitFor({ timeout: 5_000 });
+  await bar.getByText('11 days left').waitFor({ timeout: 5_000 });
+  assert.match(await bar.locator('[data-sprint-done]').innerText(), /5 of 8 points done/u);
+  assert.equal(await bar.getByRole('img', { name: /^Burndown/ }).count(), 1, 'the burndown is not in the bar');
+  assert.equal(await bar.getByRole('button', { name: 'Close sprint' }).count(), 1, 'the bar does not close the sprint');
 
   // The burndown is a picture with a table of the same days (UC-PLN-07 check 5), and the velocity
   // is the server's average over the closed sprints.
@@ -130,16 +136,39 @@ test('chromium: 1280 px — the running sprint, its burndown and velocity, a mov
   assert.equal(await days.count(), DETAIL.burndown.length);
   await page.getByRole('heading', { name: 'Velocity: 5 points a sprint' }).waitFor({ timeout: 5_000 });
 
-  // The sprint is a board (user-experience.md §7.5): the backlog, what is to do, what is in
-  // progress - an entry the server says is started - and what is done.
+  // The sprint is a board (user-experience.md §7.5): what is to do, what is in progress - an
+  // entry the server says is started - and what is done, each with its points; the backlog is its
+  // own tab, no column of the sprint (E-22).
   const board = page.locator('[data-sprint-board]');
   await board.locator('[data-card]').first().waitFor({ timeout: 5_000 });
-  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), ['Backlog', 'To do', 'In progress', 'Done']);
+  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), ['To do', 'In progress', 'Done']);
+  assert.deepEqual(await board.locator('[data-points]').allInnerTexts(), ['0 points', '3 points', '5 points']);
   assert.equal(await board.locator(`[data-lane="in-progress"] [data-card="${ITEMS[1].id}"]`).count(), 1, 'the started entry is not in progress');
   assert.equal(await board.locator(`[data-drop="sprint"] [data-card]`).count(), 0, 'a started entry is still to do');
 
+  // Closed from the bar, its unfinished entries carried into the next planned sprint the dialog offers first.
+  await bar.getByRole('button', { name: 'Close sprint' }).click();
+  const dialog = page.getByRole('dialog');
+  assert.equal(await dialog.getByLabel('Unfinished entries go to').inputValue(), NEXT.id);
+  await dialog.getByRole('button', { name: 'Close sprint' }).click();
+  await settle(page);
+  assert.deepEqual(wrote(written, 'POST', `/sprints/${RUNNING.id}:close`)?.body, { carry_to_sprint_id: NEXT.id });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: 1280 px — the backlog tab moves an entry into the sprint and estimates it there', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/backlog`);
+  t.after(close);
+
   // An entry of the backlog moved into the sprint by its card's arrow, the keyboard's way.
-  await page.getByRole('button', { name: `Move ${ITEMS[3].title} into the sprint` }).click();
+  const move = page.getByRole('button', { name: `Move ${ITEMS[3].title} into the sprint` });
+  await move.waitFor({ timeout: 15_000 });
+  assert.equal(await page.locator('[data-sprint-bar]').count(), 0, 'the sprint\'s bar stands over the backlog');
+  await move.click();
   await settle(page);
   assert.deepEqual(wrote(written, 'POST', `/sprints/${RUNNING.id}/entries`)?.body, { item_ids: [ITEMS[3].id] });
 
@@ -155,26 +184,6 @@ test('chromium: 1280 px — the running sprint, its burndown and velocity, a mov
   await settle(page);
   assert.equal(written.filter((each) => each.path.endsWith('/estimate')).length, 1);
   assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the refusal is not at the chip');
-
-  // A backlog card carried by a mouse onto the sprint's lane makes the same move.
-  const before = written.filter((each) => each.method === 'POST' && each.path === `/sprints/${RUNNING.id}/entries`).length;
-  const card = board.locator(`[data-drop="backlog"] [data-card]`).first();
-  const from = await card.boundingBox();
-  const lane = await board.locator('[data-drop="sprint"]').boundingBox();
-  await page.mouse.move(from.x + from.width - 4, from.y + 4);
-  await page.mouse.down();
-  for (let step = 1; step <= 10; step += 1) await page.mouse.move(from.x + ((lane.x + lane.width / 2 - from.x) * step) / 10, from.y + ((lane.y + 40 - from.y) * step) / 10);
-  await page.mouse.up();
-  await settle(page);
-  assert.equal(written.filter((each) => each.method === 'POST' && each.path === `/sprints/${RUNNING.id}/entries`).length, before + 1, 'the carried card was not moved');
-
-  // Closed, its unfinished entries carried into the next planned sprint the dialog offers first.
-  await page.getByRole('button', { name: 'Close sprint' }).click();
-  const dialog = page.getByRole('dialog');
-  assert.equal(await dialog.getByLabel('Unfinished entries go to').inputValue(), NEXT.id);
-  await dialog.getByRole('button', { name: 'Close sprint' }).click();
-  await settle(page);
-  assert.deepEqual(wrote(written, 'POST', `/sprints/${RUNNING.id}:close`)?.body, { carry_to_sprint_id: NEXT.id });
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);

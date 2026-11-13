@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Sprint } from '@hubtask/sync-engine';
 
-import { burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintDays, sprintShown } from './sprints.ts';
+import { burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintDays, sprintShown, valueOf } from './sprints.ts';
 
 const sprint = (id: string, state: Sprint['state'], start_on: string): Sprint => ({
   id, collection_id: 'c', name: id, goal: '', start_on, end_on: start_on, state, unit: 'POINTS',
@@ -57,4 +57,16 @@ test('a closer carries into a planned sprint, and the running one is shown first
   assert.equal(sprintShown(all)?.id, 'now');
   assert.equal(sprintShown(all.filter((s) => s.state !== 'ACTIVE'))?.id, 'next');
   assert.equal(sprintShown([]), undefined);
+});
+
+test('a column adds its estimates in the sprint\'s unit, sizes as points, the other unit as nothing', () => {
+  const entries = [
+    { estimate: { unit: 'POINTS' as const, value: 3, size: null } },
+    { estimate: { unit: 'SIZE' as const, value: null, size: 'L' } },
+    { estimate: { unit: 'HOURS' as const, value: 1.5, size: null } },
+    { estimate: null },
+  ];
+  assert.equal(valueOf(entries as never, 'POINTS'), 8);
+  assert.equal(valueOf(entries as never, 'HOURS'), 1.5);
+  assert.equal(valueOf([], 'POINTS'), 0);
 });
