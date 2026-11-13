@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import PriorityMark from './PriorityMark.svelte';
   import Breadcrumb from './Breadcrumb.svelte';
   import IconButton from './IconButton.svelte';
   import ObjectHead from './ObjectHead.svelte';
@@ -32,7 +33,7 @@
   <IconButton icon="link" label="Copy link" tone="secondary" size="sm" />
 {/snippet}
 
-{#snippet points()}<span>↑ P2</span><span>8 points</span>{/snippet}
+{#snippet points()}<PriorityMark level={2} label="P2" /><span>8 points</span>{/snippet}
 
 {#if mode === 'grammar'}
   <div class="grammar">
@@ -106,7 +107,7 @@
     {menu}
   >
     {#snippet status()}{@render stepButton(IN_PROGRESS, STORY_STEPS)}{/snippet}
-    {#snippet facts()}<span>↑ P2 High</span>{/snippet}
+    {#snippet facts()}<PriorityMark level={2} label="P2 High" />{/snippet}
   </ObjectHead>
 {:else if mode === 'empty'}
   <ObjectHead objectKey={{ label: 'TAMA-31', icon: 'square-check' }} type={{ label: 'Task' }} title="Untitled entry" titleLabel="Title" editTitleLabel="Edit title" onrename={() => {}} person={{ emptyLabel: 'Nobody – name someone' }} next={{ label: 'Done', icon: 'check', onclick: () => {} }}>

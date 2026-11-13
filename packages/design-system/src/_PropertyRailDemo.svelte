@@ -6,7 +6,10 @@
   import LabelChip from './LabelChip.svelte';
   import Property from './Property.svelte';
   import PropertyRail, { type RailSection } from './PropertyRail.svelte';
+  import DeadlineList from './DeadlineList.svelte';
+  import PriorityMark from './PriorityMark.svelte';
   import StateLozenge from './StateLozenge.svelte';
+  import { TICKET_DEADLINES } from './_workFixtures.ts';
 
   interface Props {
     mode?: 'story' | 'ticket' | 'empty';
@@ -73,16 +76,18 @@
   {:else if item.id === 'time'}
     <div class="time"><Button tone="secondary" size="sm" icon="play">Timer</Button><span class="note">31:20 of 40:00 h logged</span></div>
   {:else if item.id === 'deadlines'}
-    <Property label="Resolution · 1st level OLA"><StateLozenge vocabulary="sla" state="breached" label="breached 40 min" /></Property>
-    <Property label="Resolution · Platform OLA"><StateLozenge vocabulary="sla" state="atRisk" label="1 h 05 min" /></Property>
-    <Property label="Next reply · Hannah SLA"><StateLozenge vocabulary="sla" state="running" label="1 h 20 min" /></Property>
+    <DeadlineList deadlines={TICKET_DEADLINES} keptLabel="First reply: 3 of 3 kept" table={{ label: 'All deadlines as a table', onclick: () => (added = 'deadline matrix') }} />
   {:else if item.id === 'triage'}
-    <Property label="Impact" value="High" note="many people" />
-    <Property label="Urgency" value="High" note="work stands still" />
-    <Property label="Priority" value="↑ P2 High" note="from impact × urgency" />
-    <Property label="Group" value="Platform" note="since 21:14 · before 1st level" />
+    <Property label="Impact" value="High" note="many people" editLabel="Change impact" onedit={() => (added = 'impact')} />
+    <Property label="Urgency" value="High" note="work stands still" editLabel="Change urgency" onedit={() => (added = 'urgency')} />
+    <Property label="Priority" value="P2 High" note="from impact × urgency" editLabel="Change priority" onedit={() => (added = 'priority')}><PriorityMark level={2} label="P2 High" /></Property>
+    <Property label="Group" value="Platform" note="since 21:14 · before 1st level" editLabel="Change group" onedit={() => (added = 'group')} />
   {:else if item.id === 'requester'}
-    <Property label="Hannah Albers" value="Stadtwerke Lüneburg GmbH" note="2 more open requests" />
+    <div class="requester">
+      <Avatar name="Hannah Albers" size="md" />
+      <span class="who-lines"><b>Hannah Albers</b><span class="note">Stadtwerke Lüneburg GmbH · shares requests</span></span>
+    </div>
+    <p class="note line">2 more open requests · owns 1 item</p>
   {:else}
     <Property label="Field" value="Value" />
   {/if}
@@ -114,6 +119,9 @@
   .column { inline-size: 100%; max-inline-size: var(--layout-rail); }
   .who { display: inline-flex; align-items: center; gap: var(--sp-050); }
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .requester { display: flex; align-items: center; gap: var(--sp-100); }
+  .who-lines { display: flex; flex-direction: column; min-inline-size: 0; font-size: var(--fs-100); }
+  .line { margin: var(--sp-050) 0 0; }
   .time { display: flex; align-items: center; gap: var(--sp-100); }
   .note, .said { color: var(--text-subtle); font-size: var(--fs-075); }
 </style>
