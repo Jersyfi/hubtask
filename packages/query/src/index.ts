@@ -116,6 +116,33 @@ export function createLanguage(wording: Wording) {
   };
 }
 
+/**
+ * The chips with the words a fresh cut of the same line gives them - ids kept, so a chip in use
+ * stays the same chip; undefined where the line differs or nothing reads differently. The words of
+ * a language can arrive after the line was cut (a catalogue loaded later).
+ */
+export function relabelled(current: readonly Token[], fresh: readonly Token[]): Token[] | undefined {
+  if (current.length !== fresh.length) return undefined;
+  let changed = false;
+  const next: Token[] = [];
+  for (const [i, token] of current.entries()) {
+    const other = fresh[i]!;
+    if (token.kind === 'text' && other.kind === 'text') {
+      if (token.text !== other.text) return undefined;
+      if (JSON.stringify(token.problem) !== JSON.stringify(other.problem)) changed = true;
+      next.push({ ...other, id: token.id });
+      continue;
+    }
+    if (token.kind !== 'chip' || other.kind !== 'chip') return undefined;
+    const same = token.field === other.field && token.isNegated === other.isNegated && token.operatorLabel === other.operatorLabel &&
+      token.values.map((v) => v.value).join('\u0000') === other.values.map((v) => v.value).join('\u0000');
+    if (!same) return undefined;
+    if (token.fieldLabel !== other.fieldLabel || JSON.stringify([token.values, token.problem]) !== JSON.stringify([other.values, other.problem])) changed = true;
+    next.push({ ...other, id: token.id });
+  }
+  return changed ? next : undefined;
+}
+
 function problemOf(error: QueryError, wording: Wording) {
   const fix = error.params.suggestion;
   return { message: wording.problem(error), fix, fixLabel: fix };

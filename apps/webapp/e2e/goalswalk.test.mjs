@@ -467,6 +467,30 @@ test('chromium: an address naming no goal is a not-found state with a way back',
 
 // The head's place line is said whole per case, in German too: a hub's name cannot be declined
 // into "von {place}", so the workspace has its own sentence.
+// UC-WRK-43 check 6 (Q-2): the dashboard's line names its keys in the reader's language, though
+// its chips were cut before the German words arrived.
+test('chromium: in German the dashboard\'s line names its keys in German', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a742', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: 'is: open due: <today', version: 1, widgets: [] };
+  const backend = goalsBackend({ seed: { dashboards: [board] } });
+  const walk = await productWalk(browser, {
+    modules: ['GOALS'],
+    answer: (method, path, ...rest) => (path === '/accounts/me' && method === 'GET' ? { json: { ...ACCOUNT, locale: 'de' } } : backend(method, path, ...rest)),
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  // The German words arrive late, as on a slow line: the chips are cut in the source language first.
+  await page.route(/\/assets\/de-[\w-]+\.js$/u, async (route) => { await new Promise((done) => setTimeout(done, 1_500)); await route.continue(); });
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  const bar = page.locator('[data-dashboard-filter]');
+  await bar.getByText('Für alle Widgets').waitFor({ timeout: 10_000 });
+  await bar.getByText('Fällig', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await bar.getByText('Due', { exact: true }).count(), 0, 'no key in the source language');
+  assert.deepEqual(walk.errors(), []);
+});
+
 test('chromium: in German a goal\'s head names its place in a sentence that reads', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { countRequest, createCatalogue, createLanguage, segments, valuesRequest, type QueryKey } from '../src/index.ts';
+import { countRequest, createCatalogue, createLanguage, relabelled, segments, valuesRequest, type QueryKey } from '../src/index.ts';
 
 const wording = { key: (key: string) => key.toUpperCase(), problem: (error: { code: string }) => error.code };
 
@@ -43,4 +43,19 @@ test('the catalogue and the count are asked as the server answers them', () => {
     scope: { container_id: 'c' }, q: 'is: open', aggregate: { function: 'COUNT', group_by: 'assignee_id' },
   });
   assert.equal(valuesRequest(keys[1] as QueryKey, '', { workspace: true }), undefined);
+});
+
+// UC-WRK-43 check 6 (Q-2): a chip names its key in the reader's language even where the words
+// arrived after the line was cut - the same chips, renamed, not cut again.
+test('chips cut before the words arrived are renamed in place', () => {
+  const before = createLanguage({ key: (key: string) => (key === 'created' ? 'Created' : key), problem: (error: { code: string }) => error.code });
+  const after = createLanguage({ key: (key: string) => (key === 'created' ? 'Erstellt' : key), problem: (error: { code: string }) => error.code });
+  const line = 'created: -6w is: open ';
+  const shown = before.parse(line).tokens;
+  const renamed = relabelled(shown, after.parse(line).tokens);
+  assert.ok(renamed);
+  assert.deepEqual(renamed.map((token) => token.id), shown.map((token) => token.id), 'the chips stay the same chips');
+  assert.equal(renamed[0]?.kind === 'chip' ? renamed[0].fieldLabel : '', 'Erstellt');
+  assert.equal(relabelled(renamed, after.parse(line).tokens), undefined, 'nothing to rename once named');
+  assert.equal(relabelled(shown, after.parse('created: -2w ').tokens), undefined, 'another line is cut again, not renamed');
 });

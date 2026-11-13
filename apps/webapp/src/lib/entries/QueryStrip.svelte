@@ -6,9 +6,9 @@
   // *Show n entries*, and the way on to the panel *View*. The sheet opens from *Filter* on the
   // view chip's line. The same line the panel edits; a change applies at once, so the count the
   // sheet's act names is the server's for what is typed.
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import { QueryLine, lineText, type QueryToken } from '@hubtask/design-system/components';
-  import { createCatalogue, type CountedValue, type QueryKey } from '@hubtask/query';
+  import { createCatalogue, relabelled, type CountedValue, type QueryKey } from '@hubtask/query';
 
   import { t } from '../i18n/i18n.svelte.ts';
   import { language, wording } from './viewLanguage.ts';
@@ -34,8 +34,14 @@
   let spelled: string | undefined;
   $effect(() => {
     const wanted = line;
-    if (wanted === spelled) return;
-    tokens = language.parse(`${wanted} `).tokens;
+    // The cut reads the reader's words, so a catalogue that arrives later runs this again.
+    const fresh = language.parse(`${wanted} `).tokens;
+    if (wanted === spelled) {
+      const renamed = relabelled(untrack(() => tokens), fresh);
+      if (renamed) tokens = renamed;
+      return;
+    }
+    tokens = fresh;
     text = '';
     spelled = wanted;
   });
