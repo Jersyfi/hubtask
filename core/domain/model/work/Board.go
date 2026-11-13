@@ -1,0 +1,387 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package work
+
+import (
+	"strings"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
+
+// StateMode is how an entry type in a collection says where an entry stands (domain-model.md
+// §3.5a). Derived from what the collection has - a workflow in force, board columns - and never
+// stored, so no door can set one that disagrees with the other.
+type StateMode string
+
+const (
+	// StateModeNone is a list: open or done, nothing else (L0).
+	StateModeNone StateMode = "NONE"
+	// StateModeColumns is a board without a workflow: the columns are the states, one of them
+	// the done column (L1).
+	StateModeColumns StateMode = "COLUMNS"
+	// StateModeWorkflow is a workflow: the status decides, the columns show statuses (L2).
+	StateModeWorkflow StateMode = "WORKFLOW"
+)
+
+// StateModeOf answers the level of one entry type: a workflow wins, then columns - which only a
+// task can stand in (I-W6) -, else a list.
+func StateModeOf(level ItemType, workflowRuns bool, columns int) StateMode {
+	switch {
+	case workflowRuns:
+		return StateModeWorkflow
+	case level == ItemTask && columns > 0:
+		return StateModeColumns
+	default:
+		return StateModeNone
+	}
+}
+
+// ColumnStatus is one row of a board's mapping: the column shows the status (L2).
+type ColumnStatus struct {
+	BucketID shared.ID
+	Status   string
+}
+
+// Board is a collection's live columns, left to right, and their mapping to statuses.
+type Board struct {
+	Columns []Bucket
+	Mapping []ColumnStatus
+}
+
+// Column answers a live column by identifier.
+func (b Board) Column(id shared.ID) (Bucket, bool) {
+	for _, column := range b.Columns {
+		if column.ID == id {
+			return column, true
+		}
+	}
+	return Bucket{}, false
+}
+
+// DoneColumn answers the column that means finished (L1); false where the board has none.
+func (b Board) DoneColumn() (Bucket, bool) {
+	for _, column := range b.Columns {
+		if column.IsDoneBucket {
+			return column, true
+		}
+	}
+	return Bucket{}, false
+}
+
+// FirstColumn answers the leftmost column that is not the done column: where an open entry
+// without a column reads, and where a reopened one goes.
+func (b Board) FirstColumn() (Bucket, bool) {
+	for _, column := range b.Columns {
+		if !column.IsDoneBucket {
+			return column, true
+		}
+	}
+	return Bucket{}, false
+}
+
+// ColumnOfEntry answers the column an entry reads as at L1: its own, else the done column when
+// completed and the first column when open.
+func (b Board) ColumnOfEntry(item WorkItem) shared.ID {
+	if _, found := b.Column(item.BucketID); found {
+		return item.BucketID
+	}
+	if item.Completion.IsCompleted {
+		if done, found := b.DoneColumn(); found {
+			return done.ID
+		}
+	}
+	if first, found := b.FirstColumn(); found {
+		return first.ID
+	}
+	return ""
+}
+
+// EnsureOneDone refuses a board at L1 that does not have exactly one done column.
+func (b Board) EnsureOneDone() error {
+	count := 0
+	for _, column := range b.Columns {
+		if column.IsDoneBucket {
+			count++
+		}
+	}
+	if count == 1 || len(b.Columns) == 0 {
+		return nil
+	}
+	return shared.ErrConflict.WithDetail("buckets.done_column_required").
+		WithFields(shared.FieldError{Path: "/is_done_bucket", Code: "buckets.done_column_required"})
+}
+
+// Coupled answers the entry with column and completion agreeing at L1, after a write that took
+// it from before to after (UC-WRK-05 check 6). A column chosen wins: entering the done column
+// completes, leaving it reopens. Otherwise a change of completion moves the column: a completed
+// entry into the done column, a reopened one out of it into the first column.
+func (b Board) Coupled(before, after WorkItem, by shared.ID, at time.Time) WorkItem {
+	if after.Type != ItemTask || len(b.Columns) == 0 {
+		return after
+	}
+	done, hasDone := b.DoneColumn()
+	if after.BucketID != before.BucketID && !after.BucketID.IsZero() {
+		inDone := hasDone && after.BucketID == done.ID
+		switch {
+		case inDone && !after.Completion.IsCompleted:
+			return after.Completed(by, at)
+		case !inDone && after.Completion.IsCompleted:
+			return after.Reopened(at)
+		}
+		return after
+	}
+	if after.Completion.IsCompleted == before.Completion.IsCompleted {
+		return after
+	}
+	if after.Completion.IsCompleted {
+		if hasDone {
+			after.BucketID = done.ID
+		}
+		return after
+	}
+	if hasDone && after.BucketID == done.ID {
+		after.BucketID = ""
+		if first, found := b.FirstColumn(); found {
+			after.BucketID = first.ID
+		}
+	}
+	return after
+}
+
+// StatusesOf answers the statuses a column shows (L2), in mapping order.
+func (b Board) StatusesOf(column shared.ID) []string {
+	var out []string
+	for _, row := range b.Mapping {
+		if row.BucketID == column {
+			out = append(out, row.Status)
+		}
+	}
+	return out
+}
+
+// ColumnOfStatus answers the column showing a status; false where none does, which is the
+// virtual column *Ohne Spalte*.
+func (b Board) ColumnOfStatus(status string) (shared.ID, bool) {
+	for _, row := range b.Mapping {
+		if row.Status == status {
+			if _, live := b.Column(row.BucketID); live {
+				return row.BucketID, true
+			}
+		}
+	}
+	return "", false
+}
+
+// Unmapped answers the shape's statuses no live column shows, in the shape's order.
+func (b Board) Unmapped(shape WorkflowShape) []string {
+	var out []string
+	for _, status := range shape.Statuses {
+		if _, mapped := b.ColumnOfStatus(status.Key); !mapped {
+			out = append(out, status.Key)
+		}
+	}
+	return out
+}
+
+// ColumnCompletes reports whether a column is done at L2: it shows statuses and every one of
+// them is of the DONE category.
+func ColumnCompletes(statuses []string, shape WorkflowShape) bool {
+	if len(statuses) == 0 {
+		return false
+	}
+	for _, status := range statuses {
+		if !shape.Completes(status) {
+			return false
+		}
+	}
+	return true
+}
+
+// NewBoardMapping checks a mapping against the board and the shape: every column is live, every
+// status the shape's, and no status in more than one column.
+func NewBoardMapping(columns []Bucket, mapping []ColumnStatus, shape WorkflowShape) ([]ColumnStatus, error) {
+	board := Board{Columns: columns}
+	seen := map[string]bool{}
+	out := make([]ColumnStatus, 0, len(mapping))
+	for _, row := range mapping {
+		if _, live := board.Column(row.BucketID); !live {
+			return nil, mappingInvalid("buckets.not_found", map[string]string{"bucket_id": row.BucketID.String()})
+		}
+		if _, known := shape.Status(row.Status); !known {
+			return nil, mappingInvalid("workflows.status_unknown", map[string]string{"key": row.Status})
+		}
+		if seen[row.Status] {
+			return nil, mappingInvalid("buckets.status_mapped_twice", map[string]string{"key": row.Status})
+		}
+		seen[row.Status] = true
+		out = append(out, row)
+	}
+	return out, nil
+}
+
+func mappingInvalid(code string, params map[string]string) error {
+	return shared.ErrValidation.WithDetail(code).WithParams(params).
+		WithFields(shared.FieldError{Path: "/columns", Code: code})
+}
+
+// MappingSuggestion is where a status the default mapping left unmapped would fit.
+type MappingSuggestion struct {
+	Status   string
+	BucketID shared.ID
+}
+
+// DefaultMapping proposes a mapping of a board's columns to a shape's statuses (UC-FLW-02 check
+// 4): a column takes the status of its own name first; the done column then takes the DONE
+// statuses, the first column the initial status, and the next column still empty the first
+// IN_PROGRESS status. What is left stays unmapped, each with a suggestion: DONE beside the done
+// column, the rest beside the first column.
+func DefaultMapping(columns []Bucket, shape WorkflowShape) ([]ColumnStatus, []MappingSuggestion) {
+	board := Board{Columns: columns}
+	taken := map[string]bool{}
+	filled := map[shared.ID]bool{}
+	var mapping []ColumnStatus
+	put := func(column shared.ID, status string) {
+		if column.IsZero() || status == "" || taken[status] {
+			return
+		}
+		taken[status] = true
+		filled[column] = true
+		mapping = append(mapping, ColumnStatus{BucketID: column, Status: status})
+	}
+	for _, column := range columns {
+		for _, status := range shape.Statuses {
+			if sameWord(column.Name, status.Name) || sameWord(column.Name, status.Key) {
+				put(column.ID, status.Key)
+			}
+		}
+	}
+	done, hasDone := board.DoneColumn()
+	if hasDone && !filled[done.ID] {
+		for _, status := range shape.Statuses {
+			if status.Category.Completes() {
+				put(done.ID, status.Key)
+			}
+		}
+	}
+	first, hasFirst := board.FirstColumn()
+	if hasFirst && !filled[first.ID] {
+		put(first.ID, shape.Initial)
+	}
+	for _, column := range columns {
+		if filled[column.ID] || column.IsDoneBucket {
+			continue
+		}
+		for _, status := range shape.Statuses {
+			if status.Category == CategoryInProgress && !taken[status.Key] {
+				put(column.ID, status.Key)
+				break
+			}
+		}
+		break
+	}
+	var suggestions []MappingSuggestion
+	for _, status := range shape.Statuses {
+		if taken[status.Key] {
+			continue
+		}
+		suggestion := MappingSuggestion{Status: status.Key}
+		switch {
+		case status.Category.Completes() && hasDone:
+			suggestion.BucketID = done.ID
+		case hasFirst:
+			suggestion.BucketID = first.ID
+		}
+		suggestions = append(suggestions, suggestion)
+	}
+	return mapping, suggestions
+}
+
+func sameWord(a, b string) bool {
+	return a != "" && b != "" && strings.EqualFold(strings.TrimSpace(a), strings.TrimSpace(b))
+}
+
+// DropOutcome is what a drop onto a column does.
+type DropOutcome string
+
+const (
+	// DropMoved: the entry moves into the column (L1), or already stands there.
+	DropMoved DropOutcome = "MOVED"
+	// DropStep: exactly one step reaches the column and is taken.
+	DropStep DropOutcome = "STEP_TAKEN"
+	// DropChoose: several steps reach the column; the person chooses one.
+	DropChoose DropOutcome = "CHOOSE"
+	// DropRefused: nothing reaches the column; Reason says why.
+	DropRefused DropOutcome = "REFUSED"
+)
+
+// DropPlan is what a drop resolves to.
+type DropPlan struct {
+	Outcome DropOutcome
+	// Steps are the step taken, or the steps to choose among.
+	Steps []WorkflowStep
+	// Reason is the code of a refusal: board.no_columns, board.column_without_status,
+	// board.no_step or board.step_blocked.
+	Reason string
+}
+
+// PlanDrop resolves a drop of an entry onto a column - zero for *Ohne Spalte* - (UC-WRK-05,
+// UC-FLW-06). At L1 it moves. At L2 the target's statuses are the column's, or the unmapped
+// ones for *Ohne Spalte*; a status the entry already has is no move; else the steps from where
+// it stands into one of them that the person may take decide: one is taken, several are offered,
+// none is refused - blocked where the workflow has such a step but the person may not take it.
+func (b Board) PlanDrop(mode StateMode, item WorkItem, target shared.ID, shape WorkflowShape, offered []WorkflowStep) DropPlan {
+	switch mode {
+	case StateModeColumns:
+		if target.IsZero() {
+			return DropPlan{Outcome: DropRefused, Reason: "board.column_required"}
+		}
+		return DropPlan{Outcome: DropMoved}
+	case StateModeWorkflow:
+	default:
+		return DropPlan{Outcome: DropRefused, Reason: "board.no_columns"}
+	}
+	targets := b.StatusesOf(target)
+	if target.IsZero() {
+		targets = b.Unmapped(shape)
+	}
+	if len(targets) == 0 {
+		return DropPlan{Outcome: DropRefused, Reason: "board.column_without_status"}
+	}
+	for _, status := range targets {
+		if status == item.Status {
+			return DropPlan{Outcome: DropMoved}
+		}
+	}
+	reaches := func(step WorkflowStep) bool {
+		for _, status := range targets {
+			if step.To == status {
+				return true
+			}
+		}
+		return false
+	}
+	existing := 0
+	for _, step := range shape.StepsFrom(item.Status) {
+		if reaches(step) {
+			existing++
+		}
+	}
+	var steps []WorkflowStep
+	for _, step := range offered {
+		if step.LeavesFrom(item.Status) && reaches(step) {
+			steps = append(steps, step)
+		}
+	}
+	switch {
+	case len(steps) == 1:
+		return DropPlan{Outcome: DropStep, Steps: steps}
+	case len(steps) > 1:
+		return DropPlan{Outcome: DropChoose, Steps: steps}
+	case existing > 0:
+		return DropPlan{Outcome: DropRefused, Reason: "board.step_blocked"}
+	default:
+		return DropPlan{Outcome: DropRefused, Reason: "board.no_step"}
+	}
+}
