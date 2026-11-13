@@ -12,7 +12,7 @@
   // opens the hub, the project's plan or the entry.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, DataTable, IconButton, Inline, PageHeader, Select, Skeleton, Timeline, ViewSwitcher, WorkPage, type DataColumn } from '@hubtask/design-system/components';
+  import { Badge, Button, DataTable, IconButton, PageHeader, Skeleton, Timeline, ViewSwitcher, VisuallyHidden, WorkPage, type DataColumn } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { PortfolioRoadmap } from '@hubtask/sync-engine';
@@ -156,21 +156,20 @@
   {:else}
     <ViewSwitcher label={t('app.roadmap.views')} {views} selected={view} onselect={(next) => (view = next === 'table' ? 'table' : 'chart')} />
     {#if view === 'chart'}
+    <!-- The plan's own chart controls (E-16): earlier, today, later; the zoom; the whole roadmap. -->
     <div class="controls" role="group" aria-label={t('app.roadmap.chart')}>
-      <Inline gap="050">
+      <div class="segments quiet-segments">
         <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
-        <Button size="sm" tone="secondary" onclick={() => { anchor = today; shown = undefined; }}>{t('app.timeline.today')}</Button>
+        <button type="button" onclick={() => { anchor = today; shown = undefined; }}>{t('app.timeline.today')}</button>
         <IconButton size="sm" icon="chevron-right" label={t('app.timeline.next')} onclick={() => move(1)} />
-        <Button size="sm" tone="secondary" icon="maximize-2" data-fit onclick={fit}>{t('app.roadmap.fit')}</Button>
-      </Inline>
-      <Select
-        label={t('app.planning.zoom')}
-        size="sm"
-        value={scale}
-        options={(['month', 'quarter', 'year'] as const).map((value) => ({ value, label: t(`app.planning.scale_${value}`) }))}
-        onchange={(event: Event) => { scale = scaleOf((event.currentTarget as HTMLSelectElement).value); anchor = current.from; shown = undefined; }}
-      />
-      <span class="quiet">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
+      </div>
+      <div class="segments quiet-segments" role="group" aria-label={t('app.planning.zoom')} data-zoom>
+        {#each ['month', 'quarter', 'year'] as const as each (each)}
+          <button type="button" aria-pressed={scale === each} data-scale={each} onclick={() => { scale = scaleOf(each); anchor = current.from; shown = undefined; }}>{t(`app.planning.scale_${each}`)}</button>
+        {/each}
+      </div>
+      <Button size="sm" tone="subtle" icon="maximize-2" data-fit onclick={fit}>{t('app.roadmap.fit')}</Button>
+      <VisuallyHidden>{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</VisuallyHidden>
     </div>
 
     <div class="window">
@@ -180,6 +179,7 @@
         to={current.to}
         {scale}
         rows={timelineRows}
+        look="light"
         {gridlines}
         {today}
         todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
@@ -218,11 +218,14 @@
 </WorkPage>
 
 <style>
-  .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); }
+  .segments { display: inline-flex; align-items: center; border-radius: var(--r-md); overflow: hidden; }
+  .segments button { display: inline-flex; align-items: center; min-block-size: var(--layout-target); padding-inline: var(--sp-150); font: inherit; font-size: var(--fs-075); color: var(--text-primary); background: transparent; border: none; cursor: pointer; }
+  .quiet-segments { background: var(--bg-surface-sunken); }
+  .quiet-segments button[aria-pressed='true'] { background: var(--bg-surface); font-weight: var(--fw-semibold); }
   .window { min-width: 0; }
   .block { display: flex; flex-direction: column; gap: var(--sp-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
-  .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .what[data-depth='1'] { padding-inline-start: var(--sp-150); }
   .what[data-depth='2'] { padding-inline-start: var(--sp-300); }
