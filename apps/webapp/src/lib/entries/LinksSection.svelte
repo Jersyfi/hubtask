@@ -12,7 +12,7 @@
   // Without the right to change the entry neither drawing nor removing is drawn (P-05).
 
   import { untrack } from 'svelte';
-  import { Button, Dialog, IconButton, Select, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, IconButton, Select, Skeleton, Stack, StateLozenge } from '@hubtask/design-system/components';
   import type { EntryLinks, WorkItem } from '@hubtask/sync-engine';
 
   import EntryPicker from './EntryPicker.svelte';
@@ -125,6 +125,10 @@
           {#each cut(group.name, group.rows) as row (row.id)}
             <li class="row" data-link={row.id}>
               <ReferenceChip target={row.other} />
+              <!-- An entry's state on its line (§6.9 links); a reference carries done or not, no workflow status. -->
+              {#if row.other?.available && row.other.kind === 'ENTRY'}
+                <span class="state"><StateLozenge label={t(`workflows.category.${row.other.completed ? 'done' : 'todo'}`)} vocabulary="category" state={row.other.completed ? 'done' : 'todo'} size="sm" /></span>
+              {/if}
               {#if mayChange}
                 <IconButton
                   icon="x" size="sm" tone="subtle"
@@ -225,9 +229,11 @@
 
   .relation { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
 
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 
-  .row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  /* One tight line per link: the reference, its state at the end, the remove. */
+  .row { display: flex; align-items: center; gap: var(--sp-100); min-block-size: var(--sp-400); }
+  .row > :global(:first-child) { flex: 1; min-inline-size: 0; }
 
   .backlink { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); }
 
