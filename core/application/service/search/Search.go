@@ -96,8 +96,11 @@ type Hit struct {
 	Kind, Title, Tile, Snippet, State, Key string
 	ID, HubID, CollectionID                shared.ID
 	UpdatedAt                              *time.Time
-	OnKind                                 string
-	OnID                                   shared.ID
+	// CreatedAt and AuthorID say when and by whom it was made, where its kind keeps both.
+	CreatedAt *time.Time
+	AuthorID  shared.ID
+	OnKind    string
+	OnID      shared.ID
 }
 
 // Found is one kind's answer: at most Size hits, how many the reader may read and whether there
@@ -374,10 +377,14 @@ func HitOutput(hit Hit) usecase.Output {
 	out := usecase.Output{
 		"kind": hit.Kind, "id": hit.ID.String(), "title": hit.Title, "hub_id": id(hit.HubID),
 		"collection_id": id(hit.CollectionID), "tile": text(hit.Tile), "snippet": text(hit.Snippet),
-		"state": text(hit.State), "key": text(hit.Key), "updated_at": nil, "on": nil,
+		"state": text(hit.State), "key": text(hit.Key), "updated_at": nil, "created_at": nil,
+		"author_id": id(hit.AuthorID), "on": nil,
 	}
 	if hit.UpdatedAt != nil {
 		out["updated_at"] = hit.UpdatedAt.UTC()
+	}
+	if hit.CreatedAt != nil {
+		out["created_at"] = hit.CreatedAt.UTC()
 	}
 	if hit.OnKind != "" {
 		out["on"] = map[string]any{"kind": hit.OnKind, "id": hit.OnID.String()}

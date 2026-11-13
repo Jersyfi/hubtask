@@ -134,7 +134,7 @@ WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
 -- names, newest first, with no passage. Archived and trashed pages stay out. Among equally good
 -- hits a page verified at the moment comes first: the order changes, not what is found (E-8).
 -- page.verified and page.owner narrow as the keys of one kind do (SearchKinds.sql).
-SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until,
+SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until, p.created_at, p.created_by,
        (CASE WHEN sqlc.arg('text')::text = '' THEN 0
              ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
        (CASE WHEN sqlc.arg('text')::text = '' THEN ''

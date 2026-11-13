@@ -49,8 +49,11 @@ func (f PageFinder) Find(ctx context.Context, actor appshared.ActorContext, q se
 	found := search.Found{Count: len(hits), More: len(hits) >= maxSearchHits}
 	now := f.Pages.Space.Clock.Now()
 	for _, hit := range hits[:min(len(hits), q.Size)] {
-		updated := hit.UpdatedAt
-		row := search.Hit{ID: hit.ID, HubID: hit.HubID, Title: hit.Title, Tile: hit.Icon, Snippet: hit.Excerpt, UpdatedAt: &updated}
+		updated, created := hit.UpdatedAt, hit.CreatedAt
+		row := search.Hit{
+			ID: hit.ID, HubID: hit.HubID, Title: hit.Title, Tile: hit.Icon, Snippet: hit.Excerpt, UpdatedAt: &updated,
+			CreatedAt: &created, AuthorID: hit.CreatedBy,
+		}
 		if hit.VerifiedUntil != nil {
 			row.State = "REVIEW_DUE"
 			if hit.VerifiedUntil.After(now) {

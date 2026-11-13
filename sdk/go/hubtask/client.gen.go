@@ -24472,8 +24472,14 @@ type SearchAllAnswer struct {
 
 // SearchAllHit One object as a hit row draws it.
 type SearchAllHit struct {
+	// AuthorId The account that made it; for entries, tickets and pages, null for the other kinds.
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
 	// CollectionId An entry's collection, or that of the entry a comment or file is on.
 	CollectionId *openapi_types.UUID `json:"collection_id"`
+
+	// CreatedAt When it was made; for entries, tickets and pages, null for the other kinds.
+	CreatedAt *time.Time `json:"created_at"`
 
 	// HubId The hub it stands in; null for the workspace's own and for people.
 	HubId *openapi_types.UUID `json:"hub_id"`
@@ -24489,7 +24495,7 @@ type SearchAllHit struct {
 		Kind SearchAllHitOnKind `json:"kind"`
 	} `json:"on"`
 
-	// Snippet The passage that matched, the words found between « and »; for pages and comments.
+	// Snippet The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for.
 	Snippet *string `json:"snippet"`
 
 	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's status, an inventory item's stage, a dashboard's sharing, a person's account status.

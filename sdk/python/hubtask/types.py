@@ -2505,6 +2505,8 @@ class SearchAllHit(TypedDict, total=False):
     state: Required[str | None]
     key: Required[str | None]
     updated_at: Required[str | None]
+    created_at: Required[str | None]
+    author_id: Required[str | None]
     on: Required[Any | dict[str, Any]]
 
 class GlancePage(TypedDict, total=False):

@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	deskID  = shared.ID("0193a0c0-0000-7000-8000-0000000000d1")
-	teamID  = shared.ID("0193a0c0-0000-7000-8000-0000000000d2")
-	keyedID = shared.ID("0193a0c0-0000-7000-8000-0000000000e9")
+	deskID   = shared.ID("0193a0c0-0000-7000-8000-0000000000d1")
+	teamID   = shared.ID("0193a0c0-0000-7000-8000-0000000000d2")
+	keyedID  = shared.ID("0193a0c0-0000-7000-8000-0000000000e9")
+	authorID = shared.ID("0193a0c0-0000-7000-8000-0000000000a1")
 )
 
 type entrySearch struct{ calls *int }
@@ -27,7 +28,10 @@ type entrySearch struct{ calls *int }
 func (s entrySearch) Invoke(context.Context, string, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
 	*s.calls++
 	row := func(id string, collection shared.ID) usecase.Output {
-		return usecase.Output{"id": id, "title": "Printer " + id[len(id)-1:], "type": "TASK", "collection_id": collection.String()}
+		return usecase.Output{
+			"id": id, "title": "Printer " + id[len(id)-1:], "type": "TASK", "collection_id": collection.String(),
+			"created_at": "2026-11-01T08:00:00Z", "created_by": authorID.String(), "notes": "The toner runs out; the printer stops at noon.",
+		}
 	}
 	return usecase.Output{"data": []usecase.Output{
 		row("0193a0c0-0000-7000-8000-0000000000e1", deskID),
@@ -119,5 +123,32 @@ func TestKeyOfReadsOneTicketKey(t *testing.T) {
 		if _, ok := KeyOf(words); ok != want {
 			t.Errorf("%q read as a key: %v", words, ok)
 		}
+	}
+}
+
+// UC-WRK-18 check 9. An entry's hit carries when and by whom it was made, and the passage of its notes
+// that holds a word asked for, as a page's does; notes without one give no passage.
+func TestAnEntryHitCarriesItsMakingAndItsPassage(t *testing.T) {
+	calls := 0
+	entries := Entries{Invoker: entrySearch{calls: &calls}, Containers: collectionsRepo{}, UnitOfWork: passThrough{}}
+	h := SearchAll{Finders: map[string]Finder{KindEntry: entries}}
+	answer, err := h.Execute(t.Context(), reader, SearchAllQuery{Words: "toner", Kinds: []string{KindEntry}})
+	if err != nil || len(answer.Hits) == 0 {
+		t.Fatalf("hits %+v, %v", answer.Hits, err)
+	}
+	hit := answer.Hits[0]
+	if hit.CreatedAt == nil || hit.CreatedAt.Format("2006-01-02") != "2026-11-01" || hit.AuthorID != authorID {
+		t.Errorf("made %v by %q", hit.CreatedAt, hit.AuthorID)
+	}
+	if hit.Snippet != "The «toner» runs out; the printer stops at noon." {
+		t.Errorf("snippet %q", hit.Snippet)
+	}
+	out := HitOutput(hit)
+	if out["created_at"] == nil || out["author_id"] != authorID.String() {
+		t.Errorf("output %v", out)
+	}
+	other, err := h.Execute(t.Context(), reader, SearchAllQuery{Words: "9", Kinds: []string{KindEntry}})
+	if err != nil || len(other.Hits) == 0 || other.Hits[0].Snippet != "" {
+		t.Errorf("a title found gave the passage %+v, %v", other.Hits, err)
 	}
 }

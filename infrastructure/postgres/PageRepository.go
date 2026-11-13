@@ -371,10 +371,14 @@ func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([
 			return repository.Hit{}, err
 		}
 		parent, err := optionalID(row.ParentID)
+		if err != nil {
+			return repository.Hit{}, err
+		}
+		author, err := optionalID(row.CreatedBy)
 		return repository.Hit{
 			ID: ids[0], HubID: ids[1], ParentID: parent, Title: row.Title, Icon: row.Icon,
 			Excerpt: row.Excerpt, Rank: row.Rank, UpdatedAt: timeFrom(row.UpdatedAt),
-			VerifiedUntil: optionalTime(row.VerifiedUntil),
+			VerifiedUntil: optionalTime(row.VerifiedUntil), CreatedAt: timeFrom(row.CreatedAt), CreatedBy: author,
 		}, err
 	})
 }

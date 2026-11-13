@@ -28,14 +28,15 @@ func (s keyedSearcher) Search(_ context.Context, q repository.PageQuery) ([]repo
 	return s.hits, nil
 }
 
-// A page hit says whether the page is verified or due for review, for its lozenge (E-8).
+// A page hit says whether the page is verified or due for review, for its lozenge (E-8), and when
+// and by whom it was written, for the search page's order and its *Von* facet.
 func TestAPageHitSaysVerifiedOrDueForReview(t *testing.T) {
 	f := newFixture()
 	now := f.clock.Now()
 	ahead, behind := now.Add(time.Hour), now.Add(-time.Hour)
 	var asked repository.PageQuery
 	index := keyedSearcher{asked: &asked, hits: []repository.Hit{
-		{ID: "0192f000-0000-7000-8000-0000000009a1", Title: "A", VerifiedUntil: &ahead},
+		{ID: "0192f000-0000-7000-8000-0000000009a1", Title: "A", VerifiedUntil: &ahead, CreatedAt: behind, CreatedBy: "0192f000-0000-7000-8000-0000000009b1"},
 		{ID: "0192f000-0000-7000-8000-0000000009a2", Title: "B", VerifiedUntil: &behind},
 		{ID: "0192f000-0000-7000-8000-0000000009a3", Title: "C"},
 	}}
@@ -45,6 +46,9 @@ func TestAPageHitSaysVerifiedOrDueForReview(t *testing.T) {
 	}
 	if found.Count != 3 || found.Hits[0].State != "VERIFIED" || found.Hits[1].State != "REVIEW_DUE" || found.Hits[2].State != "" {
 		t.Fatalf("found %+v", found)
+	}
+	if found.Hits[0].AuthorID != "0192f000-0000-7000-8000-0000000009b1" || found.Hits[0].CreatedAt == nil || !found.Hits[0].CreatedAt.Equal(behind) {
+		t.Errorf("made %v by %q", found.Hits[0].CreatedAt, found.Hits[0].AuthorID)
 	}
 }
 

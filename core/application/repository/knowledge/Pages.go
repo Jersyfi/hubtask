@@ -34,6 +34,8 @@ type Hit struct {
 	UpdatedAt time.Time
 	// VerifiedUntil is when the page's verification lapses; nil for a page never verified.
 	VerifiedUntil *time.Time
+	CreatedAt     time.Time
+	CreatedBy     shared.ID
 }
 
 // Summary is a page as a reference shows it.

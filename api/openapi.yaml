@@ -32032,7 +32032,7 @@ components:
     SearchAllHit:
       type: object
       description: One object as a hit row draws it.
-      required: [kind, id, title, hub_id, collection_id, tile, snippet, state, key, updated_at, on]
+      required: [kind, id, title, hub_id, collection_id, tile, snippet, state, key, updated_at, created_at, author_id, on]
       properties:
         kind: { $ref: "#/components/schemas/SearchKind" }
         id: { type: string, format: uuid }
@@ -32044,7 +32044,7 @@ components:
           description: >
             What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon,
             an inventory item's class key, a file's media type, a person's account kind.
-        snippet: { type: [string, "null"], description: "The passage that matched, the words found between « and »; for pages and comments." }
+        snippet: { type: [string, "null"], description: "The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for." }
         state:
           type: [string, "null"]
           description: >
@@ -32053,6 +32053,8 @@ components:
             status.
         key: { type: [string, "null"], description: "An entry's or a ticket's key where its collection has a handle or a key prefix." }
         updated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: [string, "null"], format: date-time, description: "When it was made; for entries, tickets and pages, null for the other kinds." }
+        author_id: { type: [string, "null"], format: uuid, description: "The account that made it; for entries, tickets and pages, null for the other kinds." }
         on:
           description: What a comment or a file belongs to; null for every other kind.
           oneOf:

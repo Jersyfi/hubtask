@@ -573,7 +573,8 @@ func TestAPagesLabelsNarrowASearchInItsWorkspaceAlone(t *testing.T) {
 			len(hits) != 1 || hits[0].ID != root || hits[0].Excerpt != "" {
 			t.Errorf("by label alone %+v, %v", hits, err)
 		}
-		if hits, _ := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Label: "hr", AuthorID: authorA, Limit: 10}); len(hits) != 1 {
+		if hits, _ := repo.Search(ctx, repository.PageQuery{Text: "budget", HubIDs: []shared.ID{hub}, Label: "hr", AuthorID: authorA, Limit: 10}); len(hits) != 1 ||
+			hits[0].CreatedBy != authorA || hits[0].CreatedAt.IsZero() {
 			t.Errorf("by text, label and author %+v", hits)
 		}
 		later := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)

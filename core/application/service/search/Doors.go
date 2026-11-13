@@ -154,7 +154,13 @@ func (e Entries) read(ctx context.Context, actor appshared.ActorContext, q Quest
 		if done, _ := row["is_completed"].(bool); done {
 			state = "DONE"
 		}
-		hit := Hit{ID: shared.ID(id), Title: title, Tile: level, State: state, CollectionID: shared.ID(collection), UpdatedAt: momentOf(row["updated_at"])}
+		author, _ := row["created_by"].(string)
+		notes, _ := row["notes"].(string)
+		hit := Hit{
+			ID: shared.ID(id), Title: title, Tile: level, State: state, CollectionID: shared.ID(collection),
+			UpdatedAt: momentOf(row["updated_at"]), CreatedAt: momentOf(row["created_at"]), AuthorID: shared.ID(author),
+			Snippet: passage(notes, q.Terms),
+		}
 		held, err := e.container(ctx, actor, collection, answer.collections)
 		if err != nil {
 			return err
@@ -205,6 +211,18 @@ func (e Entries) container(ctx context.Context, actor appshared.ActorContext, id
 		return nil
 	})
 	return held[id], err
+}
+
+// passage is the part of an entry's notes around the first word asked for that they hold; none
+// when they hold none, since then the title was what matched.
+func passage(notes string, terms []string) string {
+	lowered := strings.ToLower(notes)
+	for i, term := range terms {
+		if term != "" && strings.Contains(lowered, term) {
+			return Snippet(notes, append([]string{term}, append(append([]string{}, terms[:i]...), terms[i+1:]...)...))
+		}
+	}
+	return ""
 }
 
 func momentOf(v any) *time.Time {

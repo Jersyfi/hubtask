@@ -50378,6 +50378,8 @@
           "state",
           "key",
           "updated_at",
+          "created_at",
+          "author_id",
           "on"
         ],
         "properties": {
@@ -50420,7 +50422,7 @@
               "string",
               "null"
             ],
-            "description": "The passage that matched, the words found between « and »; for pages and comments."
+            "description": "The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for."
           },
           "state": {
             "type": [
@@ -50442,6 +50444,22 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "created_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was made; for entries, tickets and pages, null for the other kinds."
+          },
+          "author_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The account that made it; for entries, tickets and pages, null for the other kinds."
           },
           "on": {
             "description": "What a comment or a file belongs to; null for every other kind.",

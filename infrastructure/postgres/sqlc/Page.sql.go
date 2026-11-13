@@ -1878,7 +1878,7 @@ func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticles
 }
 
 const searchPages = `-- name: SearchPages :many
-SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until,
+SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until, p.created_at, p.created_by,
        (CASE WHEN $1::text = '' THEN 0
              ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
        (CASE WHEN $1::text = '' THEN ''
@@ -1930,6 +1930,8 @@ type SearchPagesRow struct {
 	Icon          string
 	UpdatedAt     pgtype.Timestamptz
 	VerifiedUntil pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+	CreatedBy     pgtype.UUID
 	Rank          float64
 	Excerpt       string
 }
@@ -1969,6 +1971,8 @@ func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]Sea
 			&i.Icon,
 			&i.UpdatedAt,
 			&i.VerifiedUntil,
+			&i.CreatedAt,
+			&i.CreatedBy,
 			&i.Rank,
 			&i.Excerpt,
 		); err != nil {
