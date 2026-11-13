@@ -9,6 +9,7 @@
   import type { IconName } from '@hubtask/design-system/icons';
 
   import { accounts } from '../data/accounts.svelte.ts';
+  import BoardThumbnail from '../whiteboards/BoardThumbnail.svelte';
   import { containers } from '../data/containers.svelte.ts';
   import { formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -67,6 +68,7 @@
       </span>
     {/if}
   </span>
+  {#if hit.kind === 'WHITEBOARD'}<BoardThumbnail boardId={hit.id} size="row" />{/if}
   {#if hit.state && !lozenge && (hit.kind === 'ENTRY' || hit.kind === 'TICKET' || hit.kind === 'GOAL' || hit.kind === 'RELEASE' || hit.kind === 'SPRINT')}
     <span class="state"><StateLozenge label={t('app.search.state', { state: hit.state })} tone={hit.state === 'DONE' || hit.state === 'RELEASED' ? 'success' : 'info'} /></span>
   {/if}
