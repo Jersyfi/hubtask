@@ -17,6 +17,7 @@ const KEY = 'hubtask.create.last.';
 
 class Create {
   #isOpen = $state(false);
+  #isDirect = $state(false);
   #last = $state<readonly CreateKind[]>([]);
   #account: string | undefined;
   #wish = $state<CreateKind | undefined>(undefined);
@@ -46,7 +47,29 @@ class Create {
     this.#isOpen = !this.#isOpen;
   }
 
+  /**
+   * The ＋ held (C-5): the kind made last is made at once where it may be made here; *Erstellen*
+   * opens on it and the menu takes it as soon as the place says it is allowed.
+   */
+  summonLast(): void {
+    if (this.#last.length === 0) return this.summon();
+    this.#isDirect = true;
+    this.#isOpen = true;
+  }
+
+  /** The menu takes the held ＋ once. */
+  takeDirect(): boolean {
+    const was = this.#isDirect;
+    this.#isDirect = false;
+    return was;
+  }
+
+  get isDirect(): boolean {
+    return this.#isDirect;
+  }
+
   close(): void {
+    this.#isDirect = false;
     this.#isOpen = false;
   }
 

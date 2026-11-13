@@ -89,6 +89,15 @@
   const placeName = $derived(collection?.name ?? hub?.name);
   const portals = $derived(actor.portals);
 
+  // The ＋ held: the kind made last, made at once once the place allows it (C-5).
+  $effect(() => {
+    const kind = isOpen && create.isDirect ? last[0] : undefined;
+    if (!kind) return;
+    untrack(() => {
+      if (create.takeDirect()) void choose(kind);
+    });
+  });
+
   // A new opening starts with an empty line and no failure.
   $effect(() => {
     if (!isOpen) return;

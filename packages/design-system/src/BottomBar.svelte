@@ -18,6 +18,7 @@
 
   import Icon from './Icon.svelte';
   import type { IconName } from './icons/index.ts';
+  import { HOLD_MS } from './reorder.ts';
 
   export interface Destination {
     readonly id: string;
@@ -49,9 +50,32 @@
     /** The destination the reader is on. Announced, not only coloured. */
     current?: string;
     onnavigate?: (id: string) => void;
+    /**
+     * A long press on an act - the ＋ creates the kind made last (C-5). The context-menu key and
+     * Shift+F10 on the focused act, and a right click, hold it too; a press held is not also a press.
+     */
+    onhold?: (id: string) => void;
   }
 
-  const { label, destinations, current, onnavigate }: Props = $props();
+  const { label, destinations, current, onnavigate, onhold }: Props = $props();
+
+  let holding: ReturnType<typeof setTimeout> | undefined;
+  let held = false;
+
+  function press(id: string) {
+    if (!onhold) return;
+    held = false;
+    clearTimeout(holding);
+    holding = setTimeout(() => {
+      held = true;
+      onhold(id);
+    }, HOLD_MS * 2);
+  }
+
+  function release() {
+    clearTimeout(holding);
+    holding = undefined;
+  }
 </script>
 
 <nav class="bar" aria-label={label}>
@@ -70,7 +94,31 @@
             <span class="word">{destination.label}</span>
           </button>
         {:else if destination.isAction}
-          <button type="button" class="item" data-action="" onclick={() => onnavigate?.(destination.id)}>
+          <button
+            type="button"
+            class="item"
+            data-action=""
+            aria-keyshortcuts={onhold ? 'Shift+F10' : undefined}
+            onpointerdown={() => press(destination.id)}
+            onpointerup={release}
+            onpointerleave={release}
+            onpointercancel={release}
+            oncontextmenu={(event) => {
+              if (!onhold) return;
+              event.preventDefault();
+              release();
+              if (held) return;
+              held = true;
+              onhold(destination.id);
+            }}
+            onclick={() => {
+              if (held) {
+                held = false;
+                return;
+              }
+              onnavigate?.(destination.id);
+            }}
+          >
             <span class="mark"><Icon name={destination.icon} /></span>
             <span class="word">{destination.label}</span>
           </button>

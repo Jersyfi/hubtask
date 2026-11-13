@@ -1010,6 +1010,9 @@
       destinations={phoneDestinations}
       current={phoneTab}
       onnavigate={choosePhoneTab}
+      onhold={(id) => {
+        if (id === 'capture') create.summonLast();
+      }}
     />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
