@@ -74,9 +74,11 @@
     inPlace?: Door;
     /** The line's placeholder in place, which names what it adds. */
     inPlaceLabel?: string;
+    /** In place: what was added, for a screen whose own read no entry list's write refreshes. */
+    oncreated?: (itemIds: readonly string[]) => void;
   }
 
-  const { currentCollectionId, currentItemId, currentHubId, onnavigate, inPlace, inPlaceLabel }: Props = $props();
+  const { currentCollectionId, currentItemId, currentHubId, onnavigate, inPlace, inPlaceLabel, oncreated }: Props = $props();
 
   const isOpen = $derived(inPlace !== undefined || capture.isOpen);
   /** Puts the field away; in place there is nothing to put away, so it only empties. */
@@ -470,6 +472,7 @@
         formRefusals = new Map();
       }
       if (outcome.created.length === 0) return;
+      oncreated?.(outcome.created.map((item) => item.id));
       const only = outcome.created.length === 1 ? outcome.created[0] : undefined;
       offerUndo(
         { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name, title: only?.title },

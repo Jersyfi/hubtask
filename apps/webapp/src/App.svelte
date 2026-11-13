@@ -105,6 +105,7 @@
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
     SprintView: () => import('./views/SprintView.svelte'),
+    BacklogView: () => import('./views/BacklogView.svelte'),
     ReleaseView: () => import('./views/ReleaseView.svelte'),
     TimeView: () => import('./views/TimeView.svelte'),
     GoalsView: () => import('./views/GoalsView.svelte'),
@@ -654,9 +655,13 @@
     {#key route.path}
       <LazyView load={views.ReleaseView} props={{ hubId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
-  {:else if route.name === 'collection-sprint' || route.name === 'collection-backlog'}
+  {:else if route.name === 'collection-sprint'}
     {#key route.path}
-      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isBacklog: route.name === 'collection-backlog', isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.SprintView} props={{ collectionId: route.params.id, isCreateAsked: route.query['new'] === '1', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'collection-backlog'}
+    {#key route.path}
+      <LazyView load={views.BacklogView} props={{ collectionId: route.params.id, onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'ci'}
     {#key route.path}

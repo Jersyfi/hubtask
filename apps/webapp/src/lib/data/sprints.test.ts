@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Sprint } from '@hubtask/sync-engine';
 
-import { burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintDays, sprintShown, valueOf } from './sprints.ts';
+import { burndownLine, burndownTop, carryTargets, estimateOf, estimateText, planLoad, sprintColumns, sprintDays, sprintShown, valueOf } from './sprints.ts';
 
 const sprint = (id: string, state: Sprint['state'], start_on: string): Sprint => ({
   id, collection_id: 'c', name: id, goal: '', start_on, end_on: start_on, state, unit: 'POINTS',
@@ -69,4 +69,25 @@ test('a column adds its estimates in the sprint\'s unit, sizes as points, the ot
   assert.equal(valueOf(entries as never, 'POINTS'), 8);
   assert.equal(valueOf(entries as never, 'HOURS'), 1.5);
   assert.equal(valueOf([], 'POINTS'), 0);
+});
+
+// E-22: the planned sprint against the velocity of the last three, a share and never a limit.
+test('a planned sprint fills its bar against the velocity and says when it is over it', () => {
+  assert.deepEqual(planLoad(5, 8), { percent: 63, isOver: false });
+  assert.deepEqual(planLoad(8, 8), { percent: 100, isOver: false });
+  assert.deepEqual(planLoad(13, 8), { percent: 100, isOver: true });
+  assert.equal(planLoad(5, 0), undefined);
+});
+
+// §6.2: the sprint's columns are the board's, which carry the workflow's statuses.
+test('a sprint\'s entries stand in the board\'s columns, a done one in the done one', () => {
+  const columns = [{ id: 'open', name: 'Open' }, { id: 'review', name: 'Review' }, { id: 'done', name: 'Done', is_done_bucket: true }];
+  const at: Record<string, string | null> = { a: 'review', b: null, c: 'gone', d: null };
+  const entries = [{ item_id: 'a', done: false }, { item_id: 'b', done: true }, { item_id: 'c', done: false }, { item_id: 'd', done: false }, { item_id: 'e', done: true }];
+  at['e'] = 'open';
+  const drawn = sprintColumns(entries, columns, (id) => at[id], 'No column');
+  assert.deepEqual(drawn?.map((column) => [column.id, column.entries.map((e) => e.item_id)]), [['open', []], ['review', ['a']], ['done', ['b', 'e']], [null, ['c', 'd']]]);
+  assert.equal(drawn?.[2]?.isDone, true);
+  assert.equal(sprintColumns(entries.slice(0, 2), columns, (id) => at[id], 'No column')?.length, 3, 'no column-less column when every entry has one');
+  assert.equal(sprintColumns(entries, [], () => null, 'No column'), undefined);
 });

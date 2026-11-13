@@ -101,6 +101,57 @@ export function valueOf(entries: readonly { estimate?: Estimate | null }[], unit
   return round(sum);
 }
 
+/**
+ * How full a planned sprint is against the velocity of the last three (E-22): the bar's share, at
+ * most the whole, and whether the plan is over it. Nothing without a velocity to plan against.
+ * A planning aid, never a limit: the sprint takes what the person puts in.
+ */
+export function planLoad(planned: number, velocity: number): { readonly percent: number; readonly isOver: boolean } | undefined {
+  if (!(velocity > 0)) return undefined;
+  return { percent: Math.min(100, Math.round((planned / velocity) * 100)), isOver: planned > velocity };
+}
+
+/** A board column as the sprint needs it: its id, its name, whether it is the done column. */
+export interface ColumnOf {
+  readonly id: string;
+  readonly name: string;
+  readonly is_done_bucket?: boolean;
+}
+
+/** A sprint's column: the board's column, or the column-less one (`id` null). */
+export interface SprintColumn<E> {
+  readonly id: string | null;
+  readonly name: string;
+  readonly isDone: boolean;
+  readonly entries: readonly E[];
+}
+
+/**
+ * A sprint's entries in the board's columns, which carry the workflow's statuses (§6.2): a done
+ * entry in the done column, the others in the column they stand in; the rest in a
+ * column-less column, drawn only when it holds something. Nothing without columns: the caller
+ * falls back to to do, in progress and done.
+ */
+export function sprintColumns<E extends { readonly item_id: string; readonly done: boolean }>(
+  entries: readonly E[],
+  columns: readonly ColumnOf[],
+  columnOf: (itemId: string) => string | null | undefined,
+  noColumnName: string,
+): SprintColumn<E>[] | undefined {
+  if (columns.length === 0) return undefined;
+  const known = new Set(columns.map((column) => column.id));
+  const doneColumn = columns.find((column) => column.is_done_bucket)?.id;
+  const placed = new Map<string | null, E[]>();
+  for (const entry of entries) {
+    const own = columnOf(entry.item_id);
+    const at = entry.done && doneColumn ? doneColumn : own && known.has(own) ? own : null;
+    placed.set(at, [...(placed.get(at) ?? []), entry]);
+  }
+  const drawn: SprintColumn<E>[] = columns.map((column) => ({ id: column.id, name: column.name, isDone: column.is_done_bucket === true, entries: placed.get(column.id) ?? [] }));
+  const rest = placed.get(null);
+  return rest ? [...drawn, { id: null, name: noColumnName, isDone: false, entries: rest }] : drawn;
+}
+
 function round(n: number): number {
   return Math.round(n * 10) / 10;
 }

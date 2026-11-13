@@ -66,9 +66,9 @@ const RELEASE_DETAIL = {
 };
 
 /** A screen of the planning area, with every write recorded and answered with what it makes. */
-async function open(browser, at) {
+async function open(browser, at, width = 1280) {
   const written = [];
-  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900, { timezoneId: 'UTC' });
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, width < 600 ? 844 : 900, { timezoneId: 'UTC' });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -84,7 +84,10 @@ async function open(browser, at) {
     if (path === `/collections/${COLLECTION.id}/velocity`) return route.fulfill({ json: { unit: 'POINTS', average: 5, sprints: [CLOSED] } });
     const one = SPRINTS.find((each) => path === `/sprints/${each.id}`);
     if (one && method === 'GET') return route.fulfill({ json: one === RUNNING ? DETAIL : { sprint: one, entries: [], burndown: [] } });
-    if (path === `/sprints/${RUNNING.id}/entries` && method === 'POST') return route.fulfill({ json: RUNNING });
+    const into = SPRINTS.find((each) => path === `/sprints/${each.id}/entries`);
+    if (into && method === 'POST') return route.fulfill({ json: into });
+    const ranked = /^\/items\/([^/:]+):reorder$/.exec(path);
+    if (ranked && method === 'POST') return route.fulfill({ json: { ...ITEMS.find((each) => each.id === ranked[1]), version: 2 } });
     if (path === `/sprints/${RUNNING.id}:close` && method === 'POST') {
       return route.fulfill({ json: { sprint: { ...RUNNING, state: 'CLOSED', closed_at: `${today}T17:00:00Z` }, carried: [ITEMS[1].id], returned: [], carried_to: body.carry_to_sprint_id ?? null } });
     }
@@ -158,21 +161,45 @@ test('chromium: 1280 px — the running sprint\'s bar, its columns with their po
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: 1280 px — the backlog tab moves an entry into the sprint and estimates it there', async (t) => {
+test('chromium: 1280 px — the backlog tab: the running sprint folded, the planned one against the velocity, a ranking to plan from and a line to type', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/backlog`);
   t.after(close);
 
-  // An entry of the backlog moved into the sprint by its card's arrow, the keyboard's way.
-  const move = page.getByRole('button', { name: `Move ${ITEMS[3].title} into the sprint` });
-  await move.waitFor({ timeout: 15_000 });
+  // UC-PLN-06 check 7 (E-22, scene backlog): the running sprint folded on top, with its way in.
+  const running = page.getByRole('region', { name: 'The running sprint' });
+  await running.waitFor({ timeout: 15_000 });
+  assert.match(await running.innerText(), /Sprint 2/u);
+  assert.equal(await running.getByRole('link', { name: 'Open sprint' }).getAttribute('href'), `/collections/${COLLECTION.id}/sprint`);
   assert.equal(await page.locator('[data-sprint-bar]').count(), 0, 'the sprint\'s bar stands over the backlog');
-  await move.click();
-  await settle(page);
-  assert.deepEqual(wrote(written, 'POST', `/sprints/${RUNNING.id}/entries`)?.body, { item_ids: [ITEMS[3].id] });
 
-  // An estimate typed in hours into the card's chip and kept by Enter, no Save beside it; one past
+  // The planned sprint against the velocity of the last three, and its start - which says why it
+  // waits while another sprint runs (P-05).
+  const planned = page.getByRole('region', { name: 'The planned sprint' });
+  assert.match(await planned.innerText(), /Sprint 3/u);
+  assert.match(await planned.locator('[data-load]').innerText(), /0 of ≈ 5 points · velocity of the last 3/u);
+  const start = planned.getByRole('button', { name: 'Start sprint' });
+  assert.equal(await start.count(), 1);
+  assert.equal(await start.getAttribute('aria-disabled'), 'true', 'a second sprint starts beside the running one');
+
+  // UC-PLN-07: the backlog as a ranking with its sum, no per-person capacity anywhere (E-22).
+  const backlog = page.locator('[data-backlog]');
+  assert.match(await backlog.locator('[data-backlog-figure]').innerText(), /2 entries · 2 points estimated · 1 without estimate/u);
+  assert.deepEqual(await backlog.locator('[data-backlog-row] .title').allInnerTexts(), [ITEMS[3].title, ITEMS[4].title]);
+  assert.equal(await page.getByText(/capacity/iu).count(), 0);
+
+  // Ranked by the keyboard: Alt+Down on the first row's handle puts it after the second.
+  await backlog.getByRole('button', { name: `Rank of ${ITEMS[3].title}: Alt with the arrow keys` }).press('Alt+ArrowDown');
+  await settle(page);
+  assert.deepEqual(wrote(written, 'POST', `/items/${ITEMS[3].id}:reorder`)?.body, { before_item_id: null });
+
+  // Planned in by the row's arrow, the keyboard's way of the drag.
+  await backlog.getByRole('button', { name: `Plan ${ITEMS[3].title} into Sprint 3` }).click();
+  await settle(page);
+  assert.deepEqual(wrote(written, 'POST', `/sprints/${NEXT.id}/entries`)?.body, { item_ids: [ITEMS[3].id] });
+
+  // An estimate typed in hours into the row's chip and kept by Enter, no Save beside it; one past
   // the bound is refused at the chip before anything is sent.
   const field = page.getByLabel(`Estimate of ${ITEMS[3].title}`);
   await field.fill('1.5h');
@@ -184,6 +211,15 @@ test('chromium: 1280 px — the backlog tab moves an entry into the sprint and e
   await settle(page);
   assert.equal(written.filter((each) => each.path.endsWith('/estimate')).length, 1);
   assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the refusal is not at the chip');
+
+  // The line to type at the backlog's foot is capture in place (C-4): Enter adds to the collection.
+  const line = backlog.locator('[data-backlog-capture]').getByRole('combobox').or(backlog.locator('[data-backlog-capture]').getByRole('textbox')).first();
+  await line.fill('Order the handles');
+  await line.press('Enter');
+  await settle(page);
+  const made = written.find((each) => each.method === 'POST' && each.path === '/items');
+  assert.equal(made?.body?.title, 'Order the handles');
+  assert.equal(made?.body?.collection_id ?? made?.body?.container_id, COLLECTION.id);
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
