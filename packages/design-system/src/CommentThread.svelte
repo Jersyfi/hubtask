@@ -21,6 +21,8 @@
   //
   // Oldest first, because a conversation read from the bottom is a conversation read backwards.
 
+  import type { Snippet } from 'svelte';
+
   import Avatar from './Avatar.svelte';
   import Icon from './Icon.svelte';
   import type { IconName } from './icons/index.ts';
@@ -98,9 +100,12 @@
     onReply?: (id: string) => void;
     /** Quiet rows placed among the comments by their instant. */
     events?: readonly ThreadEvent[];
+    /** The caller's reading of a body - formatted text from the pages' editor (E-3); plain text without it. */
+    body?: Snippet<[string]>;
   }
 
   const {
+    body,
     label,
     comments,
     emptyLabel,
@@ -187,7 +192,7 @@
              reader guessing, and the guess "it failed to load" is the wrong one. -->
         <p class="removed">{removedLabel}</p>
       {:else}
-        <p class="text">{comment.body}</p>
+        {#if body && comment.body !== undefined}<div class="text">{@render body(comment.body)}</div>{:else}<p class="text">{comment.body}</p>{/if}
       {/if}
 
       {#if !comment.isRemoved && (canReply || comment.isChangeable !== false)}
