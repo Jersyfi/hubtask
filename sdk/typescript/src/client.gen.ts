@@ -451,6 +451,11 @@ export class HubtaskClient {
     return this.call("GET", "/dashboards/{dashboardId}/figures", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** A dashboard's numbers for a definition not saved yet */
+  draftDashboardFigures(dashboardId: string, body: NonNullable<operations["draftDashboardFigures"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["draftDashboardFigures"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/dashboards/{dashboardId}/figures:draft", { "dashboardId": dashboardId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The caller's digest of a dashboard */
   readDashboardDigest(dashboardId: string, options: CallOptions = {}): Promise<operations["readDashboardDigest"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/dashboards/{dashboardId}/digest", { "dashboardId": dashboardId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

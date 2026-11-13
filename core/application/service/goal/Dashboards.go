@@ -19,12 +19,13 @@ import (
 
 // The catalogue names.
 const (
-	ListDashboardsName       = "ListDashboards"
-	ReadDashboardName        = "ReadDashboard"
-	CreateDashboardName      = "CreateDashboard"
-	UpdateDashboardName      = "UpdateDashboard"
-	DeleteDashboardName      = "DeleteDashboard"
-	ReadDashboardFiguresName = "ReadDashboardFigures"
+	ListDashboardsName        = "ListDashboards"
+	ReadDashboardName         = "ReadDashboard"
+	CreateDashboardName       = "CreateDashboard"
+	UpdateDashboardName       = "UpdateDashboard"
+	DeleteDashboardName       = "DeleteDashboard"
+	ReadDashboardFiguresName  = "ReadDashboardFigures"
+	DraftDashboardFiguresName = "DraftDashboardFigures"
 )
 
 // DashboardOutput is a dashboard on the wire: its widgets as their queries, never their numbers.
@@ -554,6 +555,42 @@ func (h ReadDashboardFigures) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return s.figures(ctx, actor, d)
+		}),
+	}, dashboardTarget)
+}
+
+// DraftDashboardFigures computes widgets and a filter being edited, as the reader and with a save's
+// checks, so the widget editor draws its figure live; nothing is stored.
+type DraftDashboardFigures struct{ Steward Steward }
+
+// Descriptor is the catalogue entry.
+func (h DraftDashboardFigures) Descriptor() usecase.Descriptor {
+	input := append([]usecase.Field{{Name: "dashboard_id", Kind: usecase.KindID, Required: true, Description: "The dashboard."}},
+		dashboardInput[3:]...)
+	return descriptor(usecase.Descriptor{
+		Name: DraftDashboardFiguresName, Permission: service.PermissionRead, ReadOnly: true,
+		Summary: "The numbers of widgets and a filter not saved yet, computed for the caller exactly as the saved " +
+			"ones are, with a save's checks; only on a dashboard the caller sees, and nothing is stored.",
+		SideEffects: "None. Reads only.", TokenScope: containersRead, Input: input,
+		Audit: usecase.AuditDeclaration{Action: DashboardReadAction},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			s := h.Steward
+			id, err := in.ID("dashboard_id")
+			if err != nil {
+				return nil, err
+			}
+			current, err := s.dashboard(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			fields := usecase.Input{"name": current.Name, "filter": in["filter"], "widgets": in["widgets"]}
+			draft, err := s.dashboardFields(fields)
+			if err != nil {
+				return nil, err
+			}
+			draft.ID, draft.HubID, draft.OwnerID = current.ID, current.HubID, current.OwnerID
+			draft.Sharing, draft.GroupIDs = current.Sharing, current.GroupIDs
+			return s.figures(ctx, actor, draft)
 		}),
 	}, dashboardTarget)
 }

@@ -17115,6 +17115,13 @@ type DashboardDigestWrite struct {
 // DashboardDigestWriteCadence defines model for DashboardDigestWrite.Cadence.
 type DashboardDigestWriteCadence string
 
+// DashboardDraft defines model for DashboardDraft.
+type DashboardDraft struct {
+	// Filter The filter as it is being edited; every QUERY widget inherits it but for the fields it released.
+	Filter  *string                `json:"filter,omitempty"`
+	Widgets []DashboardWidgetWrite `json:"widgets"`
+}
+
 // DashboardFigures defines model for DashboardFigures.
 type DashboardFigures struct {
 	ComputedAt  time.Time          `json:"computed_at"`
@@ -31787,6 +31794,9 @@ type UpdateDashboardJSONRequestBody = DashboardWrite
 // SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
 type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
 
+// DraftDashboardFiguresJSONRequestBody defines body for DraftDashboardFigures for application/json ContentType.
+type DraftDashboardFiguresJSONRequestBody = DashboardDraft
+
 // ConfigureLdapDirectoryJSONRequestBody defines body for ConfigureLdapDirectory for application/json ContentType.
 type ConfigureLdapDirectoryJSONRequestBody = LdapDirectoryConfiguration
 
@@ -37990,6 +38000,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DraftDashboardFiguresWithBody A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFiguresWithBody(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DraftDashboardFigures A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFigures(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
 	//
@@ -54787,6 +54815,44 @@ func (c *Client) SetDashboardDigest(ctx context.Context, dashboardId DashboardId
 // Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 func (c *Client) ReadDashboardFigures(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadDashboardFiguresRequest(c.Server, dashboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DraftDashboardFiguresWithBody A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *Client) DraftDashboardFiguresWithBody(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDraftDashboardFiguresRequestWithBody(c.Server, dashboardId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DraftDashboardFigures A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *Client) DraftDashboardFigures(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDraftDashboardFiguresRequest(c.Server, dashboardId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -85028,6 +85094,53 @@ func NewReadDashboardFiguresRequest(server string, dashboardId DashboardId) (*ht
 	return req, nil
 }
 
+// NewDraftDashboardFiguresRequest calls the generic DraftDashboardFigures builder with application/json body
+func NewDraftDashboardFiguresRequest(server string, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewDraftDashboardFiguresRequestWithBody(server, dashboardId, "application/json", bodyReader)
+}
+
+// NewDraftDashboardFiguresRequestWithBody constructs an http.Request for the DraftDashboardFigures method, with any body, and a specified content type
+func NewDraftDashboardFiguresRequestWithBody(server string, dashboardId DashboardId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "dashboardId", dashboardId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/dashboards/%s/figures:draft", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewReadMyDeadlinesKeptRequest constructs an http.Request for the ReadMyDeadlinesKept method
 func NewReadMyDeadlinesKeptRequest(server string, params *ReadMyDeadlinesKeptParams) (*http.Request, error) {
 	var err error
@@ -114902,6 +115015,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /dashboards/{dashboardId}/figures (the `ReadDashboardFigures` operationId).
 	ReadDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, reqEditors ...RequestEditorFn) (*ReadDashboardFiguresResult, error)
 
+	// DraftDashboardFiguresWithBodyWithResponse A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFiguresWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error)
+
+	// DraftDashboardFiguresWithResponse A dashboard's numbers for a definition not saved yet
+	//
+	// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+	DraftDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error)
+
 	// ReadMyDeadlinesKeptWithResponse How many of the deadlines on my own tickets I kept
 	//
 	// For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
@@ -139016,6 +139147,54 @@ func (r ReadDashboardFiguresResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadDashboardFiguresResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DraftDashboardFiguresResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DashboardFigures
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DraftDashboardFiguresResult) GetJSON200() *DashboardFigures {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DraftDashboardFiguresResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DraftDashboardFiguresResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DraftDashboardFiguresResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DraftDashboardFiguresResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DraftDashboardFiguresResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -172504,6 +172683,36 @@ func (c *ClientWithResponses) ReadDashboardFiguresWithResponse(ctx context.Conte
 	return ParseReadDashboardFiguresResult(rsp)
 }
 
+// DraftDashboardFiguresWithBodyWithResponse A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *ClientWithResponses) DraftDashboardFiguresWithBodyWithResponse(ctx context.Context, dashboardId DashboardId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error) {
+	rsp, err := c.DraftDashboardFiguresWithBody(ctx, dashboardId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDraftDashboardFiguresResult(rsp)
+}
+
+// DraftDashboardFiguresWithResponse A dashboard's numbers for a definition not saved yet
+//
+// Computes widgets and a filter as they are being edited, exactly as GET /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /dashboards/{dashboardId}/figures:draft (the `DraftDashboardFigures` operationId).
+func (c *ClientWithResponses) DraftDashboardFiguresWithResponse(ctx context.Context, dashboardId DashboardId, body DraftDashboardFiguresJSONRequestBody, reqEditors ...RequestEditorFn) (*DraftDashboardFiguresResult, error) {
+	rsp, err := c.DraftDashboardFigures(ctx, dashboardId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDraftDashboardFiguresResult(rsp)
+}
+
 // ReadMyDeadlinesKeptWithResponse How many of the deadlines on my own tickets I kept
 //
 // For the signed-in person, over the entries assigned to them: the deadlines that ended in the window - met or breached -, per kind - the requester's goals (first response, next response, resolution) and each team's OLA by its group and goal - with how many were kept. Never another person's; no report permission needed. The window ends now and reaches back `days` days, 30 when left out.
@@ -196158,6 +196367,39 @@ func ParseReadDashboardFiguresResult(rsp *http.Response) (*ReadDashboardFiguresR
 	}
 
 	response := &ReadDashboardFiguresResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DashboardFigures
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDraftDashboardFiguresResult parses an HTTP response from a DraftDashboardFiguresWithResponse call
+func ParseDraftDashboardFiguresResult(rsp *http.Response) (*DraftDashboardFiguresResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DraftDashboardFiguresResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

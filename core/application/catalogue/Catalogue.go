@@ -324,6 +324,7 @@ func Descriptors() []usecase.Descriptor {
 		goalservice.UpdateDashboard{}.Descriptor(),
 		goalservice.DeleteDashboard{}.Descriptor(),
 		goalservice.ReadDashboardFigures{}.Descriptor(),
+		goalservice.DraftDashboardFigures{}.Descriptor(),
 		goalservice.ReadDashboardDigest{}.Descriptor(),
 		agentservice.RegisterAgentModel{}.Descriptor(),
 		agentservice.ListAgentModels{}.Descriptor(),

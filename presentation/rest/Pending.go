@@ -2710,6 +2710,10 @@ func (pending) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, _ op
 	notAvailable(w, r)
 }
 
+func (pending) DraftDashboardFigures(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
+	notAvailable(w, r)
+}
+
 func (pending) ReadDashboardDigest(w http.ResponseWriter, r *http.Request, _ openapi.DashboardId) {
 	notAvailable(w, r)
 }

@@ -1698,6 +1698,32 @@ paths:
               schema: { $ref: "#/components/schemas/DashboardFigures" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /dashboards/{dashboardId}/figures:draft:
+    parameters:
+      - $ref: "#/components/parameters/DashboardId"
+    post:
+      tags: [goals]
+      operationId: draftDashboardFigures
+      x-hubtask-rest: generated
+      x-hubtask-cli: "dashboard figures-draft"
+      summary: A dashboard's numbers for a definition not saved yet
+      description: >
+        Computes widgets and a filter as they are being edited, exactly as GET
+        /dashboards/{dashboardId}/figures computes the saved ones, as the caller: the same checks as a
+        save, nothing stored. Only a dashboard the caller sees; its name and sharing stay as they are.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DashboardDraft" }
+      responses:
+        "200":
+          description: The figures
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DashboardFigures" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /dashboards/{dashboardId}/digest:
     parameters:
       - $ref: "#/components/parameters/DashboardId"
@@ -31273,6 +31299,13 @@ components:
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
         filter: { type: string, maxLength: 2000, description: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released." }
+        widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
+
+    DashboardDraft:
+      type: object
+      required: [widgets]
+      properties:
+        filter: { type: string, maxLength: 2000, description: "The filter as it is being edited; every QUERY widget inherits it but for the fields it released." }
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
 
     DashboardCreate:

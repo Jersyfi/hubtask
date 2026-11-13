@@ -6,11 +6,13 @@ package goal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 type firstHits struct{ calls []usecase.Input }
@@ -100,5 +102,40 @@ func TestADashboardWithoutAFilterSendsTheWidgetsDocumentAsStored(t *testing.T) {
 	ok(t, ReadDashboardFigures{s}.Descriptor(), ana, usecase.Input{"dashboard_id": made.String("id")})
 	if len(sum.calls) != 1 || sum.calls[0]["q"] != "is: open" || sum.calls[0]["filter"] != nil {
 		t.Fatalf("the document was changed: %v", sum.calls)
+	}
+}
+
+// UC-GOL-04 check 23: the widget editor's figure comes from the definition being edited, run as
+// the reader with the save's checks; nothing is stored, and only a dashboard the reader sees.
+func TestADraftsFiguresAreTheReadersAndNothingIsStored(t *testing.T) {
+	s, store, _, sum := newSteward(t)
+	board := ok(t, CreateDashboard{s}.Descriptor(), admin, usecase.Input{"name": "Team", "sharing": "SCOPE"})
+	private := ok(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "Mine"})
+	draft := func(of string) usecase.Input {
+		return usecase.Input{"dashboard_id": of, "filter": "is: open", "widgets": []any{
+			map[string]any{"title": "Offen", "chart": "NUMBER", "source": "QUERY", "query": map[string]any{
+				"scope_container_id": listA.String(), "aggregate": map[string]any{"function": "COUNT"}}},
+			map[string]any{"title": "Geheim", "chart": "NUMBER", "source": "QUERY", "x": 6.0, "query": map[string]any{
+				"scope_container_id": listS.String(), "aggregate": map[string]any{"function": "COUNT"}}},
+		}}
+	}
+	rows := ok(t, DraftDashboardFigures{s}.Descriptor(), ben, draft(board.String("id")))["widgets"].([]usecase.Output)
+	if len(rows) != 2 || rows[0]["error"] != nil || rows[1]["error"] != "access.denied" {
+		t.Fatalf("Ben's draft figures = %v", rows)
+	}
+	if filter, _ := json.Marshal(sum.calls[0]["filter"]); !strings.Contains(string(filter), "is_completed") {
+		t.Fatalf("the draft's filter was not inherited: %s", filter)
+	}
+	id, _ := shared.ParseID(board.String("id"))
+	if kept := store.dashboards[id]; len(kept.Widgets) != 0 || kept.Filter != "" {
+		t.Fatalf("a draft was stored: %+v", kept)
+	}
+	if _, err := call(t, DraftDashboardFigures{s}.Descriptor(), ben, draft(private.String("id"))); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("Ben computed a draft on Ana's private dashboard: %v", err)
+	}
+	bad := draft(board.String("id"))
+	bad["filter"] = "is: open sort: -due"
+	if _, err := call(t, DraftDashboardFigures{s}.Descriptor(), ana, bad); code(err) != "query.sort_not_here" {
+		t.Fatalf("a draft escaped the save's checks: %v", err)
 	}
 }

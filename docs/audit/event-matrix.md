@@ -380,6 +380,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `dashboard.read` | ReadDashboard | `dashboard` | INFO | When refused |
 | `dashboard.read` | ReadDashboardDigest | `dashboard` | INFO | When refused |
 | `dashboard.read` | ReadDashboardFigures | `dashboard` | INFO | When refused |
+| `dashboard.read` | DraftDashboardFigures | `dashboard` | INFO | When refused |
 | `dashboard.updated` | UpdateDashboard | `dashboard` | INFO | Every time |
 
 ## Data: comments

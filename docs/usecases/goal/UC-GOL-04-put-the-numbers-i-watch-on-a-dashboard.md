@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-13, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, infrastructure/mail/SMTP_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs, core/application/service/goal/DashboardFilter_test.go, core/domain/model/goal/Kinds_test.go, apps/webapp/src/lib/data/listhandoff.test.ts, apps/webapp/src/lib/data/viewquery.test.ts]
+checked_by: [core/domain/model/goal/Goal_test.go, core/domain/model/view/Aggregate_test.go, core/application/service/work/AggregateItems_test.go, infrastructure/postgres/query/Aggregate_test.go, test/integration/query_aggregate_test.go, core/domain/model/goal/Digest_test.go, core/application/service/goal/Goal_test.go, core/application/service/goal/Digests_test.go, infrastructure/mail/SMTP_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, apps/webapp/src/lib/data/xlsx.test.ts, core/domain/model/goal/Running_test.go, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs, core/application/service/goal/DashboardFilter_test.go, core/domain/model/goal/Kinds_test.go, apps/webapp/src/lib/data/listhandoff.test.ts, apps/webapp/src/lib/data/viewquery.test.ts, test/integration/dashboard_draft_test.go]
 ---
 
 # Put the numbers I watch on a dashboard
@@ -80,6 +80,9 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
     every grouping and period field by its word, never its key.
 22. *Open as list* opens the collection a widget counts with the widget's line - what the dashboard
     passes on and its own - as a changed, unsaved view; the line never enters the address.
+23. While a widget is edited, it stands large on the grid and its figure is computed from the
+    definition being edited, as the reader and held to a save's checks; nothing is stored until it
+    is applied, and only on a dashboard the reader sees.
 
 ## Where it ends
 

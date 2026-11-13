@@ -2130,6 +2130,10 @@ class DashboardWrite(TypedDict, total=False):
     filter: str
     widgets: list["DashboardWidgetWrite"]
 
+class DashboardDraft(TypedDict, total=False):
+    filter: str
+    widgets: Required[list["DashboardWidgetWrite"]]
+
 class DashboardCreate(TypedDict, total=False):
     name: Required[str]
     sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]

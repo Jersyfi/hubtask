@@ -375,6 +375,10 @@ class Client:
         """A dashboard's numbers, for the caller"""
         return self._call("GET", "/dashboards/{dashboardId}/figures", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")
 
+    def draft_dashboard_figures(self, dashboard_id: str, body: "DashboardDraft") -> "DashboardFigures":
+        """A dashboard's numbers for a definition not saved yet"""
+        return self._call("POST", "/dashboards/{dashboardId}/figures:draft", {"dashboardId": dashboard_id}, None, {}, body, "json", "application/json", "json")
+
     def read_dashboard_digest(self, dashboard_id: str) -> "DashboardDigest":
         """The caller's digest of a dashboard"""
         return self._call("GET", "/dashboards/{dashboardId}/digest", {"dashboardId": dashboard_id}, None, {}, None, "none", None, "json")

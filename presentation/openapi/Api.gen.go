@@ -17109,6 +17109,13 @@ type DashboardDigestWrite struct {
 // DashboardDigestWriteCadence defines model for DashboardDigestWrite.Cadence.
 type DashboardDigestWriteCadence string
 
+// DashboardDraft defines model for DashboardDraft.
+type DashboardDraft struct {
+	// Filter The filter as it is being edited; every QUERY widget inherits it but for the fields it released.
+	Filter  *string                `json:"filter,omitempty"`
+	Widgets []DashboardWidgetWrite `json:"widgets"`
+}
+
 // DashboardFigures defines model for DashboardFigures.
 type DashboardFigures struct {
 	ComputedAt  time.Time          `json:"computed_at"`
@@ -31781,6 +31788,9 @@ type UpdateDashboardJSONRequestBody = DashboardWrite
 // SetDashboardDigestJSONRequestBody defines body for SetDashboardDigest for application/json ContentType.
 type SetDashboardDigestJSONRequestBody = DashboardDigestWrite
 
+// DraftDashboardFiguresJSONRequestBody defines body for DraftDashboardFigures for application/json ContentType.
+type DraftDashboardFiguresJSONRequestBody = DashboardDraft
+
 // ConfigureLdapDirectoryJSONRequestBody defines body for ConfigureLdapDirectory for application/json ContentType.
 type ConfigureLdapDirectoryJSONRequestBody = LdapDirectoryConfiguration
 
@@ -33940,6 +33950,9 @@ type ServerInterface interface {
 	// ReadDashboardFigures A dashboard's numbers, for the caller
 	// (GET /dashboards/{dashboardId}/figures)
 	ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
+	// DraftDashboardFigures A dashboard's numbers for a definition not saved yet
+	// (POST /dashboards/{dashboardId}/figures:draft)
+	DraftDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId DashboardId)
 	// ReadMyDeadlinesKept How many of the deadlines on my own tickets I kept
 	// (GET /deadlines-kept)
 	ReadMyDeadlinesKept(w http.ResponseWriter, r *http.Request, params ReadMyDeadlinesKeptParams)
@@ -46693,6 +46706,32 @@ func (siw *ServerInterfaceWrapper) ReadDashboardFigures(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadDashboardFigures(w, r, dashboardId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DraftDashboardFigures operation middleware
+func (siw *ServerInterfaceWrapper) DraftDashboardFigures(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "dashboardId" -------------
+	var dashboardId DashboardId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboardId", r.PathValue("dashboardId"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboardId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DraftDashboardFigures(w, r, dashboardId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -64321,6 +64360,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.ReadDashboard)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}", wrapper.UpdateDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/figures", wrapper.ReadDashboardFigures)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/dashboards/{dashboardId}/figures:draft", wrapper.DraftDashboardFigures)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.DeleteDashboardDigest)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.ReadDashboardDigest)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/dashboards/{dashboardId}/digest", wrapper.SetDashboardDigest)

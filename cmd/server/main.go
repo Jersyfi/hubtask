@@ -2676,6 +2676,7 @@ func run() error {
 		goalservice.UpdateDashboard{Steward: steward}.Descriptor(),
 		goalservice.DeleteDashboard{Steward: steward}.Descriptor(),
 		goalservice.ReadDashboardFigures{Steward: steward}.Descriptor(),
+		goalservice.DraftDashboardFigures{Steward: steward}.Descriptor(),
 		goalservice.ReadDashboardDigest{Steward: steward}.Descriptor(),
 		goalservice.SetDashboardDigest{Steward: steward}.Descriptor(),
 		goalservice.DeleteDashboardDigest{Steward: steward}.Descriptor(),

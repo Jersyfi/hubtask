@@ -1329,6 +1329,15 @@ var generatedCommands = []door{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"computed_at", "dashboard_id"}},
+	{Group: "dashboard", Verb: "figures-draft", OperationID: "draftDashboardFigures", Method: "POST", Path: "/dashboards/{dashboardId}/figures:draft", Summary: "A dashboard's numbers for a definition not saved yet",
+		PathParams: []doorParam{
+			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "filter", Kind: "string", Help: "The filter as it is being edited; every QUERY widget inherits it but for the fields it released", Required: false},
+			{Name: "widgets", Kind: "json", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"computed_at", "dashboard_id"}},
 	{Group: "dashboard", Verb: "get", OperationID: "readDashboard", Method: "GET", Path: "/dashboards/{dashboardId}", Summary: "A dashboard",
 		PathParams: []doorParam{
 			{Name: "dashboardId", Kind: "uuid", Help: "A dashboard", Required: true},
