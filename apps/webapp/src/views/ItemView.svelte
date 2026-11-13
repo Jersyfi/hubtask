@@ -1108,7 +1108,7 @@
   );
   /** Jump marks with counts (ET-2). */
   const jumpMarks = $derived([
-    { id: 'entry-description', label: t('app.entry.mark_description') },
+    ...(!isTypeKnown || carries('NOTES') ? [{ id: 'entry-description', label: t('app.entry.mark_description') }] : []),
     ...(takesChildren ? [{ id: 'entry-parts', label: t('app.entry.mark_parts'), count: children.length > 0 ? `${children.filter((child) => child.completion?.is_completed).length}/${children.length}` : undefined }] : []),
     { id: 'entry-links', label: t('app.entry.mark_links') },
     ...(modulesOn.includes('ASSETS') ? [{ id: 'entry-affected', label: t('app.entry.mark_affected') }] : []),
@@ -1249,6 +1249,8 @@
     <div class="entry-main" data-show={mark}>
       <JumpMarks label={t('app.entry.marks', { key: ticketKey ?? item.title })} marks={jumpMarks} bind:current={mark} />
 
+      <!-- An activity carries no notes (`domain-model.md` §2): no description section at all. -->
+      {#if !isTypeKnown || carries('NOTES')}
       <FoldingSection id="entry-description" title={t('app.entry.mark_description')} fold={{ kind: 'lines', lines: 12 }} showAllLabel={t('app.entry.show_more')} showLessLabel={t('app.entry.show_less')} actions={isTypeKnown && carries('NOTES') && isWritable ? notesActions : undefined}>
         {#snippet children()}
         <!-- An activity carries no notes (`domain-model.md` §2), and a field whose every save is
@@ -1282,6 +1284,7 @@
         {/if}
         {/snippet}
       </FoldingSection>
+      {/if}
 
       {#if !isTypeKnown}
         {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={4} /></div>{/if}
