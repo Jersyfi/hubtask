@@ -2,12 +2,13 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import BlockHandle from './BlockHandle.svelte';
+  import BoxPopover from './BoxPopover.svelte';
   import FloatingToolbar from './FloatingToolbar.svelte';
   import IconButton from './IconButton.svelte';
   import type { Box } from './anchor.ts';
 
   interface Props {
-    mode?: 'selection' | 'line';
+    mode?: 'selection' | 'line' | 'panel';
   }
 
   const { mode = 'selection' }: Props = $props();
@@ -38,6 +39,10 @@
     <IconButton icon="link" size="sm" tone="subtle" label="Link" onclick={() => (said = 'Link')} />
     <IconButton icon="message-square" size="sm" tone="subtle" label="Comment" onclick={() => (said = 'Comment')} />
   </FloatingToolbar>
+{:else if mode === 'panel'}
+  <BoxPopover label="Insert" container={page} {box} onclose={() => (said = 'Closed')}>
+    <p>Blocks to insert at the line</p>
+  </BoxPopover>
 {:else}
   <BlockHandle container={page} {box} addLabel="Insert a block below" handleLabel="This line" onadd={() => (said = 'Insert')} items={[{ id: 'up', label: 'Move up', icon: 'arrow-up' }, { id: 'down', label: 'Move down', icon: 'arrow-down' }, { id: 'remove', label: 'Remove', icon: 'trash', isDestructive: true, hasSeparatorBefore: true }]} onselect={(id) => (said = id)} />
 {/if}
