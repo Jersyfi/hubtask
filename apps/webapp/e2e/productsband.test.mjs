@@ -424,6 +424,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     await review.waitFor({ timeout: 10_000 });
     assert.deepEqual(await review.locator('.name').allTextContents(), ['Support rota']);
     assert.equal(await review.getByRole('button', { name: 'Review' }).count(), 1, 'each review has its act');
+    assert.match(await review.innerText(), /since \d+ days/, 'the lozenge says how many days the review has been due');
     // The phone's band is compact: two figures (§7).
     assert.match(await page.locator('[data-product="pages"]').first().innerText(), width > 600 ? /3 pages[\s\S]*in 1 space[\s\S]*1 verified[\s\S]*1 due for your review/ : /3 pages[\s\S]*in 1 space/);
     await page.getByRole('button', { name: "Today's note" }).waitFor();

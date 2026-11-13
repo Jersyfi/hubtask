@@ -23,7 +23,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { attentionAcross, continueReading, isVerified, pagesFigures, verifiedBySpace, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { attentionAcross, continueReading, daysOverdue, isVerified, pagesFigures, verifiedBySpace, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasePath, releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -804,7 +804,7 @@
                 <li>
                   <a class="name" href={`/pages/${each.id}`} title={each.title} onclick={(event) => { event.preventDefault(); onnavigate(`/pages/${each.id}`); }}>{each.icon ? `${each.icon} ` : ''}{each.title}</a>
                   <span class="purpose">{hubName(each.hub_id)}</span>
-                  {#if each.verified_until}<StateLozenge size="sm" tone="warning" icon="clock" label={t('app.product_home.review_since', { when: formatRelative(each.verified_until, messages.locale) })} />{/if}
+                  {#if each.verified_until}<StateLozenge size="sm" tone="warning" icon="clock" label={t('app.product_home.review_since', { count: daysOverdue(each.verified_until, now) })} />{/if}
                   <Button size="sm" tone="secondary" icon="shield" onclick={() => onnavigate(`/pages/${each.id}`)}>{t('app.product_home.review')}</Button>
                 </li>
               {/each}

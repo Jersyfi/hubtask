@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { continueReading, pagesFigures, verifiedBySpace, collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
+import { continueReading, daysOverdue, pagesFigures, verifiedBySpace, collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -330,4 +330,11 @@ test('the pages\' home counts the pages, the spaces, the verified and the reader
   assert.deepEqual(pagesFigures(lists, ['h1', 'h2', 'h3'], now, 1), { pages: 3, spaces: 2, verified: 2, toReview: 1 });
   assert.deepEqual(verifiedBySpace(lists, ['h1', 'h2', 'h3'], now), [{ hubId: 'h1', verified: 1, total: 2 }, { hubId: 'h2', verified: 1, total: 1 }]);
   assert.deepEqual(continueReading(lists, ['h1', 'h2'], ['c', 'gone', 't', 'a', 'b'], 2).map((each) => each.id), ['c', 'a'], 'a page no longer read, or a template, is left out');
+});
+
+test('a review is due since whole days, none on its first day or before', () => {
+  assert.equal(daysOverdue('2026-11-11T09:00:00Z', '2026-11-14T10:00:00Z'), 3);
+  assert.equal(daysOverdue('2026-11-14T09:00:00Z', '2026-11-14T20:00:00Z'), 0);
+  assert.equal(daysOverdue('2026-11-20T09:00:00Z', '2026-11-14T20:00:00Z'), 0);
+  assert.equal(daysOverdue('not a date', '2026-11-14T20:00:00Z'), 0);
 });

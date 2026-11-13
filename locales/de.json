@@ -7340,7 +7340,7 @@
   "app.product_home.pages_continue": "Weiterlesen",
   "app.product_home.pages_review_count": "Dir zur Prüfung fällig · {count}",
   "app.product_home.pages_review_yours": "Du verantwortest diese Seiten",
-  "app.product_home.review_since": "fällig {when}",
+  "app.product_home.review_since": "{count, plural, =0 {heute fällig} one {seit # Tag fällig} other {seit # Tagen fällig}}",
   "app.product_home.review": "Prüfen",
   "app.product_home.spaces_verified": "Bereiche · geprüft",
   "app.product_home.verified_of": "{verified} von {total}",

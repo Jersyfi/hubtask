@@ -312,6 +312,12 @@ export function pagesToReview<P extends PageRow>(lists: Readonly<Record<string, 
 export const isVerified = (page: PageRow, now: string): boolean =>
   !page.due_for_review && typeof page.verified_until === 'string' && page.verified_until > now;
 
+/** How many whole days a page's review has been due (scene phome 4 reads "since 3 days"); 0 on its first day. */
+export function daysOverdue(verifiedUntil: string, now: string): number {
+  const days = Math.floor((Date.parse(now) - Date.parse(verifiedUntil)) / 86_400_000);
+  return Number.isFinite(days) && days > 0 ? days : 0;
+}
+
 /** The pages' home's band (scene phome 1): the space's pages, the spaces, how many verified, the reader's reviews. */
 export function pagesFigures(lists: Readonly<Record<string, readonly PageRow[]>>, hubIds: readonly string[], now: string, toReview: number): {
   readonly pages: number; readonly spaces: number; readonly verified: number; readonly toReview: number;
