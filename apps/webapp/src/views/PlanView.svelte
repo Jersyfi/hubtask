@@ -37,6 +37,8 @@
   } from '@hubtask/design-system/components';
   import type { QueryKey } from '@hubtask/query';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance, WorkItem } from '@hubtask/sync-engine';
+  import { namesPlan, planNames } from '../lib/data/planNames.svelte.ts';
+  import QueryChips from '../lib/entries/QueryChips.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { changeRefusalCode, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
@@ -229,12 +231,26 @@
   const rows = $derived(schedule ? ganttRows(schedule, comparison, (instant) => dateIn(instant, zone)) : []);
   const byId = $derived(new Map(rows.map((row) => [row.id, row])));
 
-  /** Names typed into the line, looked up among the plan's people (ADR-0102). */
+  // The hub's releases and the sprints of the plan's collections, read where the line names one or
+  // the rows are grouped by release.
+  const planned = planNames(() => ({
+    hubId: place?.type === 'HUB' ? planId : (place?.parent_id ?? undefined),
+    collectionIds: place?.type === 'COLLECTION' ? [planId] : containers.collectionsOf(planId).map((each) => each.id),
+    wanted: namesPlan(setup.line),
+  }));
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  /** Names typed into the line, looked up among the plan's people, releases and sprints (ADR-0102). */
   const names: Names = {
-    person: (name) => (rolePath ? people.candidates(rolePath) : []).find((each) => accounts.nameOf(each)?.toLowerCase() === name.toLowerCase()),
+    person: (name) => (rolePath ? people.candidates(rolePath) : []).find((each) => same(accounts.nameOf(each) ?? '', name)),
     label: () => undefined,
-    collection: (name) => containers.collectionsOf(place?.type === 'HUB' ? planId : (place?.parent_id ?? '')).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
-    nameOf: (field, value) => (field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+    collection: (name) => containers.collectionsOf(place?.type === 'HUB' ? planId : (place?.parent_id ?? '')).find((each) => same(each.name, name))?.id,
+    release: planned.release,
+    sprint: planned.sprint,
+    nameOf: (field, value) =>
+      field === 'collection_id' ? containers.find(value)?.name
+        : field === 'release_id' ? planned.releaseName(value)
+          : field === 'sprint_id' ? planned.sprintName(value)
+            : accounts.nameOf(value),
   };
   const lineRead = $derived(setup.line.trim() === '' ? undefined : readQuery(setup.line, names));
   // The entries of the plan as the item read answers them: who works on each, and what the line finds.
@@ -242,6 +258,8 @@
     const read = lineRead;
     const at = planId;
     if (read && !read.ok) return;
+    // A release or sprint named waits for the names to be read, so no name is sent as an id.
+    if (read && !planned.isReady(setup.line)) return;
     return untrack(() => items.openTimeline(at, read?.ok ? read.query : {}));
   });
   const found = $derived(lineRead?.ok && !isEntriesOnly ? new Set(items.onTimeline(planId).map((each) => each.id)) : undefined);
@@ -313,7 +331,10 @@
     const byStart = (a: (typeof kept)[number], b: (typeof kept)[number]) =>
       setup.sortBy === 'finish' ? String(a.due ?? '').localeCompare(String(b.due ?? '')) : String(a.start ?? '').localeCompare(String(b.start ?? ''));
     if (setup.groupBy === 'outline') return setup.sortBy === 'manual' ? kept : kept;
-    const keyOf = (row: (typeof kept)[number]) => setup.groupBy === 'collection' ? (containers.find(row.entry.collection_id)?.name ?? '') : setup.groupBy === 'assignee' ? (accounts.nameOf(assigneeOf.get(row.id) ?? '') ?? '~') : '';
+    const keyOf = (row: (typeof kept)[number]) =>
+      setup.groupBy === 'collection' ? (containers.find(row.entry.collection_id)?.name ?? '')
+        : setup.groupBy === 'assignee' ? (accounts.nameOf(assigneeOf.get(row.id) ?? '') ?? '~')
+            : '';
     return kept
       .filter((row) => row.kind !== 'summary')
       .map((row) => ({ ...row, depth: 0 }))
@@ -999,6 +1020,7 @@
         <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open data-opener="view" onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
       </div>
       <div class="controls second" role="group" aria-label={t('app.planning.chart_options')}>
+        {@render queryLine()}
         {#if isGantt}
           <Button size="sm" tone="secondary" icon="zap" aria-pressed={setup.bars.critical} data-critical-switch onclick={() => (setup = { ...setup, bars: { ...setup.bars, critical: !setup.bars.critical } })}>{t('app.planning.critical_path')}</Button>
           {#if kept.length > 0}
@@ -1021,7 +1043,6 @@
           {/if}
         {:else}
           <Button size="sm" tone="subtle" icon="layout-grid" onclick={() => (isPanelOpen = true)}>{t('app.planning.group_named', { name: t(`app.planview.group_${setup.groupBy}`) })}</Button>
-          <Button size="sm" tone="subtle" icon="funnel" onclick={() => (isPanelOpen = true)}>{t('app.planning.filter')}</Button>
           <span class="quiet legend">{t('app.planning.legend_timeline')}</span>
           {#if undated.length > 0}
             <Button size="sm" tone="secondary" icon="calendar" data-undated-open onclick={() => (isUndatedOpen = true)}>{t('app.planning.undated_button', { count: String(undated.length) })}</Button>
@@ -1032,7 +1053,7 @@
     </div>
   {:else if part === 'table'}
     <div class="controls" data-fill>
-      <Button size="sm" tone="secondary" icon="funnel" onclick={() => (isPanelOpen = true)}>{setup.line.trim() ? setup.line : t('app.planning.filter')}</Button>
+      {@render queryLine()}
       {#if kept.length > 0}
         <Select label={t('app.planning.baseline')} isLabelHidden size="sm" value={baselineId}
           options={[{ value: '', label: t('app.planning.baseline_none') }, ...kept.map((each) => ({ value: each.id, label: t('app.planning.baseline_named', { name: each.name }) }))]}
@@ -1049,6 +1070,14 @@
       {@render addOpener(true)}
     </div>
   {/if}
+{/snippet}
+
+<!-- What is seen, as the chips a collection draws over its list, and *Filter* to the panel (§6.11). -->
+{#snippet queryLine()}
+  <div class="query-line" data-plan-query>
+    <QueryChips line={setup.line} {names} onchange={(next) => (setup = { ...setup, line: next })} />
+    <Button size="sm" tone={setup.line.trim() ? 'primary' : 'subtle'} icon="funnel" data-opener="view" aria-expanded={isPanelOpen} onclick={() => (isPanelOpen = true)}>{t('app.planning.filter')}</Button>
+  </div>
 {/snippet}
 
 {#snippet outlineCell(id: string, column: string)}
@@ -1344,6 +1373,7 @@
   .bars { display: flex; flex-direction: column; gap: var(--sp-150); inline-size: 100%; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); }
   .grow-bar { flex: 1; }
+  .query-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; }
   /* The tab's only line: its last acts stand at the end, as the head's do. */
   .controls[data-fill] { flex: 1 1 auto; }
   .legend { margin-inline-start: auto; }

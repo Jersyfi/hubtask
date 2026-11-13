@@ -56,7 +56,7 @@ const SCHEDULE = {
 const BASELINE = { id: '01a0e2e0-0000-7000-8000-0000000f1b01', plan_id: COLLECTION.id, name: 'Agreed 1 Oct', taken_at: '2026-10-01T09:00:00Z', taken_by: null, entry_count: 3 };
 
 /** The collection's plan, with every write recorded and answered with what it makes. */
-async function plan(browser, width = 1280, schedule = SCHEDULE) {
+async function plan(browser, width = 1280, schedule = SCHEDULE, { extra = () => undefined, at = `/collections/${COLLECTION.id}/plan` } = {}) {
   const written = [];
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
   await context.unroute('**/api/v1/**');
@@ -70,6 +70,8 @@ async function plan(browser, width = 1280, schedule = SCHEDULE) {
     const method = request.method();
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
+    const answer = extra(path, method);
+    if (answer !== undefined) return route.fulfill({ json: answer });
     if (path === `/plans/${COLLECTION.id}/schedule`) return route.fulfill({ json: schedule });
     if (path === `/plans/${COLLECTION.id}/baselines`) return route.fulfill({ json: { data: [BASELINE] } });
     if (path === `/baselines/${BASELINE.id}` && method === 'DELETE') return route.fulfill({ status: 204 });
@@ -101,7 +103,7 @@ async function plan(browser, width = 1280, schedule = SCHEDULE) {
     if (scheduling && method === 'PUT') return route.fulfill({ json: { item_id: scheduling[1], mode: 'AUTOMATIC', milestone: false, ...body } });
     return stub(route);
   });
-  await page.goto(`${served.origin}/collections/${COLLECTION.id}/plan`);
+  await page.goto(`${served.origin}${at}`);
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
   await page.getByRole('group', { name: 'Zoom' }).getByRole('button', { name: 'Days' }).click();
   await page.waitForTimeout(200);
@@ -476,4 +478,43 @@ test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is 
   await narrow.page.locator('dialog[open] [data-plan-view-panel]').waitFor({ timeout: 5_000 });
   assert.equal(await narrow.page.locator('[data-view-side]').count(), 0, 'a drawer was wanted at 800 px');
   assert.deepEqual(narrow.failures, []);
+});
+
+// §6.11 Q-2, ADR-0102 (scene planview): a view saved with a release's id shows the release's name
+// on its chip over the chart and sends the id.
+test('chromium: 1280 px — the plan\'s query line says the release by name over the chart', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const SPRING = '01a0e2e0-0000-7000-8000-0000000f1d01';
+  const VIEW = '01a0e2e0-0000-7000-8000-0000000f1d02';
+  const released = { ...SCHEDULE, entries: SCHEDULE.entries.map((each) => (each.item_id === THIRD.id ? { ...each, release_id: SPRING } : { ...each, release_id: null })) };
+  const view = {
+    id: VIEW, name: 'Spring work', layout: 'TIMELINE', version: 1, scope_type: 'COLLECTION', scope_id: COLLECTION.id, sharing: 'PRIVATE', visible_fields: ['start', 'finish', 'duration', 'assignee'],
+    query: { filter: { field: 'release_id', op: 'EQ', value: SPRING }, line: `plan.release: ${SPRING}` },
+    grouping: { plan: { presentation: 'gantt' } },
+  };
+  const { page, failures, written, close, unstubbed } = await plan(browser, 1280, released, {
+    at: `/collections/${COLLECTION.id}/timeline?view=${VIEW}`,
+    extra: (path, method) => {
+      if (path === `/hubs/${COLLECTION.parent_id}/releases`) return { data: [{ id: SPRING, hub_id: COLLECTION.parent_id, name: 'Spring', description: '', release_on: addDays(today, 20), state: 'PLANNED', version: 1, done_count: 0, open_count: 1 }] };
+      if (path === '/views' && method === 'GET') return [view];
+      return undefined;
+    },
+  });
+  t.after(close);
+
+  const chips = page.locator('[data-plan-query] [data-query-chips]');
+  await chips.getByText('plan.release: Spring', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.doesNotMatch(await page.locator('[data-plan-query]').textContent(), new RegExp(SPRING, 'u'), 'a chip shows the release\'s id');
+  const asked = written.filter((each) => each.path === '/items:query').map((each) => JSON.stringify(each.body));
+  assert.ok(asked.some((body) => body.includes(SPRING)), `the read did not send the release's id: ${asked.join(' | ')}`);
+  // *Filter* opens the panel.
+  await page.locator('[data-plan-query]').getByRole('button', { name: 'Filter' }).click();
+  await page.locator('[data-plan-view-panel]').waitFor({ timeout: 5_000 });
+  // Taking the chip away takes the condition out of the line.
+  await chips.getByRole('button', { name: 'Remove plan.release: Spring' }).click();
+  assert.equal(await page.locator('[data-plan-query] [data-query-chips]').count(), 0);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
 });
