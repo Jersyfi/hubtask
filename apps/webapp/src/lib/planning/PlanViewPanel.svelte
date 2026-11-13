@@ -35,10 +35,12 @@
     failure?: string;
     onsave: (name: string, scope: string, sharing: 'PRIVATE' | 'SCOPE') => void;
     onoverwrite?: () => void;
+    /** Whether the Gantt can be chosen: only where the planning module is on (E-16). */
+    hasGantt?: boolean;
   }
   let {
     isOpen = $bindable(false), setup = $bindable(), base, baseName, changed, keys, baselines, views, viewId, onview,
-    scopes, mayShare, overwritable, isSaving = false, failure, onsave, onoverwrite,
+    scopes, mayShare, overwritable, isSaving = false, failure, onsave, onoverwrite, hasGantt = true,
   }: Props = $props();
 
   const catalogue = $derived(createCatalogue(keys, wording, undefined));
@@ -100,6 +102,7 @@
     {#if views.length > 1}
       <Select label={t('app.planview.saved')} size="sm" value={viewId} options={views} onchange={(event: Event) => onview((event.currentTarget as HTMLSelectElement).value)} />
     {/if}
+    {#if hasGantt}
     <section aria-labelledby="planview-presentation">
       <h3 id="planview-presentation">{t('app.planning.presentation')}</h3>
       <div class="segments" role="group" aria-label={t('app.planning.presentation')}>
@@ -109,6 +112,7 @@
       </div>
       <p class="quiet">{t('app.planview.presentation_hint')}</p>
     </section>
+    {/if}
 
     <section aria-labelledby="planview-query">
       <div class="heading"><h3 id="planview-query">{t('app.viewcfg.query')}</h3><span class="quiet">{t('app.viewcfg.query_language')}</span></div>
@@ -150,6 +154,7 @@
       {/each}
     </section>
 
+    {#if hasGantt}
     <section aria-labelledby="planview-compare">
       <h3 id="planview-compare">{t('app.planview.compare')}</h3>
       <Select label={t('app.planview.compare')} isLabelHidden size="sm" value={setup.baselineId} options={[{ value: '', label: t('app.planning.baseline_none') }, ...baselines]}
@@ -169,6 +174,8 @@
         {/each}
       </ul>
     </section>
+
+    {/if}
 
     <section class="save" data-changed={changed > 0 ? '' : undefined} aria-labelledby="planview-save">
       <div class="heading">

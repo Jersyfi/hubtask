@@ -44,7 +44,6 @@
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
-  import TimelineView from '../lib/entries/TimelineView.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
   import ViewPanel from '../lib/entries/ViewPanel.svelte';
@@ -153,16 +152,11 @@
     layoutAsked?: string;
     /** A saved view the address opens (`?view=`), a view of the bar too. */
     viewAsked?: string;
-    /**
-     * Drawn at the collection's *Timeline* address (`CollectionTimeline`): the timeline is no
-     * layout of the collection's own screen (§6.3, E-16), so only this address draws it.
-     */
-    isTimeline?: boolean;
     onnavigate: (path: string) => void;
     onreplace?: (path: string) => void;
   }
 
-  const { id: idAsked, openItemId, layoutAsked, viewAsked, isTimeline = false, onnavigate, onreplace = onnavigate }: Props = $props();
+  const { id: idAsked, openItemId, layoutAsked, viewAsked, onnavigate, onreplace = onnavigate }: Props = $props();
   // The id as a derived value: `LazyView` spreads a new props object on every change of address,
   // and an effect reading the prop itself would re-run on a `?layout=` or `?item=` - its cleanup
   // emptying the selection the screen keeps across its views (design-system.md §11.9).
@@ -172,7 +166,7 @@
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
 
   /** The address the pane opens over: the collection's, or its *Timeline*'s. */
-  const screenPath = $derived(isTimeline ? `/collections/${id}/timeline` : `/collections/${id}`);
+  const screenPath = $derived(`/collections/${id}`);
   function openBeside(itemId: string) {
     onnavigate(`${screenPath}?item=${encodeURIComponent(itemId)}`);
   }
@@ -294,7 +288,7 @@
     (offeredLayouts.length === 0
       ? DRAWABLE
       : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))))
-      .filter((each) => isTimeline === (each === 'TIMELINE')),
+      .filter((each) => each !== 'TIMELINE'),
   );
 
   /** What the collection offers and opens with, as one key, so a re-read that changes neither leaves the layout alone. */
@@ -310,10 +304,6 @@
       choosable: string[];
     };
     untrack(() => {
-      if (isTimeline) {
-        layout = 'TIMELINE';
-        return;
-      }
       layout = openingLayout({
         store: deviceStore(),
         accountId: account,
@@ -329,7 +319,7 @@
   const timelinePath = (viewId: string | undefined) => `/collections/${idAsked}/timeline${viewId ? `?view=${encodeURIComponent(viewId)}` : ''}`;
   // `?layout=timeline` of old links and bookmarks: the timeline's own address now.
   $effect(() => {
-    if (!isTimeline && layoutAsked === 'timeline') untrack(() => onreplace(timelinePath(viewAsked)));
+    if (layoutAsked === 'timeline') untrack(() => onreplace(timelinePath(viewAsked)));
   });
 
   // A view of the bar the address names wins over the remembered layout, once what may be chosen is read.
@@ -366,13 +356,8 @@
     // The timeline is its own address, and the list and the board are the collection's (§6.3).
     // A saved view opening in the other one replaces the address, so *Back* does not bounce.
     const go = isOpening ? onreplace : onnavigate;
-    if (!isTimeline && chosen === 'TIMELINE') {
+    if (chosen === 'TIMELINE') {
       go(timelinePath(viewAsked));
-      return;
-    }
-    if (isTimeline && chosen !== 'TIMELINE') {
-      if (isListLayout(chosen)) rememberLayout(deviceStore(), actor.account?.id, id, chosen);
-      go(`/collections/${idAsked}?${isOpening && viewAsked ? `view=${encodeURIComponent(viewAsked)}` : `layout=${viewOfLayout(chosen)}`}`);
       return;
     }
     layout = chosen;
@@ -1635,18 +1620,6 @@
         <div class="entries">
           {#if layout === 'CALENDAR'}
             <CalendarView collectionId={container.id} {query} dateField={dateField} onopen={(itemId) => (opensBeside ? openBeside(itemId) : onnavigate(`/items/${itemId}`))} />
-          {:else if layout === 'TIMELINE'}
-            <TimelineView
-              collectionId={container.id}
-              {query}
-              {isReadOnly}
-              changeRefusal={changeRefusalOf}
-              onopen={(itemId) => (opensBeside ? openBeside(itemId) : onnavigate(`/items/${itemId}`))}
-              currentId={openItemId}
-              {onnavigate}
-              mayCreate={mayCreateHere}
-              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
-            />
           {:else if layout === 'KANBAN'}
             <Board
               collectionId={container.id}

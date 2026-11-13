@@ -32,22 +32,27 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, DataTable, Dialog, Icon, IconButton, StateLozenge, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, VisuallyHidden, WorkPage,
+    Banner, Button, Checkbox, DataTable, DetailPane, Dialog, Icon, IconButton, StateLozenge, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, VisuallyHidden, WorkPage,
     type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineColumn, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
   import type { QueryKey } from '@hubtask/query';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
-  import { dueInputFor, shift, type Window } from '../lib/data/due.ts';
+  import { addDays, dueInputFor, shift, type Window } from '../lib/data/due.ts';
+  import { archivalOf } from '../lib/data/containers.ts';
+  import { dependenciesAmong } from '../lib/data/links.ts';
+  import { linksAmong } from '../lib/data/links.svelte.ts';
+  import { device } from '../lib/device.svelte.ts';
+  import ItemView from './ItemView.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
     PLAN_CSV_HEADS, baselinesPath, dependencyDrawn, fitWindow, ganttRows, lagOf, planCsvRows, planRolePath, planXlsxOf, planning, proposedMoves, schedulePath, tolerancePath,
   } from '../lib/data/planning.svelte.ts';
-  import { anchorOf, draggedTo, gridOf, lineAtOrBefore, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
+  import { anchorOf, draggedTo, gridOf, lineAtOrBefore, placedBetween, scaleOf, windowOf, type Scale } from '../lib/data/schedule.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -74,7 +79,7 @@
   import { VIEW_SCOPES, queryDocumentOf, scopeIdOf, type ViewScope } from '../lib/data/views.ts';
   import { readQuery, type Names } from '../lib/data/viewquery.ts';
   import {
-    headParts, isPlanView, keptRows, planChanges, planGroupingOf, planSetupOf, planViewDefault, slackEnd, tonesOf, type PlanViewSetup,
+    headParts, isPlanView, keptRows, scheduleOfEntries, planChanges, planGroupingOf, planSetupOf, planViewDefault, slackEnd, tonesOf, type PlanViewSetup,
   } from '../lib/data/planview.ts';
 
   interface Props {
@@ -82,10 +87,19 @@
     planId: string;
     /** The hub tool's tab the address names; a collection's *Timeline* shows all three. */
     part?: 'schedule' | 'table' | 'dependencies';
+    /**
+     * A collection without the planning module (E-16): the light timeline from the entries' own
+     * dates, written as the entries' own; no Gantt, table, baseline or proposal, which need the module.
+     */
+    isEntriesOnly?: boolean;
+    /** The entry open beside a collection's timeline (`?item=`), from `large` up. */
+    openItemId?: string;
+    /** A saved view of the timeline the address names (`?view=`). */
+    viewAsked?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { planId, part = 'schedule', onnavigate }: Props = $props();
+  const { planId, part = 'schedule', isEntriesOnly = false, openItemId, viewAsked, onnavigate }: Props = $props();
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
@@ -100,6 +114,8 @@
     if (path) untrack(() => people.open(path));
   });
 
+  /** An archived collection's entries move nowhere, whatever the role (I-C3). */
+  const isArchived = $derived(place ? archivalOf(place) !== 'active' : false);
   const mayWrite = $derived(holds((rolePath && people.roleOf(rolePath, actor.account?.id, roleOrder())) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
 
   let schedule = $state<PlanSchedule | undefined>(undefined);
@@ -114,6 +130,7 @@
   $effect(() => {
     const path = schedulePath(planId, zone);
     const listed = baselinesPath(planId);
+    if (isEntriesOnly) return;
     return untrack(() => {
       const stops = [
         engine.subscribe<PlanSchedule>({ path }, (next) => {
@@ -137,6 +154,7 @@
   let tolerance = $state<PlanTolerance | undefined>(undefined);
   $effect(() => {
     const path = tolerancePath(planId, zone);
+    if (isEntriesOnly) return;
     return untrack(() => engine.subscribe<PlanTolerance>({ path }, (next) => { if (next.status === 'ready') tolerance = next.data; }));
   });
   const mayShape = $derived(holds((rolePath && people.roleOf(rolePath, actor.account?.id, roleOrder())) ?? undefined, 'STRUCTURE').status === 'permitted');
@@ -160,6 +178,13 @@
   let base = $state<PlanViewSetup>(planViewDefault());
   let setup = $state<PlanViewSetup>(planViewDefault());
   let isPanelOpen = $state(false);
+  // Without the module the plan opens on the light timeline, which is all it can draw.
+  $effect(() => {
+    if (isEntriesOnly && setup.presentation !== 'timeline') untrack(() => {
+      base = { ...base, presentation: 'timeline' };
+      setup = { ...setup, presentation: 'timeline' };
+    });
+  });
   const changed = $derived(planChanges(setup, base));
   const isGantt = $derived(setup.presentation === 'gantt');
   $effect(() => {
@@ -167,6 +192,11 @@
     return untrack(() => savedViews.open(at));
   });
   const planViews = $derived(savedViews.of(planId).filter(isPlanView));
+  // The view the address names opens once the plan's views are read.
+  $effect(() => {
+    const asked = viewAsked;
+    if (asked && asked !== viewId && planViews.some((each) => each.id === asked)) untrack(() => openView(asked));
+  });
   function openView(id: string) {
     const view = planViews.find((each) => each.id === id);
     viewId = view?.id ?? '';
@@ -209,8 +239,28 @@
     if (read && !read.ok) return;
     return untrack(() => items.openTimeline(at, read?.ok ? read.query : {}));
   });
-  const found = $derived(lineRead?.ok ? new Set(items.onTimeline(planId).map((each) => each.id)) : undefined);
+  const found = $derived(lineRead?.ok && !isEntriesOnly ? new Set(items.onTimeline(planId).map((each) => each.id)) : undefined);
+  // Without the module the entries read are the plan: their own dates, the dependencies among them.
+  const read = $derived(isEntriesOnly ? items.onTimeline(planId) : []);
+  const readIds = $derived(read.map((each) => each.id));
+  const among = linksAmong(() => readIds);
+  const entryDependencies = $derived(isEntriesOnly
+    ? dependenciesAmong(among.links, read.map((each) => ({
+        id: each.id, start: each.start_at ? dateIn(each.start_at, zone) : undefined, due: each.due_at ? dateIn(each.due_at, zone) : undefined,
+      })))
+    : []);
+  $effect(() => {
+    if (!isEntriesOnly) return;
+    const reading = items.stateOf(`timeline:${planId}`);
+    if (reading?.status === 'failed') refusal = renderProblem(reading.error, messages).message;
+    if (reading?.status !== 'ready' && read.length === 0) return;
+    schedule = scheduleOfEntries(read, entryDependencies, (instant) => dateIn(instant, zone), zone) as unknown as PlanSchedule;
+  });
   const assigneeOf = $derived(new Map(items.onTimeline(planId).map((each) => [each.id, each.assignee_id ?? undefined])));
+  /** Whether the reader may move this entry: a contributor moves only their own (P-05). */
+  const myRole = $derived((rolePath && people.roleOf(rolePath, actor.account?.id, roleOrder())) ?? undefined);
+  const mayChange = (id: string) =>
+    mayWrite && !isArchived && changeRefusalCode(myRole, assigneeOf.get(id) !== undefined && assigneeOf.get(id) === actor.account?.id) === undefined;
   $effect(() => {
     const ids = [...assigneeOf.values()];
     untrack(() => accounts.resolve(ids));
@@ -260,7 +310,9 @@
   let showsProposals = $state(true);
   /** The table's *review one by one*: the column of moves to choose appears. */
   let isReviewing = $state(false);
-  const broken = $derived(new Set((schedule?.conflicts ?? []).map((each) => `${each.predecessor_id}>${each.successor_id}`)));
+  const broken = $derived(new Set(isEntriesOnly
+    ? entryDependencies.filter((each) => each.isEarly).map((each) => `${each.waitedFor}>${each.waiting}`)
+    : (schedule?.conflicts ?? []).map((each) => `${each.predecessor_id}>${each.successor_id}`)));
 
   // A due date alone is drawn as a point, so a bar carried moves the due and invents no start.
   // The entries with no dates follow, which the chart trays with *Give it dates*.
@@ -276,13 +328,13 @@
       isCritical: isGantt && setup.bars.critical && row.isCritical,
       depth: row.depth,
       baseline: isGantt ? row.baseline : undefined,
-      isLocked: !mayWrite || row.entry.external || row.entry.summary || row.entry.done,
+      isLocked: !mayChange(row.id) || row.entry.external || row.entry.summary || row.entry.done,
       isDone: setup.bars.progress && row.entry.done,
       slack: isGantt && setup.bars.slack && !row.isCritical && !row.entry.done && row.kind === undefined ? slackEnd(row.due, row.entry.total_float_days) : undefined,
       note: noteOf(row),
       tone: toneOf(row),
     })),
-    ...undated.map((each) => ({ id: each.item_id, title: each.title, isLocked: true })),
+    ...undated.map((each) => ({ id: each.item_id, title: each.title, isLocked: !mayChange(each.item_id) })),
   ]);
   const criticalCount = $derived(rows.filter((row) => row.isCritical).length);
 
@@ -356,14 +408,53 @@
 
   /** A bar dragged: its new dates written as the entry's own, then the plan read again. */
   function carried(carry: TimelineCarry) {
+    if (!mayChange(carry.id)) return;
     const row = byId.get(carry.id);
-    if (!row || !mayWrite || carry.grab === 'place') return;
-    const was = row.entry.due_only ? undefined : row.start;
-    const next = draggedTo({ start: was, due: row.due }, carry.grab, carry.to - carry.from);
+    const title = row?.title ?? titleOfUndated(carry.id);
+    // A tray entry carried onto the axis is given its first dates where it was let go.
+    if (!row && !undatedIds.has(carry.id)) return;
+    const was = !row || row.entry.due_only ? undefined : row.start;
+    const next = carry.grab === 'place' || !row
+      ? placedBetween(addDays(current.from, carry.from), addDays(current.from, carry.to))
+      : draggedTo({ start: was, due: row.due }, carry.grab, carry.to - carry.from);
     const start = next.start !== was && next.start ? (instantOf(next.start, undefined, zone) ?? undefined) : undefined;
-    const due = next.due !== row.due && next.due ? dueInputFor({ date: next.due }, zone) : undefined;
+    const due = next.due !== row?.due && next.due ? dueInputFor({ date: next.due }, zone) : undefined;
     if (start === undefined && due === undefined) return;
-    void act(() => planning.moveEntry(planId, zone, row.id, start, due), t('app.timeline.placed_announced', { title: row.title }));
+    void act(
+      () => isEntriesOnly ? writeDates(carry.id, start, due) : planning.moveEntry(planId, zone, carry.id, start, due),
+      t('app.timeline.placed_announced', { title }),
+    );
+  }
+
+  /** Without the module a bar's dates are written as the entry's own, as its screen writes them. */
+  async function writeDates(id: string, start: string | undefined, due: ReturnType<typeof dueInputFor> | undefined) {
+    const entry = read.find((each) => each.id === id);
+    if (!entry) return;
+    let version = entry.version;
+    if (start !== undefined) version = (await items.update(id, { start_at: start }, version)).version;
+    if (due) await items.setDue(id, due, version);
+  }
+
+  /** From `large` an entry opens beside a collection's timeline, else as its page (§11.8). */
+  const opensBeside = $derived(place?.type === 'COLLECTION' && viewport.isLarge && device.openMode === 'panel');
+  const timelinePath = $derived(`/collections/${planId}/timeline`);
+  function openEntry(id: string) {
+    onnavigate(opensBeside ? `${timelinePath}?item=${encodeURIComponent(id)}` : `/items/${id}`);
+  }
+  const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
+  const panelBounds = $derived.by(() => {
+    void viewport.isLarge;
+    const root = getComputedStyle(document.documentElement);
+    const width = (token: string) => Number.parseFloat(root.getPropertyValue(token)) || 0;
+    return { min: width('--layout-panel-min'), reset: width('--layout-panel-width'), max: Math.round(window.innerWidth * 0.7) };
+  });
+  function closePane() {
+    const rowId = openItemId;
+    onnavigate(timelinePath);
+    queueMicrotask(() => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      document.querySelector<HTMLElement>(`[data-row="${rowId}"] button`)?.focus();
+    });
   }
 
   /** A dependency drawn from one bar onto another row. */
@@ -554,8 +645,8 @@
   // A hub shows the tab its address names; a collection's *Timeline* is one view, all three in it.
   const isHub = $derived(place?.type === 'HUB');
   const showsChart = $derived(!isHub || part === 'schedule');
-  const showsTable = $derived(!isHub || part === 'table');
-  const showsDependencies = $derived(!isHub || part === 'dependencies');
+  const showsTable = $derived(isEntriesOnly ? false : !isHub || part === 'table');
+  const showsDependencies = $derived(isEntriesOnly ? false : !isHub || part === 'dependencies');
   // On a phone the fold is a sheet (§5.1): a tray inside a chart that scrolls sideways is not reached.
   const chartRows = $derived(viewport.isCompact ? timelineRows.filter((row) => !undatedIds.has(row.id)) : timelineRows);
   const undatedSaid = $derived(t('app.planning.figure_undated', { count: String(undated.length) }));
@@ -563,17 +654,17 @@
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
   const headSecondary = $derived<readonly [] | readonly [PageAction]>(
-    mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
+    mayWrite && !isEntriesOnly && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
   );
   const headMenu = $derived({
     label: t('app.planning.more'),
     items: [
-      { id: 'settings', label: t('app.planning.settings'), icon: 'settings' as const },
-      { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: true },
+      ...(isEntriesOnly ? [] : [{ id: 'settings', label: t('app.planning.settings'), icon: 'settings' as const }]),
+      { id: 'csv', label: t('app.planning.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: !isEntriesOnly },
       { id: 'xlsx', label: t('app.planning.export_xlsx'), icon: 'file-text' as const },
       { id: 'png', label: t('app.planning.export_png'), icon: 'image' as const },
       { id: 'pdf', label: t('app.planning.export_pdf'), icon: 'file-text' as const },
-      ...(mayWrite && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
+      ...(mayWrite && !isEntriesOnly && place?.type === 'COLLECTION' ? [{ id: 'import', label: t('app.planning.import'), icon: 'cloud-upload' as const, hasSeparatorBefore: true }] : []),
     ],
     onselect: (id: string) => void exportAs(id),
   });
@@ -710,6 +801,8 @@
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
     {#if showsChart}
+      <!-- design-system-lint-ignore: the pane's width is the person's drag, kept by the device. -->
+      <div class="split" data-pane={openItemId ? '' : undefined} style:--panel-width={device.panelWidth ? `${device.panelWidth}px` : undefined}>
       <div class="window" data-plan-view="schedule">
         <Timeline
           label={t('app.planning.chart')}
@@ -728,11 +821,12 @@
           emptyLabel={t('app.planning.empty')}
           startHandleLabel={t('app.timeline.move_start')}
           dueHandleLabel={t('app.timeline.move_due')}
-          onSelect={(id) => onnavigate(`/items/${id}`)}
+          onSelect={openEntry}
+          currentId={openItemId}
           onCarry={carried}
           dependencies={setup.bars.dependencies ? dependencies : dependencies.filter((each) => each.isEarly)}
           dependenciesLabel={t('app.timeline.dependencies')}
-          onLink={mayWrite ? linked : undefined}
+          onLink={mayWrite && !isEntriesOnly ? linked : undefined}
           linkHandleLabel={t('app.planning.draw_dependency')}
           criticalLabel={t('app.planning.critical_named')}
           resizeLabel={t('app.planning.resize_titles')}
@@ -741,6 +835,21 @@
           rowAction={undated.length > 0 ? giveDates : undefined}
         />
 
+      </div>
+      {#if openItemId}
+        {#key openItemId}
+          <DetailPane
+            title={openItem?.title ?? ''}
+            trail={place ? [place.name] : []}
+            dismissLabel={t('app.pane.close')}
+            view={{ label: t('app.pane.view'), panelLabel: t('app.pane.view_panel'), pageLabel: t('app.pane.view_page'), onpage: () => { device.setOpenMode('whole'); onnavigate(`/items/${openItemId}`); } }}
+            onClose={closePane}
+            resize={{ label: t('app.pane.width'), value: device.panelWidth ?? panelBounds.reset, min: panelBounds.min, max: panelBounds.max, reset: panelBounds.reset, onresize: (width) => device.setPanelWidth(width) }}
+          >
+            <ItemView id={openItemId} {onnavigate} isInPane />
+          </DetailPane>
+        {/key}
+      {/if}
       </div>
     {/if}
     {#if showsTable}
@@ -784,7 +893,7 @@
   {#if showsChart}
     <div class="bars">
       <div class="controls" role="group" aria-label={t('app.planning.chart')}>
-        {#if isHub || place?.type === 'COLLECTION'}
+        {#if !isEntriesOnly}
           <div class="segments" role="group" aria-label={t('app.planning.presentation')}>
             {#each ['timeline', 'gantt'] as const as each (each)}
               <button type="button" aria-pressed={setup.presentation === each} data-plan-presentation={each} onclick={() => (setup = { ...setup, presentation: each })}>
@@ -872,7 +981,7 @@
 
 {#snippet giveDates(id: string)}
   {#if undatedIds.has(id) && mayWrite}
-    <Button size="sm" tone="subtle" aria-label={t('app.planning.give_dates_of', { title: titleOfUndated(id) })} onclick={() => onnavigate(`/items/${id}`)}>
+    <Button size="sm" tone="subtle" aria-label={t('app.planning.give_dates_of', { title: titleOfUndated(id) })} onclick={() => openEntry(id)}>
       {t('app.planning.give_dates')}
     </Button>
   {/if}
@@ -1114,6 +1223,7 @@
   bind:isOpen={isPanelOpen}
   bind:setup
   {base}
+  hasGantt={!isEntriesOnly}
   baseName={currentView?.name ?? t('app.planview.default_name')}
   {changed}
   keys={queryKeys}
@@ -1147,7 +1257,8 @@
   .band-mark { color: var(--text-secondary); }
   .baseline { display: flex; align-items: center; gap: var(--sp-100); }
   .grow { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; }
-  .window { min-width: 0; }
+  .window { flex: 1; min-width: 0; }
+  .split { display: flex; align-items: flex-start; gap: var(--sp-300); min-width: 0; }
   .block { display: flex; flex-direction: column; gap: var(--sp-250); min-width: 0; }
   .fields { display: grid; gap: var(--sp-150); }
   .timing { display: grid; gap: var(--sp-150); padding: var(--sp-150); min-inline-size: var(--layout-field-sm); }

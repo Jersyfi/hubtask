@@ -182,3 +182,77 @@ export function tonesOf(values: readonly (string | undefined)[]): ReadonlyMap<st
   for (const value of values) if (value && !tones.has(value)) tones.set(value, (tones.size % 7) + 1);
   return tones;
 }
+
+/** An entry as the item read answers it, as far as a timeline without the planning module reads it. */
+export interface DatedEntry {
+  readonly id: string;
+  readonly title: string;
+  readonly collection_id: string;
+  readonly parent_id?: string | null;
+  readonly start_at?: string | null;
+  readonly due_at?: string | null;
+  readonly completion?: { readonly is_completed?: boolean } | null;
+}
+
+/** A dependency among the entries shown: the one waited for and the one waiting. */
+export interface EntryDependency {
+  readonly id: string;
+  readonly waitedFor: string;
+  readonly waiting: string;
+  readonly isEarly: boolean;
+}
+
+/**
+ * A collection's plan where the planning module is off (E-16): the light timeline drawn from the
+ * entries' own dates - start, due, nothing scheduled. Shaped as the server's schedule, so one
+ * presentation draws both; nothing is proposed, floated, critical or judged a conflict - an early
+ * dependency is marked on its arrow by the caller, as the entries' own dates show it.
+ */
+export function scheduleOfEntries(
+  entries: readonly DatedEntry[],
+  dependencies: readonly EntryDependency[],
+  dayOf: (instant: string) => string | undefined,
+  zone: string,
+) {
+  const ids = new Set(entries.map((entry) => entry.id));
+  const parents = new Set(entries.map((entry) => entry.parent_id).filter((id): id is string => typeof id === 'string' && ids.has(id)));
+  const dated: {
+    item_id: string; title: string; parent_id: string | null; collection_id: string; start: string; finish: string;
+    duration_days: number; moved: boolean; total_float_days: number; free_float_days: number; critical: boolean;
+    summary: boolean; external: boolean; mode: 'MANUAL'; milestone: boolean; done: boolean; due_only: boolean;
+  }[] = [];
+  const undated: { item_id: string; title: string }[] = [];
+  let finish: string | undefined;
+  for (const entry of entries) {
+    const due = entry.due_at ? dayOf(entry.due_at) : undefined;
+    const start = entry.start_at ? dayOf(entry.start_at) : undefined;
+    const last = due ?? start;
+    if (!last) {
+      undated.push({ item_id: entry.id, title: entry.title });
+      continue;
+    }
+    const first = start ?? last;
+    if (!finish || last > finish) finish = last;
+    dated.push({
+      item_id: entry.id, title: entry.title, parent_id: entry.parent_id && ids.has(entry.parent_id) ? entry.parent_id : null,
+      collection_id: entry.collection_id, start: first, finish: last,
+      duration_days: Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 86_400_000) + 1,
+      moved: false, total_float_days: 0, free_float_days: 0, critical: false, summary: parents.has(entry.id), external: false,
+      mode: 'MANUAL', milestone: false, done: entry.completion?.is_completed === true, due_only: start === undefined,
+    });
+  }
+  const shown = new Set(dated.map((each) => each.item_id));
+  const drawn = dependencies.filter((each) => shown.has(each.waiting) && shown.has(each.waitedFor));
+  return {
+    zone,
+    finish: finish ?? null,
+    entries: dated,
+    dependencies: drawn.map((each) => ({
+      link_id: each.id, type: 'blocks', predecessor_id: each.waitedFor, successor_id: each.waiting, dependency_kind: 'FS' as const, lag_days: 0,
+    })),
+    conflicts: [],
+    unscheduled: undated.map((each) => each.item_id),
+    undated,
+    critical_path: [] as string[],
+  };
+}

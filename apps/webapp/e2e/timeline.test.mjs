@@ -3,7 +3,8 @@
 
 // The timeline shows time (ADR-0063 decision 12), not a list with one bar in it: the window is
 // not pinned to the current month, a day's mark is labelled, and a date can be changed from the
-// picture. Chromium only, as the other walks.
+// picture. Without the planning module a collection's *Timeline* is the plan's light presentation
+// drawn from the entries' own dates (E-16). Chromium only, as the other walks.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -70,6 +71,11 @@ async function timeline(browser, { width = 1280, rows, zone = 'UTC', now, role }
   return { page, failures, written, close: () => context.close(), unstubbed };
 }
 
+/** The zoom the toolbar offers, chosen: one of its segments. */
+async function zoom(page, scale) {
+  await page.locator(`[data-zoom] [data-scale="${scale}"]`).click();
+}
+
 /** A pointer press carried from one point to another, in steps, as a hand would. */
 async function carry(page, from, to, { steps = 12 } = {}) {
   await page.mouse.move(from.x, from.y);
@@ -98,30 +104,43 @@ test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray t
   const { page, failures, close, unstubbed } = await timeline(browser);
   t.after(close);
 
-  // The scale is the three the decision names, and it is a real control.
-  const scale = page.getByLabel('Scale');
-  assert.deepEqual((await scale.locator('option').allTextContents()).map((each) => each.trim()), ['Days', 'Weeks', 'Months']);
+  // The zoom is the plan's five, each a real control, the chosen one pressed.
+  const scales = page.locator('[data-zoom] [data-scale]');
+  assert.deepEqual((await scales.allTextContents()).map((each) => each.trim()), ['Days', 'Weeks', 'Months', 'Quarters', 'Years']);
+  assert.equal(await page.locator('[data-zoom] [aria-pressed="true"]').count(), 1);
 
-  // Dated gridlines: the axis says dates rather than drawing unlabelled marks.
+  // Without the planning module the timeline is the plan's light presentation, and only that:
+  // the Gantt needs the module (E-16).
+  assert.equal(await page.locator('.timeline[data-look="light"], [data-plan-view="schedule"]').count() >= 1, true);
+  assert.equal(await page.locator('[data-plan-presentation]').count(), 0, 'a Gantt is offered without the module');
+
+  // Dated gridlines: the axis says dates rather than drawing unlabelled marks. *Today* brings the
+  // window back to today, wherever the plan's fit opened it.
+  await zoom(page, 'week');
+  await page.getByRole('button', { name: 'Back to today', exact: true }).click();
   const labels = (await page.locator('.timeline .axis .tick').allTextContents()).filter((each) => each.trim() !== '');
   assert.ok(labels.length >= 4, `the axis carries ${labels.length} dated gridlines`);
 
-  // Today is marked, on the axis and through every row, and said once in words.
+  // Today is marked on the axis and through the rows, and said once in words.
   assert.equal(await page.locator('.timeline .axis .tick[data-today]').count(), 1);
   assert.ok(await page.locator('.timeline .track .cell[data-today]').count() >= 1, 'today is not marked through the rows');
   await page.getByText(/^Today is .*marked on the axis\.$/).waitFor({ timeout: 5_000 });
 
   // The window is said in the reader's dates, never as ISO text (user-experience.md §5.10).
-  const range = (await page.locator('.timeline .range').textContent()) ?? '';
+  const range = (await page.locator('.window-said').textContent()) ?? '';
   assert.ok(range.trim() !== '' && !/\d{4}-\d{2}-\d{2}/.test(range), `the window reads "${range}"`);
 
-  // The dated entry is on the axis; the four without dates are in the tray, and it folds.
+  // The dated entry is on the axis; the four without dates are in the tray, folded until asked for.
   const tray = page.locator('.timeline details.undated');
-  assert.equal(await tray.evaluate((el) => el.open), true, 'the tray opens folded, so the undated are hidden until asked for');
+  assert.equal(await tray.evaluate((el) => el.open), false, 'the tray opens unfolded');
+  await page.locator('.timeline details.undated summary').click();
+  assert.equal(await tray.evaluate((el) => el.open), true, 'the tray does not unfold');
   const trayed = (await tray.locator('.entry').allTextContents()).map((each) => each.trim());
   assert.deepEqual(trayed.sort(), ITEMS.filter((each) => !each.due_at).map((each) => each.title).sort());
-  await page.locator('.timeline details.undated summary').click();
-  assert.equal(await tray.evaluate((el) => el.open), false, 'the tray does not fold');
+  // The toolbar says how many have no dates and opens them as a list too.
+  await page.locator('[data-undated-open]').click();
+  assert.equal(await page.locator('[data-undated] li').count(), trayed.length);
+  await page.keyboard.press('Escape');
 
   // The one dated entry is a row on the axis, and its row opens the entry: that is the keyboard
   // path every drag here has (SC 2.5.7). From `large` up it opens beside the timeline (UC-WRK-28
@@ -145,7 +164,7 @@ test('chromium: 1280 px — a point dragged moves the one date it has, and inven
   const { page, failures, written, close, unstubbed } = await timeline(browser);
   t.after(close);
 
-  await page.getByLabel('Scale').selectOption('day');
+  await zoom(page, 'day');
   await page.waitForTimeout(200);
 
   const due = DATED.due_at.slice(0, 10);
@@ -186,7 +205,7 @@ test('chromium: 1280 px — a bar moves both dates and an end moves one', async 
   const dragged = async (which, columns) => {
     const { page, written, close, unstubbed } = await timeline(browser, { rows: [spanned] });
     t.after(close);
-    await page.getByLabel('Scale').selectOption('day');
+    await zoom(page, 'day');
     await page.waitForTimeout(200);
     const at = await axisOf(page);
     const target =
@@ -228,7 +247,7 @@ test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends
     t.after(close);
     const measured = {};
     for (const scale of ['day', 'week', 'month']) {
-      await page.getByLabel('Scale').selectOption(scale);
+      await zoom(page, scale);
       await page.waitForTimeout(200);
       measured[scale] = await page
         .locator('.timeline .end')
@@ -274,10 +293,12 @@ test('chromium: 1280 px — a tray entry carried across the axis is given its fi
   const { page, failures, written, close, unstubbed } = await timeline(browser);
   t.after(close);
 
-  await page.getByLabel('Scale').selectOption('day');
+  await zoom(page, 'day');
   await page.waitForTimeout(200);
 
   const undatedEntry = ITEMS.find((each) => !each.due_at && !each.completion?.is_completed);
+  // The tray is folded until asked for.
+  await page.locator('.timeline details.undated summary').click();
   const entry = page.locator('.timeline details.undated .entry', { hasText: undatedEntry.title });
   const box = await entry.boundingBox();
   const axis = await axisOf(page);
@@ -346,7 +367,7 @@ test('chromium: 375 px — the scale is reachable and the axis shows a usable ra
   const { page, failures, close, unstubbed } = await timeline(browser, { width: 375 });
   t.after(close);
 
-  await page.getByLabel('Scale').selectOption('day');
+  await zoom(page, 'day');
   await page.waitForTimeout(200);
 
   // A fortnight is drawn, whatever the width: the range is the scale's, and the scroller is what
@@ -373,13 +394,14 @@ test('chromium: 1280 px — a reader who may not change an entry cannot drag it,
 
   /** Drags the first bar of `title` three columns along, then the tray entry onto the axis. */
   const tryEverything = async (page, title) => {
-    await page.getByLabel('Scale').selectOption('day');
+    await zoom(page, 'day');
     await page.waitForTimeout(400);
     const at = await axisOf(page);
     const bar = page.locator('.timeline .rows .row', { hasText: title }).locator('.cell[data-filled]').nth(1);
     const box = await bar.boundingBox();
     const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
     await carry(page, middle, { x: middle.x + at.width * 3, y: middle.y });
+    await page.locator('.timeline details.undated summary').click();
     const entry = page.locator('.timeline details.undated .entry', { hasText: undatedEntry.title });
     const tray = await entry.boundingBox();
     await carry(page, { x: tray.x + tray.width / 2, y: tray.y + tray.height / 2 }, { x: at.x + at.width * 6.5, y: at.y + 40 });

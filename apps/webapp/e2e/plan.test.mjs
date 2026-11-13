@@ -313,7 +313,8 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
   assert.equal(await page.getByRole('button', { name: 'Give Write the brief dates' }).count(), 0, 'the tray opened unfolded');
   await page.locator('.timeline details.undated summary').filter({ hasText: '1 without dates' }).click();
   await page.getByRole('button', { name: 'Give Write the brief dates' }).click();
-  await page.waitForURL(`**/items/${UNDATED}`, { timeout: 5_000 });
+  // From `large` the entry opens beside the timeline, as from a collection's list.
+  await page.waitForFunction((id) => new URLSearchParams(location.search).get('item') === id, UNDATED, { timeout: 5_000 });
   await page.goBack();
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
 

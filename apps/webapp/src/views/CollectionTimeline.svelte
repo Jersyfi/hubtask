@@ -2,15 +2,14 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // A collection's *Timeline* (work-surface concept §6.3, E-16): the one address of its schedule,
-  // no layout of the collection's list. Where the planning module is on it is the plan's schedule
-  // (Gantt, `PlanView`); without it, the timeline presentation over the collection's own query line
-  // (`ContainerView` drawing `TimelineView`), since Gantt needs the module.
+  // no layout of the collection's list. Where the planning module is on it is the plan's schedule,
+  // timeline or Gantt; without it the same light timeline, drawn from the entries' own dates, since
+  // only the Gantt needs the module.
   import { untrack } from 'svelte';
   import { Skeleton } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
-  import ContainerView from './ContainerView.svelte';
   import PlanView from './PlanView.svelte';
 
   interface Props {
@@ -19,10 +18,9 @@
     /** A saved view whose layout is the timeline (`?view=`). */
     viewAsked?: string;
     onnavigate: (path: string) => void;
-    onreplace: (path: string) => void;
   }
 
-  const { collectionId, openItemId, viewAsked, onnavigate, onreplace }: Props = $props();
+  const { collectionId, openItemId, viewAsked, onnavigate }: Props = $props();
 
   let placeModules = $state<readonly string[] | undefined>(undefined);
   let isAnswered = $state(false);
@@ -42,8 +40,6 @@
 
 {#if !isKnown}
   <div aria-busy="true"><Skeleton lines={6} /></div>
-{:else if isPlanned}
-  <PlanView planId={collectionId} part="schedule" {onnavigate} />
 {:else}
-  <ContainerView id={collectionId} {openItemId} {viewAsked} isTimeline {onnavigate} {onreplace} />
+  <PlanView planId={collectionId} part="schedule" isEntriesOnly={!isPlanned} {openItemId} {viewAsked} {onnavigate} />
 {/if}

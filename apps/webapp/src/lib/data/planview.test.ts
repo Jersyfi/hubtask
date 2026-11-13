@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { headParts, isPlanView, keptRows, planChanges, planGroupingOf, planSetupOf, planViewDefault, slackEnd, tonesOf } from './planview.ts';
+import { headParts, isPlanView, keptRows, planChanges, planGroupingOf, planSetupOf, planViewDefault, scheduleOfEntries, slackEnd, tonesOf } from './planview.ts';
 
 test('a plan view saved and read back is the same setup (UC-PLN-08)', () => {
   const setup = { ...planViewDefault('timeline'), groupBy: 'assignee' as const, baselineId: 'b1', columns: ['start', 'slip'], bars: { ...planViewDefault().bars, slack: false } };
@@ -58,4 +58,27 @@ test('a colour per value, in the order they come, round the palette', () => {
   assert.equal(tones.get('a'), 1);
   assert.equal(tones.get('b'), 2);
   assert.equal(tones.get('h'), 1);
+});
+
+test('without the module the plan is the entries own dates: a due alone is a point, no date is undated (E-16)', () => {
+  const day = (instant: string) => instant.slice(0, 10);
+  const plan = scheduleOfEntries(
+    [
+      { id: 'a', title: 'A', collection_id: 'c', start_at: '2026-11-02T00:00:00Z', due_at: '2026-11-06T00:00:00Z' },
+      { id: 'b', title: 'B', collection_id: 'c', due_at: '2026-11-10T00:00:00Z', completion: { is_completed: true } },
+      { id: 'c', title: 'C', collection_id: 'c', parent_id: 'a' },
+    ],
+    [{ id: 'l', waitedFor: 'a', waiting: 'b', isEarly: false }, { id: 'm', waitedFor: 'a', waiting: 'c', isEarly: true }],
+    day,
+    'UTC',
+  );
+  assert.equal(plan.finish, '2026-11-10');
+  assert.deepEqual(plan.entries.map((each) => [each.item_id, each.start, each.finish, each.due_only, each.done, each.duration_days]), [
+    ['a', '2026-11-02', '2026-11-06', false, false, 5],
+    ['b', '2026-11-10', '2026-11-10', true, true, 1],
+  ]);
+  assert.equal(plan.entries[0]?.summary, true, 'a parent among the entries is a summary');
+  assert.deepEqual(plan.undated, [{ item_id: 'c', title: 'C' }]);
+  assert.deepEqual(plan.dependencies.map((each) => [each.predecessor_id, each.successor_id]), [['a', 'b']], 'an undated end draws no arrow');
+  assert.deepEqual(plan.conflicts, []);
 });

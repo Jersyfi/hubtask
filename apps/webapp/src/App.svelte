@@ -613,7 +613,6 @@
         openItemId: pane.kind === 'pane' ? pane.itemId : undefined,
         viewAsked: route.query['view'],
         onnavigate: (path: string) => router.navigate(path),
-        onreplace: (path: string) => router.replace(path),
       }} />
     {/key}
   {:else if route.name === 'hub-plan' || route.name === 'hub-plan-table' || route.name === 'hub-plan-dependencies'}
