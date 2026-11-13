@@ -541,7 +541,7 @@ func (p *queryParser) leaf(key string, keyAt int, negated bool, values []raw, al
 				name, dir = trimmed, "DESC"
 			}
 			fieldName, ok := resolveKey(name)
-			if !ok {
+			if _, ofAKind := kindField(fieldName); !ok || ofAKind {
 				return item{}, p.fail(v.at, "query.field_unknown", suggestion(name, sortKeys()))
 			}
 			term := map[string]any{"field": fieldName}
@@ -560,7 +560,7 @@ func (p *queryParser) leaf(key string, keyAt int, negated bool, values []raw, al
 	if !ok {
 		return item{}, p.fail(keyAt, "query.field_unknown", suggestion(key, queryKeys()))
 	}
-	target, err := field(name, p.path)
+	target, err := queryField(name, p.path)
 	if err != nil {
 		return item{}, p.fail(keyAt, "query.field_unknown", suggestion(key, queryKeys()))
 	}
@@ -888,6 +888,9 @@ func resolveKey(key string) (string, bool) {
 	if _, ok := FieldByName(key); ok {
 		return key, true
 	}
+	if _, ok := kindField(key); ok {
+		return key, true
+	}
 	return "", false
 }
 
@@ -895,6 +898,9 @@ func queryKeys() []string {
 	keys := []string{"is", "type", "sort"}
 	for key := range readerKeys {
 		keys = append(keys, key)
+	}
+	for _, f := range kindCatalogue {
+		keys = append(keys, f.Name)
 	}
 	slices.Sort(keys)
 	return keys
@@ -1164,7 +1170,7 @@ func formatLeaf(node map[string]any, top, negated bool) (string, bool) {
 	op, _ := node["op"].(string)
 	name, _ := node["field"].(string)
 	value := node["value"]
-	target, err := field(name, "")
+	target, err := queryField(name, "")
 	if err != nil {
 		return "", false
 	}
@@ -1359,7 +1365,7 @@ func formatQueryValue(rawValue any, target Field, bound string, inRange bool) (s
 			return "", false
 		}
 		if target.Kind == KindEnum {
-			if target.Name == FieldSLAStanding {
+			if target.Name == FieldSLAStanding || target.Name == FieldAssetStage || target.Name == FieldGoalState {
 				return strings.ToLower(value), true
 			}
 			return value, true

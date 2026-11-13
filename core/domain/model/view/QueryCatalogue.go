@@ -29,8 +29,9 @@ type QueryKey struct {
 var entryObjects = []string{"task", "workpackage", "activity", "ticket"}
 
 // QueryKeys is the catalogue the doors serve (GET /query/keys): only keys the server answers, so
-// a client never offers what the server refuses (api-guidelines.md §3.1). post. has no key: no
-// post is stored yet.
+// a client never offers what the server refuses (api-guidelines.md §3.1). The asset., page. and
+// goal. keys are answered by the search over every kind alone. post. has no key: no post is
+// stored yet.
 func QueryKeys() []QueryKey {
 	isValues := []string{"open", "done", "blocked", "blocking", "archived", "trashed"}
 	times := []string{"due: <today", "updated: -7d", "due: this-week", "created: 2026-10-01..2026-10-31"}
@@ -66,6 +67,14 @@ func QueryKeys() []QueryKey {
 		{Key: "plan.critical", Field: FieldCritical, Value: "flag", Product: "plan", Objects: entryObjects, Values: []string{"true", "false"}, Examples: []string{"plan.critical: true"}},
 		{Key: "time.logged", Field: FieldTimeLogged, Value: "number", Product: "time", Objects: entryObjects, Examples: []string{"time.logged: >0", "time.logged: >=480"}},
 		{Key: CustomKeyPrefix, Field: CustomFieldPrefix, Value: "custom", Product: "cf", Objects: entryObjects, Examples: []string{"cf.priority: >=3"}},
+		{Key: FieldAssetClass, Field: FieldAssetClass, Value: "choice", Product: ObjectAsset, Objects: []string{ObjectAsset}, Examples: []string{"asset.class: server, laptop"}},
+		{Key: FieldAssetStage, Field: FieldAssetStage, Value: "choice", Product: ObjectAsset, Objects: []string{ObjectAsset}, Values: lower(AssetStages), Examples: []string{"asset.stage: in_use", "-asset.stage: retired, disposed"}},
+		{Key: FieldAssetOwner, Field: FieldAssetOwner, Value: "person", Product: ObjectAsset, Objects: []string{ObjectAsset}, Values: []string{"me", "none"}, Examples: []string{"asset.owner: me", "asset.owner: none"}},
+		{Key: FieldAssetLocation, Field: FieldAssetLocation, Value: "relation", Product: ObjectAsset, Objects: []string{ObjectAsset}, Values: []string{"none"}, Examples: []string{"asset.location: none"}},
+		{Key: FieldAssetTag, Field: FieldAssetTag, Value: "text", Product: ObjectAsset, Objects: []string{ObjectAsset}, Values: []string{"none"}, Examples: []string{"asset.tag: INV-0042", "-asset.tag: none"}},
+		{Key: FieldPageVerified, Field: FieldPageVerified, Value: "flag", Product: ObjectPage, Objects: []string{ObjectPage}, Values: []string{"true", "false"}, Examples: []string{"page.verified: true", "page.verified: false"}},
+		{Key: FieldPageOwner, Field: FieldPageOwner, Value: "person", Product: ObjectPage, Objects: []string{ObjectPage}, Values: []string{"me", "none"}, Examples: []string{"page.owner: me", "page.owner: none"}},
+		{Key: FieldGoalState, Field: FieldGoalState, Value: "choice", Product: ObjectGoal, Objects: []string{ObjectGoal}, Values: lower(GoalStates), Examples: []string{"goal.state: at_risk, off_track"}},
 		{Key: "sort", Value: "sort", Objects: entryObjects, Examples: []string{"sort: -updated", "sort: due"}},
 	}
 	return keys
@@ -85,6 +94,15 @@ func (q Query) EntryFilter(path string) (any, error) {
 	for _, kind := range q.Kinds {
 		if kind != "ticket" {
 			return nil, fieldError(path, "query.kind_not_here", map[string]string{"kind": kind})
+		}
+	}
+	if q.Filter != nil {
+		kinds := map[string]bool{}
+		collectObjects(q.Filter, kinds)
+		for _, kind := range []string{ObjectAsset, ObjectGoal, ObjectPage} {
+			if kinds[kind] {
+				return nil, fieldError(path, "query.kind_not_here", map[string]string{"kind": kind})
+			}
 		}
 	}
 	var nodes []any

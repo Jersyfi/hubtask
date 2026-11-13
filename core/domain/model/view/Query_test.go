@@ -58,7 +58,8 @@ func FuzzParseQuery(f *testing.F) {
 func TestEveryCatalogueKeyIsRead(t *testing.T) {
 	for _, key := range QueryKeys() {
 		if key.Field != "" && key.Field != CustomFieldPrefix {
-			if _, known := FieldByName(key.Field); !known {
+			_, ofAKind := kindField(key.Field)
+			if _, known := FieldByName(key.Field); !known && !ofAKind {
 				t.Fatalf("%s names the unknown field %s", key.Key, key.Field)
 			}
 		}

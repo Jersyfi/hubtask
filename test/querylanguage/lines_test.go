@@ -91,7 +91,10 @@ func TestTheSharedQueryLinesReadAndWriteBack(t *testing.T) {
 				got.IncludeArchived != want.IncludeArchived || got.IncludeTrashed != want.IncludeTrashed {
 				t.Fatalf("read\n%+v\nwant\n%+v", got, *want)
 			}
-			if got.Filter != nil {
+			// A key of one kind is held to that kind's search, every other tree to the entries'.
+			if kind, err := got.KindFilter("/q"); err != nil {
+				t.Fatalf("the kind's search refuses the tree: %v", err)
+			} else if kind.Kind == view.ObjectEntry {
 				if _, err := view.ParseFilter(normal(t, got.Filter), "/q"); err != nil {
 					t.Fatalf("the grammar refuses the tree: %v", err)
 				}

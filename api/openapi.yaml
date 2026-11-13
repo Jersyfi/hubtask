@@ -41654,7 +41654,9 @@ components:
           type: string
           description: >
             The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which
-            choose a state, the kinds or the order.
+            choose a state, the kinds or the order. A key of one kind other than entries
+            (`asset.`, `page.`, `goal.`) names itself: it is answered by that kind's search in
+            `POST /search:all` and refused by a query of entries.
         value:
           type: string
           enum: [state, kind, person, place, label, time, number, text, words, choice, flag, relation, sort, custom]
@@ -41662,8 +41664,8 @@ components:
         product:
           type: string
           description: >
-            The product the key's prefix belongs to (`desk`, `plan`, `cf`); absent for the keys of
-            every kind.
+            The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`,
+            `goal`, `cf`); absent for the keys of every kind.
         objects:
           type: array
           description: The kinds of object the key asks about.

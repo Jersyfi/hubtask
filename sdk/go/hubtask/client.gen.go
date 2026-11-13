@@ -23335,7 +23335,7 @@ type QueryFieldKind string
 type QueryKey struct {
 	Examples []string `json:"examples"`
 
-	// Field The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order.
+	// Field The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order. A key of one kind other than entries (`asset.`, `page.`, `goal.`) names itself: it is answered by that kind's search in `POST /search:all` and refused by a query of entries.
 	Field *string `json:"field,omitempty"`
 
 	// Key What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the custom fields, followed by a custom field's key.
@@ -23344,7 +23344,7 @@ type QueryKey struct {
 	// Objects The kinds of object the key asks about.
 	Objects []string `json:"objects"`
 
-	// Product The product the key's prefix belongs to (`desk`, `plan`, `cf`); absent for the keys of every kind.
+	// Product The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`, `goal`, `cf`); absent for the keys of every kind.
 	Product *string `json:"product,omitempty"`
 
 	// Value What kind of value the key takes, which decides the suggestions a client offers.

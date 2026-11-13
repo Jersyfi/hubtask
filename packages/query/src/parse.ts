@@ -44,6 +44,8 @@ type Kind = 'string' | 'text' | 'id' | 'boolean' | 'integer' | 'timestamp' | 'en
 interface Field { readonly name: string; readonly kind: Kind; readonly values?: readonly string[]; readonly sortable?: boolean }
 
 const SLA_STANDINGS = ['MET', 'PAUSED', 'RUNNING', 'AT_RISK', 'BREACHED'];
+const ASSET_STAGES = ['PLANNED', 'ORDERED', 'IN_STOCK', 'IN_USE', 'MAINTENANCE', 'RETIRED', 'DISPOSED'];
+const GOAL_STATES = ['NONE', 'ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'DONE', 'DROPPED'];
 const FIELDS: readonly Field[] = [
   { name: 'type', kind: 'enum', values: ['TASK', 'WORK_PACKAGE', 'ACTIVITY'], sortable: true },
   { name: 'entry_type', kind: 'string' }, { name: 'parent_id', kind: 'id' }, { name: 'collection_id', kind: 'id' },
@@ -61,7 +63,15 @@ const FIELDS: readonly Field[] = [
   { name: 'blocks', kind: 'id' }, { name: 'affects', kind: 'id' }, { name: 'sprint_id', kind: 'id' },
   { name: 'release_id', kind: 'id' }, { name: 'slip_days', kind: 'integer' },
   { name: 'critical', kind: 'boolean' }, { name: 'time_logged', kind: 'integer' },
+  // The keys of one kind, answered by that kind's search alone (POST /search:all).
+  { name: 'asset.class', kind: 'string' }, { name: 'asset.stage', kind: 'enum', values: ASSET_STAGES },
+  { name: 'asset.owner', kind: 'id' }, { name: 'asset.location', kind: 'id' }, { name: 'asset.tag', kind: 'string' },
+  { name: 'page.verified', kind: 'boolean' }, { name: 'page.owner', kind: 'id' },
+  { name: 'goal.state', kind: 'enum', values: GOAL_STATES },
 ];
+const KIND_KEYS = ['asset.class', 'asset.stage', 'asset.owner', 'asset.location', 'asset.tag', 'page.verified', 'page.owner', 'goal.state'];
+/** The enums written lowered, as they are typed. */
+const LOWERED_ENUMS = new Set(['sla_standing', 'asset.stage', 'goal.state']);
 
 export const READER_KEYS: Readonly<Record<string, string>> = {
   status: 'status', type: 'type', who: 'assignee_id', with: 'members', by: 'created_by', in: 'collection_id',
@@ -128,7 +138,7 @@ export function resolveKey(key: string): string | undefined {
   return fieldOf(key) ? key : undefined;
 }
 
-const queryKeys = () => [...Object.keys(READER_KEYS), 'is', 'type', 'sort'].sort();
+const queryKeys = () => [...Object.keys(READER_KEYS), ...KIND_KEYS, 'is', 'type', 'sort'].sort();
 const sortKeys = () => Object.keys(READER_KEYS).filter((key) => fieldOf(READER_KEYS[key] ?? '')?.sortable).sort();
 
 function editDistance(a: string, b: string): number {
@@ -409,7 +419,7 @@ class QueryParser {
         const desc = v.text.startsWith('-');
         const name = desc ? v.text.slice(1) : v.text;
         const field = resolveKey(name);
-        if (!field) refuse(this.text, v.at, 'query.field_unknown', suggestion(name, name, sortKeys()));
+        if (!field || KIND_KEYS.includes(field)) refuse(this.text, v.at, 'query.field_unknown', suggestion(name, name, sortKeys()));
         (this.q.sort ??= []).push(desc ? { field, dir: 'DESC' } : { field });
       }
       return {};
@@ -1000,7 +1010,7 @@ function formatValue(raw: unknown, field: Field, bound: string, inRange: boolean
     if (raw === `${day}T23:59:59Z` && DATE_ONLY.test(day) && bound === 'high') return day;
     return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/.test(raw) ? raw : undefined;
   }
-  if (field.kind === 'enum') return field.name === 'sla_standing' ? raw.toLowerCase() : raw;
+  if (field.kind === 'enum') return LOWERED_ENUMS.has(field.name) ? raw.toLowerCase() : raw;
   if (field.kind === 'boolean') return undefined;
   if (bareSafe(raw, field)) return raw;
   if (inRange) return undefined;

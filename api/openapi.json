@@ -68498,7 +68498,7 @@
           },
           "field": {
             "type": "string",
-            "description": "The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order.\n"
+            "description": "The `query_fields` field the key compares; absent for `is`, `type` and `sort`, which choose a state, the kinds or the order. A key of one kind other than entries (`asset.`, `page.`, `goal.`) names itself: it is answered by that kind's search in `POST /search:all` and refused by a query of entries.\n"
           },
           "value": {
             "type": "string",
@@ -68522,7 +68522,7 @@
           },
           "product": {
             "type": "string",
-            "description": "The product the key's prefix belongs to (`desk`, `plan`, `cf`); absent for the keys of every kind.\n"
+            "description": "The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`, `goal`, `cf`); absent for the keys of every kind.\n"
           },
           "objects": {
             "type": "array",

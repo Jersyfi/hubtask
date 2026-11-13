@@ -256,7 +256,7 @@ func (p *lineParser) comparison() (any, error) {
 	}
 	p.next()
 	leaf := map[string]any{"field": name.text}
-	target, _ := field(name.text, p.path)
+	target, _ := queryField(name.text, p.path)
 	op := p.peek()
 	switch {
 	case op.kind == tokenSymbol && symbols[op.text] != "":
