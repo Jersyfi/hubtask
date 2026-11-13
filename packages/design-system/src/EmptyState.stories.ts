@@ -21,7 +21,7 @@ export const unused: Story = {
 export const started: Story = {
   name: 'A product not used yet, with its templates',
   about:
-    'user-experience.md §5.5: the sentence, the one action, the product’s templates as `secondary` and one quiet `footnote` - its guide, or who may create where the reader may not. Both are dropped on `settled`.',
+    'user-experience.md §5.5: the product’s tile in its colour (`product`), the sentence, the one action, the product’s templates as `secondary` and one quiet `footnote` - its guide, or who may create where the reader may not. Both are dropped on `settled`.',
   args: { mode: 'started' },
 };
 

@@ -31,7 +31,7 @@
       {#snippet action()}<Button>Create task</Button>{/snippet}
     </EmptyState>
   {:else if mode === 'started'}
-    <EmptyState kind="unused" title="Set goals for the quarter" description="Goals say what the team wants to reach by a date; key results measure it.">
+    <EmptyState kind="unused" product="goals" icon="flag" title="Set goals for the quarter" description="Goals say what the team wants to reach by a date; key results measure it.">
       {#snippet action()}<Button icon="plus">New goal</Button>{/snippet}
       {#snippet secondary()}
         <Button tone="secondary">Quarterly OKRs</Button>

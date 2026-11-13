@@ -23,6 +23,7 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import ProductTile, { type ProductId } from './ProductTile.svelte';
   import type { IconName } from './icons/index.ts';
 
   /** Which of §4's three. Named for the cause, because that is what decides the words. */
@@ -35,6 +36,8 @@
     /** At most one more. Absent is the common case for `settled`. */
     description?: string;
     icon?: IconName;
+    /** A product's first use (work-surface scene empty): the mark is the product's tile, in its colour. */
+    product?: ProductId;
     /**
      * The one thing to do about it.
      *
@@ -55,7 +58,7 @@
     footnote?: Snippet;
   }
 
-  const { kind, title, description, icon, action, secondary, footnote }: Props = $props();
+  const { kind, title, description, icon, product, action, secondary, footnote }: Props = $props();
 
   const MARK: Record<Emptiness, IconName> = {
     unused: 'plus',
@@ -69,7 +72,11 @@
 </script>
 
 <div class="empty" data-kind={kind}>
-  <span class="mark" aria-hidden="true"><Icon name={icon ?? MARK[kind]} /></span>
+  {#if product && kind === 'unused'}
+    <span class="tile" aria-hidden="true"><ProductTile icon={icon ?? MARK[kind]} {product} size="xl" /></span>
+  {:else}
+    <span class="mark" aria-hidden="true"><Icon name={icon ?? MARK[kind]} /></span>
+  {/if}
   <p class="title">{title}</p>
   {#if description}<p class="description">{description}</p>{/if}
   {#if offersAction}<div class="action">{@render action?.()}</div>{/if}
@@ -89,6 +96,7 @@
   }
 
   .mark { display: inline-flex; color: var(--text-subtle); }
+  .tile { display: inline-flex; }
 
   /* Rule 3: the three kinds are not told apart by colour. They differ in their mark, their words
      and whether they offer anything, and the mark is what carries it in greyscale. */
