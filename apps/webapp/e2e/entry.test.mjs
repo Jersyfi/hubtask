@@ -294,13 +294,14 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: 375 px — the title in the bar, the details behind All properties, a row opens a drawer', async (t) => {
+test('chromium: 375 px — the key in the bar, the details behind All properties, a row opens a drawer', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await openEntry(browser, 375);
   t.after(close);
 
-  assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent()).trim(), ENTRY.title);
+  // The bar names the entry by its key (task.m); the head carries the whole title.
+  assert.match((await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent()).trim(), /^KITCHEN-\d+$/);
   assert.equal(await page.getByRole('link', { name: COLLECTION.name }).count(), 1, 'the parent as the way up');
   // On a phone the rail is a sheet behind *All properties* (§7): closed until asked for.
   assert.equal(await page.locator('[data-detail]').filter({ visible: true }).count(), 0, 'the details stand open on a phone');
