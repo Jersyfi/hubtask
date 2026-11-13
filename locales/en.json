@@ -11533,6 +11533,8 @@
   "app.pages.live": "Live",
   "app.pages.live_open_view": "Open in tasks",
   "app.pages.live_open_board": "Open the board",
+  "app.pages.live_more": "{count, plural, one {# more in the view} other {# more in the view}}",
+  "app.pages.live_none": "Nothing in this view you may see.",
   "app.pages.task_in": "Make this line a task in",
   "app.pages.no_collections": "This hub has no collection to hold a task yet.",
   "app.pages.task_made": "The line is now the task “{title}”.",

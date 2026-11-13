@@ -73,11 +73,14 @@ test('a formula, a diagram and coloured code are drawn under the policy', async 
   }
 });
 
-test('a view embedded in a page lives under its head: tile, Live in words (S-4)', async () => {
+test('a view embedded in a page lives under its head: tile, Live in words, its rows read as the reader (S-4)', async () => {
   const browser = await chromium.launch();
   try {
     const { page, failures, context } = await signedIn(browser, 1280, 900);
     const view = '01a0e2e0-0000-7000-8000-000000000952';
+    const collection = '01a0e2e0-0000-7000-8000-000000000953';
+    const asked = [];
+    const row = (n, title) => ({ id: `01a0e2e0-0000-7000-8000-00000000096${n}`, title, status: 'todo', collection_id: collection, entry_type: 'task', version: 1 });
     await context.unroute('**/api/v1/**');
     await context.route('**/api/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname.replace('/api/v1', '');
@@ -90,12 +93,27 @@ test('a view embedded in a page lives under its head: tile, Live in words (S-4)'
       if (/^\/pages\/[^/]+\/(comments|versions|backlinks)$/.test(path)) return route.fulfill({ json: empty });
       if (/^\/pages\/[^/]+\/language-variants$/.test(path)) return route.fulfill({ json: { page_id: PAGE_ID, source_page_id: null, language: null, variants: [] } });
       if (/^\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { page_id: PAGE_ID, labels: [] } });
+      if (path === `/views/${view}`) {
+        return route.fulfill({ json: { id: view, name: 'Open, labelled app', query: { scope_container_id: collection, include_descendants: false, filter: { field: 'status', op: 'eq', value: 'todo' } }, version: 1 } });
+      }
+      if (path === '/items:query') {
+        asked.push(route.request().postDataJSON());
+        // The server answers only what the reader may see: two of the view's seven.
+        return route.fulfill({ json: { data: [row(1, 'Sign in with a passkey'), row(2, 'Offline orders')], total: 7, page: { next_cursor: null, has_more: false } } });
+      }
       return stub(route);
     });
     await page.goto(`${served.origin}/pages/${PAGE_ID}`);
     const live = page.locator('[data-live-block]');
     await live.waitFor({ timeout: 20_000 });
     assert.match(await live.innerText(), /Live/u, 'Live is said in words, not by a colour alone');
+    const rows = live.locator('[data-live-rows] li');
+    await rows.first().waitFor({ timeout: 10_000 });
+    assert.deepEqual(await rows.locator('.title').allInnerTexts(), ['Sign in with a passkey', 'Offline orders']);
+    assert.match(await live.innerText(), /5 more in the view/u);
+    const read = asked.find((body) => body.scope);
+    assert.deepEqual(read.scope, { container_id: collection, include_descendants: false }, 'the view is read at its own scope');
+    assert.deepEqual(read.filter, { field: 'status', op: 'eq', value: 'todo' }, 'with its own question');
     assert.deepEqual(failures, []);
     await context.close();
   } finally {

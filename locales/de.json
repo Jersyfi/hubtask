@@ -11533,6 +11533,8 @@
   "app.pages.live": "Live",
   "app.pages.live_open_view": "In Aufgaben öffnen",
   "app.pages.live_open_board": "Board öffnen",
+  "app.pages.live_more": "{count, plural, one {# weiterer in der Ansicht} other {# weitere in der Ansicht}}",
+  "app.pages.live_none": "Nichts in dieser Ansicht, das du sehen darfst.",
   "app.pages.task_in": "Diese Zeile als Aufgabe anlegen in",
   "app.pages.no_collections": "Dieser Hub hat noch keine Sammlung für eine Aufgabe.",
   "app.pages.task_made": "Die Zeile ist jetzt die Aufgabe „{title}“.",
