@@ -14315,7 +14315,7 @@
   "app.releases.notes_coming": "erscheint es, werden die Notizen eine Seite in „Inhalte“",
   "app.releases.add_entries": "Einträge hinzufügen",
   "app.releases.all_collections": "Alle Sammlungen",
-  "app.releases.from_everywhere": "Einträge kommen aus allen Sammlungen des Hubs.",
+  "app.releases.from_everywhere": "Einträge kommen aus allen Sammlungen des Hubs – per Auswahl oder Abfrage:",
   "app.releases.take_out": "{title} aus dem Release nehmen",
   "app.releases.col_collection": "Sammlung",
   "app.releases.change": "Ändern",

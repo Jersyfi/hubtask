@@ -22,6 +22,7 @@
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Release, ReleaseDetail, ReleaseList, SprintList } from '@hubtask/sync-engine';
+  import { referenceState } from '../lib/data/links.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -65,7 +66,7 @@
 
   const mayWrite = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
 
-  let list = $state<Release[] | undefined>(undefined);
+  let list = $state<ReleaseList['data'] | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
   $effect(() => {
     const path = releasesPath(hubId);
@@ -86,18 +87,8 @@
     return untrack(() => engine.subscribe<ReleaseDetail>({ path }, (next) => { if (next.status === 'ready') detail = next.data; }));
   });
 
-  // What is done of every release, for its mark and its card: the server counts, per release.
-  let counted = $state<Record<string, { done: number; all: number }>>({});
-  const countedKey = $derived((list ?? []).slice(0, 24).map((r) => r.id).join(','));
-  $effect(() => {
-    const ids = countedKey === '' ? [] : countedKey.split(',');
-    return untrack(() => {
-      const stops = ids.map((id) => engine.subscribe<ReleaseDetail>({ path: releasePath(id) }, (next) => {
-        if (next.status === 'ready') counted = { ...counted, [id]: { done: next.data.done_count, all: next.data.done_count + next.data.open_count } };
-      }));
-      return () => stops.forEach((stop) => stop());
-    });
-  });
+  // What is done of every release, for its mark and its card: the list counts them itself.
+  const counted = $derived<Record<string, { done: number; all: number }>>(Object.fromEntries((list ?? []).map((r) => [r.id, { done: r.done_count, all: r.done_count + r.open_count }])));
 
   // The sprint running in one of the hub's collections, for the head sentence.
   const collectionKey = $derived(collections.map((c) => c.id).join(','));
@@ -373,15 +364,15 @@
           <DataTable label={t('app.releases.in_release', { count: String(detail.entries.length) })} columns={entryColumns} rows={detail.entries}
             key={(entry: InRelease) => entry.item_id} rowLabel={(entry: InRelease) => entry.title}>
             {#snippet cell(entry: InRelease, column: DataColumn)}
-              {#if column.id === 'entry'}<a href={`/items/${entry.item_id}`}>{entry.title}</a>
+              {#if column.id === 'entry'}{#if entry.key}<span class="key">{entry.key}</span> {/if}<a href={`/items/${entry.item_id}`}>{entry.title}</a>
               {:else if column.id === 'type'}{entry.type_name}
               {:else if column.id === 'collection'}{collectionName(entry.collection_id)}
-              {:else if column.id === 'state'}<StateLozenge size="sm" tone={entry.done ? 'success' : 'neutral'} label={t(entry.done ? 'app.releases.done' : 'app.releases.open')} />
+              {:else if column.id === 'state'}{@const state = referenceState({ completed: entry.done, status_name: entry.status_name, status_category: entry.status_category }, t)}<StateLozenge size="sm" vocabulary="category" state={state.state} label={state.label} />
               {:else}<IconButton size="sm" icon="x" label={t('app.releases.take_out', { title: entry.title })} onclick={() => void act(() => releases.take(hubId, shown.id, [entry.item_id]))} />{/if}
             {/snippet}
           </DataTable>
         {/if}
-        <p class="quiet">{t('app.releases.from_everywhere')}</p>
+        <p class="quiet" data-release-query>{t('app.releases.from_everywhere')} <code>plan.release: {shown.id}</code></p>
       </section>
       {/if}
     </div>
@@ -491,6 +482,8 @@
   .entries-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
   .label { margin: 0; color: var(--text-secondary); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-transform: uppercase; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .quiet code { padding-inline: var(--sp-050); border-radius: var(--r-sm); background: var(--bg-recess); color: var(--text-primary); font-family: var(--font-mono); overflow-wrap: anywhere; }
+  .key { color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-090); }
   .picks { display: flex; flex-direction: column; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   .picks li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */

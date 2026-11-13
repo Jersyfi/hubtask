@@ -14315,7 +14315,7 @@
   "app.releases.notes_coming": "once it is out, its notes become a page in Content",
   "app.releases.add_entries": "Add entries",
   "app.releases.all_collections": "Every collection",
-  "app.releases.from_everywhere": "Entries come from every collection of the hub.",
+  "app.releases.from_everywhere": "Entries come from every collection of the hub - picked, or by query:",
   "app.releases.take_out": "Take {title} out of the release",
   "app.releases.col_collection": "Collection",
   "app.releases.change": "Change",

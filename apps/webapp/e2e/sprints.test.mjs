@@ -54,15 +54,15 @@ const BACKLOG = { data: [{ item_id: ITEMS[3].id, title: ITEMS[3].title, estimate
 
 const release = (n, name, state, on, extra = {}) => ({
   id: `01a0e2e0-0000-7000-8000-0000000e5c0${n}`, hub_id: HUB.id, name, description: '', release_on: on, state,
-  released_at: null, notes_page_id: null, version: 1, ...extra,
+  released_at: null, notes_page_id: null, version: 1, done_count: 0, open_count: 0, ...extra,
 });
 const SHIPPED = release(1, '1.0', 'RELEASED', addDays(today, -20), { released_at: `${addDays(today, -20)}T12:00:00Z`, notes_page_id: '01a0e2e0-0000-7000-8000-0000000e5d01' });
-const COMING = release(2, '1.1', 'PLANNED', addDays(today, 7), { description: 'The kitchen is usable.' });
+const COMING = release(2, '1.1', 'PLANNED', addDays(today, 7), { description: 'The kitchen is usable.', done_count: 1, open_count: 0 });
 const LATER = release(3, '1.2', 'PLANNED', addDays(today, 30));
 const RELEASES = [SHIPPED, COMING, LATER];
 const RELEASE_DETAIL = {
   ...COMING,
-  entries: [{ item_id: ITEMS[0].id, title: ITEMS[0].title, type_name: 'Task', done: true, collection_id: COLLECTION.id, added_at: `${addDays(today, -5)}T09:00:00Z` }],
+  entries: [{ item_id: ITEMS[0].id, title: ITEMS[0].title, type_name: 'Task', done: true, collection_id: COLLECTION.id, added_at: `${addDays(today, -5)}T09:00:00Z`, key: 'HOME-3', status_name: 'Fitted', status_category: 'DONE' }],
   done_count: 1,
   open_count: 0,
 };
@@ -70,6 +70,7 @@ const RELEASE_DETAIL = {
 /** A screen of the planning area, with every write recorded and answered with what it makes. */
 async function open(browser, at, width = 1280) {
   const written = [];
+  const reads = [];
   const { page, failures, context, unstubbed } = await signedIn(browser, width, width < 600 ? 844 : 900, { timezoneId: 'UTC' });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
@@ -79,6 +80,7 @@ async function open(browser, at, width = 1280) {
     const method = request.method();
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
+    else reads.push(path);
 
     if (path === `/collections/${COLLECTION.id}/sprints` && method === 'GET') return route.fulfill({ json: { data: SPRINTS, runs_sprints: true } });
     if (path === `/collections/${COLLECTION.id}/sprints` && method === 'POST') return route.fulfill({ status: 201, json: sprint(4, body.name, 'PLANNED', body.start_on, body.end_on, { goal: body.goal ?? '' }) });
@@ -109,7 +111,7 @@ async function open(browser, at, width = 1280) {
     return stub(route);
   });
   await page.goto(`${served.origin}${at}`);
-  return { page, failures, written, close: () => context.close(), unstubbed };
+  return { page, failures, written, reads, close: () => context.close(), unstubbed };
 }
 
 const wrote = (written, method, path) => written.find((each) => each.method === method && each.path === path);
@@ -340,7 +342,7 @@ test('chromium: 1280 px — a sprint planned with a goal and a time box', async 
 test('chromium: 1280 px — a release takes an entry of the hub and goes out with its notes', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, written, close, unstubbed } = await open(browser, `/hubs/${HUB.id}/releases`);
+  const { page, failures, written, reads, close, unstubbed } = await open(browser, `/hubs/${HUB.id}/releases`);
   t.after(close);
 
   // UC-PLN-08 check 7. It opens on the next planned release, with what is done and open counted by the server.
@@ -350,8 +352,18 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   // The head says what is coming, the next one and what went out (scene planrel 1).
   await page.getByText(/^2 planned · next: 1\.1 on .+ · 1 released( · .+)?$/).waitFor({ timeout: 5_000 });
 
-  // The releases stand on an axis, each a mark that chooses it (scene planrel 2), and as cards.
+  // Each entry with its key and its status as its workflow names it; the query that finds them
+  // in the foot (scene planrel 4).
+  const row = page.getByRole('row', { name: ITEMS[0].title });
+  await row.getByText('HOME-3', { exact: true }).waitFor({ timeout: 5_000 });
+  await row.getByText('Fitted', { exact: true }).waitFor({ timeout: 5_000 });
+  await page.locator('[data-release-query]').getByText(`plan.release: ${COMING.id}`, { exact: true }).waitFor({ timeout: 5_000 });
+
+  // The releases stand on an axis, each a mark that chooses it (scene planrel 2), and as cards,
+  // their counts from the list itself: no release is read for them.
   const axis = page.locator('[data-release-axis]');
+  await axis.locator(`[data-release-mark="${COMING.id}"]`).getByText(/· 1 of 1$/).waitFor({ timeout: 5_000 });
+  assert.deepEqual(reads.filter((path) => path === `/releases/${LATER.id}` || path === `/releases/${SHIPPED.id}`), [], 'a release not chosen was read for its counts');
   assert.equal(await axis.locator('[data-release-mark]').count(), 3);
   assert.equal(await axis.locator(`[data-release-mark="${COMING.id}"]`).getAttribute('aria-pressed'), 'true');
   assert.equal(await page.locator('[data-release-card]').count(), 3);
