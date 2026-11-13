@@ -10080,6 +10080,7 @@ func (e StructureLockOrigin) Valid() bool {
 
 // Defines values for StructurePreviewViews.
 const (
+	StructurePreviewViewsCALENDAR      StructurePreviewViews = "CALENDAR"
 	StructurePreviewViewsKANBAN        StructurePreviewViews = "KANBAN"
 	StructurePreviewViewsLISTCOLLAPSED StructurePreviewViews = "LIST_COLLAPSED"
 	StructurePreviewViewsLISTEXPANDED  StructurePreviewViews = "LIST_EXPANDED"
@@ -10089,6 +10090,8 @@ const (
 // Valid indicates whether the value is a known member of the StructurePreviewViews enum.
 func (e StructurePreviewViews) Valid() bool {
 	switch e {
+	case StructurePreviewViewsCALENDAR:
+		return true
 	case StructurePreviewViewsKANBAN:
 		return true
 	case StructurePreviewViewsLISTCOLLAPSED:
@@ -10206,6 +10209,7 @@ func (e StructureSettingsCelebration) Valid() bool {
 
 // Defines values for StructureViewsDefault.
 const (
+	StructureViewsDefaultCALENDAR      StructureViewsDefault = "CALENDAR"
 	StructureViewsDefaultKANBAN        StructureViewsDefault = "KANBAN"
 	StructureViewsDefaultLISTCOLLAPSED StructureViewsDefault = "LIST_COLLAPSED"
 	StructureViewsDefaultLISTEXPANDED  StructureViewsDefault = "LIST_EXPANDED"
@@ -10215,6 +10219,8 @@ const (
 // Valid indicates whether the value is a known member of the StructureViewsDefault enum.
 func (e StructureViewsDefault) Valid() bool {
 	switch e {
+	case StructureViewsDefaultCALENDAR:
+		return true
 	case StructureViewsDefaultKANBAN:
 		return true
 	case StructureViewsDefaultLISTCOLLAPSED:
@@ -10230,6 +10236,7 @@ func (e StructureViewsDefault) Valid() bool {
 
 // Defines values for StructureViewsOffered.
 const (
+	StructureViewsOfferedCALENDAR      StructureViewsOffered = "CALENDAR"
 	StructureViewsOfferedKANBAN        StructureViewsOffered = "KANBAN"
 	StructureViewsOfferedLISTCOLLAPSED StructureViewsOffered = "LIST_COLLAPSED"
 	StructureViewsOfferedLISTEXPANDED  StructureViewsOffered = "LIST_EXPANDED"
@@ -10239,6 +10246,8 @@ const (
 // Valid indicates whether the value is a known member of the StructureViewsOffered enum.
 func (e StructureViewsOffered) Valid() bool {
 	switch e {
+	case StructureViewsOfferedCALENDAR:
+		return true
 	case StructureViewsOfferedKANBAN:
 		return true
 	case StructureViewsOfferedLISTCOLLAPSED:
@@ -24277,9 +24286,11 @@ type SatisfactionLinkAnswer struct {
 
 // SavedView A saved query with the layout it is drawn in. The server stores the query, validates it against the same catalogue as POST /items:query, and interprets neither the layout nor the visible fields - both are the client's vocabulary, echoed back exactly as stored.
 type SavedView struct {
-	CreatedAt *time.Time             `json:"created_at,omitempty"`
-	Grouping  map[string]interface{} `json:"grouping"`
-	Id        openapi_types.UUID     `json:"id"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
+	Grouping map[string]interface{} `json:"grouping"`
+	Id       openapi_types.UUID     `json:"id"`
 
 	// Key The view's stable key where it lives, by which the configuration document names it: unique in its scope, drawn from the name when the writer named none, kept by a rename.
 	Key string `json:"key"`
@@ -24320,6 +24331,7 @@ type SavedViewSharing string
 
 // SavedViewCreate defines model for SavedViewCreate.
 type SavedViewCreate struct {
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 
 	// Key The view's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
@@ -24361,6 +24373,7 @@ type SavedViewShareSharing string
 
 // SavedViewUpdate JSON Merge Patch; a field that is not sent is left alone. The scope and the sharing are not here - where a view lives is decided at creation, and sharing is :share.
 type SavedViewUpdate struct {
+	// Grouping The client's grouping hint, stored whole. Three keys are checked against the field catalogue: `field`, what the list groups by and the board's columns follow, a field one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`, the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any other key is stored and echoed.
 	Grouping *map[string]interface{} `json:"grouping,omitempty"`
 	Layout   *string                 `json:"layout,omitempty"`
 	Name     *string                 `json:"name,omitempty"`

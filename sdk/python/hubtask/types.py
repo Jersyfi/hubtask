@@ -3858,8 +3858,8 @@ class StructureLevelFields(TypedDict, total=False):
 
 class StructureViews(TypedDict, total=False):
     """The layouts a client offers, and the one it opens with. Applied by clients."""
-    offered: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
-    default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]
+    offered: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE", "CALENDAR"]]]
+    default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE", "CALENDAR"]]
 
 class StructureCounts(TypedDict, total=False):
     """What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why."""
@@ -3880,7 +3880,7 @@ class StructurePreview(TypedDict, total=False):
     narrows: Required[bool]
     levels: Required[list[dict[str, Any]]]
     fields: Required[list[dict[str, Any]]]
-    views: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
+    views: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE", "CALENDAR"]]]
     automation: Required[list[str]]
     keeping: Required[list[dict[str, Any]]]
 

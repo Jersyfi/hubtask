@@ -35550,9 +35550,9 @@ components:
         offered:
           type: array
           minItems: 1
-          maxItems: 4
-          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
-        default: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+          maxItems: 5
+          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE, CALENDAR] }
+        default: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE, CALENDAR] }
 
     StructureCounts:
       type: object
@@ -35650,7 +35650,7 @@ components:
         views:
           type: array
           description: The views no longer offered.
-          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE, CALENDAR] }
         automation:
           type: array
           description: What runs by itself now and would pause.
@@ -36178,6 +36178,12 @@ components:
         grouping:
           type: object
           additionalProperties: true
+          description: >
+            The client's grouping hint, stored whole. Three keys are checked against the field
+            catalogue: `field`, what the list groups by and the board's columns follow, a field
+            one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`,
+            the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any
+            other key is stored and echoed.
         visible_fields:
           type: array
           items: { type: string }
@@ -36228,6 +36234,12 @@ components:
         grouping:
           type: object
           additionalProperties: true
+          description: >
+            The client's grouping hint, stored whole. Three keys are checked against the field
+            catalogue: `field`, what the list groups by and the board's columns follow, a field
+            one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`,
+            the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any
+            other key is stored and echoed.
         visible_fields:
           type: array
           items: { type: string }
@@ -36268,6 +36280,12 @@ components:
         grouping:
           type: object
           additionalProperties: true
+          description: >
+            The client's grouping hint, stored whole. Three keys are checked against the field
+            catalogue: `field`, what the list groups by and the board's columns follow, a field
+            one can group by; `lanes_by`, the board's lanes, a second such field; `date_field`,
+            the timestamp a CALENDAR layout places the entries on (`due_at`, `start_at`, …). Any
+            other key is stored and echoed.
         visible_fields:
           type: array
           items: { type: string }
