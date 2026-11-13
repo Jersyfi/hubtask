@@ -1,0 +1,25 @@
+{
+  "name": "@hubtask/query",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The browser's twin of the server's Hubtask query: the same parser and formatter for both spellings, held to the shared test lines, and the language and catalogue the design system's QueryLine takes.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "node -e \"process.stdout.write('query: types only, nothing to build\\n')\"",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\"",
+    "lint": "node ../design-system/build/lint-no-literals.js",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^6.0.3"
+  }
+}

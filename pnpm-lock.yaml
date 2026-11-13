@@ -228,6 +228,15 @@ importers:
         specifier: workspace:*
         version: link:../api-client
 
+  packages/query:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.2
+        version: 24.19.2
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/sync-engine:
     dependencies:
       '@hubtask/api-client':
