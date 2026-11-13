@@ -227,7 +227,7 @@
   .replies {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-150);
+    gap: var(--sp-100);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -238,7 +238,7 @@
   /* One level, and the indent is what says so. `margin-inline-start` follows the writing
      direction, so a right-to-left thread indents the other way without a second rule. */
   .replies {
-    margin-block-start: var(--sp-150);
+    margin-block-start: var(--sp-100);
     margin-inline-start: var(--sp-400);
     border-inline-start: var(--bw-hairline) solid var(--border-subtle);
     padding-inline-start: var(--sp-150);
@@ -267,7 +267,7 @@
 
   .event-text { min-width: 0; overflow-wrap: anywhere; }
 
-  .body { display: flex; flex-direction: column; gap: var(--sp-025); min-width: 0; }
+  .body { display: flex; flex: 1 1 auto; flex-direction: column; gap: var(--sp-025); min-width: 0; }
 
   .meta {
     display: flex;
