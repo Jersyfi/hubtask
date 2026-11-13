@@ -258,7 +258,7 @@
           : undefined}
       >
         {#snippet status()}
-          <StateLozenge tone={isLate ? 'warning' : shown.state === 'RELEASED' ? 'success' : 'neutral'}
+          <StateLozenge vocabulary="release" state={isLate ? 'late' : shown.state === 'RELEASED' ? 'released' : 'planned'} size="md"
             label={t(isLate ? 'app.releases.badge_late' : `app.releases.badge_${shown.state}`)} />
         {/snippet}
         {#snippet facts()}

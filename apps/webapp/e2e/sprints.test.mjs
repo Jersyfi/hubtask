@@ -246,6 +246,24 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   await settle(page);
   assert.deepEqual(wrote(written, 'POST', `/releases/${COMING.id}:publish`)?.body, { write_notes: true, carry_to: LATER.id });
 
+  // A shipped release's state sits in the head in the status button's shape (§6.9): its height, its glyph.
+  await chooser.selectOption(SHIPPED.id);
+  const state = page.locator('header.object-head .action-bar .lozenge').first();
+  await state.getByText('Released', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await state.getAttribute('data-size'), 'md', 'the release\'s state is the small lozenge');
+  assert.equal(await state.locator('.icon').count(), 1, 'the released state carries no glyph');
+  // A released one has no next step to stand beside: the head's control height is the measure.
+  const control = await page.evaluate(() => {
+    const probe = document.createElement('div');
+    probe.style.blockSize = 'var(--density-control-sm-min)';
+    document.body.append(probe);
+    const high = probe.getBoundingClientRect().height;
+    probe.remove();
+    return high;
+  });
+  const own = await state.boundingBox();
+  assert.ok(control > 0 && own.height >= control - 1, `the state is ${own.height} px high, a head control ${control} px`);
+
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });

@@ -34,7 +34,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone } from '../lib/goals/tone.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { isNoSuchObject, isObjectId, renderProblem } from '../lib/problem.ts';
@@ -249,7 +249,7 @@
       trail={viewport.isCompact ? undefined : goalTrail}
       menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
     >
-      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge tone={goalTone(shown.status)} label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
+      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
       {#snippet facts()}{#if shown.confidence !== null}<span>{t('app.goals.confidence_of', { value: String(shown.confidence) })}</span>{/if}{/snippet}
     </ObjectHead>
   {:else}

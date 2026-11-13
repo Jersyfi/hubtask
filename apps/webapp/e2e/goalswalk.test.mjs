@@ -381,3 +381,30 @@ test('chromium: in German a goal\'s head names its place in a sentence that read
   await head.getByText(`Ein Ziel von „${HUB.name}“`).waitFor({ timeout: 10_000 });
   assert.deepEqual(walk.errors(), []);
 });
+
+/** The head's status in the status button's shape (§6.9): the head's height and its glyph, read only. */
+async function headStatusIsTheButtonShape(page, word) {
+  const head = page.locator('header.object-head');
+  const status = head.locator('.action-bar .lozenge').first();
+  await status.waitFor({ timeout: 10_000 });
+  assert.equal((await status.innerText()).trim(), word);
+  assert.equal(await status.getAttribute('data-size'), 'md', `${word} is the small lozenge`);
+  assert.equal(await status.locator('.icon').count(), 1, `${word} carries no glyph`);
+  const [own, step] = [await status.boundingBox(), await head.locator('.action-bar .step').first().boundingBox()];
+  assert.ok(own.height >= step.height - 1, `${word} is ${own.height} px high beside a ${step.height} px step`);
+}
+
+test('chromium: a goal\'s and a portfolio\'s head draw their status in the status button\'s shape', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const goal = seeded(1, 'Customers renew', { status: 'AT_RISK' });
+  const folio = { id: '01a0e2e0-0000-7000-8000-00000000a509', parent_id: null, name: 'Programme', description: '', owner_id: ACCOUNT.id, status: 'ON_TRACK', items: [], progress: null, version: 1 };
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { periods: [PERIOD], goals: [goal], portfolios: [folio] } }) });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/goals/${goal.id}`);
+  await headStatusIsTheButtonShape(page, 'At risk');
+  await page.goto(`${served.origin}/portfolios/${folio.id}`);
+  await headStatusIsTheButtonShape(page, 'On track');
+  assert.deepEqual(walk.errors(), []);
+});

@@ -73,6 +73,9 @@
 
   const statusTone = (status: Agent['status']) =>
     status === 'ACTIVE' ? 'success' : status === 'SUSPENDED' ? 'danger' : status === 'RETIRED' ? 'neutral' : 'warning';
+  /** Every toned standing says it with a mark too (UX-7); an approval that no longer covers the model warns. */
+  const STATUS_GLYPH = { DRAFT: 'pencil', APPROVED: 'check', ACTIVE: 'zap', SUSPENDED: 'circle-alert', RETIRED: 'archive' } as const;
+  const isApprovalDue = (each: Agent) => each.needs_approval && each.status !== 'DRAFT' && each.status !== 'RETIRED';
 
   async function act(run: () => Promise<unknown>, done: string) {
     try {
@@ -345,7 +348,7 @@
       trail={viewport.isCompact ? undefined : agentTrail}
       menu={menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: onMenu } : undefined}
     >
-      {#snippet status()}<StateLozenge tone={statusTone(shown.status)} label={statusLabel} />{/snippet}
+      {#snippet status()}<StateLozenge size="md" tone={isApprovalDue(shown) ? 'warning' : statusTone(shown.status)} icon={isApprovalDue(shown) ? 'triangle-alert' : STATUS_GLYPH[shown.status]} label={statusLabel} />{/snippet}
       {#snippet facts()}{#if budgetFact}<span data-budget-fact>{budgetFact}</span>{/if}{/snippet}
     </ObjectHead>
   {/if}

@@ -22,7 +22,7 @@
     icon?: IconName;
     /** `bold` for the one state on a screen that must be seen first. */
     emphasis?: 'subtle' | 'bold';
-    /** `sm` in a row or a chip line; `md` stands on its own. */
+    /** `sm` in a row or a chip line; `md` stands on its own - in an object's head, the status button's shape. */
     size?: 'sm' | 'md';
   }
 
@@ -68,10 +68,17 @@
 
   .word { overflow: hidden; text-overflow: ellipsis; }
 
+  /* The status button's shape and height (`StatusButton`), read only: a head's status that is not changed there. */
   .lozenge[data-size='md'] {
+    min-block-size: var(--density-control-sm-min);
     padding: var(--sp-050) var(--sp-150);
     border-radius: var(--r-md);
     font-size: var(--fs-090);
+  }
+
+  .lozenge[data-size='md'] :global(.icon) {
+    inline-size: var(--fs-090);
+    block-size: var(--fs-090);
   }
 
   .lozenge[data-tone='info'] {

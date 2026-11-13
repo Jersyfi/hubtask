@@ -28,7 +28,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone } from '../lib/goals/tone.ts';
   import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -238,7 +238,7 @@
         },
       }}
     >
-      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge tone={goalTone(shown.status)} label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
+      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
     </ObjectHead>
   {:else}
     <PageHeader title={t('app.portfolios.portfolio')} isTitleInBar={viewport.isCompact} />

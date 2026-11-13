@@ -190,3 +190,36 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+// An agent's page opens on the head every object has (WB-1): its standing drawn in the status
+// button's shape and height with its glyph - read only, since presses change it.
+test('chromium: an approved agent\'s head draws its standing as the status button does', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const backend = agentsBackend();
+  let shown;
+  const walk = await productWalk(browser, {
+    modules: ['AGENTS'],
+    answer: (method, path, ...rest) => {
+      const listed = backend(method, path, ...rest);
+      if (path === '/agents' && method === 'GET') shown ??= listed.json.data[0];
+      const one = /^\/agents\/([^/:]+)$/.exec(path);
+      if (one && method === 'GET' && shown) return { json: { ...shown, status: 'APPROVED', approved_by: ACCOUNT.id, approved_at: now() } };
+      return listed;
+    },
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/agents`);
+  await page.getByRole('row').filter({ hasText: 'Triage helper' }).waitFor({ timeout: 10_000 });
+  await page.goto(`${served.origin}/agents/${shown.id}`);
+  const head = page.locator('header.object-head');
+  const standing = head.locator('.action-bar .lozenge').first();
+  await standing.waitFor({ timeout: 10_000 });
+  assert.equal((await standing.innerText()).trim(), 'Approved');
+  assert.equal(await standing.getAttribute('data-size'), 'md', 'the standing is the small lozenge, not the status button\'s shape');
+  assert.equal(await standing.locator('.icon').count(), 1, 'the standing carries no glyph');
+  const next = head.locator('.action-bar .step').first();
+  const [own, step] = [await standing.boundingBox(), await next.boundingBox()];
+  assert.ok(own.height >= step.height - 1, `the standing is ${own.height} px high beside a ${step.height} px step`);
+});

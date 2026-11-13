@@ -9,6 +9,22 @@
 
 export type Tone = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
+/** A goal's or a portfolio's status in the lozenge's goal vocabulary, which adds the glyph to the tone. */
+export function goalState(status: string | null | undefined): 'onTrack' | 'atRisk' | 'offTrack' | 'done' | 'notStarted' {
+  switch (status) {
+    case 'ON_TRACK':
+      return 'onTrack';
+    case 'AT_RISK':
+      return 'atRisk';
+    case 'OFF_TRACK':
+      return 'offTrack';
+    case 'DONE':
+      return 'done';
+    default:
+      return 'notStarted';
+  }
+}
+
 export function goalTone(status: string | null | undefined): Tone {
   switch (status) {
     case 'ON_TRACK':
