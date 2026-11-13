@@ -181,6 +181,7 @@
       >
         {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
         <span class="label">{item.label}</span>
+        {#if item.description}<span class="description">{item.description}</span>{/if}
         {#if item.disabledReason !== undefined}
           <span id={`${id}-${item.id}-reason`} class="reason">{item.disabledReason}</span>
         {/if}
@@ -281,6 +282,12 @@
   .reason {
     grid-column: 2;
     color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  .description {
+    grid-column: 2;
+    color: var(--text-secondary);
     font-size: var(--fs-075);
   }
 
