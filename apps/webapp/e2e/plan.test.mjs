@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { COLLECTION, ITEMS, signedIn, stub } from './fixture.mjs';
+import { COLLECTION, MANIFEST, ITEMS, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -63,6 +63,10 @@ async function plan(browser, width = 1280) {
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    // The collection's Timeline draws the plan's schedule where its planning module is on (§6.3).
+    if (path === `/containers/${COLLECTION.id}/modules`) return route.fulfill({ json: { modules_on: ['PLANNING'] } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: ['PLANNING'] } });
+    if (path === `/collections/${COLLECTION.id}/sprints`) return route.fulfill({ json: { data: [], runs_sprints: false } });
     const method = request.method();
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
