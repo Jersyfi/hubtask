@@ -503,6 +503,96 @@ story shows its widths when the window is narrowed, not the workbench's width ax
 while the page scrolls sticks under `--page-sticky-top`, the app bar's height unless the frame says
 otherwise.
 
+### Wave 7 — the work surface
+`StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
+`FoldingSection` · `ProductBand` · `Widget` · `Composer` · `QueryLine`
+
+The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
+§5; its mockups are the look), built before any screen uses them so that one pattern looks the same
+in every product (WB-1…WB-8). The page kinds, the dialog ladder and `DataTable` of wave 6 stay; the
+work surface extends them rather than drawing its own. Every string is the caller's resolved text,
+and every behaviour a test can hold lives in a module beside them: `lozenge.ts`, `steps.ts`,
+`fold.ts`, `swipe.ts`, `density.ts`, `query.ts`.
+
+* **`StateLozenge`** — one square-cornered shape for every vocabulary of states: the status
+  categories, SLA, goal, health, agent, rule, release and sync. The tone and the glyph of a state
+  are decided once in `lozenge.ts` (`LOZENGE_VOCABULARIES`); the word is the caller's. A neutral
+  state carries no glyph, every other one does (UX-7). `bold` for the one state a screen must show
+  first, `md` where it stands alone, and a `brand` tone for the reader's own work (*Mine*), which
+  is no status. `Badge` stays the system's vocabulary about itself.
+* **`StatusButton`** — the status as a lozenge button in its category's tone. Pressed (or ↓), it
+  opens "from *X* on" (E-23): every allowed step with its target lozenge and what it asks, the
+  steps the reader may not take as rows with their reason (focusable, `aria-disabled`, never
+  taken), how the done category is reached, and *View workflow* with where the workflow applies.
+  Without a workflow it lists every status, the current one ticked (`menuitemradio`), the done one
+  saying it completes the entry. Below `medium` the same rows open in a `Sheet`. Read only, it is
+  the lozenge without a chevron and the reason beside it. `primaryStep` in `steps.ts` chooses the
+  next step: the workflow's marked one if the reader may take it, otherwise the first allowed step
+  forward, never a step back; `defaultSteps` makes every status reachable with *Done* as the next.
+* **`ObjectHead`** — one head for entry, ticket, configuration item, goal, release, agent and
+  portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
+  key with its product's tile, the type lozenge and a meta line, the title edited in place (the
+  words or the pencil; Enter keeps, Escape gives the old title back, blur keeps), and the action
+  bar — the status, the next step as the one primary, a second step the workflow offers, a
+  divider, the person (an empty one said), the due date, **one** deadline chip (what is breached
+  and the next deadline, ET-6), quiet facts and the end tools. On a phone the steps live in the
+  status's sheet and the person is the avatar alone (WB-8).
+* **`Property`** and **`PropertyRail`** — the rail of ET-1, `layout.rail` wide: sections products
+  register (`RailSection`: a title, a product's tile, a count, folded or empty), the form's groups
+  in the form's order. A head is a twist (`aria-expanded`); an empty section is one line with "+"
+  that adds its first value (WB-3); *More fields* stays folded. A `Property` is a name and a value
+  in two columns, an empty value said, a required one starred and named. Below `medium` the rail
+  is *All properties (n)* opening a sheet, with up to three properties above it (§7).
+* **`JumpMarks`** — the sections of an object with their counts (ET-2), sticking under
+  `--page-sticky-top`; the mark in view is `aria-current="location"`, followed by an
+  `IntersectionObserver`. A press scrolls to the section and moves focus there. Below `medium` they
+  are one row that scrolls sideways and the switch between sections: the caller shows the chosen one.
+* **`FoldingSection`** — a section of the main column with its heading, count and tools that folds
+  itself (ET-3): text clamped to 3, 5, 8 or 12 of its own lines, measured, so a short text shows no
+  *Show more*; a list cut to its first rows or its newest ones (`foldWindow`), never hiding a single
+  row. Focus arriving inside the clamped text opens the fold, so it is never hidden (2.4.11).
+* **`ProductBand`** — a product home's head (WB-2, WB-5): `PageHeader` with the product's tile
+  (`ProductTile` `xl` through `product.<id>`) as its mark and the figures as its line, the first
+  set bold. On a phone the tile is smaller, two figures stay, and the primary floats above the
+  bottom bar as every page's does.
+* **`Widget`** — one anatomy for Today and the overview (§6.1): tile, title, a quiet count, the one
+  act as a button, the figure, a line, the content. With a figure it is a card of Today's strip;
+  with content, a tile. While loading its place is held by lines (`aria-busy`). A widget whose
+  module is off is not drawn (P-17).
+* **`Composer`** — one input for comment, reply and internal note (ET-7): with `modes`, two tabs
+  (*Reply to Hannah Albers | Internal note*, the arrows between them), who sees it beside them, the
+  note yellow with a lock and the button saying *Save note*; attachments, snippets (also "/" at the
+  start of a line) and the macros — a `Menu` whose items say what each does (`MenuItem.description`)
+  — in its bar; Ctrl+↵ sends. The editor is the caller's slot (E-3); without one, a text field.
+  Below `medium` it docks above the bottom bar. Refused, it says why instead of a field.
+* **`QueryLine`** — the line of §6.11 as a shell: chips and text chips in one line (Q-2), a press on
+  a chip gives its spelling back to edit, Backspace in an empty field takes the last chip back; a
+  `combobox` with a `listbox` of suggestions — fields with kind and example, then a field's values
+  with their counts (`suggest` in `query.ts`, Q-3); a count slot that answers while typing and an
+  error at its chip with the spelling that fixes it (Q-4). It knows no grammar: the language
+  (`QueryLanguage`: `parse`, `format`) and the `FieldCatalogue` are handed in, so the one parser on
+  the server (Q-1) brings the dialect and the line never invents one.
+* **`DataTable`**, extended for a collection (WB-4, `kind="work"`): the head in small capitals, groups
+  with a `groupHead` (a status's lozenge), their count and a twist that folds them, "+ Entry in …"
+  as each group's last row (`add`, opening the capture there, C-4), `density` comfortable or
+  compact at `density.<mode>.row.height` — the device keeps the choice through `density.ts` —, the
+  row act and ⋯ coming forward on hover and focus on a device that hovers. Below `medium` a `stack`
+  snippet draws the stacked row — title, meta line, SLA bar —, and `swipe` lets a row be swiped:
+  right takes its act, left opens its menu; the act also heads the row's menu, so no act needs the
+  gesture (2.5.7). The row moves by token steps through `data-swipe`, never by a written length.
+
+**The work surface's tokens.** `product.<id>.surface` and `.ink` for the eight products alias the
+label pair `navigation.ts` gives each (plans orange, pages teal, whiteboards amber, desk magenta,
+assets slate, time lime, goals green, agents violet): a component names the product, never its
+colour (WB-2), and the contrast test measures each ink on its surface. `chart.categorical.1–7` are
+a chart's series in a fixed order — indigo, sky, mint, amber, violet, raspberry, neutral —, the
+light theme's from the darker steps and the dark theme's from the lighter, each at least 3:1
+against every surface (1.4.11); beyond seven a chart groups the rest, and every chart has its table.
+`layout.rail` (320 px) is the property rail, `layout.reading` (720 px) the measure of running text,
+and `density.<mode>.row.height` a row of a calm table: 40 px comfortable, 32 px compact (the
+concept's `density.row.compact`), 48 px spacious — inside each density mode, so the one
+vocabulary every mode declares holds.
+
 ---
 
 ## 5. Naming in code
