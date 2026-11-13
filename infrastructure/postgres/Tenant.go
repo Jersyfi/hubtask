@@ -72,6 +72,9 @@ func (u *UnitOfWork) WithinWritable(ctx context.Context, scope persistence.Scope
 	return u.Within(ctx, scope, fn)
 }
 
+// Detach answers ctx without its running transaction and scope (persistence.Detaching).
+func (u *UnitOfWork) Detach(ctx context.Context) context.Context { return outsideTransaction(ctx) }
+
 // WithinSavepoint runs fn under a savepoint of the running transaction (persistence.Savepoint).
 // Without a running transaction there is nothing to keep apart from, and it is refused.
 func (u *UnitOfWork) WithinSavepoint(ctx context.Context, fn func(context.Context) error) error {
