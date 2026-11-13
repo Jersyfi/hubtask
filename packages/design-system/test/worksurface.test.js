@@ -260,3 +260,8 @@ test('a ruled task row is a line of one region, not a card, and keeps its whole 
   assert.match(row, /\.task-row\[data-ruled\] > :global\(\.row\) \{\s*border-radius: 0;\s*border-color: transparent transparent var\(--border-subtle\);/, 'ruled by a hairline, square');
   assert.match(row, /title=\{isOneLine \|\| isRuled \? title : undefined\}/, 'a title cut to one line keeps its words on hover');
 });
+
+test('a view switcher\'s targets reach layout.target on a phone or a coarse pointer (§7)', () => {
+  const css = source('ViewSwitcher.svelte');
+  assert.match(css, /@media \(pointer: coarse\), \(width < 600px\) \{\s*\.view \{ min-block-size: var\(--layout-target\); \}/u);
+});

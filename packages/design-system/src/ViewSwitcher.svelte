@@ -184,6 +184,13 @@
     outline-offset: var(--sp-025);
   }
 
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, each view - the
+     board's and the sprint's column strips among them - is at least layout.target tall. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .view { min-block-size: var(--layout-target); }
+  }
+
   .view[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
   .view[aria-disabled='true']:hover { background: transparent; color: var(--text-subtle); }
 
