@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-11, P-13]
 state: partial
 tasks: [B-09, F2-11, F2-12, F9-07, F10-11]
-checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts]
+checked_by: [test/integration/structure_test.go, core/domain/model/work/Bucket_test.go, apps/webapp/e2e/board.test.mjs, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, apps/webapp/src/lib/entries/boardlevel.test.ts, apps/webapp/e2e/entryhead.test.mjs]
 ---
 
 # Run a collection as a board
@@ -54,12 +54,13 @@ column at a time.
 10. Under a workflow a card dropped on a column takes the one step that reaches it; where several
     do, the person picks one in a picker and nothing changes until they do; where none does, the
     drop is refused and the card shows why (owner's decision of 2026-11-12).
-11. A person who may change the collection's shape shows a list as a board and a board without a
-    workflow as a list again, from one control in the same place on the list row, the card, the
-    entry head and the phone sheet, after a preview: a board starts with an open and a done column,
-    completed cards in the done one; back to a list the columns go and every entry keeps its
-    completion. Neither is offered while a workflow runs for the tasks (owner's decision of
-    2026-11-12).
+11. An entry's state is changed by one control, the same on the list row, the card, the entry head
+    and the phone sheet: the checkbox without columns, the column chip on a board without a
+    workflow, the status chip where a workflow runs. A person who may change the collection's shape
+    shows a list as a board and a board without a workflow as a list again from the collection's
+    ⋯ menu, after a preview: a board starts with an open and a done column, completed cards in the
+    done one; back to a list the columns go and every entry keeps its completion. Neither is
+    offered while a workflow runs for the tasks (owner's decision of 2026-11-12).
 
 ## Where it ends
 
@@ -78,4 +79,4 @@ column at a time.
 * Check 6: met — the server couples on every door; the web board drops through `POST /items/{id}:drop` and completes nothing itself (`apps/webapp/e2e/board.test.mjs`, `flow.test.mjs`, `boardlevels.test.mjs`).
 * Check 9: partly met — each column names its statuses, *Ohne Spalte* stands folded and is a drop target (`boardlevels.test.mjs`); the mapping is edited per status in the scheme change's preview (`boardlevel.test.ts`), not yet walked on screen and not yet on the board itself.
 * Check 10: met — a `CHOOSE` opens the step picker and nothing is written until one is chosen (`boardlevels.test.mjs`); a column the carried card may not enter dims with the server's reason (`boardlevel.test.ts`), a refused drop says it (`flow.test.mjs`).
-* Check 11: partly met — *Show as board* and *Back to the list* each preview the server's dry run before switching (`boardlevels.test.mjs`); they sit in the collection's menu, not yet on the row, the card and the phone sheet.
+* Check 11: met — the state control is one component (`StateChip`) on the list row, the board card and, without a workflow, the entry head; on a phone the same row and card carry it (`boardlevels.test.mjs`, `entryhead.test.mjs`, `statechip.test.ts`); where a workflow runs the head keeps its status button with the same steps (WB-1). *Show as board* and *Back to the list* sit in the collection's ⋯ menu and preview the server's dry run (`boardlevels.test.mjs`). The check's wording was corrected: "one control in the same place" meant the state control, the level switches belong to the ⋯ menu.
