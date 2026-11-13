@@ -106,6 +106,11 @@
   let dismissed = $state<string | undefined>(undefined);
 
   let text = $state('');
+  // A line typed before the dialog opened is where the person goes on (C-1).
+  $effect(() => {
+    const given = capture.door?.text;
+    if (capture.isOpen && given) untrack(() => (text = given));
+  });
   /** The chips taken back in this text: their words stay in the title. */
   let literal = $state<ReadonlySet<string>>(new Set());
   /** The clock the line is read against, taken at each keystroke. */

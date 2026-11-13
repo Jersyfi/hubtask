@@ -25,12 +25,12 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
+  import { Dialog, Icon, Kbd, ProductTile, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
   import type { Container, SettingDefinition, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
-  import { groupOf, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate, type Group, type Row } from './rows.ts';
+  import { groupOf, indexOfKey, keyOf, rank, rowId, step, type Candidate, type Group, type Row } from './rows.ts';
   import { collectionOffers, containerOffers, placeTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
@@ -52,14 +52,12 @@
   import { engine } from '../data/engine.ts';
   import { itemPath } from '../data/item.svelte.ts';
   import { categoriesOf } from '../data/preferences.ts';
-  import { levelWords } from '../data/levels.ts';
   import { people } from '../data/people.svelte.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
-  import { queryFields } from '../data/query.ts';
   import { search } from '../data/search.svelte.ts';
-  import { pages } from '../data/pages.svelte.ts';
-  import { objectHits, readObjects, readsOf, sourcesWanted, type ObjectRow } from '../search/objects.svelte.ts';
-  import { QUICK, compile, parse } from '../data/searchquery.ts';
+  import { searchAll } from '../data/everything.ts';
+  import { views } from '../data/views.svelte.ts';
+  import { BAR_KINDS, arrange, keyIn, kindsOn, markWords, pathOf as hitPath, personLine, requestOf, scopesOf, tileOf, type Answer, type Hit, type Scope } from '../search/everything.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -79,26 +77,18 @@
   let term = $state('');
   /** The highlighted row, held by identity (`rows.ts`). */
   let activeKey = $state<string | undefined>(undefined);
-  let hits = $state<readonly WorkItem[]>([]);
-  /** Pages that match, where the knowledge module is on (M3): offered as places to go. */
-  let pageHits = $state<readonly { id: string; title: string }[]>([]);
+  /** What `/search:all` answered for the words (§6.11): every kind, with the counts per kind. */
+  let answer = $state<Answer>({ data: [], facets: [] });
+  /** The scope chip chosen: every kind, one kind, or the hub one stands in. */
+  let scope = $state<Scope['id']>('ALL');
   let searching = $state(false);
   let form = $state<HTMLFormElement | null>(null);
 
 
-  const words = $derived(term.trim());
+  /** `>` first asks for commands only, as the foot says. */
+  const isCommandsOnly = $derived(term.trimStart().startsWith('>'));
+  const words = $derived(term.trim().replace(/^>\s*/u, ''));
   const isOpen = $derived(palette.isOpen);
-
-  // ------------------------------------------------------------------------------------------
-  // The narrowings, as the bar search had them
-  // ------------------------------------------------------------------------------------------
-
-  /** Only the narrowings this installation can answer - the rule every filter surface keeps. */
-  const fields = $derived(new Set(queryFields(manifest.value).map((field) => field.field)));
-  const context = $derived({ fields, collection: () => undefined, label: () => undefined, hasCollection: false });
-  const quick = $derived(
-    QUICK.filter((each) => fields.has(each.field) && compile(parse(each.line), context).problems.length === 0),
-  );
 
   // ------------------------------------------------------------------------------------------
   // What may be listed
@@ -263,25 +253,6 @@
   });
   const catalogueRows = $derived(catalogueOffers(catalogue, reach, t, shapedPlace));
 
-  // The modules' named objects (user-experience.md §5.3): the search's own sources, read while
-  // the palette is open with words, matched as the words change.
-  const wantsObjects = $derived(isOpen && words !== '');
-  const objectReads = $derived(
-    wantsObjects
-      ? readsOf(sourcesWanted(manifest.value?.modules_on as readonly string[] | undefined, () => true), {
-          hubs: containers.hubs.map((hub) => hub.id), collections: containers.loadedCollections.map((collection) => collection.id),
-        })
-      : [],
-  );
-  const objectKey = $derived(objectReads.map((read) => read.path).join(' '));
-  let objectsRead = $state<Record<string, readonly ObjectRow[]>>({});
-  $effect(() => {
-    void objectKey;
-    return untrack(() => readObjects(objectReads, (path, rows) => { objectsRead = { ...objectsRead, [path]: rows }; }));
-  });
-  const OBJECTS_SHOWN = 5;
-  const objectRows = $derived(objectKey === '' ? [] : objectHits(objectsRead, words, OBJECTS_SHOWN).filter((row) => objectReads.some((read) => read.source.kind === row.kind)));
-
   /** What may be offered, each with what pressing it does. */
   const offers = $derived<readonly (Offer | (Candidate & { readonly run: () => void }))[]>([
     ...containerOffers(placed),
@@ -310,26 +281,68 @@
     ...placeOffers(reach, t),
     ...settings,
     ...catalogueRows,
-    ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
-    ...pageHits.map((hit) => ({ kind: 'place' as const, id: `page:${hit.id}`, label: hit.title, target: { kind: 'route' as const, path: `/pages/${hit.id}` } })),
-    ...objectRows.map((row) => ({ kind: 'place' as const, id: `${row.kind}:${row.id}`, label: row.title, context: t(`app.search.kind.${row.kind}`), target: { kind: 'route' as const, path: row.href } })),
     ...recentOffers(recents.rows.slice(0, GLANCE)),
   ]);
 
   const byKey = $derived(new Map(offers.map((offer) => [`${offer.kind}:${offer.id}`, offer])));
-  const hitById = $derived(new Map(hits.map((hit) => [hit.id, hit])));
 
   const sourced = $derived(words === '' ? [] : palette.sourced(words));
   const sourcedByKey = $derived(new Map(sourced.map((row) => [row.key, row])));
 
   const ranked = $derived(rank(offers, words, messages.locale));
-  const rows = $derived(rowsOf(term, ranked, quick, sourced.map((row) => row.key)));
-  const active = $derived(indexOfKey(rows, activeKey));
 
-  const matchRows = $derived(rows.filter((row) => row.kind !== 'quick' && row.kind !== 'all' && row.kind !== 'refine'));
-  const quickRows = $derived(rows.filter((row) => row.kind === 'quick'));
+  // ------------------------------------------------------------------------------------------
+  // The hits of every kind (§6.11): scopes with counts, best hits, the other kinds
+  // ------------------------------------------------------------------------------------------
+
+  const kinds = $derived(kindsOn(BAR_KINDS, manifest.value?.modules_on as readonly string[] | undefined));
+  const scopes = $derived(scopesOf(answer.facets, kinds, hereHub !== undefined));
+  const arranged = $derived(isCommandsOnly ? { best: [], more: [] } : arrange(answer.data, kinds, scope === 'ALL' || scope === 'HERE' ? undefined : scope));
+  const foundByKey = $derived(new Map(answer.data.map((hit) => [`${hit.kind}:${hit.id}`, hit])));
+  /** A typed key such as `SA-12` that an entry carries: Enter jumps to it. */
+  const jumpHit = $derived.by(() => {
+    const key = keyIn(words);
+    return key ? answer.data.find((hit) => hit.kind === 'ENTRY' && hit.key?.toUpperCase() === key) : undefined;
+  });
+  /** The account's own saved searches, offered before anything is typed. */
+  const saved = $derived(
+    views
+      .of()
+      .filter((view) => view.scope_type === 'ACCOUNT' && typeof (view.query as { q?: unknown } | undefined)?.q === 'string')
+      .slice(0, 3),
+  );
+  const savedLine = (id: string) => String((saved.find((view) => view.id === id)?.query as { q?: string } | undefined)?.q ?? '');
+
+  const rows = $derived.by((): readonly Row[] => {
+    if (words === '' && !isCommandsOnly) {
+      return [
+        ...ranked.filter((each) => each.kind === 'recent').map((each) => ({ kind: each.kind, id: each.id })),
+        ...saved.map((view) => ({ kind: 'saved' as const, id: view.id })),
+        ...ranked.filter((each) => each.kind !== 'recent').map((each) => ({ kind: each.kind, id: each.id })),
+        { kind: 'all' as const, id: 'all' },
+      ];
+    }
+    const found = (hit: Hit) => ({ kind: 'found' as const, id: `${hit.kind}:${hit.id}` });
+    return [
+      ...(jumpHit ? [{ kind: 'jump' as const, id: jumpHit.id }] : []),
+      ...arranged.best.map(found),
+      ...arranged.more.map(found),
+      ...ranked.map((each) => ({ kind: each.kind, id: each.id })),
+      ...sourced.map((row) => ({ kind: 'source' as const, id: row.key })),
+      ...(mayCaptureHere() && !isCommandsOnly ? [{ kind: 'make' as const, id: 'make' }] : []),
+      ...(isCommandsOnly ? [] : [{ kind: 'all' as const, id: 'all' }]),
+    ];
+  });
+  /** Typed, the first hit is marked before an arrow is pressed: Enter opens it (§6.11). */
+  const active = $derived(activeKey !== undefined ? indexOfKey(rows, activeKey) : rows[0]?.kind === 'found' || rows[0]?.kind === 'jump' ? 0 : -1);
+
+  const matchRows = $derived(rows.filter((row) => !['found', 'jump', 'saved', 'make', 'all', 'recent'].includes(row.kind)));
+  const recentRows = $derived(rows.filter((row) => row.kind === 'recent'));
+  const savedRows = $derived(rows.filter((row) => row.kind === 'saved'));
   const allRow = $derived(rows.find((row) => row.kind === 'all'));
-  const refineRow = $derived(rows.find((row) => row.kind === 'refine'));
+  const makeRow = $derived(rows.find((row) => row.kind === 'make'));
+  const jumpRow = $derived(rows.find((row) => row.kind === 'jump'));
+  const total = $derived(scopes[0]?.count ?? 0);
 
   // ------------------------------------------------------------------------------------------
   // Reads the answer needs, while it is open
@@ -351,50 +364,54 @@
   });
 
   /**
-   * The first few hits, a beat after the typing stops - a peek that never touches the search
-   * screen's state. A generation, because the answer to "mil" can arrive after the answer to
-   * "milk", and a list that showed it would ignore what was typed last.
+   * The hits of every kind, a beat after the typing stops - a read that never touches the search
+   * screen's state. A generation, because the answer to "pass" can arrive after the answer to
+   * "passkey", and a list that showed it would ignore what was typed last.
    */
   let generation = 0;
   $effect(() => {
-    const asked = words;
-    if (!isOpen || asked === '') {
-      hits = [];
-      pageHits = [];
+    const body = isOpen && !isCommandsOnly ? requestOf(words, kinds, { size: 8, hubId: scope === 'HERE' ? hereHub?.id : undefined }) : undefined;
+    if (!body) {
+      answer = { data: [], facets: [] };
       searching = false;
       return;
     }
     searching = true;
     const mine = (generation += 1);
     const timer = setTimeout(() => {
-      void search
-        .peek({ q: asked }, 5)
-        .then((found) => {
+      void searchAll(body).then(
+        (found) => {
           if (mine !== generation) return;
-          hits = found;
+          answer = { data: Array.isArray(found.data) ? found.data : [], facets: Array.isArray(found.facets) ? found.facets : [] };
           searching = false;
-        })
-        .catch(() => {
-          // A list is an offer, not an answer: a failed peek shows no hits and the way on still
-          // works. The screen it leads to is where a failure is reported, with its reference.
+        },
+        // A list is an offer, not an answer: a failed read shows no hits and the way on still
+        // works. The screen it leads to is where a failure is reported, with its reference.
+        () => {
           if (mine !== generation) return;
-          hits = [];
+          answer = { data: [], facets: [] };
           searching = false;
-        });
-      if ((manifest.value?.modules_on ?? []).includes('KNOWLEDGE')) {
-        void pages.search(asked, undefined, 5).then(
-          (found) => { if (mine === generation) pageHits = found; },
-          () => { if (mine === generation) pageHits = []; },
-        );
-      } else pageHits = [];
+        },
+      );
     }, 200);
     return () => clearTimeout(timer);
+  });
+
+  // A new question starts over every kind.
+  $effect(() => {
+    if (words === '') scope = 'ALL';
+  });
+
+  // The saved searches, read while the palette is open.
+  $effect(() => {
+    if (!isOpen) return;
+    return untrack(() => views.open());
   });
 
   // How many rows answer, said once the entries are in - never a region mounted with text.
   $effect(() => {
     if (!isOpen || words === '' || searching) return;
-    const count = matchRows.length;
+    const count = total + matchRows.length;
     untrack(() => announcer.say(t('app.palette.count', { count: String(count) })));
   });
 
@@ -472,6 +489,26 @@
     if (row.kind === 'quick') return goSearch(row.id, { handOver: true });
     if (row.kind === 'all') return goSearch('', { handOver: true });
     if (row.kind === 'refine') return goSearch('', { handOver: true, openEditor: true });
+    if (row.kind === 'jump') return finish(() => onnavigate(`/items/${row.id}`));
+    if (row.kind === 'make') {
+      const typed = words;
+      return finish(() => capture.open({ text: typed }));
+    }
+    if (row.kind === 'saved') {
+      search.handOver(savedLine(row.id));
+      return finish(() => onnavigate('/search'));
+    }
+    if (row.kind === 'found') {
+      const hit = foundByKey.get(row.id);
+      if (!hit) return;
+      if (hit.kind === 'PERSON') {
+        search.handOver(personLine(hit));
+        return finish(() => onnavigate('/search'));
+      }
+      const path = hitPath(hit);
+      if (path) finish(() => onnavigate(path));
+      return;
+    }
     if (row.kind === 'source') {
       const sourcedRow = sourcedByKey.get(row.id);
       const asked = words;
@@ -498,6 +535,19 @@
    * is the field's own behaviour.
    */
   function keydown(event: KeyboardEvent) {
+    // ⌘↵ shows every hit on the search page, whatever is marked.
+    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && allRow) {
+      event.preventDefault();
+      pick(allRow);
+      return;
+    }
+    // Tab moves through the scopes while there are hits; Shift Tab leaves as everywhere.
+    if (event.key === 'Tab' && !event.shiftKey && isOpen && words !== '' && scopes.length > 1) {
+      event.preventDefault();
+      const at = scopes.findIndex((each) => each.id === scope);
+      scope = scopes[(at + 1) % scopes.length]!.id;
+      return;
+    }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       if (!isOpen) palette.enter();
       event.preventDefault();
@@ -526,7 +576,6 @@
   // ------------------------------------------------------------------------------------------
 
   function iconOf(row: Row): IconName {
-    if (row.kind === 'hit') return hitById.get(row.id)?.completion?.is_completed ? 'square-check' : 'square';
     if (row.kind === 'container') return containers.find(row.id)?.type === 'HUB' ? 'hub' : 'collection';
     if (row.kind === 'source') return 'sparkles';
     if (row.kind === 'place') return row.id.startsWith('page:') ? 'file-text' : 'arrow-right';
@@ -536,10 +585,6 @@
   }
 
   function kindOf(row: Row): string {
-    if (row.kind === 'hit') {
-      const hit = hitById.get(row.id);
-      return levelWords(hit ? containers.find(hit.collection_id)?.structure?.settings : undefined, hit?.type ?? '', t).label;
-    }
     if (row.kind === 'container') return t('app.palette.kind', { kind: containers.find(row.id)?.type ?? '' });
     // A place opened last says what it was: its id starts with its kind (`registry.ts`).
     if (row.kind === 'recent') return t('app.palette.kind', { kind: row.id.slice(0, row.id.indexOf(':')).toUpperCase() });
@@ -569,6 +614,17 @@
   }
 
   const enterHintId = $derived(`${host}-palette-enter`);
+
+  function initialsOf(name: string): string {
+    return name.split(/\s+/u).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
+  }
+
+  /** What stands beside a hit: its place, its key's collection, its state - never colour alone. */
+  function contextOf(hit: Hit): string {
+    const place = hit.collection_id ? containers.find(hit.collection_id)?.name : hit.hub_id ? containers.find(hit.hub_id)?.name : undefined;
+    const state = hit.state ? t('app.search.state', { state: hit.state }) : undefined;
+    return [hit.kind === 'FILE' || hit.kind === 'COMMENT' ? t('app.search.kind_one', { kind: hit.kind }) : undefined, place, state].filter(Boolean).join(' · ');
+  }
 </script>
 
 {#snippet field()}
@@ -615,50 +671,117 @@
   </button>
 {/snippet}
 
+{#snippet found(row: Row)}
+  {@const hit = row.kind === 'jump' ? answer.data.find((each) => each.id === row.id) : foundByKey.get(row.id)}
+  {#if hit}
+    {@const tile = tileOf(hit)}
+    {@const key = keyOf(row)}
+    <button
+      type="button"
+      role="option"
+      id={rowId(row)}
+      aria-selected={rows[active] !== undefined && keyOf(rows[active]!) === key}
+      class="row hit"
+      data-kind={hit.kind}
+      data-active={rows[active] !== undefined && keyOf(rows[active]!) === key ? '' : undefined}
+      onmouseenter={() => (activeKey = key)}
+      onclick={() => pick(row)}
+    >
+      {#if hit.kind === 'PERSON'}
+        <span class="initials" aria-hidden="true">{initialsOf(hit.title)}</span>
+      {:else}
+        <ProductTile icon={tile.icon as IconName} product={tile.product} color={tile.color} size="sm" />
+      {/if}
+      {#if row.kind === 'jump'}<span class="title">{t('app.palette.jump', { key: hit.key ?? '' })}</span>{/if}
+      {#if hit.key}<span class="hitkey">{hit.key}</span>{/if}
+      <span class="title">
+        {#each markWords(hit.title, words) as piece, index (index)}{#if piece.isFound}<mark>{piece.text}</mark>{:else}{piece.text}{/if}{/each}
+      </span>
+      <span class="context">{contextOf(hit)}</span>
+      <VisuallyHidden>{t('app.search.kind_one', { kind: hit.kind })}</VisuallyHidden>
+      {#if rows[active] !== undefined && keyOf(rows[active]!) === key}<span class="key" aria-hidden="true"><Kbd size="sm">↵</Kbd></span>{/if}
+    </button>
+  {/if}
+{/snippet}
+
 {#snippet list()}
   <div class="menu" data-host={host} role="listbox" aria-label={t('app.searchmenu.label')} id="search-menu">
+    {#if words !== '' && !isCommandsOnly && scopes.length > 1}
+      <!-- The scopes with their counts (§6.11): Tab moves through them from the field. -->
+      <div class="scopes" role="group" aria-label={t('app.palette.scopes')}>
+        {#each scopes as each (each.id)}
+          <button
+            type="button"
+            class="scope"
+            tabindex="-1"
+            aria-pressed={scope === each.id}
+            onmousedown={(event) => event.preventDefault()}
+            onclick={() => (scope = each.id)}
+          >
+            {each.id === 'HERE' ? t('app.palette.scope_here', { name: hereHub?.name ?? '' }) : t('app.palette.scope', { kind: each.id })}
+            {#if each.count !== undefined}<span class="count">{each.count}{each.more ? '+' : ''}</span>{/if}
+          </button>
+        {/each}
+      </div>
+    {/if}
+
+    {#if jumpRow}
+      <div role="group" aria-label={t('app.palette.jump_group')}>{@render found(jumpRow)}</div>
+    {/if}
+    {#if arranged.best.length > 0}
+      <div role="group" aria-labelledby={`${host}-palette-best`}>
+        <p class="head" id={`${host}-palette-best`}>{t('app.palette.best')}</p>
+        {#each arranged.best as hit (hit.kind + hit.id)}{@render found({ kind: 'found', id: `${hit.kind}:${hit.id}` })}{/each}
+      </div>
+    {/if}
+    {#if arranged.more.length > 0}
+      <div role="group" aria-labelledby={`${host}-palette-more`}>
+        <p class="head" id={`${host}-palette-more`}>{t('app.palette.more_kinds')}</p>
+        {#each arranged.more as hit (hit.kind + hit.id)}{@render found({ kind: 'found', id: `${hit.kind}:${hit.id}` })}{/each}
+      </div>
+    {/if}
+
+    {#if recentRows.length > 0}
+      <div role="group" aria-labelledby={`${host}-palette-recent`}>
+        <p class="head" id={`${host}-palette-recent`}>{t('app.palette.group', { group: 'recent' })}</p>
+        {#each recentRows as row (keyOf(row))}{@render option(row)}{/each}
+      </div>
+    {/if}
+    {#if savedRows.length > 0}
+      <div role="group" aria-labelledby={`${host}-palette-saved`}>
+        <p class="head" id={`${host}-palette-saved`}>{t('app.palette.saved')}</p>
+        {#each savedRows as row (keyOf(row))}
+          <button type="button" role="option" id={rowId(row)} aria-selected={keyOf(row) === activeKey} class="row" data-active={keyOf(row) === activeKey ? '' : undefined} onmouseenter={() => (activeKey = keyOf(row))} onclick={() => pick(row)}>
+            <Icon name="star" />
+            <span class="title">{saved.find((view) => view.id === row.id)?.name}</span>
+            <code class="context">{savedLine(row.id)}</code>
+          </button>
+        {/each}
+      </div>
+    {/if}
+
     {#each groups as group (group.id)}
       <div role="group" aria-labelledby={`${host}-palette-${group.id}`}>
-        <p class="head" id={`${host}-palette-${group.id}`}>{t('app.palette.group', { group: group.id })}</p>
+        <p class="head" id={`${host}-palette-${group.id}`}>{t(words === '' ? 'app.palette.quick_head' : 'app.palette.group', { group: group.id })}</p>
         {#each group.rows as row (keyOf(row))}
           {@render option(row)}
         {/each}
       </div>
     {/each}
-    {#if words !== '' && searching}
+    {#if words !== '' && searching && answer.data.length === 0}
       <p class="head"><Spinner size="sm" /> {t('app.searchmenu.searching')}</p>
-    {:else if words !== '' && matchRows.length === 0}
+    {:else if words !== '' && !searching && answer.data.length === 0 && matchRows.length === 0}
       <p class="head">{t('app.searchmenu.none')}</p>
-    {/if}
-
-    {#if quickRows.length > 0}
-      <!-- With words these narrow *them*; without, each is a list of its own. The heading says
-           which, because a control that means two things without saying so surprises. -->
-      <div role="group" aria-labelledby={`${host}-palette-quick`}>
-        <p class="head" id={`${host}-palette-quick`}>
-          {t(words === '' ? 'app.searchmenu.quick' : 'app.searchmenu.quick_with_words')}
-        </p>
-        <div class="quick">
-          {#each quickRows as row (row.id)}
-            <button
-              type="button"
-              role="option"
-              id={rowId(row)}
-              aria-selected={keyOf(row) === activeKey}
-              class="pill"
-              data-active={keyOf(row) === activeKey ? '' : undefined}
-              onmouseenter={() => (activeKey = keyOf(row))}
-              onclick={() => pick(row)}
-            >
-              {t(QUICK.find((each) => each.line === row.id)?.code ?? '')}
-            </button>
-          {/each}
-        </div>
-      </div>
     {/if}
 
     <div class="feet" role="group" aria-labelledby={`${host}-palette-on`}>
       <VisuallyHidden><span id={`${host}-palette-on`}>{t('app.palette.ways_on')}</span></VisuallyHidden>
+      {#if makeRow}
+        <button type="button" role="option" id={rowId(makeRow)} aria-selected={keyOf(makeRow) === activeKey} class="row foot" data-active={keyOf(makeRow) === activeKey ? '' : undefined} onmouseenter={() => (activeKey = keyOf(makeRow))} onclick={() => pick(makeRow)}>
+          <Icon name="plus" />
+          <span class="title">{t('app.palette.make_entry', { words: words.length > 24 ? `${words.slice(0, 24)} …` : `${words} …` })}</span>
+        </button>
+      {/if}
       {#if allRow}
         <button
           type="button"
@@ -666,33 +789,29 @@
           id={rowId(allRow)}
           aria-selected={keyOf(allRow) === activeKey}
           aria-describedby={enterHintId}
+          aria-keyshortcuts="Meta+Enter Control+Enter"
           class="row foot"
           data-active={keyOf(allRow) === activeKey ? '' : undefined}
           onmouseenter={() => (activeKey = keyOf(allRow))}
           onclick={() => pick(allRow)}
         >
           <Icon name="search" />
-          <span class="title">{t(words === '' ? 'app.searchmenu.open' : 'app.searchmenu.all')}</span>
-          <span class="key" aria-hidden="true"><Kbd size="sm">⏎</Kbd></span>
+          <span class="title">{words === '' ? t('app.searchmenu.open') : t('app.palette.all_hits', { count: String(total) })}</span>
+          <span class="key" aria-hidden="true"><Kbd size="sm">{words === '' ? '↵' : '⌘↵'}</Kbd></span>
           <VisuallyHidden><span id={enterHintId}>{t('app.palette.enter_hint')}</span></VisuallyHidden>
         </button>
       {/if}
-      {#if refineRow}
-        <button
-          type="button"
-          role="option"
-          id={rowId(refineRow)}
-          aria-selected={keyOf(refineRow) === activeKey}
-          class="row foot"
-          data-active={keyOf(refineRow) === activeKey ? '' : undefined}
-          onmouseenter={() => (activeKey = keyOf(refineRow))}
-          onclick={() => pick(refineRow)}
-        >
-          <Icon name="funnel" />
-          <span class="title">{t('app.searchmenu.refine')}</span>
-        </button>
-      {/if}
     </div>
+    {#if host === 'bar'}
+      <!-- The keys of the list, learnt where they are used. -->
+      <p class="hints" aria-hidden="true">
+        <span><Kbd size="sm">↑↓</Kbd> {t('app.palette.hint_move')}</span>
+        <span><Kbd size="sm">↵</Kbd> {t('app.palette.hint_open')}</span>
+        <span><Kbd size="sm">Tab</Kbd> {t('app.palette.hint_scope')}</span>
+        <span><Kbd size="sm">&gt;</Kbd> {t('app.palette.hint_commands')}</span>
+        <span class="tip">{t('app.palette.hint_type', { key: 'type:' })}</span>
+      </p>
+    {/if}
   </div>
 {/snippet}
 
@@ -849,21 +968,62 @@
   .context { flex: none; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
 
 
-  .quick { display: flex; flex-wrap: wrap; gap: var(--sp-050); padding-inline: var(--sp-100); }
+  .scopes { display: flex; flex-wrap: wrap; gap: var(--sp-050); padding: var(--sp-050) var(--sp-050) var(--sp-100); }
 
-  .pill {
+  .scope {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
     min-block-size: var(--density-control-sm-min);
-    padding-inline: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
+    padding-inline: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-default);
     border-radius: var(--r-full);
     background: var(--bg-raised);
-    color: var(--text-secondary);
+    color: var(--text-primary);
     font: inherit;
     font-size: var(--fs-075);
     cursor: pointer;
   }
 
-  .pill[data-active], .pill:hover { border-color: var(--accent-primary); color: var(--text-primary); }
+  .scope:hover { background: var(--bg-surface-hover); }
+  .scope[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary); color: var(--text-inverse); }
+  .scope .count { font-variant-numeric: tabular-nums; }
+
+  .head { text-transform: uppercase; }
+
+  .hit .title { flex: 0 1 auto; }
+  .hit .context { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .hitkey { flex: none; color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-075); }
+  mark { border-radius: var(--r-sm); background: var(--status-warning-surface); color: inherit; }
+
+  .initials {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+    border-radius: var(--r-full);
+    background: var(--accent-signature-subtle);
+    color: var(--text-primary);
+    font-size: var(--fs-050);
+    font-weight: var(--fw-medium);
+  }
+
+  .hints {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-150);
+    margin: var(--sp-050) 0 0;
+    padding: var(--sp-100) var(--sp-100) 0;
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    inline-size: 100%;
+    box-sizing: border-box;
+  }
+
+  .hints .tip { margin-inline-start: auto; }
 
   .feet {
     margin-block-start: var(--sp-050);

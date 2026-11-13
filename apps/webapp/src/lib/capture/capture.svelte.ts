@@ -37,6 +37,8 @@ export interface Door {
   readonly importFrom?: { readonly source: ImportKind } | { readonly family: SourceFamily };
   /** Whether the field stays open after Enter, for a list typed one line after another. */
   readonly keepsOpen?: boolean;
+  /** The line already typed elsewhere - *Erstellen*'s line, the palette's words - to go on with. */
+  readonly text?: string;
 }
 
 /** One entry, several lines as several entries, from a template, or a file imported. */

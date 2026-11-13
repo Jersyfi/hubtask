@@ -44,7 +44,7 @@ export interface Candidate {
   readonly shortcut?: string;
 }
 
-export type RowKind = CandidateKind | 'source' | 'quick' | 'all' | 'refine';
+export type RowKind = CandidateKind | 'source' | 'quick' | 'all' | 'refine' | 'found' | 'jump' | 'saved' | 'make';
 
 export interface Row {
   readonly kind: RowKind;

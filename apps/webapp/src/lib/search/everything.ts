@@ -210,3 +210,25 @@ export function ordered(hits: readonly Hit[], order: Order, locale: string): Hit
   const collator = new Intl.Collator(locale);
   return [...hits].sort((a, b) => collator.compare(a.title, b.title));
 }
+
+/** A hit's tile: the product's colour and mark, which identify and mean nothing (WB-2). */
+export function tileOf(hit: Hit): { readonly icon: string; readonly product?: 'pages' | 'whiteboards' | 'goals' | 'assets' | 'desk'; readonly color?: string } {
+  const on = hit.kind === 'FILE' || hit.kind === 'COMMENT' ? (hit.on?.kind ?? 'ENTRY') : hit.kind;
+  const mark = hit.kind === 'FILE' ? 'paperclip' : hit.kind === 'COMMENT' ? 'message-square' : undefined;
+  switch (on) {
+    case 'PAGE':
+      return { icon: mark ?? 'book-open', product: 'pages' };
+    case 'WHITEBOARD':
+      return { icon: mark ?? 'layout-template', product: 'whiteboards' };
+    case 'GOAL':
+      return { icon: 'flag', product: 'goals' };
+    case 'DASHBOARD':
+      return { icon: 'layout-grid', product: 'goals' };
+    case 'ASSET':
+      return { icon: 'shield', product: 'assets' };
+    case 'PERSON':
+      return { icon: 'user' };
+    default:
+      return { icon: mark ?? (hit.state === 'DONE' ? 'square-check' : 'square'), color: 'brand' };
+  }
+}
