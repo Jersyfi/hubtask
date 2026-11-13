@@ -14769,5 +14769,9 @@
   "activity.item_recurrence_skipped_you": "Du hast das nächste Vorkommen übersprungen",
   "activity.item_commented_you": "Du hast kommentiert",
   "activity.item_merged_you": "Deine Änderung an diesem Eintrag ist mit einer anderen zusammengestoßen; die unterlegene Fassung bleibt als Kommentar erhalten",
-  "activity.item_change_lost_you": "Deine Änderung auf einem anderen Gerät wurde von einer späteren überstimmt"
+  "activity.item_change_lost_you": "Deine Änderung auf einem anderen Gerät wurde von einer späteren überstimmt",
+  "app.item.priority_from_matrix": "aus Auswirkung × Dringlichkeit",
+  "templates.text.be0a061d": "Hoch",
+  "templates.text.09be5f96": "Mittel",
+  "templates.text.b1dd9521": "Niedrig"
 }

@@ -14769,5 +14769,9 @@
   "activity.item_recurrence_skipped_you": "You skipped the next occurrence",
   "activity.item_commented_you": "You commented",
   "activity.item_merged_you": "Your change to this entry collided with another one; the version that lost is kept as a comment",
-  "activity.item_change_lost_you": "Your change from another device was outvoted by a later one"
+  "activity.item_change_lost_you": "Your change from another device was outvoted by a later one",
+  "app.item.priority_from_matrix": "from impact × urgency",
+  "templates.text.be0a061d": "High",
+  "templates.text.09be5f96": "Medium",
+  "templates.text.b1dd9521": "Low"
 }

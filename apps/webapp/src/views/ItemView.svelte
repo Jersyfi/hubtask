@@ -76,7 +76,8 @@
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
-  import { definitionsFor, fieldName, valueText } from '../lib/data/customfields.ts';
+  import { definitionsFor, fieldName, optionWord, valueText } from '../lib/data/customfields.ts';
+  import { followsMatrix } from '../lib/servicedesk/priority.ts';
   import { hasForm, panelRows, triageKeys } from '../lib/data/entryforms.ts';
   import { droppedBy, entryTypes, entryTypesOffered, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
   import { actsAsDesk } from '../lib/portal/portal.ts';
@@ -1026,6 +1027,7 @@
     // Any member may read the groups; until they arrive the row says nothing rather than that.
     groupOf: (id: string) => groups.nameOf(id) ?? (groups.state.status === 'ready' ? undefined : ''),
     moment: (iso: string) => formatDateTime(iso, messages.locale),
+    option: (value: string) => optionWord(value, messages),
     unknown: t('app.fields.value_unnamed'),
   });
   const wantsGroups = $derived(fieldRows.some((row) => row.definition.kind === 'GROUP'));
@@ -1684,6 +1686,7 @@
       id={`field-${definition.key}`}
       label={row.required ? t('app.entry_forms.required_label', { name: fieldName(definition) }) : fieldName(definition)}
       value={valueText(definition, held, fieldReading)}
+      note={definition.key === 'priority' && isDeskEntry && followsMatrix(item.custom_fields as Record<string, unknown> | undefined) ? t('app.item.priority_from_matrix') : undefined}
       isReadOnly={!isWritable || row.readOnly}
     >
       <CustomFieldPanel {item} path={peoplePath} only={definition.key} />

@@ -31,7 +31,7 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { calculatedOf, definitionsFor, fieldName, isCalculated, valueFor } from '../data/customfields.ts';
+  import { calculatedOf, definitionsFor, fieldName, isCalculated, optionWord, valueFor } from '../data/customfields.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -226,6 +226,7 @@
       label: fieldName(definition),
       kind: definition.kind as string,
       options: (definition.options ?? []) as readonly string[],
+      optionLabel: (option: string) => optionWord(option, messages),
       isRequired: definition.is_required ?? false,
       hint: hintOf(definition),
     };

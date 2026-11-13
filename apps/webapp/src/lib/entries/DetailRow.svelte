@@ -38,9 +38,11 @@
     ask?: Snippet;
     /** What AI has to say about it, under the row. Renders nothing where nothing stands. */
     below?: Snippet;
+    /** A quiet line under the value saying where it comes from: *from impact × urgency*. */
+    note?: string;
   }
 
-  const { label, value, id, children, isReadOnly = false, ask, below }: Props = $props();
+  const { label, value, id, children, isReadOnly = false, ask, below, note }: Props = $props();
 
   let isOpen = $state(false);
 </script>
@@ -90,7 +92,7 @@
   {#if value === undefined}
     <span class="add"><Icon name="plus" size="sm" />{t('app.detail.add')}</span>
   {:else}
-    <span class="value">{value}</span>
+    <span class="value">{value}{#if note}<span class="note" data-detail-note>{note}</span>{/if}</span>
   {/if}
 {/snippet}
 
@@ -145,6 +147,8 @@
     text-align: end;
     overflow-wrap: anywhere;
   }
+
+  .note { display: block; color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* An empty field is an offer, in the interaction colour, with the word (rule 3). */
   .add {

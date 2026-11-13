@@ -442,5 +442,9 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   const triage = page.locator('[data-entry-triage]');
   await triage.getByText('Plattform-Team').waitFor({ timeout: 10_000 });
   const said = await triage.innerText();
+  assert.match(said, /Auswirkung\s*Hoch/, 'the impact is not in the reader\'s words');
+  assert.match(said, /Dringlichkeit\s*Mittel/, 'the urgency is not in the reader\'s words');
+  assert.doesNotMatch(said, /\bHigh\b|\bMedium\b/, 'a stored English option shows');
+  assert.equal(await triage.locator('[data-detail="field-priority"] [data-detail-note]').innerText(), 'aus Auswirkung × Dringlichkeit');
   assert.doesNotMatch(said, /Für dich nicht sichtbar/, 'the responding group reads as out of sight to who may read the entry');
 });

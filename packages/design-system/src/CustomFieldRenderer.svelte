@@ -67,6 +67,8 @@
      * and `Parent/Child`) or `STATUS`, and empty for every other kind.
      */
     readonly options?: readonly string[];
+    /** What a person reads for an option, resolved by the caller; the option itself without it. */
+    readonly optionLabel?: (option: string) => string;
     /** Whether it has to hold a value. Shown, because a reader owes nothing they were not told. */
     readonly isRequired?: boolean;
     /** Standing help under the label. */
@@ -149,7 +151,7 @@
   const options = $derived(
     (definition.options ?? []).map((option) => ({
       value: option,
-      label: definition.kind === 'CASCADING_SELECT' ? option.split('/').join(' › ') : option,
+      label: definition.kind === 'CASCADING_SELECT' ? option.split('/').join(' › ') : (definition.optionLabel?.(option) ?? option),
     })),
   );
   const chosen = $derived(Array.isArray(value) ? (value as readonly string[]) : []);
@@ -264,7 +266,7 @@
     {#if definition.hint}<p class="hint">{definition.hint}</p>{/if}
     {#each definition.options ?? [] as option (option)}
       <Checkbox
-        label={option}
+        label={definition.optionLabel?.(option) ?? option}
         checked={chosen.includes(option)}
         {disabledReason}
         onchange={() => toggle(option)}
