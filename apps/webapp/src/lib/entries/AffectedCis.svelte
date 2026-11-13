@@ -116,6 +116,7 @@
       label={t('app.affected.title')}
       columns={ciColumns}
       rows={answer.cis}
+      density="compact"
       key={(ci) => ci.ci_id}
       rowLabel={(ci) => ci.name}
       href={(ci) => `/cis/${ci.ci_id}`}
@@ -130,7 +131,9 @@
     </DataTable>
 
 
-    <div class="group">
+    <!-- What it reaches and the other open entries are one line each under the table (the scene's
+         foot line); a collision keeps its row, it is a warning. -->
+    <div class="group" data-inline>
       <h3 class="relation">{t('app.affected.services')}</h3>
       {#if services.length === 0}
         <p class="quiet">{t('app.affected.services_none')}</p>
@@ -166,7 +169,7 @@
     {/if}
 
     {#if answer.related.length > 0}
-      <div class="group">
+      <div class="group" data-inline>
         <h3 class="relation">{t('app.affected.related')}</h3>
         <ul class="rows">
           {#each answer.related as other (`${other.item_id}:${other.ci_id}`)}
@@ -202,6 +205,8 @@
   .group { display: flex; flex-direction: column; gap: var(--sp-050); }
   .relation { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+  .group[data-inline] { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: var(--sp-150); }
+  .group[data-inline] .rows { display: flex; flex-wrap: wrap; column-gap: var(--sp-200); }
   .row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .what { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); min-inline-size: 0; }
   .what a, .entry { color: var(--text-primary); font-weight: var(--fw-medium); }
