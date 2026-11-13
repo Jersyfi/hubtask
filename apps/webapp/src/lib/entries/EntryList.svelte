@@ -1686,7 +1686,7 @@
                 <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
               {/if}
             {/if}
-            {#each isKeyFirst && chipFor(row.item) ? cellFields : fields as field (field)}
+            {#each cellFields as field (field)}
               <span class="cell" data-field={field}>
                 {#if field === 'key'}
                   <EntryKey collection={keyedCollection} number={row.item.number} />
@@ -1847,7 +1847,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={rowEnd}
-        state={chipFor(row.item) ? chipCell : undefined}
+        state={chipFor(row.item) || isKeyFirst ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />

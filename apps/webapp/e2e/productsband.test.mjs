@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { PERMISSIONS, ROLES, fallback } from './fixture.mjs';
+import { MANIFEST, PERMISSIONS, ROLES, fallback } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -78,8 +78,25 @@ const GOAL_ROWS = [{ id: '01a0e2e0-0000-7000-8000-000000000801', period_id: 'p1'
 const CIS = [{ id: '01a0e2e0-0000-7000-8000-000000000901', hub_id: HUB.id, class: 'firewall', name: 'FortiGate 60F', stage: 'LIVE', status: 'OK', attributes: {}, provenance: {}, protection: null, quantity: 1, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z', version: 1 }];
 const BOARDS = [board('01', 'Retro of the autumn release with every team that took part in it', '2026-10-30T09:00:00Z'), board('02', 'Kick-off', '2026-10-01T09:00:00Z')];
 
+/** The desk's workflow, where a test runs one: the desk's own list groups its requests by status. */
+const DESK_FLOW = {
+  key: 'incident_flow', name: 'Incident', system: false, hub_id: null, version: 1,
+  published: {
+    initial: 'new',
+    statuses: [
+      { key: 'new', name: 'New', category: 'TODO' },
+      { key: 'working', name: 'Working', category: 'IN_PROGRESS' },
+      { key: 'solved', name: 'Solved', category: 'DONE' },
+    ],
+    steps: [{ key: 'take', name: 'Take', from: ['new'], to: 'working' }, { key: 'solve', name: 'Solve', from: ['working'], to: 'solved' }],
+  },
+};
+/** The desk as a desk's template makes it: requests with their parts. */
+const LEVELLED_DESK = { ...DESK, structure: { settings: { ...DESK.structure.settings, levels: [{ type: 'TASK', name: null }, { type: 'WORK_PACKAGE', name: null }] } } };
+const STATUS_OF = { '01': 'working', '02': 'new', '03': 'new' };
+
 /** The API at the network edge, with the workspace's modules and the hub's own. */
-function stubFor({ modulesOn, hubModules, deskless = false, role }) {
+function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = false }) {
   return async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname;
@@ -91,7 +108,7 @@ function stubFor({ modulesOn, hubModules, deskless = false, role }) {
     if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
     if (path.endsWith('/api/v1/accounts/me')) return route.fulfill({ json: ACCOUNT });
     if (path.endsWith('/api/v1/meta/capabilities')) {
-      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn, ...(role ? { roles: ROLES } : {}) } });
+      return route.fulfill({ json: { product_version: '0.9.0', api_version: 'v1', tenancy_mode: 'single', item_types: deskFlow ? MANIFEST.item_types : [], supported_locales: [{ locale: 'en', direction: 'ltr' }], workspace_permissions: PERMISSIONS.OWNER, modules_on: modulesOn, ...(role ? { roles: ROLES } : {}) } });
     }
     if (path.endsWith(`/api/v1/containers/${HUB.id}/modules`)) return route.fulfill({ json: { modules_on: hubModules ?? modulesOn } });
     if (path.endsWith('/api/v1/agents')) return route.fulfill({ json: { data: AGENTS } });
@@ -124,10 +141,12 @@ function stubFor({ modulesOn, hubModules, deskless = false, role }) {
       const body = route.request().postDataJSON();
       queries.push(body);
       if (body?.sort?.[0]?.field === 'updated_at') return route.fulfill({ json: { data: RECENT, groups: [], page: { next_cursor: null, has_more: false }, total: null } });
-      const rows = QUEUES[queueOf(body)];
+      const queued = QUEUES[queueOf(body)];
+      const rows = deskFlow ? queued.map((row) => ({ ...row, status: STATUS_OF[row.id.slice(-2)] })) : queued;
       return route.fulfill({ json: { data: rows, groups: [], page: { next_cursor: null, has_more: false }, total: rows.length } });
     }
-    if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === HUB.id) return route.fulfill({ json: { ...PAGE, data: [DESK, SCRUM] } });
+    if (deskFlow && path.endsWith('/api/v1/workflows')) return route.fulfill({ json: { data: [DESK_FLOW], scheme: [{ container_id: DESK.id, entry_type: null, workflow: DESK_FLOW.key }] } });
+    if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === HUB.id) return route.fulfill({ json: { ...PAGE, data: [deskFlow ? LEVELLED_DESK : DESK, SCRUM] } });
     if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') return route.fulfill({ json: { ...PAGE, data: [HUB] } });
     if (path.endsWith('/api/v1/containers')) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (/\/(labels|buckets|views|templates|custom-fields|policies|members)$/.test(path)) return route.fulfill({ json: [] });
@@ -485,6 +504,36 @@ test('chromium 1280 px: the desk opens on the first queue that holds a request',
   await queues.getByRole('radio', { name: 'Unassigned (2)', checked: true }).waitFor({ timeout: 10_000 });
   await queues.getByRole('radio', { name: 'Mine (0)' }).click();
   await page.getByRole('region', { name: 'Mine', exact: true }).getByText('Nothing waits in this queue').waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+// UC-SVC-03 check 12 (scene queue): a desk collection's own list is its queue - the key leading
+// each row and its head, the queue's columns, grouped by status, each group ending in the desk's add.
+test('chromium 1280 px: a desk collection\'s own list is its queue, grouped by status with the key first', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: `/collections/${DESK.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskFlow: true, role: 'OWNER' });
+  t.after(close);
+  const table = page.locator('[data-desk][data-table]');
+  await table.waitFor({ timeout: 15_000 });
+  await table.getByText('VPN drops at noon').first().waitFor({ timeout: 10_000 });
+  const head = table.locator('.fields-head');
+  assert.deepEqual(
+    (await head.locator('.col-head').allTextContents()).map((each) => each.trim()),
+    ['Key', 'Request', 'Type', 'Requester', 'Priority', 'SLA', 'People'],
+  );
+  // Grouped by status in the workflow's order; each group ends in the desk's add.
+  const groups = table.locator('.group-head[data-fold]');
+  await page.waitForFunction(() => document.querySelectorAll('[data-desk] .group-head[data-fold]').length >= 2, null, { timeout: 5_000 });
+  const named = (await groups.locator('.group-name').allInnerTexts()).map((each) => each.trim());
+  assert.deepEqual(named.slice(0, 2), ['New', 'Working'], `groups: ${named}`);
+  assert.equal(await table.getByRole('button', { name: `Request in “${DESK.name}”` }).count(), await groups.count(), 'a group without the desk\'s add');
+  // The key leads its row, at the key head's start.
+  const keyHead = await head.locator('.key-head').boundingBox();
+  const rowKey = await table.locator('.lead-key').first().boundingBox();
+  assert.ok(Math.abs(keyHead.x - rowKey.x) <= 4, `the key stands at ${rowKey.x}, its head at ${keyHead.x}`);
+  assert.match(await table.locator('.lead-key').first().innerText(), /^INC-\d+$/);
+  await noSidewaysScroll(page, 'desk list 1280');
   assert.deepEqual(failures, []);
 });
 
