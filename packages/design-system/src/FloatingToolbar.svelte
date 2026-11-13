@@ -12,7 +12,7 @@
   import type { Snippet } from 'svelte';
 
   import Toolbar from './Toolbar.svelte';
-  import { anchorTo, rectAnchor, type Box, type RectAnchor } from './anchor.ts';
+  import { anchorTo, rectAnchor, type Box, type Placement, type RectAnchor } from './anchor.ts';
 
   interface Props {
     /** What the bar is called. */
@@ -21,10 +21,12 @@
     container: HTMLElement | undefined;
     /** The selection's box in the viewport; absent draws nothing. */
     box: Box | undefined;
+    /** Above the box by default; a line's own act stands at its end, inside it. */
+    placement?: Placement;
     children: Snippet;
   }
 
-  const { label, container, box, children }: Props = $props();
+  const { label, container, box, placement = { side: 'block-start', align: 'center' }, children }: Props = $props();
 
   let bar = $state<HTMLElement | null>(null);
   let anchor = $state<RectAnchor | undefined>(undefined);
@@ -35,7 +37,7 @@
     if (!host || !surface) return;
     const made = rectAnchor(host);
     made.place(box);
-    const untie = anchorTo(made.element, surface, { placement: { side: 'block-start', align: 'center' } });
+    const untie = anchorTo(made.element, surface, { placement });
     anchor = made;
     return () => {
       untie();
