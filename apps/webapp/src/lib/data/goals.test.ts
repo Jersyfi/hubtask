@@ -8,7 +8,7 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
-  leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
+  folded, leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
   widgetWrite,
 } from './goals.ts';
 
@@ -122,8 +122,9 @@ test('bars, a line and a pie are drawn from the rows', () => {
   const bars = barLayout(rows, 100, 50);
   assert.equal(bars[1]?.height, 50);
   assert.equal(bars[0]?.height, 25);
-  assert.equal(bars[0]?.series, 'blue');
-  assert.equal(seriesOf(10), 'blue');
+  assert.equal(bars[1]?.series, '1', 'one series is one colour (E-7)');
+  assert.equal(seriesOf(1), '2');
+  assert.equal(seriesOf(7), '1', 'the seven chart colours repeat in their fixed order');
   assert.equal(linePoints(rows, 100, 50), '0,25 100,0');
   const slices = pieSlices(rows);
   assert.equal(slices.length, 2);
@@ -207,4 +208,14 @@ test('goals at risk or off track need a look', () => {
   const of = (status: Goal['status']) => ({ status }) as Goal;
   assert.equal(needingALook([of('ON_TRACK'), of('AT_RISK'), of('OFF_TRACK'), of('DONE'), of('NONE')]), 2);
   assert.equal(needingALook([]), 0);
+});
+
+// UC-GOL-04 check 17 (E-7): a chart draws at most as many parts as it may tell apart - the rest
+// is one row, *Others*, holding their sum.
+test('a chart folds what is past its parts into one row', () => {
+  const rows = figureRows(['a', 'b', 'c', 'd', 'e', 'f'].map((group, i) => ({ group, period: null, count: i + 1, value: null })));
+  const ring = folded(rows, 4, 'Others');
+  assert.deepEqual(ring.map((row) => row.label), ['f', 'e', 'd', 'Others']);
+  assert.equal(ring[3]?.value, 6);
+  assert.equal(folded(rows, 8, 'Others').length, 6);
 });

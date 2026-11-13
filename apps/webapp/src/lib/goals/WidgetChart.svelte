@@ -3,8 +3,8 @@
 <script lang="ts">
   // One dashboard widget's figures, drawn (UC-GOL-04 check 8): a number, bars, a pie, a line, a
   // matrix, goals' progress or a table - and **always a table beside the chart** with the same rows,
-  // so that a reader who cannot see the shapes reads the numbers (P-13). Colours are the design
-  // system's label colours by series (rule 15); the table's swatch says which row is which.
+  // so that a reader who cannot see the shapes reads the numbers (P-13). Colours are the seven
+  // `chart.categorical` tokens in their fixed order (E-7), never a product's (WB-2); the table's swatch says which row is which.
   //
   // Nothing is computed here but the layout: the rows are the server's, counted for this reader.
   // A widget of two series - created beside resolved, and with running totals what is left - is
@@ -21,7 +21,7 @@
 
   interface Props {
     title: string;
-    chart: 'NUMBER' | 'BAR' | 'PIE' | 'LINE' | 'TABLE' | 'MATRIX' | 'PROGRESS';
+    chart: 'NUMBER' | 'BAR' | 'PIE' | 'LINE' | 'TABLE' | 'MATRIX' | 'PROGRESS' | 'LIST' | 'TEXT';
     rows: readonly FigureRow[];
     /** Two series or more, aligned by period; drawn in place of `rows` where given. */
     table?: SeriesTable;
@@ -138,7 +138,7 @@
     {:else if chart === 'LINE'}
       {#snippet lineDrawing()}
         <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
-          <polyline points={line} data-series="blue" /><path class="dots" d={lineDots(line)} data-series="blue" />
+          <polyline points={line} data-series="1" /><path class="dots" d={lineDots(line)} data-series="1" />
         </svg>
       {/snippet}
       {@render plot(lineDrawing)}
@@ -169,7 +169,7 @@
           {#snippet cell(row: FigureRow, column: DataColumn)}
             {#if column.id === 'label'}
               {@const i = rows.indexOf(row)}
-              {#if chart === 'BAR' || chart === 'PIE'}<span class="swatch" data-series={chart === 'PIE' ? (sliceOf(row.key)?.series ?? 'slate') : seriesOf(i)} aria-hidden="true"></span>{/if}
+              {#if chart === 'BAR' || chart === 'PIE'}<span class="swatch" data-series={chart === 'PIE' ? (sliceOf(row.key)?.series ?? '7') : seriesOf(i)} aria-hidden="true"></span>{/if}
               {#if row.goalId}<a href={`/goals/${row.goalId}`}>{labelText(row)}</a>{:else}{labelText(row)}{/if}{#if row.column}<span class="note">{row.column}</span>{/if}
             {:else}<span class="value">{row.text}</span>{/if}
           {/snippet}
@@ -204,16 +204,13 @@
   .bars { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; width: 100%; }
   .swatch { display: inline-block; inline-size: var(--sp-100); block-size: var(--sp-100); margin-inline-end: var(--sp-050); border-radius: var(--r-xs); background: var(--series); }
 
-  [data-series='blue'] { --series: var(--label-blue-fg); }
-  [data-series='teal'] { --series: var(--label-teal-fg); }
-  [data-series='amber'] { --series: var(--label-amber-fg); }
-  [data-series='violet'] { --series: var(--label-violet-fg); }
-  [data-series='green'] { --series: var(--label-green-fg); }
-  [data-series='magenta'] { --series: var(--label-magenta-fg); }
-  [data-series='orange'] { --series: var(--label-orange-fg); }
-  [data-series='lime'] { --series: var(--label-lime-fg); }
-  [data-series='red'] { --series: var(--label-red-fg); }
-  [data-series='slate'] { --series: var(--label-slate-fg); }
+  [data-series='1'] { --series: var(--chart-categorical-1); }
+  [data-series='2'] { --series: var(--chart-categorical-2); }
+  [data-series='3'] { --series: var(--chart-categorical-3); }
+  [data-series='4'] { --series: var(--chart-categorical-4); }
+  [data-series='5'] { --series: var(--chart-categorical-5); }
+  [data-series='6'] { --series: var(--chart-categorical-6); }
+  [data-series='7'] { --series: var(--chart-categorical-7); }
   rect[data-series], path[data-series] { fill: var(--series); }
   path[data-series] { stroke: var(--bg-surface); stroke-width: var(--bw-hairline); vector-effect: non-scaling-stroke; }
   polyline[data-series], path.dots[data-series] { stroke: var(--series); }

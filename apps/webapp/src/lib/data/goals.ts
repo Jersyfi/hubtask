@@ -167,6 +167,18 @@ export function portfolioWrite(portfolio: Portfolio, changes: Partial<PortfolioW
 }
 
 /** A widget as `PUT /dashboards/{id}` takes it: by its id, without the nulls the read carries. */
+/**
+ * At most `keep` rows, the rest summed as one row named `rest` (wcat: bars keep eight, a ring four),
+ * so a chart never draws more parts than the palette and the eye can tell apart.
+ */
+export function folded(rows: readonly FigureRow[], keep: number, rest: string): FigureRow[] {
+  if (rows.length <= keep) return [...rows];
+  const sorted = [...rows].sort((a, b) => b.value - a.value);
+  const kept = sorted.slice(0, keep - 1);
+  const value = sorted.slice(keep - 1).reduce((sum, row) => sum + row.value, 0);
+  return [...kept, { key: '__rest', label: rest, value, text: String(value) }];
+}
+
 export function widgetWrite(widget: DashboardWidget): DashboardWidgetWrite {
   const write: DashboardWidgetWrite = {
     id: widget.id,
@@ -184,6 +196,9 @@ export function widgetWrite(widget: DashboardWidget): DashboardWidgetWrite {
   // The replica hands the column on as stored, without the keys a widget does not use.
   if (widget.source !== 'GOALS' && widget.compare) write.compare = { ...widget.compare };
   if (widget.source !== 'GOALS' && widget.cumulative) write.cumulative = true;
+  if (widget.source === 'TEXT') write.text = widget.text ?? '';
+  if (widget.chart === 'LIST' && widget.column) write.column = widget.column;
+  if (widget.source === 'QUERY' && widget.released?.length) write.released = [...widget.released];
   return write;
 }
 
@@ -354,8 +369,11 @@ export function totalOf(rows: readonly FigureRow[]): number {
   return rows.reduce((sum, row) => sum + row.value, 0);
 }
 
-/** The ten label colours of the design system, in the order series take them. */
-export const SERIES = ['blue', 'teal', 'amber', 'violet', 'green', 'magenta', 'orange', 'lime', 'red', 'slate'] as const;
+/**
+ * The chart palette (E-7, WB-2): the seven `chart.categorical` tokens in their fixed order - never
+ * a product's or a label's colour. A chart beyond seven parts groups the rest (`folded`).
+ */
+export const SERIES = ['1', '2', '3', '4', '5', '6', '7'] as const;
 export type Series = (typeof SERIES)[number];
 
 /** The colour token of the n-th series, cycling. */
@@ -380,7 +398,7 @@ export function barLayout(rows: readonly FigureRow[], width: number, height: num
   const gap = slot * 0.2;
   return rows.map((row, i) => {
     const h = top > 0 ? (Math.max(row.value, 0) / top) * height : 0;
-    return { key: row.key, x: i * slot + gap / 2, y: height - h, width: slot - gap, height: h, series: seriesOf(i) };
+    return { key: row.key, x: i * slot + gap / 2, y: height - h, width: slot - gap, height: h, series: seriesOf(0) };
   });
 }
 
