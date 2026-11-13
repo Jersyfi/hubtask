@@ -478,6 +478,9 @@ type StatusMover struct {
 	Activity  ActivityJournal
 	Changes   changelog.ChangeLog
 	HLC       clock.HLCSource
+	// Boards puts each moved status's entries into the column showing it (domain-model.md
+	// §3.5a); unwired, columns stay as they were.
+	Boards Boards
 }
 
 // StatusSettler is Settle and Move together, for a writer outside this package that lands entries
@@ -490,11 +493,15 @@ type StatusSettler struct {
 // Settle puts the collection's entries where its workflows stand; those already there stay.
 func (s StatusSettler) Settle(ctx context.Context, actor appshared.ActorContext, collection domain.Container, now time.Time) error {
 	moves, err := s.Workflow.Settle(ctx, collection)
-	if err != nil || len(moves) == 0 {
+	if err != nil {
 		return err
 	}
-	_, err = s.Statuses.Move(ctx, actor, moves, now)
-	return err
+	if len(moves) > 0 {
+		if _, err := s.Statuses.Move(ctx, actor, moves, now); err != nil {
+			return err
+		}
+	}
+	return s.Statuses.placeByCompletion(ctx, actor, collection.ID, now)
 }
 
 // Move applies the moves and answers how many entries moved.
@@ -527,6 +534,74 @@ func (m StatusMover) Move(
 			}
 		}
 		moved += len(entries)
+		if err := m.place(ctx, actor, move, now); err != nil {
+			return 0, err
+		}
 	}
 	return moved, nil
+}
+
+// placeByCompletion puts the entries of a board without a workflow where their completion says:
+// completed ones into the done column, open ones out of it into the first (an import, §3.5a).
+func (m StatusMover) placeByCompletion(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, now time.Time) error {
+	if !m.Boards.Wired() || m.Boards.Statuses == nil {
+		return nil
+	}
+	board, err := m.Boards.Of(ctx, collectionID)
+	if err != nil {
+		return err
+	}
+	done, hasDone := board.DoneColumn()
+	if !hasDone {
+		return nil
+	}
+	first, _ := board.FirstColumn()
+	for _, put := range []struct {
+		completed    bool
+		from, column shared.ID
+	}{{true, "", done.ID}, {false, done.ID, first.ID}} {
+		placed, err := m.Boards.Statuses.PlaceByCompletion(ctx, collectionID, put.completed, put.from, put.column, now)
+		if err != nil {
+			return err
+		}
+		if err := m.recordColumns(ctx, actor, collectionID, placed, put.column); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// recordColumns tells offline clients the new column of each placed entry.
+func (m StatusMover) recordColumns(
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, placed []repository.MovedEntry, column shared.ID,
+) error {
+	for _, entry := range placed {
+		if err := m.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: itemTarget, EntityID: entry.ID, Op: changelog.Upsert,
+			ContainerID: collectionID, ActorID: actor.AccountID, HLC: m.HLC.Next(),
+			Field:   domain.FieldBucketID,
+			Payload: map[string]any{domain.FieldBucketID: idOrNil(column), "version": entry.Version},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// place puts the entries now in move.To into the column showing it, none for *Ohne Spalte*,
+// on a board that has columns.
+func (m StatusMover) place(ctx context.Context, actor appshared.ActorContext, move domain.StatusMove, now time.Time) error {
+	if !m.Boards.Wired() || m.Boards.Statuses == nil || move.To == "" {
+		return nil
+	}
+	board, err := m.Boards.Of(ctx, move.CollectionID)
+	if err != nil || len(board.Columns) == 0 {
+		return err
+	}
+	column, _ := board.ColumnOfStatus(move.To)
+	placed, err := m.Boards.Statuses.PlaceByStatus(ctx, move.CollectionID, move.To, column, now)
+	if err != nil {
+		return err
+	}
+	return m.recordColumns(ctx, actor, move.CollectionID, placed, column)
 }

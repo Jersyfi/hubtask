@@ -1028,11 +1028,12 @@ func run() error {
 	// The one gate every writer placing an entry in a column asks (UC-WRK-31 check 2).
 	flowGate := work.FlowGate{Buckets: buckets, Fields: customFields}
 	placement := work.PlacementWriter{
-		Gate:     entryGate,
-		Flow:     flowGate,
-		Workflow: workflowGate,
-		Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
-		Items:    items, Buckets: buckets, Containers: containers, Profiles: profiles,
+		Gate:       entryGate,
+		Flow:       flowGate,
+		Workflow:   workflowGate,
+		Statuses:   work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid, Boards: boards},
+		Completion: completion,
+		Items:      items, Buckets: buckets, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		HLC: hybrid,
@@ -1331,6 +1332,7 @@ func run() error {
 	mailBoxes.Quota = quotaGuard
 
 	duplicate := work.DuplicateWorkItem{
+		Boards:   boards,
 		Gate:     entryGate,
 		Quota:    quotaGuard,
 		Workflow: workflowGate,
@@ -2023,7 +2025,7 @@ func run() error {
 	// The workflows' designer, publish and scheme (UC-FLW-02, UC-FLW-04 check 5, UC-FLW-05).
 	workflowDesk := workflowservice.Desk{
 		Workflows: workflows, Containers: containers, Items: items,
-		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+		Mover: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid, Boards: boards},
 		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 		Roles: customRoles.Store, Groups: groups, Visibility: authorizer,
@@ -2797,7 +2799,7 @@ func run() error {
 			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, HLC: hybrid, Forms: entryGate.Forms, Recurrences: recurrences,
 			Workflow: workflowGate, Activity: journal,
-			Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+			Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid, Boards: boards},
 		}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
@@ -5220,7 +5222,7 @@ func run() error {
 			MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
 			Statuses: work.StatusSettler{
 				Workflow: workflowGate,
-				Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid},
+				Statuses: work.StatusMover{Workflows: workflows, Activity: journal, Changes: changes, HLC: hybrid, Boards: boards},
 			},
 		},
 		Progress: jobs,

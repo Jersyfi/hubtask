@@ -76,7 +76,10 @@ type DuplicateWorkItem struct {
 	Gate EntryGate
 	// Workflow settles each copy where the workflow in force at the destination puts an open entry
 	// of its type (WorkflowGate.openStatus). Unwired, the source's status travels as it is.
-	Workflow   WorkflowGate
+	Workflow WorkflowGate
+	// Boards places each copy in a column that agrees with it (Board.Copied); unwired, a copy
+	// keeps the column it resolved.
+	Boards     Boards
 	Authorizer Authorizer
 	// Ownership is the same question the create path asks: does the role the actor holds write only
 	// what is assigned to them. A copy is a create, so it has to ask it too.
@@ -484,7 +487,9 @@ type vocabulary struct {
 	sameCollection bool
 	labels         map[shared.ID]bool
 	buckets        map[shared.ID]bool
-	fields         map[string]domain.CustomFieldDefinition
+	// board is the destination's, read where boards are wired.
+	board  domain.Board
+	fields map[string]domain.CustomFieldDefinition
 	// visible caches the account question, which is the expensive one: a subtree can carry the same
 	// person on every entry, and the answer is one answer about one collection.
 	visible map[shared.ID]bool
@@ -517,6 +522,12 @@ func (h DuplicateWorkItem) vocabularyOf(
 		// order ListInScope answers in.
 		if _, taken := known.fields[definition.Key]; !taken {
 			known.fields[definition.Key] = definition
+		}
+	}
+
+	if h.Boards.Wired() {
+		if known.board, err = h.Boards.Of(ctx, plan.destination.ID); err != nil {
+			return nil, err
 		}
 	}
 
@@ -730,6 +741,9 @@ func (h DuplicateWorkItem) copyOf(
 	made.lastRank[copied.ParentID] = rank
 
 	copied.BucketID = h.bucketFor(source, copied, profile, known, made)
+	if copied.ParentID.IsZero() {
+		copied = known.board.Copied(copied)
+	}
 	copied.AssigneeID, err = h.assigneeFor(ctx, actor, plan, source, copied, profile, known, made)
 	if err != nil {
 		return domain.WorkItem{}, err

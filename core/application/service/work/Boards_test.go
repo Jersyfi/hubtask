@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -35,7 +37,28 @@ func threeColumnBoard(store *buckets) {
 	}
 }
 
-type mapping struct{ rows []domain.ColumnStatus }
+type mapping struct {
+	rows   []domain.ColumnStatus
+	placed []placedByStatus
+}
+
+// placedByStatus is one PlaceByStatus call.
+type placedByStatus struct {
+	status    string
+	column    shared.ID
+	completed bool
+	from      shared.ID
+}
+
+func (m *mapping) PlaceByCompletion(_ context.Context, _ shared.ID, completed bool, from, column shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
+	m.placed = append(m.placed, placedByStatus{completed: completed, from: from, column: column})
+	return []repository.MovedEntry{{ID: taskID, Version: 3}}, nil
+}
+
+func (m *mapping) PlaceByStatus(_ context.Context, _ shared.ID, status string, column shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
+	m.placed = append(m.placed, placedByStatus{status: status, column: column})
+	return []repository.MovedEntry{{ID: taskID, Version: 3}}, nil
+}
 
 func (m *mapping) List(context.Context, shared.ID) ([]domain.ColumnStatus, error) { return m.rows, nil }
 func (m *mapping) Replace(_ context.Context, _ shared.ID, rows []domain.ColumnStatus) error {
@@ -186,5 +209,134 @@ func TestUnderAWorkflowTheColumnFollowsTheStatus(t *testing.T) {
 	got, err = boards.couple(t.Context(), before, after, accountID, now)
 	if err != nil || !got.BucketID.IsZero() {
 		t.Errorf("an unmapped status stands in %s: %v", got.BucketID, err)
+	}
+}
+
+// boardElsewhere puts Offen, In Arbeit and Erledigt on the board of the harness's other collection
+// and wires the placement writer to read boards and write completions.
+func (h *placementHarness) boardElsewhere(collection shared.ID) *buckets {
+	board := &buckets{stored: map[shared.ID]domain.Bucket{}}
+	threeColumnBoard(board)
+	for id, column := range board.stored {
+		column.CollectionID = collection
+		board.stored[id] = column
+	}
+	h.writer.Buckets = board
+	h.writer.Completion = CompletionWriter{
+		Boards: Boards{Buckets: board},
+		Items:  h.items, Containers: h.containers, Profiles: h.writer.Profiles,
+		Authorizer: h.authorizer, Events: h.events, Changes: h.changes, Audit: h.audit,
+		Activity:   h.writer.Activity,
+		UnitOfWork: h.uow, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
+	}
+	return board
+}
+
+// Door: a move into another collection. The entry takes the state of the column it is put in, and
+// a completed one put in none goes into the done column.
+func TestAnEntryMovedOntoAnotherBoardTakesTheStateOfItsColumn(t *testing.T) {
+	move := func(t *testing.T, completed bool, column shared.ID) domain.WorkItem {
+		t.Helper()
+		h := newPlacementHarness()
+		far := h.otherCollection()
+		h.boardElsewhere(far.CollectionID)
+		if completed {
+			h.items.stored[targetTaskID] = h.items.stored[targetTaskID].Completed(accountID, now)
+		}
+		result, err := (MoveWorkItem{Placement: h.writer}).Execute(t.Context(), placementActor(), MoveWorkItemCommand{
+			ItemID: targetTaskID, TargetCollectionID: far.CollectionID, ParentGiven: true,
+			TargetBucketID: column, BucketGiven: !column.IsZero(),
+		})
+		if err != nil {
+			t.Fatalf("moving: %v", err)
+		}
+		if stored := h.items.stored[targetTaskID]; stored.BucketID != result.Item.BucketID ||
+			stored.Completion.IsCompleted != result.Item.Completion.IsCompleted {
+			t.Errorf("answered %s/%v, stored %s/%v", result.Item.BucketID, result.Item.Completion.IsCompleted,
+				stored.BucketID, stored.Completion.IsCompleted)
+		}
+		return result.Item
+	}
+	if got := move(t, false, doneColumn); got.BucketID != doneColumn || !got.Completion.IsCompleted {
+		t.Errorf("into the done column: %s, done %v", got.BucketID, got.Completion.IsCompleted)
+	}
+	if got := move(t, true, doingColumn); got.BucketID != doingColumn || got.Completion.IsCompleted {
+		t.Errorf("a completed entry into an open column: %s, done %v", got.BucketID, got.Completion.IsCompleted)
+	}
+	if got := move(t, true, ""); got.BucketID != doneColumn || !got.Completion.IsCompleted {
+		t.Errorf("a completed entry into no column: %s, done %v", got.BucketID, got.Completion.IsCompleted)
+	}
+}
+
+// Door: a copy (and an entry from a template, which is one). It arrives open, so out of the done
+// column into the first.
+func TestACopyArrivesOutsideTheDoneColumn(t *testing.T) {
+	h := newDuplicateHarness(t)
+	original := h.withTask()
+	threeColumnBoard(h.buckets)
+	h.handler.Boards = Boards{Buckets: h.buckets}
+	completed := original.Completed(accountID, now)
+	completed.BucketID = doneColumn
+	h.items.stored[original.ID] = completed
+
+	result, err := h.handler.Execute(t.Context(), actor(), DuplicateWorkItemCommand{ItemID: original.ID})
+	if err != nil {
+		t.Fatalf("copying: %v", err)
+	}
+	if result.Item.BucketID != todoColumn || result.Item.Completion.IsCompleted {
+		t.Errorf("the copy stands in %s, done %v", result.Item.BucketID, result.Item.Completion.IsCompleted)
+	}
+}
+
+// Door: a publish or a change of scheme moves statuses; the column follows each moved status.
+func TestAStatusMovedByASchemeChangeTakesItsColumn(t *testing.T) {
+	board := &buckets{stored: map[shared.ID]domain.Bucket{}}
+	threeColumnBoard(board)
+	statuses := &mapping{rows: []domain.ColumnStatus{{BucketID: doingColumn, Status: "doing"}}}
+	recorded := &changes{}
+	mover := StatusMover{
+		Workflows: &workflowStore{}, Activity: ActivityJournal{Entries: &journal{}, IDs: &ids{}},
+		Changes: recorded, HLC: &hlcSource{}, Boards: Boards{Buckets: board, Statuses: statuses},
+	}
+	if _, err := mover.Move(t.Context(), actorFixture(), []domain.StatusMove{
+		{CollectionID: collectionID, EntryType: "task", From: "open", To: "doing"},
+		{CollectionID: collectionID, EntryType: "task", From: "old", To: "review"},
+	}, now); err != nil {
+		t.Fatalf("moving: %v", err)
+	}
+	want := []placedByStatus{{status: "doing", column: doingColumn}, {status: "review"}}
+	if len(statuses.placed) != 2 || statuses.placed[0] != want[0] || statuses.placed[1] != want[1] {
+		t.Errorf("placed %+v, want %+v", statuses.placed, want)
+	}
+	columns := 0
+	for _, change := range recorded.recorded {
+		if change.Field == domain.FieldBucketID {
+			columns++
+		}
+	}
+	if columns != 2 {
+		t.Errorf("%d column changes recorded for offline clients, want 2", columns)
+	}
+}
+
+// Door: an import. Its rows carry their completion; the column follows - completed ones into the
+// done column, open ones out of it into the first.
+func TestAnImportsCompletionDecidesTheColumn(t *testing.T) {
+	board := &buckets{stored: map[shared.ID]domain.Bucket{}}
+	threeColumnBoard(board)
+	statuses := &mapping{}
+	settler := StatusSettler{Statuses: StatusMover{
+		Workflows: &workflowStore{}, Activity: ActivityJournal{Entries: &journal{}, IDs: &ids{}},
+		Changes: &changes{}, HLC: &hlcSource{}, Boards: Boards{Buckets: board, Statuses: statuses},
+	}}
+	if err := settler.Settle(t.Context(), actorFixture(), domain.Container{ID: collectionID}, now); err != nil {
+		t.Fatalf("settling: %v", err)
+	}
+	want := []placedByStatus{
+		{completed: true, column: doneColumn},
+		{completed: false, from: doneColumn, column: todoColumn},
+	}
+	if len(statuses.placed) != 2 || statuses.placed[0] != want[0] || statuses.placed[1] != want[1] {
+		t.Errorf("placed %+v, want %+v", statuses.placed, want)
 	}
 }
