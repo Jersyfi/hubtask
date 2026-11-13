@@ -48,8 +48,9 @@ foot loads more.
 4. The list is comfortable or compact by the person's choice, and this device keeps the choice.
 5. On the list ↓ and ↑ move from one row's title to the next, Enter opens the entry and Space picks
    it for the bulk bar; picking a row never completes it.
-6. At 1280×900 the list's tools stand above it in words - *Filter*, *Fields*, *Group*, *Sort*,
-   *Views*, the density, *Select entries* - not as bare marks.
+6. At 1280×900 the list's tools stand above it in words - the query's pieces, *View* (filter,
+   fields, grouping, order and the saved views in one panel), the density, *Select entries* - not
+   as bare marks.
 7. At 390×844 a row swiped to the right is completed (at L1 and L2 carried to the next column or
    along the first step), swiped to the left opens its menu; the menu offers the same act, and a
    line under the list says so.
