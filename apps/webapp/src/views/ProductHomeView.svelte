@@ -24,7 +24,7 @@
   import { productOf } from '../lib/navigation.ts';
   import { attentionAcross, phasesOf, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
-  import { releasesPath } from '../lib/data/releases.svelte.ts';
+  import { releasePath, releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
   import SprintBurndown from '../lib/plans/SprintBurndown.svelte';
   import { todayIn } from '../lib/i18n/zone.ts';
@@ -34,7 +34,7 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, PlanSchedule, PlanTolerance, PortfolioList, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, ItemAggregateResult, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
   import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
   import BoardTemplates, { type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import { config } from '../lib/data/config.svelte.ts';
@@ -138,12 +138,33 @@
   const upcoming = $derived(module === 'PLANNING' ? releasesDue(releasesAt, hubsWith.map((hub) => hub.id), isWhole ? Infinity : RELEASES_SHOWN) : []);
 
   /**
-   * The plans late (E-1): a hub's plan whose forecast end lies past its latest baseline's, as the
-   * plan's standing answers it; a plan without a baseline is never late.
+   * The plans late (E-1) and the work still open, each one read across the workspace by
+   * collection: a hub's plan is late by the most days an entry's due date lies past its latest
+   * baseline's (`plan.slip`), as a query reads it - nothing is written by reading it.
    */
   let slipAt = $state<Record<string, number>>({});
-  eachHub<PlanTolerance>('PLANNING', (hubId) => `/plans/${hubId}/tolerance`, (hubId, data) => (slipAt = { ...slipAt, [hubId]: data.exception?.slip_days ?? 0 }));
-  const plansLate = $derived(module === 'PLANNING' ? hubsWith.filter((hub) => (slipAt[hub.id] ?? 0) > 0).length : 0);
+  let openAt = $state<Record<string, number>>({});
+  $effect(() => {
+    if (module !== 'PLANNING') return;
+    return untrack(() => {
+      const byCollection = (rows: ItemAggregateResult['data']): Record<string, number> =>
+        Object.fromEntries(rows.filter((row) => row.group !== null).map((row) => [String(row.group), Number(row.value ?? row.count)]));
+      const stops = [
+        engine.subscribe<ItemAggregateResult>(
+          { path: '/items:aggregate', body: { scope: { workspace: true }, q: 'plan.slip: >0', aggregate: { function: 'MAX', field: 'slip_days', group_by: 'collection_id' } } },
+          (next) => { if (next.status === 'ready') slipAt = byCollection(next.data.data); },
+        ),
+        engine.subscribe<ItemAggregateResult>(
+          { path: '/items:aggregate', body: { scope: { workspace: true }, q: 'is: open', aggregate: { function: 'COUNT', group_by: 'collection_id' } } },
+          (next) => { if (next.status === 'ready') openAt = byCollection(next.data.data); },
+        ),
+      ];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const slipOf = (hubId: string) => Math.max(0, ...collectionsOfHub(hubId).map((id) => slipAt[id] ?? 0));
+  const openOf = (hubId: string) => collectionsOfHub(hubId).reduce((sum, id) => sum + (openAt[id] ?? 0), 0);
+  const plansLate = $derived(module === 'PLANNING' ? hubsWith.filter((hub) => slipOf(hub.id) > 0).length : 0);
 
   /** The plans' home lists the sprints running in the hubs' collections (§2.2), the soonest to end first. */
   const SPRINTS_SHOWN = 8;
@@ -238,6 +259,40 @@
       ].join(' · ');
     }
     return undefined;
+  }
+
+  /**
+   * A plan's line in *Plans in your hubs* (scene homeplans): late, the phase now and the days;
+   * else its sprint and next release; else on plan with the entries still open.
+   */
+  function planLine(hubId: string, phase: string | undefined, slip: number): string {
+    if (slip > 0) return [phase, t('app.product_home.plan_late', { count: slip })].filter(Boolean).join(' · ');
+    const sprint = sprintsRunning(sprintsAt, collectionsOfHub(hubId), 1)[0];
+    const next = nextReleaseOf(releasesAt, hubId);
+    if (sprint || next) {
+      return [sprint?.name, next ? t('app.product_home.release_on', { name: next.name, day: formatPlainDay(next.release_on, messages.locale) }) : undefined].filter(Boolean).join(' · ');
+    }
+    return [t('app.product_home.plan_on_track'), t('app.product_home.plan_open', { count: openOf(hubId) })].join(' · ');
+  }
+
+  /** The releases card names what a release still waits for: the one entry open, else done of all. */
+  let releaseAt = $state<Record<string, ReleaseDetail>>({});
+  const cardReleases = $derived(module === 'PLANNING' && currentTab === 'foryou' ? upcoming.slice(0, 3).map((each) => each.id).join(',') : '');
+  $effect(() => {
+    const ids = cardReleases === '' ? [] : cardReleases.split(',');
+    return untrack(() => {
+      const stops = ids.map((id) => engine.subscribe<ReleaseDetail>({ path: releasePath(id) }, (next) => {
+        if (next.status === 'ready') releaseAt = { ...releaseAt, [id]: next.data };
+      }));
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  function releaseLine(id: string): string | undefined {
+    const detail = releaseAt[id];
+    if (!detail) return undefined;
+    const open = detail.entries.filter((entry) => !entry.done);
+    if (open.length === 1) return t('app.product_home.release_one_open', { title: open[0]!.title });
+    return t('app.product_home.release_done_of', { done: detail.done_count, total: detail.done_count + detail.open_count });
   }
 
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), isWhole ? Infinity : BOARDS_SHOWN) : []);
@@ -547,7 +602,7 @@
                   <li>
                     <a href={`/hubs/${each.hub_id}/releases`}>{each.name}</a>
                     <span class="when">{formatPlainDay(each.release_on, messages.locale)}</span>
-                    <span class="card-from">{hubName(each.hub_id)}</span>
+                    <span class="card-from" data-release-line>{releaseLine(each.id) ?? hubName(each.hub_id)}</span>
                   </li>
                 {/each}
               </ul>
@@ -564,15 +619,13 @@
             {#each plansListed as { hub, phases } (hub.id)}
               {@const path = hubScreenOf(module, hub.id) ?? `/hubs/${hub.id}`}
               {@const now = phases.find((each) => each.state === 'now')}
-              {@const slip = slipAt[hub.id] ?? 0}
-              {@const line = hubLine(hub.id)}
+              {@const slip = slipOf(hub.id)}
+              {@const line = planLine(hub.id, now?.title, slip)}
               <li data-plan={hub.id}>
                 <ListRow href={path} onactivate={() => onnavigate(path)} label={hub.name}>
                   {#snippet leading()}<Icon name={markOf(hub)} size="sm" />{/snippet}
                   <span class="name" title={hub.name}>{hub.name}</span>
-                  <span class="purpose" data-hub-line>
-                    {[now?.title, line].filter(Boolean).join(' · ')}{#if slip > 0}{now || line ? ' · ' : ''}<span class="late" data-plan-late>{t('app.product_home.plan_late', { count: slip })}</span>{/if}
-                  </span>
+                  <span class="purpose" class:late={slip > 0} data-hub-line data-plan-late={slip > 0 ? '' : undefined}>{line}</span>
                   {#snippet trailing()}
                     {#if phases.length > 0}
                       <span class="phases" role="img" aria-label={t('app.product_home.phases_label', { phases: phases.map((each) => each.title).join(', ') })} data-phases>

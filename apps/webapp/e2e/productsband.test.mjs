@@ -183,8 +183,21 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
     if (/\/api\/v1\/sprints\/[^/]+$/.test(path)) {
       return route.fulfill({ json: { sprint: SPRINTS[0], entries: [], burndown: [{ day: '2026-11-02', remaining: 21, scope: 21, ideal: 21 }, { day: '2026-11-03', remaining: 12, scope: 21, ideal: 14 }] } });
     }
-    // The hub's plan lies four days past its baseline: the plans' band counts it late.
-    if (/\/api\/v1\/plans\/[^/]+\/tolerance$/.test(path)) return route.fulfill({ json: { time_tolerance_days: 2, source: 'DEFAULT', locked_by: null, baseline_id: 'b1', exception: { agreed_finish: '2026-12-01', forecast_finish: '2026-12-05', slip_days: 4, tolerance_days: 2, exceeded: true } } });
+    // The hub's plan lies four days past its baseline, as the query reads it by collection - no
+    // plan's tolerance is read, since that read records an exception.
+    if (/\/api\/v1\/plans\/[^/]+\/tolerance$/.test(path)) return route.abort();
+    if (path.endsWith('/api/v1/items:aggregate')) {
+      const body = route.request().postDataJSON();
+      if (body.aggregate?.field === 'slip_days') return route.fulfill({ json: { data: [{ group: SCRUM.id, period: null, count: 2, value: 4 }], truncated: false } });
+      if (body.q === 'is: open') return route.fulfill({ json: { data: [{ group: SCRUM.id, period: null, count: 7, value: null }], truncated: false } });
+    }
+    // A release's entries: the autumn one waits for one entry, the winter one is four of ten.
+    if (/\/api\/v1\/releases\/[^/]+$/.test(path)) {
+      const release = RELEASES.find((each) => path.endsWith(each.id));
+      const entryOf = (n, done) => ({ item_id: `e${n}`, title: `Entry ${n}`, type_name: '', done, collection_id: SCRUM.id, added_at: '2026-11-01T09:00:00Z' });
+      const entries = release === RELEASES[1] ? [entryOf(1, true), entryOf(2, false)] : [...Array.from({ length: 4 }, (_, n) => entryOf(n, true)), ...Array.from({ length: 6 }, (_, n) => entryOf(n + 4, false))];
+      return route.fulfill({ json: { ...release, entries, done_count: entries.filter((each) => each.done).length, open_count: entries.filter((each) => !each.done).length } });
+    }
     if (path.endsWith('/api/v1/sla-policies')) return route.fulfill({ json: { data: [] } });
     if (path.endsWith('/api/v1/time-records:report')) return route.fulfill({ json: { group_by: [], groups: [], minutes: 390, withheld_minutes: 0, withheld_groups: 0 } });
     if (path.endsWith('/api/v1/items:query')) {
@@ -655,6 +668,8 @@ test('chromium 375 px, dark: the plans\' home lists the releases to come', async
   await upcoming.waitFor({ timeout: 10_000 });
   assert.deepEqual(await upcoming.locator('.card-rows a').allTextContents(), ['Autumn fixes', RELEASES[0].name]);
   assert.equal(await upcoming.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}/releases`);
+  // Each names what it waits for: the one entry still open, else done of all.
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-release-line]')].map((each) => each.textContent).join('|') === 'Entry 2 still open|4 of 10', null, { timeout: 10_000 });
   await noSidewaysScroll(page, 'plans 375 dark');
   assert.deepEqual(failures, []);
 });
@@ -681,8 +696,6 @@ test('chromium 1280 px: the plans\' home lists the sprints running and says each
   const running = page.getByRole('region', { name: 'Sprints running' });
   await running.waitFor({ timeout: 10_000 });
   assert.deepEqual(await running.locator('.name').allTextContents(), ['Sprint Kranich']);
-  await page.goto(`${served.origin}/plans`);
-  await page.waitForFunction((name) => [...document.querySelectorAll('main a')].some((a) => a.textContent?.includes(name) && a.textContent.includes('Sprint Kranich ·')), HUB.name, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
@@ -921,7 +934,7 @@ test('chromium 1280 px: the plans\' and the assets\' hub rows say each hub\'s st
   const hubs = page.getByRole('region', { name: 'Plans in your hubs' });
   const row = hubs.locator('li').filter({ hasText: HUB.name });
   await row.locator('[data-plan-late]').waitFor({ timeout: 10_000 });
-  assert.match(await row.locator('[data-hub-line]').innerText(), /^Shell · Sprint Kranich · .* · Next: Autumn fixes .* · 4 days late$/u);
+  assert.equal(await row.locator('[data-hub-line]').innerText(), 'Shell · 4 days late');
   assert.deepEqual(await row.locator('[data-phase]').evaluateAll((all) => all.map((each) => each.getAttribute('data-phase'))), ['done', 'now']);
   assert.equal(await row.locator('[data-phases]').getAttribute('aria-label'), 'Phases: Groundwork, Shell');
 
