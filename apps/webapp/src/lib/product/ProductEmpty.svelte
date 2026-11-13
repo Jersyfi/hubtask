@@ -8,7 +8,7 @@
   // Filtered offers to clear the filter; settled offers nothing (voice-and-tone.md §4).
 
   import { untrack } from 'svelte';
-  import { Button, EmptyState, type IconName } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ProductTile, type IconName, type ProductId } from '@hubtask/design-system/components';
   import type { AccessExplanation, ResourceState } from '@hubtask/sync-engine';
 
   import { viewport } from '../frame/viewport.svelte.ts';
@@ -23,6 +23,9 @@
   interface Act {
     label: string;
     onclick: () => void;
+    /** A template's one line and mark, which draw it as a card (scene empty). */
+    description?: string;
+    icon?: IconName;
   }
 
   interface Props {
@@ -50,12 +53,24 @@
      * is, so the empty state draws no second one beside it (user-experience.md §5.2).
      */
     isInHead?: boolean;
+    /**
+     * A product's home before its first use (scene empty): the product's tile in its colour, the
+     * side way beside the main one, and the templates as cards under it.
+     */
+    isProductHome?: boolean;
+    /** The side way beside the main one: start empty, set up first. */
+    side?: Act;
   }
 
-  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false }: Props = $props();
+  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome = false, side }: Props = $props();
+  const TILES: Record<string, ProductId> = {
+    PLANNING: 'plans', KNOWLEDGE: 'pages', WHITEBOARD: 'whiteboards', SERVICE_DESK: 'desk', ASSETS: 'assets', TIME: 'time', GOALS: 'goals', AGENTS: 'agents',
+  };
+  const tile = $derived(isProductHome && kind === 'unused' && product ? TILES[product] : undefined);
 
   const act = $derived(kind === 'filtered' ? clear : isInHead && viewport.isCompact ? undefined : create);
   const offersTemplates = $derived(kind === 'unused' && create !== undefined && templates.length > 0);
+  const templateCards = $derived(offersTemplates && isProductHome);
   // Whom to ask, from the place's explanation (§5.5), read only where it is said.
   const asksPlace = $derived(kind === 'unused' && create === undefined && whoCan === undefined && place !== undefined);
   const explainPath = $derived(
@@ -83,6 +98,7 @@
   {#if act}
     <Button tone={kind === 'filtered' ? 'secondary' : 'primary'} icon={kind === 'filtered' ? undefined : 'plus'} data-tour={kind === 'filtered' ? undefined : 'product-create'} onclick={act.onclick}>{act.label}</Button>
   {/if}
+  {#if side && kind === 'unused'}<Button tone="secondary" data-empty-side onclick={side.onclick}>{side.label}</Button>{/if}
 {/snippet}
 
 {#snippet templateRow()}
@@ -106,7 +122,41 @@
   {title}
   {description}
   {icon}
-  action={act ? actRow : undefined}
-  secondary={offersTemplates ? templateRow : undefined}
+  product={tile}
+  action={act || (side && kind === 'unused') ? actRow : undefined}
+  secondary={offersTemplates && !templateCards ? templateRow : undefined}
   footnote={saysWhoCan || guide || toured ? footnoteLine : undefined}
 />
+{#if templateCards}
+  <!-- The templates as cards under the empty state (scene empty): name, one line, Use. -->
+  <section class="starts" aria-labelledby="product-empty-starts" data-empty-templates>
+    <h2 class="eyebrow" id="product-empty-starts">{t('app.product_empty.or_template')}</h2>
+    <ul class="cards">
+      {#each templates as template (template.label)}
+        <li>
+          <!-- The whole card starts it; its name is the button's. -->
+          <button type="button" class="card" onclick={template.onclick}>
+            {#if template.icon && tile}<ProductTile icon={template.icon} product={tile} size="sm" />{/if}
+            <span class="name">{template.label}</span>
+            {#if template.description}<span class="line">{template.description}</span>{/if}
+            <span class="use" aria-hidden="true">{t('app.product_empty.use')}</span>
+          </button>
+        </li>
+      {/each}
+    </ul>
+  </section>
+{/if}
+
+<style>
+  .starts { display: grid; gap: var(--sp-100); margin-block-start: var(--sp-300); }
+  .eyebrow { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-semibold); text-transform: uppercase; }
+  /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+  .eyebrow { letter-spacing: 0.06em; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
+  .card { display: grid; align-content: start; justify-items: start; gap: var(--sp-100); box-sizing: border-box; inline-size: 100%; block-size: 100%; padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: start; cursor: pointer; }
+  .card:hover { border-color: var(--border-strong); }
+  .card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-ring); }
+  .use { padding: var(--sp-050) var(--sp-150); border: var(--bw-hairline) solid var(--border-strong); border-radius: var(--r-md); font-size: var(--fs-090); font-weight: var(--fw-medium); }
+  .name { font-weight: var(--fw-semibold); }
+  .line { color: var(--text-secondary); font-size: var(--fs-090); }
+</style>

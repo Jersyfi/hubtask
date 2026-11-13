@@ -320,7 +320,8 @@
     {:else if periods.length === 0}
       <ProductEmpty product="GOALS" kind="unused" icon="flag" title={t('app.goals.no_periods_title')} description={t('app.goals.no_periods')}
         create={mayStructure ? { label: t('app.goals.start_quarter', { name: quarterName }), onclick: () => void startQuarter() } : undefined}
-        templates={mayStructure ? [{ label: t('app.goals.another_period'), onclick: () => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; } }] : []}
+        isProductHome
+        side={mayStructure ? { label: t('app.goals.another_period'), onclick: () => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; } } : undefined}
         whoCan={t('app.goals.who_starts_periods')} />
     {:else}
       <div class="controls">
@@ -340,7 +341,8 @@
         <div aria-busy="true"><Skeleton lines={6} /></div>
       {:else if tree.length === 0}
         <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind={chosen?.state === 'OPEN' ? 'unused' : 'settled'} icon="flag" title={t('app.goals.empty')}
-          description={chosen?.state === 'OPEN' ? t('app.goals.empty_body') : undefined} create={primary} />
+          description={chosen?.state === 'OPEN' ? t('app.goals.empty_body') : undefined} create={primary} isProductHome
+          side={{ label: t('app.goals.empty_side'), onclick: () => onnavigate('/goals?tab=dashboards') }} />
       {:else}
         <ul class="goals" aria-label={t('app.goals.tree', { period: chosen?.name ?? '' })}>
           {#each tree as { goal, depth } (goal.id)}

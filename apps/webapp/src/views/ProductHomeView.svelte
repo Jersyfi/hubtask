@@ -353,6 +353,8 @@
     template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
   const starts = $derived(isFirstVisit ? productTemplates(catalogue, module).map((template) => ({
     label: templateName(template),
+    description: template.origin === 'HUBTASK' && messages.has(`app.templates.summary.${template.key.toUpperCase()}`) ? t(`app.templates.summary.${template.key.toUpperCase()}`) : undefined,
+    icon: row?.icon,
     onclick: () => { startingFrom = template.key; isCreatingHub = true; },
   })) : []);
   const createHub = $derived(mayCreateHub ? { label: t('app.workspace.create_hub'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
@@ -519,9 +521,11 @@
         kind="unused"
         icon={row?.icon ?? 'hub'}
         title={t('app.product_home.unused', { product: name })}
-        description={t(starts.length > 0 ? 'app.product_home.unused_body_templates' : 'app.product_home.unused_body')}
+        description={messages.has(`app.modules.hint_${module.toLowerCase()}`) ? t(`app.modules.hint_${module.toLowerCase()}`) : t(starts.length > 0 ? 'app.product_home.unused_body_templates' : 'app.product_home.unused_body')}
         create={firstCreate}
         templates={starts}
+        isProductHome
+        side={firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined}
       />
     {/if}
     {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0 && !isUnusedHere}

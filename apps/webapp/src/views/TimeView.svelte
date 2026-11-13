@@ -466,7 +466,8 @@
 
       {#if sheet.records.length === 0}
         <ProductEmpty product="TIME" place={{ type: 'TENANT' }} kind={isOpen ? 'unused' : 'settled'} icon="clock" title={t('app.time.week_empty')}
-          description={isOpen ? t('app.time.week_empty_body') : undefined} create={recordPrimary} isInHead={current === 'week'} />
+          description={isOpen ? t('app.time.week_empty_body') : undefined} create={recordPrimary} isInHead={current === 'week'} isProductHome
+          side={{ label: t('app.time.empty_side'), onclick: () => select('capacity') }} />
       {:else}
         {#if !viewport.isCompact}
           <section class="block" aria-labelledby="time-grid">

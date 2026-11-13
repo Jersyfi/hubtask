@@ -362,8 +362,9 @@
       title={t('app.agents.empty_title')}
       description={t('app.agents.empty_body')}
       create={administers ? { label: t('app.agents.add_agent'), onclick: () => (drafting = {}) } : undefined}
-      templates={administers ? SHIPPED_ROLES.slice(0, 3).map((kind) => ({ label: t(`app.agents.kind.${kind}`), onclick: () => (drafting = { role: kind }) })) : []}
+      templates={administers ? SHIPPED_ROLES.slice(0, 3).map((kind) => ({ label: t(`app.agents.kind.${kind}`), description: t(`app.agents.role_purpose.${kind}`), icon: 'zap' as const, onclick: () => (drafting = { role: kind }) })) : []}
       whoCan={t('app.agents.empty_who')}
+      isProductHome
     />
   {:else}
     <!-- What waits for the reader first (scene homeagents): the held acts they may decide, three. -->
