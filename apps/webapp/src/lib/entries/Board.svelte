@@ -1411,6 +1411,8 @@
   .board[data-one-column] .zone > :global(*) { box-sizing: border-box; inline-size: 100%; }
 
   .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
+  /* One row that scrolls sideways, as scene board 4 draws it: never wrapped onto a second line. */
+  .strip :global(.switcher) { flex-wrap: nowrap; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 </style>

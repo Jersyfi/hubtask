@@ -504,6 +504,8 @@
 
 <style>
   .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
+  /* One row that scrolls sideways, as scene board 4 draws it: never wrapped onto a second line. */
+  .strip :global(.switcher) { flex-wrap: nowrap; }
   .board { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: flex-start; }
   .lane { flex: 0 1 var(--layout-board-column); min-width: 0; border-radius: var(--r-md); }
   .lane[data-folded] { flex: none; }

@@ -254,6 +254,7 @@ test('chromium: 390 px — the sprint as a card over a strip of its columns, one
   await strip.getByRole('radio', { name: 'Done · 1' }).click();
   assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[2].id);
   for (const target of await strip.getByRole('radio').all()) assert.ok(((await target.boundingBox())?.height ?? 0) >= 44, 'a strip target is under 44 px (§7)');
+  assert.equal(new Set(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => Math.round(each.getBoundingClientRect().top)))).size, 1, 'the strip wraps onto a second row');
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the sprint scrolls sideways');
 
   await page.goto(page.url().replace(/\/sprint$/u, '/backlog'));
