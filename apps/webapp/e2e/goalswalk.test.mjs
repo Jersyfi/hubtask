@@ -119,6 +119,8 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   const checkDialog = page.getByRole('dialog', { name: /Check in/ });
   await checkDialog.getByLabel('Confidence').fill('8');
   await checkDialog.getByLabel('Note').fill('First release out.');
+  // The dialog ladder's foot (page-system §5.1): Cancel beside the primary, named with its verb.
+  assert.deepEqual((await checkDialog.locator('footer.actions').getByRole('button').allInnerTexts()).map((each) => each.trim()), ['Cancel', 'Check in']);
   await checkDialog.getByRole('button', { name: 'Check in' }).click();
   await checkDialog.waitFor({ state: 'detached', timeout: 5_000 });
   // UC-GOL-02 check 6: the check-in made from the goal's page is in its history there.

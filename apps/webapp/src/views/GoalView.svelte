@@ -363,8 +363,11 @@
       <Select label={t('app.goals.col_owner')} bind:value={draft.owner} options={ownerChoices} />
       <Select label={t('app.goals.parent')} hint={t('app.goals.parent_hint')} bind:value={draft.parent}
         options={[{ value: '', label: t('app.goals.no_parent') }, ...parentChoices(siblings, goal.id).map((each) => ({ value: each.id, label: each.title }))]} />
-      <Inline justify="end"><Button disabledReason={draft.title.trim() === '' ? t('app.goals.title_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isChanging = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={draft.title.trim() === '' ? t('app.goals.title_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -372,8 +375,11 @@
   <Dialog size="s" bind:isOpen={isDeleting} title={t('app.goals.delete_title', { title: goal.title })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.goals.delete_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.goals.delete')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="danger" onclick={() => void remove()}>{t('app.goals.delete')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -381,8 +387,11 @@
   <Dialog size="l" bind:isOpen={isLinking} title={t('app.goals.link_entry')} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <EntryPicker excluded={linked} chosen={linking} onchoose={(item) => (linking = item)} />
-      <Inline justify="end"><Button disabledReason={linking ? undefined : t('app.goals.pick_entry')} onclick={() => void link()}>{t('app.goals.link')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isLinking = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={linking ? undefined : t('app.goals.pick_entry')} onclick={() => void link()}>{t('app.goals.link')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -400,8 +409,11 @@
         {/if}
       {/each}
       <Textarea label={t('app.goals.checkin_note')} hint={t('app.goals.checkin_note_hint')} bind:value={checkIn.note} maxlength={5000} />
-      <Inline justify="end"><Button disabledReason={confidenceError} onclick={() => void saveCheckIn()}>{t('app.goals.check_in')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isCheckingIn = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={confidenceError} onclick={() => void saveCheckIn()}>{t('app.goals.check_in')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

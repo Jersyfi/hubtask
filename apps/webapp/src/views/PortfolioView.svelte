@@ -14,7 +14,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Banner, Button, Dialog, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
+    Badge, Banner, Button, Dialog, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
     DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge,
   } from '@hubtask/design-system/components';
   import type { Portfolio, PortfolioList, PortfolioUpdateList, PortfolioWrite } from '@hubtask/sync-engine';
@@ -337,8 +337,11 @@
       <Textarea label={t('app.portfolios.description')} bind:value={draft.description} maxlength={10000} />
       <Select label={t('app.portfolios.col_parent')} bind:value={draft.parent}
         options={[{ value: '', label: t('app.portfolios.no_parent') }, ...others.filter((each) => each.id !== portfolioId).map((each) => ({ value: each.id, label: each.name }))]} />
-      <Inline justify="end"><Button disabledReason={draft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isChanging = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={draft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined} onclick={() => void saveChange()}>{t('app.goals.save')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -351,8 +354,11 @@
       <Input label={t('app.portfolios.col_start')} type="date" bind:value={project.start} />
       <Input label={t('app.portfolios.col_end')} type="date" bind:value={project.end} />
       <Select label={t('app.portfolios.col_health')} bind:value={project.status} options={HEALTH.map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
-      <Inline justify="end"><Button disabledReason={project.id === '' ? t('app.portfolios.pick_project') : undefined} onclick={() => void saveProject()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isAdding = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={project.id === '' ? t('app.portfolios.pick_project') : undefined} onclick={() => void saveProject()}>{t('app.goals.save')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -361,8 +367,11 @@
     <Stack gap="150">
       <Select label={t('app.portfolios.col_health')} bind:value={report.status} options={HEALTH.filter((each) => each !== 'NONE').map((each) => ({ value: each, label: t(`app.goals.status_${each}`) }))} />
       <Textarea label={t('app.portfolios.summary')} hint={t('app.portfolios.summary_hint')} bind:value={report.summary} maxlength={10000} />
-      <Inline justify="end"><Button disabledReason={report.summary.trim() === '' ? t('app.portfolios.summary_needed') : undefined} onclick={() => void saveReport()}>{t('app.portfolios.send_report')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isReporting = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={report.summary.trim() === '' ? t('app.portfolios.summary_needed') : undefined} onclick={() => void saveReport()}>{t('app.portfolios.send_report')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -370,8 +379,11 @@
   <Dialog size="s" bind:isOpen={isDeleting} title={t('app.portfolios.delete_title', { name: portfolio.name })} dismissLabel={t('app.links.cancel')}>
     <Stack gap="150">
       <p class="quiet">{t('app.portfolios.delete_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.portfolios.delete')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="danger" onclick={() => void remove()}>{t('app.portfolios.delete')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

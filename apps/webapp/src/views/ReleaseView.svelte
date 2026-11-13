@@ -331,8 +331,11 @@
       <Textarea label={t('app.releases.description')} bind:value={draft.description} maxlength={2000} />
       <Input label={t('app.releases.release_on')} type="date" bind:value={draft.release_on} isRequired error={dayError} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-      <Inline justify="end"><Button onclick={plan}>{editing ? t('app.releases.save') : t('app.releases.plan')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isPlanning = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" onclick={plan}>{editing ? t('app.releases.save') : t('app.releases.plan')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -345,8 +348,11 @@
         options={[{ value: '', label: t('app.releases.carry_out') }, ...targets.map((r) => ({ value: r.id, label: r.name }))]} />
       <Checkbox label={t('app.releases.write_notes')} bind:checked={writeNotes} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-      <Inline justify="end"><Button onclick={publish}>{t('app.releases.publish')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isReleasing = false)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" onclick={publish}>{t('app.releases.publish')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
@@ -355,11 +361,11 @@
     <Stack gap="150">
       <p>{t('app.releases.delete_cost', { count: String(detail?.entries.length ?? 0) })}</p>
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-      <Inline justify="end" gap="100">
-        <Button tone="subtle" onclick={() => (isDeleting = false)}>{t('app.releases.keep')}</Button>
-        <Button tone="danger" icon="trash" onclick={remove}>{t('app.releases.delete')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.releases.keep')}</Button>
+      <Button tone="danger" icon="trash" onclick={remove}>{t('app.releases.delete')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

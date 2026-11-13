@@ -240,6 +240,7 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   await page.getByRole('button', { name: 'Release', exact: true }).click();
   const dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel('Open entries go to').inputValue(), LATER.id);
+  assert.deepEqual((await dialog.locator('footer.actions').getByRole('button').allInnerTexts()).map((each) => each.trim()), ['Cancel', 'Release'], 'the primary in the foot, Cancel beside it');
   assert.equal(await dialog.getByLabel('Write the release notes as a page').isChecked(), true);
   await dialog.getByRole('button', { name: 'Release', exact: true }).click();
   await settle(page);
