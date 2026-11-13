@@ -174,7 +174,8 @@
         <ul class="rows">
           {#each answer.related as other (`${other.item_id}:${other.ci_id}`)}
             <li class="row" data-related-entry={other.item_id}>
-              <span class="what">{@render entry(other)}</span>
+              <!-- The key alone on the line, the title its name and its tip. -->
+              <a href={`/items/${other.item_id}`} class="entry key" title={other.title} aria-label={`${entryKey(other)} ${other.title}`}>{entryKey(other)}</a>
             </li>
           {/each}
         </ul>
