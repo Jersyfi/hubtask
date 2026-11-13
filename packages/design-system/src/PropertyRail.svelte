@@ -50,12 +50,14 @@
     unfoldLabel: (title: string) => string;
     /** The phone's button: *All properties (18)*, and the up to three shown above it. */
     allLabel: string;
+    /** The sheet's title: *All properties*, the button's words without the count. */
+    sheetTitle?: string;
     summary?: Snippet;
     closeLabel: string;
     grabLabel?: string;
   }
 
-  const { label, sections, section, onadd, foldLabel, unfoldLabel, allLabel, summary, closeLabel, grabLabel }: Props = $props();
+  const { label, sections, section, onadd, foldLabel, unfoldLabel, allLabel, sheetTitle, summary, closeLabel, grabLabel }: Props = $props();
 
   const uid = $props.id();
   let unfolded = $state<Record<string, boolean>>({});
@@ -105,7 +107,7 @@
   </div>
 </aside>
 
-<Sheet bind:isOpen={isSheetOpen} title={label} {closeLabel} {grabLabel}>
+<Sheet bind:isOpen={isSheetOpen} title={sheetTitle ?? label} {closeLabel} {grabLabel}>
   {#if isSheetOpen}<div class="in-sheet">{@render sections_('sheet')}</div>{/if}
 </Sheet>
 

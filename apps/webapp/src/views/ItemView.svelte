@@ -1563,6 +1563,7 @@
         foldLabel={(title) => t('app.entry.fold', { title })}
         unfoldLabel={(title) => t('app.entry.unfold', { title })}
         allLabel={t('app.entry.all_properties', { count: String(setFieldCount + railSections.length) })}
+        sheetTitle={t('app.entry.all_properties_title')}
         closeLabel={t('app.workflows.close')}
       />
     </div>

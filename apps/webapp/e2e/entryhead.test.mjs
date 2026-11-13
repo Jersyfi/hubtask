@@ -302,8 +302,22 @@ test('chromium 390: the marks are a switch and the properties a sheet (UC-WRK-44
     await page.waitForTimeout(300);
     assert.ok(await page.locator('#entry-conversation').isVisible(), 'the chosen section shows');
     assert.ok(!(await page.locator('#entry-description').isVisible()), 'the others do not');
+    // The reply is docked right on the bottom bar - mid-thread and at the end of the page alike.
+    const gap = () => page.evaluate(() => {
+      const dock = document.querySelector('[data-docked]')?.getBoundingClientRect();
+      const bar = [...document.querySelectorAll('nav.bar')].map((each) => each.getBoundingClientRect()).find((box) => box.height > 0);
+      return dock && bar ? Math.round(bar.top - dock.bottom) : undefined;
+    });
+    const near = (value) => value !== undefined && Math.abs(value) <= 1;
+    assert.ok(near(await gap()), `the docked reply floats above the bottom bar: ${await gap()}`);
+    await page.mouse.wheel(0, 4000);
+    await page.waitForTimeout(300);
+    assert.ok(near(await gap()), `at the end of the page the docked reply floats above the bottom bar: ${await gap()}`);
     await page.getByRole('button', { name: /All properties/ }).click();
-    await page.getByRole('dialog').waitFor({ timeout: 5_000 });
+    const sheet = page.getByRole('dialog');
+    await sheet.waitFor({ timeout: 5_000 });
+    // The sheet is named as the button that opened it, not after its own first section.
+    assert.equal(await sheet.getByRole('heading', { level: 2 }).first().innerText(), 'All properties');
   } finally {
     await close();
   }

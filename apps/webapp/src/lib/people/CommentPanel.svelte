@@ -91,6 +91,8 @@
   /** Why the last press of *Older comments* brought nothing; cleared by the next press. */
   /** How many threads are drawn, newest first: five, then ten more at a time. */
   let shownCount = $state(3);
+  /** The docked composer's height, kept free under the thread so the last post is not under it. */
+  let dockHeight = $state(0);
   let olderFailed = $state<string | undefined>(undefined);
 
   async function older(): Promise<void> {
@@ -278,7 +280,10 @@
          saying what it does; snippets and macros as its menus (UC-SVC-06). -->
     {#if mayComment}
       <!-- On a phone the reply is docked at the screen's foot (the scene's *Comment …*), the thread above it. -->
-      <div data-composer data-docked={viewport.isCompact ? '' : undefined}>
+      <!-- Docked, it is fixed on the bottom bar and leaves its height as room under the thread: a
+           sticky one stood behind the bar mid-thread and a page's padding above it at the end. -->
+      {#if viewport.isCompact}<div class="dock-room" aria-hidden="true" style:block-size={`${dockHeight}px`}></div>{/if}
+      <div data-composer data-docked={viewport.isCompact ? '' : undefined} bind:clientHeight={dockHeight}>
         <Composer
           bind:this={composer}
           editor={writing}
@@ -348,14 +353,17 @@
 <style>
   [data-composer] { display: flex; flex-direction: column; gap: var(--sp-100); }
   [data-composer][data-docked] {
-    position: sticky;
-    inset-block-end: 0;
-    z-index: 1;
-    order: 1;
-    padding-block: var(--sp-100);
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0));
+    z-index: var(--z-sticky);
+    padding: var(--sp-100) var(--sp-200);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
     background: var(--bg-canvas);
   }
+  /* The composer's own phone dock is this one's: nested, the two offsets added up. */
+  [data-composer][data-docked] :global(.composer) { position: static; box-shadow: none; }
+  .dock-room { order: 1; flex: none; }
 
   .failure { margin: 0; color: var(--text-danger); }
 

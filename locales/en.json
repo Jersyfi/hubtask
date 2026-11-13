@@ -14802,5 +14802,6 @@
   "app.media.kind.text": "Text",
   "app.media.kind.document": "Document",
   "app.media.kind.file": "File",
-  "app.media.size_bytes": "{size} B"
+  "app.media.size_bytes": "{size} B",
+  "app.entry.all_properties_title": "All properties"
 }
