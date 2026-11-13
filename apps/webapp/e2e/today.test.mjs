@@ -147,7 +147,7 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   // The day's bands, in the reader's zone, each with what belongs in it; upcoming folded.
   const bands = await mine.locator('h3').allTextContents();
   assert.deepEqual(bands.map((band) => band.replace(/\s+/gu, ' ').trim()), ['Overdue 1', 'Today 1']);
-  const titles = await mine.locator('a[href^="/items/"]').allTextContents();
+  const titles = await mine.locator('a[href^="/items/"] .title').allTextContents();
   assert.deepEqual(titles.map((title) => title.trim()), [PAST.title, TODAYS.title], 'the bands hold the entries out of order');
   await mine.getByText('Coming up').click();
   await mine.getByRole('link', { name: LATER.title }).waitFor({ timeout: 5_000 });
@@ -166,6 +166,11 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   assert.equal(/missed/i.test(said), false, `the page says missed: ${said}`);
   const late = mine.locator('[class*="task-row"]').filter({ hasText: PAST.title }).first();
   assert.equal(await late.locator('[data-tone="danger"]').count(), 1, 'a late entry does not say so');
+  // The late band's heading is red and says it in its word (§3); the day's band is not red.
+  const tones = await mine.locator('h3').evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).color));
+  assert.notEqual(tones[0], tones[1], 'the late band is not set apart');
+  // Each row carries its key before the title where its collection gives one (work-surface §7 Today).
+  assert.equal((await late.locator('[data-entry-key]').textContent())?.trim(), 'CHR-21');
 
   // Each row says its hub in the hub's own colour, beside the hub's name (UC-WRK-33 check 1).
   const pastRow = mine.locator('li, [class*="task-row"]').filter({ hasText: PAST.title }).first();

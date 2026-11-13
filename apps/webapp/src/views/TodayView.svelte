@@ -44,6 +44,7 @@
   import { portalStart } from '../lib/portal/portal.ts';
   import { holds, holdsHere, hubCreationHere, mayDo, reachesAdministrationArea, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
   import { readMailSettings } from '../lib/data/mailintake.svelte.ts';
@@ -658,6 +659,7 @@
       isCompleted={isDone(item)}
       completeLabel={t('app.entries.complete', { title: item.title })}
       hasTwist={false}
+      entryKey={ticketKeyOf(containers.find(item.collection_id), item.number)}
       onToggleComplete={() => void toggle(item)}
     >
       {#snippet trailing()}
@@ -674,10 +676,11 @@
   </div>
 {/snippet}
 
-{#snippet band(code: string, rows: readonly WorkItem[], all: number)}
+{#snippet band(code: string, rows: readonly WorkItem[], all: number, isLate = false)}
   {#if rows.length > 0}
     <div class="band-group">
-      <h3 class="band">{t(code)} <span class="band-count">{all}</span></h3>
+      <!-- The late band's heading is the one red on the page, and it is a word (§3): never the tint alone. -->
+      <h3 class="band" class:late={isLate}>{t(code)} <span class="band-count">{all}</span></h3>
       <Stack gap="050">
         {#each rows as item (item.id)}{@render entry(item, true)}{/each}
       </Stack>
@@ -761,7 +764,7 @@
       {:else if isMineEmpty}
         <p class="none">{t('app.today.mine_none')}</p>
       {:else}
-        {@render band('app.today.earlier', shownBands.earlier, bands.earlier.length)}
+        {@render band('app.today.earlier', shownBands.earlier, bands.earlier.length, true)}
         {@render band('app.today.today', shownBands.today, bands.today.length)}
         {#if shownBands.later.length > 0}
           <!-- Upcoming folded while something is due sooner; alone, it is the day and stands open. -->
@@ -1172,6 +1175,7 @@
     font-weight: var(--fw-semibold);
     text-transform: uppercase;
   }
+  .band.late { color: var(--text-danger); }
   .band-count { color: var(--text-subtle); font-weight: var(--fw-regular); }
 
   .none { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }

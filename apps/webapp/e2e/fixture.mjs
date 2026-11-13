@@ -915,11 +915,11 @@ const dayCollection = (n, name, levels, figure) => ({
 export const TODAY_COLLECTIONS = {
   list: dayCollection('11', 'Shopping', ['TASK'], { kind: 'OPEN', open: 5 }),
   project: dayCollection('12', 'Garden', ['TASK', 'WORK_PACKAGE', 'ACTIVITY'], { kind: 'PROGRESS', done: 3, total: 8 }),
-  chores: dayCollection('13', 'Chores', ['TASK'], { kind: 'DUE', due: 2 }),
+  chores: { ...dayCollection('13', 'Chores', ['TASK'], { kind: 'DUE', due: 2 }), handle: 'chr' },
 };
 const dayItem = (n, title, collection, due, extra = {}) => ({
   id: `01a0e2e0-0000-7000-8000-0000000d7a${n}`, type: 'TASK', title, collection_id: collection.id, parent_id: null, depth: 0,
-  order_key: `a${n}`, version: 1, completion: { is_completed: false }, labels: [], label_ids: [], due_at: due, due_date_only: false, ...extra,
+  order_key: `a${n}`, number: Number(n), version: 1, completion: { is_completed: false }, labels: [], label_ids: [], due_at: due, due_date_only: false, ...extra,
 });
 const hoursFromNow = (hours) => new Date(Date.now() + hours * 3_600_000).toISOString();
 /** On the reader, soonest first as the search answers them. */
