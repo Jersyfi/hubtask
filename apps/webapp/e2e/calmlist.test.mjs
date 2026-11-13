@@ -86,11 +86,13 @@ test('chromium 1280: one region with the heads, the rows ruled apart, the toolba
   }
   assert.equal(await region.evaluate((element) => getComputedStyle(element).borderTopStyle), 'solid', 'the region has its hairline');
 
-  for (const name of ['Filter', 'Fields', 'Group', 'Sort', 'Views', 'Select entries']) {
+  // The four menus are one panel *View* (work-surface §6.2, E-21); the density and selecting stay.
+  for (const name of ['View', 'Select entries']) {
     const button = tools(page).getByRole('button', { name, exact: false }).first();
     assert.equal(await button.count(), 1, `${name} in the list's tools`);
     assert.ok((await button.innerText()).trim().length > 2, `${name} says its words`);
   }
+  assert.equal(await tools(page).getByRole('radiogroup', { name: 'Density' }).count(), 1, 'the density among the list\'s tools');
   assert.deepEqual(failures, []);
 });
 
@@ -100,8 +102,9 @@ test('chromium 1280: grouped by column, each group counts, folds and adds in pla
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
-  await tools(page).getByRole('button', { name: 'Group' }).click();
-  await page.getByRole('menuitem', { name: 'Column' }).click();
+  await tools(page).getByRole('button', { name: 'View' }).click();
+  await page.locator('[data-view-panel] [data-grouping="column"]').click();
+  await page.keyboard.press('Escape');
   const first = BUCKETS[0].name;
   const head = page.locator('.level h2.group-head', { hasText: first });
   await head.waitFor({ timeout: 5_000 });

@@ -53,12 +53,13 @@ test('chromium: a view saved at hub scope names the hub', async (t) => {
   });
 
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-  await page.locator('[data-opener="views"]').click();
-  await page.getByRole('menuitem', { name: 'Save this view…' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Save this view' });
-  await dialog.getByLabel('Name').fill('Everything in the house');
-  await dialog.getByLabel('Where it lives').selectOption('HUB');
-  await dialog.getByRole('button', { name: 'Save what is on screen' }).click();
+  // Saved from the panel *View* (work-surface §6.2): its name, where it lives, saved as new.
+  await page.locator('[data-opener="view"]').click();
+  const panel = page.locator('[data-view-panel]');
+  await panel.waitFor({ timeout: 5_000 });
+  await panel.getByLabel('Name').fill('Everything in the house');
+  await panel.locator('[data-scope="HUB"]').click();
+  await panel.locator('[data-view-save]').click();
   for (let waited = 0; saved.length === 0 && waited < 50; waited++) await page.waitForTimeout(100);
 
   assert.equal(saved.length, 1, 'nothing was saved');

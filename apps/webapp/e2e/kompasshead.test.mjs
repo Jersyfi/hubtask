@@ -146,12 +146,12 @@ async function fits(page, label) {
   return bar;
 }
 
-/** The list's tools in their own line over the list (work-surface concept §6.2): each in words, inside the page. */
+/** The list's tools in their own line over the list (work-surface concept §6.2, E-21): each in words, inside the page. */
 async function inWords(page, label) {
   const tools = page.getByRole('group', { name: 'The list’s tools' });
   await tools.waitFor();
   const edge = await box(page.locator('main'));
-  for (const name of ['Filter', 'Fields', 'Group', 'Sort', 'Views', 'Select entries']) {
+  for (const name of ['View', 'Select entries']) {
     const button = tools.getByRole('button', { name }).first();
     assert.ok((await button.innerText()).trim().length > 2, `${label}: ${name} is a bare mark`);
     const each = await box(button);
@@ -160,21 +160,15 @@ async function inWords(page, label) {
   return tools;
 }
 
-test('R-13: from expanded the list\'s tools stand in words on their own line; narrower, the bar\'s Filter is named and never overlaps the views', async (t) => {
+test('R-13: at every width the list\'s tools stand in words on their own line, and the bar holds no second View', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   for (const width of [1440, 1024, 820, 600]) {
     const { page, failures, close } = await go(browser, { path: `/collections/${DESIGN.id}?layout=list`, width, height: 900, hasTouch: width < 905 });
     t.after(close);
-    if (width >= 905) {
-      await inWords(page, `${width}`);
-      assert.equal(await page.getByRole('navigation', { name: DESIGN.name }).getByRole('button', { name: 'Filter' }).count(), 0, `${width}: a second Filter in the bar`);
-    } else {
-      const bar = await fits(page, `${width}`);
-      const filter = bar.getByRole('button', { name: 'Filter' });
-      assert.equal(await filter.count(), 1, `${width}: Filter is named`);
-      if ((await bar.locator('.tools').getAttribute('data-fit')) === 'marks') assert.equal(await filter.getAttribute('title'), 'Filter', `${width}: a mark carries its words as tooltip`);
-    }
+    await inWords(page, `${width}`);
+    assert.equal(await page.getByRole('navigation', { name: DESIGN.name }).getByRole('button', { name: /^View/ }).count(), 0, `${width}: a second View in the bar`);
+    if (width < 905) await fits(page, `${width}`);
     assert.deepEqual(failures, []);
   }
 });
@@ -185,8 +179,8 @@ test('R-13: beside a wide sidebar the list\'s tools wrap rather than hide, each 
   const { page, failures, close } = await go(browser, { path: `/collections/${DESIGN.id}?layout=list`, width: 905, height: 900, storage: { 'hubtask.nav.width': '400' } });
   t.after(close);
   const tools = await inWords(page, '905 beside a wide sidebar');
-  await tools.getByRole('button', { name: 'Sort' }).click();
-  await page.getByRole('menuitem', { name: 'The order you arranged' }).waitFor();
+  await tools.getByRole('button', { name: 'View' }).click();
+  await page.locator('[data-view-panel]').getByLabel('Sort by').waitFor();
   assert.deepEqual(failures, []);
 });
 

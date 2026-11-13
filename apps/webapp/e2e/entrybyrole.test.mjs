@@ -173,10 +173,10 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     }
     assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'no ⚙ beside the menu: the settings are its first item');
     for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);
-    // Used by everybody: the views in the toolbar, the templates among capture's modes, who is
+    // Used by everybody: the panel *View* over the list, the templates among capture's modes, who is
     // here in the faces.
     assert.ok(!rows.includes('Saved views'), `Saved views is still a row of ${rows}`);
-    assert.equal(await page.locator('[data-opener="views"]').count(), 1, 'no Views menu in the toolbar');
+    assert.equal(await page.locator('[data-opener="view"]').count(), 1, 'no View panel over the list');
     assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
     await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
     const modes = page.getByRole('dialog', { name: 'Capture' }).getByRole('tablist', { name: 'How to add' });

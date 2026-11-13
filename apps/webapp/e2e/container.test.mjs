@@ -47,16 +47,16 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   const head = page.locator('header.head');
   assert.equal(await head.getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'a third add in the head');
   assert.equal(await page.getByRole('button', { name: 'More ways to add an entry' }).count(), 0, 'the add carries no split');
-  assert.equal(await head.getByRole('button', { name: 'Filter' }).count(), 0, 'the filter is the toolbar\'s, not the head\'s');
+  assert.equal(await head.getByRole('button', { name: /^View/ }).count(), 0, 'the panel is the list\'s, not the head\'s');
   assert.equal(await head.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).count(), 0, 'a ⚙ beside the menu');
 
-  // The view bar under it (the navigation concept §3) holds the views; the filter, the order, the
-  // views and selecting stand in words on the list's own line under it (work-surface concept §6.2).
+  // The view bar under it (the navigation concept §3) holds the views; the one panel *View* and
+  // selecting stand in words on the list's own line under it (work-surface concept §6.2, E-21).
   const toolbar = viewBar(page);
   assert.equal(await toolbar.count(), 1);
   assert.equal(await toolbar.getByRole('navigation', { name: COLLECTION.name }).count(), 1);
   const tools = page.getByRole('group', { name: 'The list’s tools' });
-  for (const name of ['Filter', 'Sort', 'Views', 'Select entries']) {
+  for (const name of ['View', 'Select entries']) {
     assert.equal(await tools.getByRole('button', { name }).count(), 1, `${name} is not in the list's tools`);
     assert.ok((await tools.getByRole('button', { name }).innerText()).trim().length > 0, `${name} is a bare mark`);
   }
@@ -85,9 +85,8 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
       .catch(async () => assert.fail(`${item}: focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
   }
 
-  // The daily ways: the *Views* menu saves a view, the faces open the people.
-  await tools.getByRole('button', { name: 'Views' }).click();
-  await page.getByRole('menuitem', { name: 'Save this view…' }).click();
+  // The daily ways: ＋ in the view bar saves a view, the faces open the people.
+  await viewBar(page).getByRole('button', { name: 'Save this view…' }).click();
   await page.locator('dialog[open]').getByRole('heading', { name: /Save this view/ }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'People' }).click();
@@ -115,15 +114,14 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await chooseView(page, 'List');
   assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the list came back as it was left');
 
-  // The filter: inline, not a drawer, from expanded.
-  await tools.getByRole('button', { name: 'Filter' }).click();
-  const panel = page.getByRole('group', { name: 'Which entries to show' });
+  // The panel: a drawer at the inline end; the order is one of its sections, and the button says
+  // what is changed against the tab's view.
+  await tools.getByRole('button', { name: 'View' }).click();
+  const panel = page.locator('[data-view-panel]');
   await panel.waitFor({ state: 'visible', timeout: 5_000 });
-  assert.equal(await page.locator('dialog[open]').count(), 0, 'inline, not a drawer, from expanded');
-  // The order is its own menu, and the button says the order chosen.
-  await tools.getByRole('button', { name: 'Sort' }).click();
-  await page.getByRole('menuitem', { name: 'title', exact: true }).click();
-  await tools.getByRole('button', { name: 'Sorted by title' }).waitFor({ timeout: 5_000 });
+  await panel.getByLabel('Sort by').selectOption('title');
+  await tools.getByRole('button', { name: 'View · 1 changed' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
 
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
@@ -165,7 +163,7 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 375 px — the folded head, the filter as a drawer, the board one column with a strip, the bulk bar above the bottom bar', async (t) => {
+test('chromium: 375 px — the folded head, the panel as a sheet of pages, the board one column with a strip, the bulk bar above the bottom bar', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await openCollection(browser, 375);
@@ -184,15 +182,14 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add in the head');
 
-  // The toolbar: the layouts and one *Filter*, whose sheet holds the views and selecting too.
+  // The list's line: *View*, whose sheet holds its sections as pages (scene viewcfg 4), and selecting.
   const toolbar = viewBar(page);
+  const tools = page.getByRole('group', { name: 'The list’s tools' });
   assert.equal(await toolbar.getByRole('button', { name: 'Views' }).count(), 0);
-  await toolbar.getByRole('button', { name: 'Filter' }).click();
+  await tools.getByRole('button', { name: 'View' }).click();
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
-  assert.equal(await drawer.getByRole('group', { name: 'Which entries to show' }).count(), 1, 'the filter is a drawer below expanded');
-  assert.equal(await drawer.getByRole('button', { name: 'Views' }).count(), 1, 'the sheet holds the views');
-  assert.equal(await drawer.getByRole('button', { name: 'Select entries' }).count(), 1, 'the sheet holds selecting');
+  assert.deepEqual(await drawer.locator('[data-view-page]').evaluateAll((pages) => pages.map((each) => each.dataset.viewPage)), ['layout', 'query', 'order', 'fields', 'save'], 'the sheet\'s pages');
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
 
@@ -212,12 +209,11 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
 
   // Selecting is a mode, and its default is off (ADR-0063 decision 8): no row carries a pick and
   // no bar stands above the list until somebody says they are selecting. The way in on a phone is
-  // the toolbar's sheet, because a modifier is what a mouse has and a long press is what a finger has.
+  // the list's line, because a modifier is what a mouse has and a long press is what a finger has.
   await chooseView(page, 'List');
   assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'a row carries a pick with nobody selecting');
   assert.equal(await page.locator('main .bar').count(), 0, 'the bulk bar stands above a list nobody is selecting in');
-  await toolbar.getByRole('button', { name: 'Filter' }).click();
-  await page.locator('dialog[open]').getByRole('button', { name: 'Select entries' }).click();
+  await tools.getByRole('button', { name: 'Select entries' }).click();
 
   // The bulk bar: once something is picked it is fixed above the bottom bar, and the bottom bar stays.
   const pick = page.getByRole('checkbox', { name: /Select .*Order the tiles/ });
@@ -312,7 +308,7 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
 
 // UC-WRK-17 check 12: the filter as a line - typed, it becomes the conditions and the order the
 // query sends; built from the controls, the line says them back.
-test('chromium: 1280 px — the filter as a line is read into the conditions and the order, and written back', async (t) => {
+test('chromium: 1280 px — the line in the panel is read into the query and the order, and spelled back', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
@@ -322,26 +318,29 @@ test('chromium: 1280 px — the filter as a line is read into the conditions and
     if (new URL(request.url()).pathname.endsWith('/items:query')) sent.push(request.postDataJSON());
   });
 
-  await page.getByRole('group', { name: 'The list’s tools' }).getByRole('button', { name: 'Filter' }).click();
-  const panel = page.getByRole('group', { name: 'Which entries to show' });
+  await page.getByRole('group', { name: 'The list’s tools' }).getByRole('button', { name: 'View' }).click();
+  const panel = page.locator('[data-view-panel]');
   await panel.waitFor({ state: 'visible', timeout: 5_000 });
-  const line = page.getByRole('textbox', { name: 'As a line' });
-  await line.fill("title ~ 'milk' ORDER BY title DESC");
+  const line = panel.getByRole('combobox', { name: 'What is seen' });
+  await line.click();
+  await page.keyboard.type('title: milk sort: -title ');
   await line.press('Enter');
-  await panel.getByRole('button', { name: 'Remove this condition' }).waitFor({ timeout: 5_000 });
+  for (let waited = 0; !sent.some((body) => JSON.stringify(body?.filter ?? {}).includes('milk')) && waited < 50; waited++) await page.waitForTimeout(100);
 
   const last = sent.at(-1);
-  assert.deepEqual(last?.filter, { op: 'CONTAINS', field: 'title', value: 'milk' }, `the query sent ${JSON.stringify(last)}`);
+  assert.match(JSON.stringify(last?.filter), /"title".*"milk"|"milk".*"title"/u, `the query sent ${JSON.stringify(last)}`);
   assert.deepEqual(last?.sort?.[0], { field: 'title', dir: 'DESC' });
-  // The line is drawn as a condition the builder can change, not kept aside.
-  assert.equal(await panel.getByRole('button', { name: 'Remove this condition' }).count(), 1, 'the line became no condition row');
-  // …and the controls write the line back as the query they send.
-  assert.equal(await line.inputValue(), "title CONTAINS 'milk' ORDER BY title DESC");
+  // The line is drawn as chips the reader can change, and spelled back as the text it sends.
+  assert.equal(await panel.getByRole('button', { name: /^Change title/ }).count(), 1, 'the line became no chip');
+  assert.match(await panel.locator('[data-view-line]').innerText(), /title: milk/u);
+  // Over the list, each piece is a chip of its own that takes itself away.
+  assert.ok((await page.locator('.query-chips li').count()) >= 1, 'the pieces are not over the list');
 
-  // A line that cannot be read says where and changes nothing.
-  await line.fill("title ~ 'milk");
-  await line.press('Enter');
-  await page.getByText('The line cannot be read from character 9 on.').waitFor({ timeout: 5_000 });
+  // A line that cannot be read says so at its chip and changes nothing.
+  const asked = sent.length;
+  await page.keyboard.type('(is: open ');
+  await page.waitForTimeout(600);
+  assert.equal(sent.slice(asked).some((body) => !JSON.stringify(body?.filter ?? {}).includes('milk')), false, 'an unreadable line was sent');
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);

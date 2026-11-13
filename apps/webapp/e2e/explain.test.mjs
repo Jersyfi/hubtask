@@ -326,8 +326,8 @@ test('chromium: 1280 px — a saved view offers sharing only to who may share, a
     const { page, context, failures } = await as(browser, 1280, role);
     await context.route('**/api/v1/**/views**', (route) => route.fulfill({ json: VIEWS }));
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-    await page.locator('[data-opener="views"]').click();
-    await page.getByRole('menuitem', { name: 'Rename, share or delete a view…' }).click();
+    await page.locator('[data-opener="view"]').click();
+    await page.locator('[data-view-panel]').getByRole('button', { name: 'Rename, share or delete a view…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Saved views' });
     await dialog.getByText('Mine, due soon').waitFor({ timeout: 10_000 });
     await page.waitForTimeout(400);

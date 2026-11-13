@@ -1390,6 +1390,12 @@ export function fallback(route, request, path) {
   const impact = /^\/cis\/([^/]+)\/impact$/.exec(read);
   if (impact && request.method() === 'GET') return route.fulfill({ json: { ci_id: impact[1], direction: new URL(request.url()).searchParams.get('direction') ?? 'DOWNSTREAM', reached: [], services: [] } });
   if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
+  // The panel *View*'s count while typing and a key's values (Q-3, Q-4): the collection's entries,
+  // counted once, and no grouped value beyond the key's own - a count, not a claim about the query.
+  if (read === '/items:aggregate' && request.method() === 'POST') {
+    const grouped = request.postDataJSON()?.aggregate?.group_by;
+    return route.fulfill({ json: { data: grouped ? [] : [{ group: null, count: ITEMS.length }] } });
+  }
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
