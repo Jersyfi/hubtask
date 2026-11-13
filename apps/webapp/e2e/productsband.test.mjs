@@ -396,6 +396,15 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
       ['INC-1', ACCOUNT.display_name, 'P2', '1 h 0 min left'], ['INC-2', ACCOUNT.display_name, 'P3', 'Breached 18 min ago'], ['INC-3', ACCOUNT.display_name, 'P4', 'Paused'],
     ], JSON.stringify(cells));
     assert.equal(await page.locator('[data-desk-figure]').textContent(), '3 open · 2 unassigned');
+    // UC-SVC-03 check 12, UC-WRK-45 check 9: grouped by status, each group counted, each ending in
+    // capture's door for the desk; on a phone the key, the status and the priority under the title.
+    const counts = await table.locator('tr.group-row[data-head] .group-count').allTextContents();
+    assert.equal(counts.reduce((sum, each) => sum + Number(each.trim()), 0), 3, `the groups count ${counts}`);
+    assert.ok(await table.getByRole('button', { name: /^Request in / }).count() >= 1, 'no "+ Request in" at a group\'s end');
+    if (width < 600) {
+      const meta = (await table.locator('td.stack .meta').first().textContent()).replace(/\s+/g, ' ');
+      assert.ok(/INC-\d/.test(meta) && /P\d/.test(meta), `the meta line says ${meta}`);
+    }
     // A request's title is read whole, on a phone's stacked card too, not cut to a few letters.
     const title = await table.locator('.title').first().evaluate((node) => [node.scrollWidth, node.clientWidth]);
     if (width < 600) assert.ok(title[0] <= title[1] + 1 && title[1] >= 150, `the title is cut: ${title}`);

@@ -59,7 +59,7 @@ test('chromium: 1280 px - fields stand in columns, Group groups by column, done 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px - the density switch makes the rows compact, and this device keeps it (E-5)', async (t) => {
+test('chromium: 1280 px - the density switch makes the rows compact, and this device keeps it (E-5, UC-WRK-45 check 4, UC-WRK-41 check 6)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await signedIn(browser, 1280, 900);
