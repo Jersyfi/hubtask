@@ -802,7 +802,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "release ls",
         "summary": "A hub's releases",
-        "description": "The hub's releases, the latest day first, at most 200. Needs READ at the hub.",
+        "description": "The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.",
         "parameters": [
           {
             "name": "state",
@@ -44462,10 +44462,34 @@
           "data": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Release"
+              "$ref": "#/components/schemas/ReleaseListItem"
             }
           }
         }
+      },
+      "ReleaseListItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Release"
+          },
+          {
+            "type": "object",
+            "required": [
+              "done_count",
+              "open_count"
+            ],
+            "properties": {
+              "done_count": {
+                "type": "integer",
+                "description": "Its entries the reader may see that are done."
+              },
+              "open_count": {
+                "type": "integer",
+                "description": "Its entries the reader may see that are still open."
+              }
+            }
+          }
+        ]
       },
       "ReleaseDetail": {
         "allOf": [
@@ -44496,7 +44520,10 @@
                     "type_name",
                     "done",
                     "collection_id",
-                    "added_at"
+                    "added_at",
+                    "key",
+                    "status_name",
+                    "status_category"
                   ],
                   "properties": {
                     "item_id": {
@@ -44512,6 +44539,34 @@
                     },
                     "done": {
                       "type": "boolean"
+                    },
+                    "key": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "The entry's key (`WEB-128`), where its collection gives one."
+                    },
+                    "status_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.\n"
+                    },
+                    "status_category": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "enum": [
+                        "BACKLOG",
+                        "TODO",
+                        "IN_PROGRESS",
+                        "DONE",
+                        null
+                      ],
+                      "description": "The status's category; null where no workflow runs, where `done` says done or open."
                     },
                     "collection_id": {
                       "type": "string",

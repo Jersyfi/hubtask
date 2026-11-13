@@ -11,6 +11,7 @@ import (
 	planrepo "github.com/Jersyfi/hubtask/core/application/repository/planning"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -317,31 +318,73 @@ func (h UpdateRelease) Descriptor() usecase.Descriptor {
 	}, releaseTarget)
 }
 
-// ListReleases reads a hub's releases, the latest day first (PLN-08).
+// ListReleases reads a hub's releases, the latest day first, each with how many of its entries the
+// reader may see are done and open (PLN-08), so a list draws every release's progress from one read.
 type ListReleases struct{ Planner Planner }
 
+// ReleaseCounted is a release with the done and open entries its reader may see.
+type ReleaseCounted struct {
+	Release domain.Release
+	Done    int
+	Open    int
+}
+
 // Execute lists them.
-func (h ListReleases) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, state domain.ReleaseState) ([]domain.Release, error) {
+func (h ListReleases) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, state domain.ReleaseState) ([]ReleaseCounted, error) {
 	if state != "" && state != domain.ReleasePlanned && state != domain.ReleaseReleased {
 		return nil, invalid("/state", "releases.state_unknown")
 	}
 	if _, err := h.Planner.hub(ctx, actor, hubID, service.PermissionRead, ReleaseReadAction, itemsRead); err != nil {
 		return nil, err
 	}
-	var out []domain.Release
+	var releases []domain.Release
+	var members []planrepo.ReleaseMemberState
 	err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		out, err = h.Planner.Releases.List(ctx, hubID, state, maxReleasesListed)
+		if releases, err = h.Planner.Releases.List(ctx, hubID, state, maxReleasesListed); err != nil {
+			return err
+		}
+		ids := make([]shared.ID, 0, len(releases))
+		for _, r := range releases {
+			ids = append(ids, r.ID)
+		}
+		members, err = h.Planner.Releases.MemberStates(ctx, ids, maxReleasesListed*maxEntriesRead)
 		return err
 	})
-	return out, err
+	if err != nil {
+		return nil, err
+	}
+	paths := make([][]identity.Scope, 0, len(members))
+	for _, m := range members {
+		paths = append(paths, entryPath(m.HubID, m.CollectionID, m.EntryID))
+	}
+	visible, err := h.Planner.permitted(ctx, actor, paths)
+	if err != nil {
+		return nil, err
+	}
+	done, open := map[shared.ID]int{}, map[shared.ID]int{}
+	for i, m := range members {
+		switch {
+		case !visible[i]:
+		case m.Done:
+			done[m.ReleaseID]++
+		default:
+			open[m.ReleaseID]++
+		}
+	}
+	out := make([]ReleaseCounted, 0, len(releases))
+	for _, r := range releases {
+		out = append(out, ReleaseCounted{Release: r, Done: done[r.ID], Open: open[r.ID]})
+	}
+	return out, nil
 }
 
 // Descriptor is the catalogue entry.
 func (h ListReleases) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListReleasesName, Permission: service.PermissionRead,
-		Summary:     "Lists a hub's releases, the latest day first, at most 200: their day, state and the page their notes went to.",
+		Summary: "Lists a hub's releases, the latest day first, at most 200: their day, state, the page their notes " +
+			"went to and how many of their entries the reader may see are done and open.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  itemsRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -360,17 +403,22 @@ func (h ListReleases) Descriptor() usecase.Descriptor {
 			}
 			data := make([]usecase.Output, 0, len(releases))
 			for _, r := range releases {
-				data = append(data, ReleaseOutput(r))
+				out := ReleaseOutput(r.Release)
+				out["done_count"], out["open_count"] = r.Done, r.Open
+				data = append(data, out)
 			}
 			return usecase.Output{"data": data}, nil
 		}),
 	}, releaseTarget)
 }
 
-// ReleaseView is a release with the entries its reader may see.
+// ReleaseView is a release with the entries its reader may see, each with its key and its status as
+// its workflow names it.
 type ReleaseView struct {
 	Release domain.Release
 	Entries []planrepo.ReleaseMember
+	// Summaries holds each entry's key and named status, by entry; an entry without one answers none.
+	Summaries map[shared.ID]workrepo.EntrySummary
 }
 
 // visibleReleaseMembers answers the members a reader may see (T-04).
@@ -403,9 +451,22 @@ func (h ReadRelease) Execute(ctx context.Context, actor appshared.ActorContext, 
 		return ReleaseView{}, err
 	}
 	var members []planrepo.ReleaseMember
+	summaries := map[shared.ID]workrepo.EntrySummary{}
 	if err := h.Planner.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		members, err = h.Planner.Releases.Entries(ctx, release.ID, maxEntriesRead)
-		return err
+		if members, err = h.Planner.Releases.Entries(ctx, release.ID, maxEntriesRead); err != nil || len(members) == 0 {
+			return err
+		}
+		read, err := h.Planner.References.Entries(ctx, memberIDs(members))
+		if err != nil {
+			return err
+		}
+		if err := (workservice.WorkflowGate{Workflows: h.Planner.Workflows}).NameStatuses(ctx, read); err != nil {
+			return err
+		}
+		for _, s := range read {
+			summaries[s.ID] = s
+		}
+		return nil
 	}); err != nil {
 		return ReleaseView{}, err
 	}
@@ -413,7 +474,7 @@ func (h ReadRelease) Execute(ctx context.Context, actor appshared.ActorContext, 
 	if err != nil {
 		return ReleaseView{}, err
 	}
-	return ReleaseView{Release: release, Entries: visible}, nil
+	return ReleaseView{Release: release, Entries: visible, Summaries: summaries}, nil
 }
 
 // Output is the shape every door returns (schema ReleaseDetail).
@@ -425,10 +486,23 @@ func (v ReleaseView) Output() usecase.Output {
 		if e.Done {
 			done++
 		}
-		entries = append(entries, usecase.Output{
+		entry := usecase.Output{
 			"item_id": e.EntryID.String(), "title": e.Title, "type_name": e.TypeName, "done": e.Done,
 			"collection_id": e.CollectionID.String(), "added_at": e.AddedAt.UTC(),
-		})
+			"key": nil, "status_name": nil, "status_category": nil,
+		}
+		if s, found := v.Summaries[e.EntryID]; found {
+			if key := s.Key(); key != "" {
+				entry["key"] = key
+			}
+			if s.StatusCategory != "" {
+				entry["status_category"] = s.StatusCategory
+				if s.StatusName != "" {
+					entry["status_name"] = s.StatusName
+				}
+			}
+		}
+		entries = append(entries, entry)
 	}
 	out["entries"], out["done_count"], out["open_count"] = entries, done, len(v.Entries)-done
 	return out
@@ -439,7 +513,7 @@ func (h ReadRelease) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadReleaseName, Permission: service.PermissionRead,
 		Summary: "Reads a release with the entries in it the reader may see - each with its title, its type's " +
-			"name and whether it is done - and how many are done and open.",
+			"name, its key, its status as its workflow names it and whether it is done - and how many are done and open.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  itemsRead, ReadOnly: true,
 		Input: []usecase.Field{

@@ -63,6 +63,13 @@ func TestAReleaseStaysInItsWorkspace(t *testing.T) {
 		if len(members) != 1 || members[0].EntryID != tasks[0] || members[0].CollectionID != collection || members[0].Title == "" {
 			t.Errorf("members = %+v", members)
 		}
+		states, err := releases.MemberStates(ctx, []shared.ID{first.ID, second.ID}, 100)
+		if err != nil {
+			return err
+		}
+		if len(states) != 1 || states[0].ReleaseID != first.ID || states[0].EntryID != tasks[0] || states[0].CollectionID != collection || states[0].HubID != hub {
+			t.Errorf("member states = %+v", states)
+		}
 		of, err := releases.Of(ctx, tasks)
 		if err == nil && (len(of) != 1 || of[0].ReleaseID != first.ID) {
 			t.Errorf("of = %+v", of)
@@ -84,6 +91,9 @@ func TestAReleaseStaysInItsWorkspace(t *testing.T) {
 		}
 		if members, err := releases.Entries(ctx, first.ID, 100); err != nil || len(members) != 0 {
 			t.Errorf("the other workspace reads the entries: %v %v", members, err)
+		}
+		if states, err := releases.MemberStates(ctx, []shared.ID{first.ID}, 100); err != nil || len(states) != 0 {
+			t.Errorf("the other workspace counts the entries: %v %v", states, err)
 		}
 		return nil
 	}); err != nil {

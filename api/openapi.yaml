@@ -460,7 +460,7 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "release ls"
       summary: A hub's releases
-      description: The hub's releases, the latest day first, at most 200. Needs READ at the hub.
+      description: The hub's releases, the latest day first, at most 200, each with how many of its entries the reader may see are done and open. Needs READ at the hub.
       parameters:
         - { name: state, in: query, schema: { type: string, enum: [PLANNED, RELEASED] }, description: "Only releases in this state." }
       responses:
@@ -30271,7 +30271,16 @@ components:
       type: object
       required: [data]
       properties:
-        data: { type: array, items: { $ref: "#/components/schemas/Release" } }
+        data: { type: array, items: { $ref: "#/components/schemas/ReleaseListItem" } }
+
+    ReleaseListItem:
+      allOf:
+        - $ref: "#/components/schemas/Release"
+        - type: object
+          required: [done_count, open_count]
+          properties:
+            done_count: { type: integer, description: "Its entries the reader may see that are done." }
+            open_count: { type: integer, description: "Its entries the reader may see that are still open." }
 
     ReleaseDetail:
       allOf:
@@ -30285,12 +30294,23 @@ components:
               type: array
               items:
                 type: object
-                required: [item_id, title, type_name, done, collection_id, added_at]
+                required: [item_id, title, type_name, done, collection_id, added_at, key, status_name, status_category]
                 properties:
                   item_id: { type: string, format: uuid }
                   title: { type: string }
                   type_name: { type: string, description: "The name of the entry's type; empty without one." }
                   done: { type: boolean }
+                  key: { type: [string, "null"], description: "The entry's key (`WEB-128`), where its collection gives one." }
+                  status_name:
+                    type: [string, "null"]
+                    description: >
+                      The entry's status as the workflow in force names it; null where no workflow
+                      runs or the status has no name of its own, which a client words by
+                      `status_category`.
+                  status_category:
+                    type: [string, "null"]
+                    enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+                    description: The status's category; null where no workflow runs, where `done` says done or open.
                   collection_id: { type: string, format: uuid }
                   added_at: { type: string, format: date-time }
 

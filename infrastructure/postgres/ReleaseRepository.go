@@ -205,6 +205,47 @@ func (PlanningReleases) Entries(ctx context.Context, releaseID shared.ID, limit 
 	return out, nil
 }
 
+// MemberStates returns the entries of several releases, each done or open.
+func (PlanningReleases) MemberStates(ctx context.Context, releaseIDs []shared.ID, limit int) ([]repository.ReleaseMemberState, error) {
+	if len(releaseIDs) == 0 {
+		return nil, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(releaseIDs)
+	if err != nil {
+		return nil, err
+	}
+	//nolint:gosec // G115: a bound the use case clamps
+	rows, err := queries.ListReleaseMemberStates(ctx, sqlc.ListReleaseMemberStatesParams{ReleaseIds: keys, Max: int32(limit)})
+	if err != nil {
+		return nil, planningError(err, "reading releases' entries")
+	}
+	out := make([]repository.ReleaseMemberState, 0, len(rows))
+	for _, row := range rows {
+		release, err := idFrom(row.ReleaseID)
+		if err != nil {
+			return nil, err
+		}
+		entry, err := idFrom(row.EntryID)
+		if err != nil {
+			return nil, err
+		}
+		collection, err := idFrom(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		hub, err := optionalID(row.HubID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, repository.ReleaseMemberState{ReleaseID: release, EntryID: entry, Done: row.IsCompleted, CollectionID: collection, HubID: hub})
+	}
+	return out, nil
+}
+
 // Count is how many entries a release holds.
 func (PlanningReleases) Count(ctx context.Context, releaseID shared.ID) (int, error) {
 	queries, err := queriesFrom(ctx)

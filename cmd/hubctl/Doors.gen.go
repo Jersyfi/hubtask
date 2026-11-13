@@ -2429,7 +2429,7 @@ var generatedCommands = []door{
 		Query: []doorParam{
 			{Name: "state", Kind: "string", Help: "Only releases in this state", Required: false},
 		},
-		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "state", "version"}},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{}},
 	{Group: "release", Verb: "publish", OperationID: "publishRelease", Method: "POST", Path: "/releases/{releaseId}:publish", Summary: "Release it",
 		PathParams: []doorParam{
 			{Name: "releaseId", Kind: "uuid", Help: "", Required: true},

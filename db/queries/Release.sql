@@ -61,6 +61,18 @@ WHERE re.tenant_id = current_tenant_id() AND re.release_id = sqlc.arg('release_i
 ORDER BY re.added_at, re.entry_id
 LIMIT sqlc.arg('max')::int;
 
+-- name: ListReleaseMemberStates :many
+-- The entries of several releases, each done or open with where it lives, for the counts a list of
+-- releases shows its reader; a trashed entry is left out.
+SELECT re.release_id, re.entry_id, wi.is_completed, wi.collection_id, c.parent_id AS hub_id
+FROM release_entry re
+JOIN work_item wi ON wi.tenant_id = re.tenant_id AND wi.id = re.entry_id
+JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+WHERE re.tenant_id = current_tenant_id() AND re.release_id = ANY(sqlc.arg('release_ids')::uuid[])
+  AND wi.deleted_at IS NULL
+ORDER BY re.release_id, re.entry_id
+LIMIT sqlc.arg('max')::int;
+
 -- name: CountReleaseEntries :one
 SELECT count(*)::int FROM release_entry
 WHERE tenant_id = current_tenant_id() AND release_id = sqlc.arg('release_id')::uuid;

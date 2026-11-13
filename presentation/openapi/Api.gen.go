@@ -8632,6 +8632,33 @@ func (e ReleaseState) Valid() bool {
 	}
 }
 
+// Defines values for ReleaseDetailEntriesStatusCategory.
+const (
+	ReleaseDetailEntriesStatusCategoryBACKLOG     ReleaseDetailEntriesStatusCategory = "BACKLOG"
+	ReleaseDetailEntriesStatusCategoryDONE        ReleaseDetailEntriesStatusCategory = "DONE"
+	ReleaseDetailEntriesStatusCategoryINPROGRESS  ReleaseDetailEntriesStatusCategory = "IN_PROGRESS"
+	ReleaseDetailEntriesStatusCategoryLessThannil ReleaseDetailEntriesStatusCategory = "<nil>"
+	ReleaseDetailEntriesStatusCategoryTODO        ReleaseDetailEntriesStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseDetailEntriesStatusCategory enum.
+func (e ReleaseDetailEntriesStatusCategory) Valid() bool {
+	switch e {
+	case ReleaseDetailEntriesStatusCategoryBACKLOG:
+		return true
+	case ReleaseDetailEntriesStatusCategoryDONE:
+		return true
+	case ReleaseDetailEntriesStatusCategoryINPROGRESS:
+		return true
+	case ReleaseDetailEntriesStatusCategoryLessThannil:
+		return true
+	case ReleaseDetailEntriesStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReleaseDetailState.
 const (
 	ReleaseDetailStatePLANNED  ReleaseDetailState = "PLANNED"
@@ -8644,6 +8671,24 @@ func (e ReleaseDetailState) Valid() bool {
 	case ReleaseDetailStatePLANNED:
 		return true
 	case ReleaseDetailStateRELEASED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ReleaseListItemState.
+const (
+	ReleaseListItemStatePLANNED  ReleaseListItemState = "PLANNED"
+	ReleaseListItemStateRELEASED ReleaseListItemState = "RELEASED"
+)
+
+// Valid indicates whether the value is a known member of the ReleaseListItemState enum.
+func (e ReleaseListItemState) Valid() bool {
+	switch e {
+	case ReleaseListItemStatePLANNED:
+		return true
+	case ReleaseListItemStateRELEASED:
 		return true
 	default:
 		return false
@@ -23651,7 +23696,16 @@ type ReleaseDetail struct {
 		CollectionId openapi_types.UUID `json:"collection_id"`
 		Done         bool               `json:"done"`
 		ItemId       openapi_types.UUID `json:"item_id"`
-		Title        string             `json:"title"`
+
+		// Key The entry's key (`WEB-128`), where its collection gives one.
+		Key *string `json:"key"`
+
+		// StatusCategory The status's category; null where no workflow runs, where `done` says done or open.
+		StatusCategory *ReleaseDetailEntriesStatusCategory `json:"status_category"`
+
+		// StatusName The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+		StatusName *string `json:"status_name"`
+		Title      string  `json:"title"`
 
 		// TypeName The name of the entry's type; empty without one.
 		TypeName string `json:"type_name"`
@@ -23671,13 +23725,42 @@ type ReleaseDetail struct {
 	Version    int                `json:"version"`
 }
 
+// ReleaseDetailEntriesStatusCategory The status's category; null where no workflow runs, where `done` says done or open.
+type ReleaseDetailEntriesStatusCategory string
+
 // ReleaseDetailState defines model for ReleaseDetail.State.
 type ReleaseDetailState string
 
 // ReleaseList defines model for ReleaseList.
 type ReleaseList struct {
-	Data []Release `json:"data"`
+	Data []ReleaseListItem `json:"data"`
 }
+
+// ReleaseListItem defines model for ReleaseListItem.
+type ReleaseListItem struct {
+	Description string `json:"description"`
+
+	// DoneCount Its entries the reader may see that are done.
+	DoneCount int                `json:"done_count"`
+	HubId     openapi_types.UUID `json:"hub_id"`
+	Id        openapi_types.UUID `json:"id"`
+	Name      string             `json:"name"`
+
+	// NotesPageId The page its notes were written to.
+	NotesPageId *openapi_types.UUID `json:"notes_page_id"`
+
+	// OpenCount Its entries the reader may see that are still open.
+	OpenCount int `json:"open_count"`
+
+	// ReleaseOn The day it is meant to go out.
+	ReleaseOn  openapi_types.Date   `json:"release_on"`
+	ReleasedAt *time.Time           `json:"released_at"`
+	State      ReleaseListItemState `json:"state"`
+	Version    int                  `json:"version"`
+}
+
+// ReleaseListItemState defines model for ReleaseListItem.State.
+type ReleaseListItemState string
 
 // Reminder defines model for Reminder.
 type Reminder struct {

@@ -149,6 +149,16 @@ type ReleaseMember struct {
 	HubID        shared.ID
 }
 
+// ReleaseMemberState is one entry of a release, done or open, with where it lives: what a list of
+// releases counts for its reader.
+type ReleaseMemberState struct {
+	ReleaseID    shared.ID
+	EntryID      shared.ID
+	Done         bool
+	CollectionID shared.ID
+	HubID        shared.ID
+}
+
 // EntryRelease is the release an entry is in.
 type EntryRelease struct {
 	EntryID   shared.ID
@@ -171,6 +181,8 @@ type Releases interface {
 	Delete(ctx context.Context, id shared.ID) error
 	// Entries returns a release's entries that are not trashed, at most max.
 	Entries(ctx context.Context, releaseID shared.ID, limit int) ([]ReleaseMember, error)
+	// MemberStates returns the entries of the releases that are not trashed, at most max.
+	MemberStates(ctx context.Context, releaseIDs []shared.ID, limit int) ([]ReleaseMemberState, error)
 	// Count is how many entries a release holds.
 	Count(ctx context.Context, releaseID shared.ID) (int, error)
 	// Of answers the release each of the entries is in.
