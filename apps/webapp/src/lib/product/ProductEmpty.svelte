@@ -8,7 +8,7 @@
   // Filtered offers to clear the filter; settled offers nothing (voice-and-tone.md §4).
 
   import { untrack } from 'svelte';
-  import { Button, EmptyState, ProductTile, type IconName, type ProductId } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ProductTile, type IconName } from '@hubtask/design-system/components';
   import type { AccessExplanation, ResourceState } from '@hubtask/sync-engine';
 
   import { viewport } from '../frame/viewport.svelte.ts';
@@ -18,6 +18,7 @@
   import { guideOf, whoToAsk } from './guide.ts';
   import { productOf } from '../navigation.ts';
   import { productTour } from './producttour.svelte.ts';
+  import { PRODUCT_TILES } from './tiles.ts';
 
   /** One act on the empty screen: resolved label, what pressing it does. */
   interface Act {
@@ -69,10 +70,7 @@
   }
 
   const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome = false, side, templateShape = 'stacked' }: Props = $props();
-  const TILES: Record<string, ProductId> = {
-    PLANNING: 'plans', KNOWLEDGE: 'pages', WHITEBOARD: 'whiteboards', SERVICE_DESK: 'desk', ASSETS: 'assets', TIME: 'time', GOALS: 'goals', AGENTS: 'agents',
-  };
-  const tile = $derived(isProductHome && kind === 'unused' && product ? TILES[product] : undefined);
+  const tile = $derived(isProductHome && kind === 'unused' && product ? PRODUCT_TILES[product] : undefined);
 
   const act = $derived(kind === 'filtered' ? clear : isInHead && viewport.isCompact ? undefined : create);
   const offersTemplates = $derived(kind === 'unused' && create !== undefined && templates.length > 0);

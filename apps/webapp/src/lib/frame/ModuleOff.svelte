@@ -4,7 +4,7 @@
   // The page of a module switched off in the workspace: what it is, that its data is kept, and -
   // for who may shape the workspace - the switch at once; for anybody else whom to ask. Drawn in
   // place of the page, so no read is refused and no form is offered that the server would refuse.
-  import { Button, EmptyState, PageHeader, Stack } from '@hubtask/design-system/components';
+  import { Button, EmptyState, Icon, PageHeader, Stack } from '@hubtask/design-system/components';
   import type { ModuleState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
@@ -12,6 +12,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { switchedOn } from '../product/switchedon.ts';
+  import { PRODUCT_TILES } from '../product/tiles.ts';
   import { page } from './page.svelte.ts';
   import { toast } from './toasts.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
@@ -48,6 +49,10 @@
   </Button>
 {/snippet}
 
+{#snippet offNote()}
+  <span class="note" data-module-off-note><Icon name="info" size="sm" />{t(mayShape ? 'app.module_off.kept' : 'app.module_off.ask')}</span>
+{/snippet}
+
 <Stack gap="300">
   <PageHeader title={name} isTitleInBar={viewport.isCompact}
     breadcrumb={{
@@ -60,14 +65,21 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }} />
-  <EmptyState kind="unused" icon="layout-template" title={t('app.module_off.title', { module: name })}
-    description={isProduct
-      ? t(mayShape ? 'app.module_off.body_product' : 'app.module_off.body_product_ask', { what: t(`app.modules.hint_${module.toLowerCase()}`) })
-      : t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}
-    action={mayShape ? switchControl : undefined} />
+  {#if isProduct}
+    <!-- A product switched off is drawn as its first empty state (scenes homeplans, homeassets,
+         homeagents): its tile, its sentence, the switch - and, under it, that nothing is lost. -->
+    <EmptyState kind="unused" icon="layout-template" product={PRODUCT_TILES[module]} title={t('app.module_off.title', { module: name })}
+      description={t(`app.modules.hint_${module.toLowerCase()}`)}
+      action={mayShape ? switchControl : undefined} footnote={offNote} />
+  {:else}
+    <EmptyState kind="unused" icon="layout-template" title={t('app.module_off.title', { module: name })}
+      description={t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}
+      action={mayShape ? switchControl : undefined} />
+  {/if}
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </Stack>
 
 <style>
   .refusal { margin: 0; color: var(--text-danger); }
+  .note { display: inline-flex; align-items: center; gap: var(--sp-050); }
 </style>

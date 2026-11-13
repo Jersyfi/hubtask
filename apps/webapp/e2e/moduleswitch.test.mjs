@@ -117,3 +117,22 @@ test('chromium: the service desk page with the module off says so, reads nothing
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/SERVICE_DESK'), 'the switch was not sent');
   assert.deepEqual(walk.errors(), []);
 });
+
+// Scenes homeplans/homeassets/homeagents: a product switched off is drawn as its first empty state -
+// its tile in its colour, its sentence, the switch, and that nothing kept for it is lost.
+test('chromium: a product\'s home with its module off is drawn as its empty state with the switch', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['PLANNING']) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/plans`);
+  await page.getByText('is switched off in this workspace').waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator('.empty[data-kind="unused"] > .tile').count(), 1, 'the product\'s tile');
+  await page.locator('[data-module-off-note]').getByText('Nothing kept for it is lost while it is off.').waitFor();
+  await page.getByRole('button', { name: /^Switch .+ on$/u }).click();
+  await page.waitForTimeout(300);
+  assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/PLANNING'), 'the switch was not sent');
+  assert.deepEqual(walk.errors(), []);
+});
