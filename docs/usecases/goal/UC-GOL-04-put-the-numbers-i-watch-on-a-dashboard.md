@@ -79,7 +79,8 @@ says he may not see it. Ana's own dashboard *Mine* is hers alone.
     dashboard's conditions as inherited chips, each released and taken back by a press, and names
     every grouping and period field by its word, never its key.
 22. *Open as list* opens the collection a widget counts with the widget's line - what the dashboard
-    passes on and its own - as a changed, unsaved view; the line never enters the address.
+    passes on and its own - as a changed, unsaved view; a widget counting a hub or the whole
+    workspace opens the search with that line. The line never enters the address.
 23. While a widget is edited, it stands large on the grid and its figure is computed from the
     definition being edited, as the reader and held to a save's checks; nothing is stored until it
     is applied, and only on a dashboard the reader sees.

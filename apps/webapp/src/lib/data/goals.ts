@@ -717,3 +717,14 @@ export function listFilter(filter: Node | undefined, released: readonly string[]
   if (nodes.length === 0) return undefined;
   return nodes.length === 1 ? nodes[0] : { op: 'AND', nodes };
 }
+
+/**
+ * The tree *Als Liste öffnen* hands to the search for a widget counting a hub or the whole
+ * workspace: the hub it counts in, once, AND what the dashboard passes on AND the widget's own.
+ */
+export function searchFilter(filter: Node | undefined, released: readonly string[], own: Node | undefined, hubId: string | undefined): Node | undefined {
+  const rest = conditionsOf(listFilter(filter, released, own, hubId));
+  const nodes = hubId ? [{ field: 'hub_id', op: 'EQ', value: hubId }, ...rest] : rest;
+  if (nodes.length === 0) return undefined;
+  return nodes.length === 1 ? nodes[0] : { op: 'AND', nodes };
+}

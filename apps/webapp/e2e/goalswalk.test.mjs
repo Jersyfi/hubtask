@@ -668,3 +668,32 @@ test('chromium: the widget editor draws the edited widget live, and its line is 
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+// UC-GOL-04 check 22: a widget counting the whole workspace opens the search with its line, handed
+// over in memory as the bar hands its words - never in the address.
+test('chromium: a widget counting the workspace opens the search with its line, which stays out of the address', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = {
+    id: '01a0e2e0-0000-7000-8000-00000000a661', title: 'Everything open', chart: 'NUMBER', source: 'QUERY', view_id: null,
+    query: { scope: { workspace: true }, filter: { field: 'title', op: 'CONTAINS', value: 'milk' }, aggregate: { function: 'COUNT' } },
+    goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 4, h: 2,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a662', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: 'is: open', version: 1, widgets: [widget] };
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board], figures: { [widget.id]: [{ group: null, period: null, count: 12, value: null }] } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.getByText('12', { exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'More for Everything open' }).click();
+  await page.getByRole('menuitem', { name: 'Open as list' }).click();
+  await page.waitForURL(/\/search/u, { timeout: 5_000 });
+  assert.ok(!page.url().includes('milk'), 'the line stays out of the address');
+  // The line arrives whole as chips - the dashboard's condition and the widget's own.
+  await page.getByRole('button', { name: 'Remove is: open' }).waitFor({ timeout: 5_000 });
+  await page.getByRole('button', { name: 'Remove title: milk' }).waitFor({ timeout: 5_000 });
+  for (let waited = 0; !walk.written.some((each) => each.path === '/search' && JSON.stringify(each.body).includes('milk')) && waited < 50; waited++) await page.waitForTimeout(100);
+  assert.ok(walk.written.some((each) => each.path === '/search' && JSON.stringify(each.body).includes('milk')), 'the search asks for the widget\'s line');
+  assert.deepEqual(walk.errors(), []);
+});

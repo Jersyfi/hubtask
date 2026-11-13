@@ -37,12 +37,13 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, conditionsOf, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    MAX_WIDGETS, conditionsOf, searchFilter, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
     seriesTable, widgetWrite, type FigureNaming, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
   import { handOver } from '../lib/data/listhandoff.ts';
+  import { search } from '../lib/data/search.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -550,25 +551,41 @@
     const scope = query?.scope?.container_id ?? query?.scope_container_id;
     return typeof scope === 'string' && containers.find(scope)?.type === 'COLLECTION' ? scope : undefined;
   }
-  /** Where the widget's entries are listed: its saved view, or the collection it counts in. */
+  /** The hub a widget counts in, or none for the whole workspace; undefined where it counts no entries there. */
+  function countedWide(widget: DashboardWidgetWrite): { hubId?: string } | undefined {
+    if (widget.source !== 'QUERY' || countedCollection(widget)) return undefined;
+    const query = widget.query as { scope_container_id?: unknown; scope?: { container_id?: unknown }; aggregate?: { source?: unknown } } | undefined;
+    if (query?.aggregate?.source !== undefined && query.aggregate.source !== 'entries') return undefined;
+    const scope = query?.scope?.container_id ?? query?.scope_container_id;
+    if (typeof scope !== 'string') return {};
+    return containers.find(scope)?.type === 'HUB' ? { hubId: scope } : undefined;
+  }
+  /** Where the widget's entries are listed: its saved view, the collection it counts in, or the search. */
   function listHref(widget: DashboardWidgetWrite): string | undefined {
     if (widget.source === 'VIEW' && widget.view_id) {
       const view = views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === widget.view_id) as { container_id?: string | null } | undefined;
       return view?.container_id ? `/collections/${view.container_id}?view=${widget.view_id}` : undefined;
     }
     const scope = countedCollection(widget);
-    return scope ? `/collections/${scope}` : undefined;
+    if (scope) return `/collections/${scope}`;
+    return countedWide(widget) ? '/search' : undefined;
   }
   /**
    * Opens the widget's list. A counted collection opens with the widget's line - what the
    * dashboard passes on and its own - as a changed, unsaved view; the line goes over in memory,
-   * never in the address (security.md §9).
+   * never in the address (security.md §9). A widget counting a hub or the whole workspace opens the
+   * search with that line, handed over the way the bar hands its words.
    */
   function openList(widget: DashboardWidgetWrite) {
     const href = listHref(widget);
     if (!href) return;
     const scope = widget.source === 'QUERY' ? countedCollection(widget) : undefined;
-    if (scope) {
+    const wide = countedWide(widget);
+    if (wide) {
+      const tree = searchFilter(filterTree as Record<string, unknown> | undefined, widget.released ?? [], ownTree(widget), wide.hubId);
+      const line = tree ? lineOf({ filter: tree as never }, names) : '';
+      if (line) search.handOver(line);
+    } else if (scope) {
       const tree = listFilter(filterTree as Record<string, unknown> | undefined, widget.released ?? [], ownTree(widget), containers.find(scope)?.parent_id);
       const line = tree ? lineOf({ filter: tree as never }, names) : '';
       if (line) handOver(scope, line);
