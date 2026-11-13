@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -307,4 +307,12 @@ test('a plan\'s phases are its top-level entries by start, the one running today
 test('what needs attention is each hub\'s problems in turn, at most as many as shown', () => {
   const healthAt = { h1: { problems: [{ ci_id: 'a' }, { ci_id: 'b' }] }, h2: { problems: [{ ci_id: 'c' }] } };
   assert.deepEqual(attentionAcross(healthAt, ['h2', 'h1', 'h3'], 2).map((each) => [each.hubId, each.ci_id]), [['h2', 'c'], ['h1', 'a']]);
+});
+
+test('planCounts: a hub holds plans by its releases, dated entries and its collections\' sprints, once both reads answered', () => {
+  const hubOf = (collection: string) => ({ c1: 'a', c2: 'b' })[collection];
+  assert.deepEqual(planCounts(['a', 'b'], { a: [], b: [] }, { a: [], b: [] }, {}, hubOf), { a: 0, b: 0 });
+  assert.deepEqual(planCounts(['a', 'b'], { a: [1], b: [] }, { a: [], b: [1, 2] }, { c1: [1] }, hubOf), { a: 2, b: 2 });
+  assert.deepEqual(planCounts(['a', 'b'], { a: [] }, { a: [], b: [] }, {}, hubOf), { a: 0 }, 'a hub whose releases are still read is left out');
+  assert.equal(isUnused(planCounts(['a', 'b'], { a: [] }, { a: [], b: [] }, {}, hubOf), ['a', 'b']), undefined);
 });

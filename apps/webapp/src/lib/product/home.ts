@@ -185,6 +185,28 @@ export function isUnused(counts: Readonly<Record<string, number>>, hubIds: reado
 }
 
 /**
+ * What each hub holds of plans - its releases, its dated entries and its collections' sprints - for
+ * `isUnused` (scene homeplans): a hub whose releases or schedule is still being read is left out, so
+ * nothing is decided before both have answered.
+ */
+export function planCounts(
+  hubIds: readonly string[],
+  releasesAt: Readonly<Record<string, readonly unknown[]>>,
+  entriesAt: Readonly<Record<string, readonly unknown[]>>,
+  sprintsAt: Readonly<Record<string, readonly unknown[]>>,
+  hubOf: (collectionId: string) => string | undefined,
+): Record<string, number> {
+  const sprints = new Map<string, number>();
+  for (const [collection, list] of Object.entries(sprintsAt)) {
+    const hub = hubOf(collection);
+    if (hub) sprints.set(hub, (sprints.get(hub) ?? 0) + list.length);
+  }
+  return Object.fromEntries(hubIds
+    .filter((hub) => releasesAt[hub] !== undefined && entriesAt[hub] !== undefined)
+    .map((hub) => [hub, releasesAt[hub]!.length + entriesAt[hub]!.length + (sprints.get(hub) ?? 0)]));
+}
+
+/**
  * *More in Hubtask* (user-experience.md §3.3): the products switched off, each with what it does,
  * in the products band's order. Offered only to a holder of `STRUCTURE` on the workspace, who can
  * switch one on; nobody else is shown a product they cannot have.

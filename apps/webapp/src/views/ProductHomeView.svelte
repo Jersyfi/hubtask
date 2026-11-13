@@ -22,7 +22,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { attentionAcross, phasesOf, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { attentionAcross, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasePath, releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -343,6 +343,10 @@
     if (module === 'KNOWLEDGE') return count(pagesAt, (data) => data.length);
     if (module === 'WHITEBOARD') return count(boardsAt, (data) => data.length);
     if (module === 'ASSETS') return count(healthAt, (data) => data.total);
+    if (module === 'PLANNING') {
+      const entries = Object.fromEntries(Object.entries(scheduleAt).map(([hubId, data]) => [hubId, data.entries]));
+      return planCounts(hubsWith.map((hub) => hub.id), releasesAt, entries, sprintsAt, (id) => containers.find(id)?.parent_id ?? undefined);
+    }
     return undefined;
   });
   const isUnusedHere = $derived(
@@ -530,7 +534,7 @@
       <ProductEmpty product={module} place={{ type: 'TENANT' }}
         kind="unused"
         icon={row?.icon ?? 'hub'}
-        title={t('app.product_home.unused', { product: name })}
+        title={module === 'PLANNING' || module === 'ASSETS' ? name : t('app.product_home.unused', { product: name })}
         description={messages.has(`app.modules.hint_${module.toLowerCase()}`) ? t(`app.modules.hint_${module.toLowerCase()}`) : t(starts.length > 0 ? 'app.product_home.unused_body_templates' : 'app.product_home.unused_body')}
         create={firstCreate}
         templates={starts}
