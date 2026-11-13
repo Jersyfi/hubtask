@@ -72,6 +72,29 @@ func TestTheClaimIsReconciledWithTheBytes(t *testing.T) {
 			claimed: "application/pdf", sniffed: "image/png", mismatch: true,
 		},
 		{
+			name:    "a DOCX claim sharpens the ZIP sniff its container answers (UC-MED-01)",
+			claimed: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", sniffed: "application/zip",
+			want: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		},
+		{
+			name:    "an XLSX claim sharpens the ZIP sniff",
+			claimed: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", sniffed: "application/zip",
+			want: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		},
+		{
+			name:    "an ODF text claim sharpens the ZIP sniff",
+			claimed: "application/vnd.oasis.opendocument.text", sniffed: "application/zip",
+			want: "application/vnd.oasis.opendocument.text",
+		},
+		{
+			name:    "a ZIP sniff sharpens only to a format built on ZIP",
+			claimed: "application/pdf", sniffed: "application/zip", mismatch: true,
+		},
+		{
+			name:    "an image claimed over ZIP bytes is refused",
+			claimed: "image/png", sniffed: "application/zip", mismatch: true,
+		},
+		{
 			name:    "an unreadable claim is refused rather than guessed at",
 			claimed: ";;;", sniffed: "image/png", mismatch: true,
 		},

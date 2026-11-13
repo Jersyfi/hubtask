@@ -81,7 +81,24 @@ func AcceptClaim(claimed, sniffed string) (string, error) {
 		return claimedEssence, nil
 	}
 
+	// ZIP is a container: an office document is a ZIP the sniff cannot see into, so a claim of a
+	// format built on ZIP - none of them inline - sharpens it.
+	if sniffedEssence == "application/zip" && zipFormats[claimedEssence] {
+		return claimedEssence, nil
+	}
+
 	return "", typeMismatch(claimed, sniffed)
+}
+
+// zipFormats are the office formats whose files are ZIP archives (OOXML, ODF).
+var zipFormats = map[string]bool{
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document":   true,
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":         true,
+	"application/vnd.openxmlformats-officedocument.presentationml.presentation": true,
+	"application/vnd.oasis.opendocument.text":                                   true,
+	"application/vnd.oasis.opendocument.spreadsheet":                            true,
+	"application/vnd.oasis.opendocument.presentation":                           true,
+	"application/vnd.oasis.opendocument.graphics":                               true,
 }
 
 // genericTypes is what sniffing answers when it recognised nothing specific.
