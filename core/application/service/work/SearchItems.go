@@ -414,6 +414,13 @@ func (h SearchItems) Descriptor() usecase.Descriptor {
 					"is refused, because \"everything\" is not a question this API answers.",
 			},
 			{
+				Name: "query", Kind: usecase.KindString,
+				Description: "The search as one Hubtask query instead of q, filter and sort: free " +
+					"words and phrases are ranked, every field: value narrows - passkey who: me " +
+					"is: open. Either spelling; GET /query/keys lists the keys. At most 4000 " +
+					"characters; refused beside q, filter or sort.",
+			},
+			{
 				Name: "container_id", Kind: usecase.KindID,
 				Description: "The hub or collection to search in. Omitted searches everywhere the " +
 					"caller may see.",
@@ -488,7 +495,7 @@ func (h SearchItems) invoke(
 		return nil, err
 	}
 
-	page, err := h.Execute(ctx, actor, SearchItemsQuery{
+	search := SearchItemsQuery{
 		Words:           in.String("q"),
 		Filter:          in["filter"],
 		Sort:            in["sort"],
@@ -499,7 +506,25 @@ func (h SearchItems) invoke(
 		IncludeTrashed:  in.Bool("include_trashed"),
 		Cursor:          in.String("cursor"),
 		Size:            in.Int("size"),
-	})
+	}
+	// The query as text: its free words are ranked, the rest narrows (ADR-0102).
+	if in.Present("query") {
+		if in.Present("q") {
+			return nil, shared.ErrValidation.WithDetail("query.line_with_filter").
+				WithFields(shared.FieldError{Path: "/query", Code: "query.line_with_filter"})
+		}
+		line, err := queryLineOf(in, "query", false)
+		if err != nil {
+			return nil, err
+		}
+		search.Words, search.Filter, search.Sort = line.words, line.filter, nil
+		if line.sort != nil {
+			search.Sort = line.sort
+		}
+		search.IncludeArchived = search.IncludeArchived || line.archived
+		search.IncludeTrashed = search.IncludeTrashed || line.trashed
+	}
+	page, err := h.Execute(ctx, actor, search)
 	if err != nil {
 		return nil, err
 	}

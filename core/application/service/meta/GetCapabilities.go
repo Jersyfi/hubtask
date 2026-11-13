@@ -57,6 +57,9 @@ type Capabilities struct {
 	// database: a manifest that listed a field the grammar refuses would send a client to build a
 	// filter editor for a query that cannot run.
 	QueryFields []view.Field
+	// QueryKeys are the keys of the Hubtask query's field: value spelling (ADR-0102), the
+	// catalogue the parser reads, for the same reason.
+	QueryKeys []view.QueryKey
 	// ViewLayouts is the set a saved view's layout is validated against. The declaration
 	// is the whole of the server's involvement: a layout is stored, echoed back, and never
 	// consulted, which is what makes new frontend views possible without a backend change
@@ -539,6 +542,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		InstallationURL:           installationURLOf(g.Config),
 		ItemTypes:                 profiles,
 		QueryFields:               view.Fields(),
+		QueryKeys:                 view.QueryKeys(),
 		ViewLayouts:               view.Layouts(),
 		CompletionPolicies:        work.CompletionPolicies(),
 		AutoAssignStrategies:      work.AutoAssignStrategies(),

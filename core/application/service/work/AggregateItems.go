@@ -459,7 +459,7 @@ func (h AggregateItems) Descriptor() usecase.Descriptor {
 	for _, field := range query.Input {
 		switch field.Name {
 		case "scope_container_id", "scope_item_id", "include_descendants", "filter",
-			"include_archived", "include_trashed":
+			"include_archived", "include_trashed", "q":
 			input = append(input, field)
 		}
 	}
@@ -542,7 +542,19 @@ func summaryOf(in usecase.Input) (view.Spec, view.Aggregation, error) {
 	if err != nil {
 		return view.Spec{}, view.Aggregation{}, err
 	}
-	filter, err := view.ParseFilter(in["filter"], "/filter")
+	filterOf, filterPath := in["filter"], "/filter"
+	line, err := queryLineOf(in, "q", true)
+	if err != nil {
+		return view.Spec{}, view.Aggregation{}, err
+	}
+	if line.present {
+		if line.sort != nil {
+			return view.Spec{}, view.Aggregation{}, shared.ErrValidation.WithDetail("query.sort_not_here").
+				WithFields(shared.FieldError{Path: "/q", Code: "query.sort_not_here"})
+		}
+		filterOf, filterPath = line.filter, "/q"
+	}
+	filter, err := view.ParseFilter(filterOf, filterPath)
 	if err != nil {
 		return view.Spec{}, view.Aggregation{}, err
 	}
@@ -552,7 +564,8 @@ func summaryOf(in usecase.Input) (view.Spec, view.Aggregation, error) {
 	}
 	return view.Spec{
 		Scope: scope, Filter: filter,
-		IncludeArchived: in.Bool("include_archived"), IncludeTrashed: in.Bool("include_trashed"),
+		IncludeArchived: in.Bool("include_archived") || line.archived,
+		IncludeTrashed:  in.Bool("include_trashed") || line.trashed,
 	}, aggregation, nil
 }
 

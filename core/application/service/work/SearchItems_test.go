@@ -6,10 +6,12 @@ package work
 import (
 	"errors"
 	"testing"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -393,5 +395,27 @@ func TestTheHitsFoundByMeaningAloneAreNamed(t *testing.T) {
 	named, _ := out["found_by_meaning"].([]string)
 	if len(named) != 1 || named[0] != packageID.String() {
 		t.Fatalf("found_by_meaning is %v, want only %s", out["found_by_meaning"], packageID)
+	}
+}
+
+// UC-WRK-43 check 4: a search sent as one query ranks its free words and narrows by the rest; the
+// query beside q is refused.
+func TestASearchReadsOneQuery(t *testing.T) {
+	handler, store, _, _ := searchHarness()
+	handler.Clock = clock.Fixed(time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC))
+	if _, err := handler.Descriptor().Handler.Invoke(t.Context(), itemActor(), map[string]any{
+		"query": "passkey \"zweites Gerät\" who: me is: trashed",
+	}); err != nil {
+		t.Fatalf("searching was refused: %v", err)
+	}
+	request := store.searchedText[0].Request
+	if request.Words != "passkey \"zweites Gerät\"" || request.Filter == nil || request.Filter.Field.Name != view.FieldAssigneeID || !request.IncludeTrashed {
+		t.Fatalf("the search arrived as %+v", request)
+	}
+
+	_, err := handler.Descriptor().Handler.Invoke(t.Context(), itemActor(), map[string]any{"query": "who: me", "q": "x"})
+	var domainErr *shared.Error
+	if !errors.As(err, &domainErr) || domainErr.Fields[0].Code != "query.line_with_filter" {
+		t.Fatalf("the query beside q answered %v", err)
 	}
 }
