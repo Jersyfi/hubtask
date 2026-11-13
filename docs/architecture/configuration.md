@@ -175,7 +175,7 @@ collections inherit - `kanban_team@3` flow, `scrum_team@3` open entries, `classi
 progress, `itil_service_desk@15` open entries - so their cards and rows carry a figure (UC-WRK-29).
 `itil_service_desk@16` marks its four hub views as the hub's queues, in the desk's order (`queue`,
 `queue_position`; UC-SVC-03 check 10); a view's block names `queue` only where it is one.
-`kanban_team@4` brings three sample cards. A hub made from a template - by *Create hub* or by
+`itil_service_desk@17` sets an entry's priority from impact × urgency by two rules switched on, one when the entry is raised and one narrowed to `custom_fields.impact` and `custom_fields.urgency` (a trigger's `changed_fields` fire it only when one of them changed); an administrator edits or switches them off. `kanban_team@4` brings three sample cards. A hub made from a template - by *Create hub* or by
 the first start naming no collection - starts with one collection named as the hub, where its
 sample entries land: a hub without one refused them (`config.collection_unknown`) and with them
 the whole.
