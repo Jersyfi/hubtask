@@ -216,10 +216,10 @@ test('an entry under Recently comes back as the same entry, no new one (check 4)
 test('the entry page shows and changes the amount where the list offers one (check 2)', async () => {
   const { page, writes, context } = await phone();
   await page.goto(`${served.origin}/items/${idOf('milk')}`);
-  const row = page.locator('[data-detail="amount"]');
-  await row.waitFor({ state: 'attached' });
-  // On a phone the details are folded under the head.
-  await page.locator('summary.details-summary').click();
+  await page.locator('[data-detail="amount"]').first().waitFor({ state: 'attached' });
+  // On a phone the details are the sheet behind *All properties* (§7).
+  await page.getByRole('button', { name: /^All properties/ }).click();
+  const row = page.getByRole('dialog').locator('[data-detail="amount"]');
   assert.match(await row.innerText(), /2/);
   await row.click();
   const field = page.getByRole('textbox', { name: 'Amount', exact: true });

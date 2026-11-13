@@ -46,6 +46,8 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   assert.equal(await row.getAttribute('href'), `/items/${ENTRY.id}`);
 
   // The entry's own form is inside: the title in place, the chips, the details rows, the tabs.
+  // The pane is named by the title its object head draws, once (the head arrives with its chunk).
+  await pane.getByRole('heading', { name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.equal(await pane.getByRole('heading', { name: ENTRY.title }).count(), 1);
   assert.equal(await pane.locator('[data-detail="due"]').count(), 1);
   assert.equal(await pane.getByRole('tab', { name: /Comments/ }).count(), 1);
@@ -97,8 +99,10 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
   // The pane's address, arrived at directly, is replaced by the page's.
   await page.goto(`${served.origin}/collections/${COLLECTION.id}?item=${ENTRY.id}`);
   await page.waitForURL(`**/items/${ENTRY.id}`, { timeout: 10_000 });
+  // The entry's page is its own chunk and draws a moment after the address changes.
+  await page.getByRole('heading', { level: 1, name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('complementary', { name: ENTRY.title }).count(), 0);
-  assert.equal(await page.getByRole('heading', { level: 1, name: ENTRY.title }).count(), 1);
+  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).

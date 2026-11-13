@@ -120,7 +120,8 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
     await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail'))),
     ROWS,
   );
-  assert.equal(await page.getByRole('textbox', { name: 'Notes' }).count(), 1, 'the notes did not come back');
+  // The pages' editor is its own chunk (E-3): it arrives a moment after the rows.
+  await page.getByRole('textbox', { name: 'Notes' }).waitFor({ timeout: 10_000 }).catch(() => assert.fail('the notes did not come back'));
   assert.deepEqual(failures, []);
 });
 

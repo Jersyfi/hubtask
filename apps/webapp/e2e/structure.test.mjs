@@ -171,7 +171,8 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   }
   assert.equal(await page.getByLabel('Notes').count(), 0, 'a note editor');
   // What the entry still holds from before - a date, a person, a cover - stays stored and is not drawn.
-  assert.equal(await page.evaluate(() => document.querySelector('[data-tour="entry"] .marks')?.children.length), 1, 'a mark beside the type');
+  // The head's action bar draws no person and no date chip for it (§6.9).
+  assert.equal(await page.locator('[data-tour="entry"] .action-bar').locator('.person, .chip').count(), 0, 'a person or a date in the head');
   assert.equal(await page.locator('[data-tour="entry"] .cover-stripe').count(), 0, 'a cover');
   assert.equal(await page.getByRole('button', { name: /^Add (a task|a work package|an activity) inside/ }).count(), 0, 'a child entry');
 
@@ -296,7 +297,8 @@ test('chromium: the owner - a level is named by the name given to it, and by its
   await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
   await page.getByRole('heading', { name: SHAPE_ITEMS[0].title }).first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
-  assert.equal((await page.locator('.marks .badge').first().textContent()).trim(), 'item');
+  // The head's type beside the key names the level (§6.9).
+  assert.match((await page.locator('[data-tour="entry"] .key-row').innerText()).trim(), /\bitem\b/);
 
   // Without a name, the catalogue's words: the project adds "an entry", and no name leaks into it.
   await openCollection(page, SHAPES.locked);

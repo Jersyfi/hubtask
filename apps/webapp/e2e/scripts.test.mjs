@@ -109,7 +109,7 @@ test('chromium: an English page loads no script face, an arrow in its history in
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
-  await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab', { name: 'History' }).click();
+  await page.getByRole('tablist', { name: 'Conversation' }).getByRole('tab', { name: 'History' }).click();
   await page.getByText('→').first().waitFor({ timeout: 5_000 });
   await loadedFaces(page);
 

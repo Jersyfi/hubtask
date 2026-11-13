@@ -63,7 +63,7 @@ test('1280 px: in the pane, the entry menu stands at the end of the title line',
   const { page, context, failures } = await collection(1280);
   const entry = ITEMS.find((each) => !each.parent_id);
   await page.locator(`[data-row="${entry.id}"] a`).first().click();
-  const pane = page.getByRole('complementary');
+  const pane = page.getByRole('complementary', { name: entry.title });
   const menu = pane.locator('[data-opener="entry-menu"]');
   await menu.waitFor();
   const title = await pane.getByRole('heading').first().boundingBox();

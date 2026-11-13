@@ -91,6 +91,8 @@ test('chromium: an entry shows its code and links a file from a store', async (t
   });
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  // The rail's *Code* section is folded as the scene draws it (§6.9); unfolded, it lists the links.
+  await page.getByRole('button', { name: 'Unfold Code' }).click({ timeout: 15_000 });
   const code = page.locator('[data-entry-code]');
   await code.waitFor({ timeout: 15_000 });
   const pull = code.getByRole('link', { name: PULL.title });
@@ -102,8 +104,8 @@ test('chromium: an entry shows its code and links a file from a store', async (t
   assert.equal(await code.getByRole('link', { name: BRANCH.title }).count(), 0);
 
   const section = page.locator('[data-entry-files]');
-  await section.getByText('No file from a store is linked yet.').waitFor({ timeout: 5_000 });
-  await section.getByRole('button', { name: 'Link a file' }).click();
+  // Nothing linked yet: no sentence about it (ET-4), only the act.
+  await section.getByRole('button', { name: 'Link a file' }).click({ timeout: 5_000 });
   const dialog = page.getByRole('dialog', { name: 'Link a file from a store' });
   await dialog.getByRole('textbox', { name: 'Address' }).fill('https://cloud.example.org/s/aBcD1234');
   await dialog.getByRole('button', { name: 'Link', exact: true }).click();

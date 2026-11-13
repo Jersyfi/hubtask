@@ -151,12 +151,15 @@ for (const width of WIDTHS) {
     if ((await title.count()) > 0) assert.equal(await title.getAttribute('title'), null, 'the title still carries the reason as a tooltip');
     await readOnlyTitleAndNotes(page);
 
-    // The completion box says done or not done and names the notice.
-    const box = page.getByRole('checkbox', { name: `Mark ${ARCHIVED_ENTRY.title} as done` });
-    assert.equal(await box.getAttribute('aria-disabled'), 'true');
-    assert.match(await description(box), /This entry is archived/);
+    // The status is read, not offered, and refers to the notice (§6.9: the status button replaced the box).
+    const status = page.locator('[data-tour="entry"] [data-steps] .status');
+    await status.waitFor({ timeout: 10_000 });
+    assert.equal(await status.evaluate((el) => el.tagName), 'SPAN', 'the status of an archived entry can be changed');
+    assert.match(await description(status), /This entry is archived/);
 
-    // Its child is an entry of its own and is not archived with it (ArchiveWorkItem.go).
+    // Its child is an entry of its own and is not archived with it (ArchiveWorkItem.go). On a phone
+    // one section shows at a time (§7): the parts are a press away.
+    if (width < 600) await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Parts/ }).click();
     await page.getByText(UNDER_ARCHIVED_ENTRY.title).first().waitFor({ timeout: 10_000 });
     const child = page.getByRole('checkbox', { name: `Mark ${UNDER_ARCHIVED_ENTRY.title} as done` });
     assert.equal(await child.getAttribute('aria-disabled'), null, 'the child of an archived entry is frozen');
@@ -199,15 +202,18 @@ async function withNotes(page, entry) {
 
 /**
  * The entry's title and notes are drawn and refuse typing (UC-WRK-02 check 6), and the notes read
- * exactly as typed, markup characters and spaces included (UC-WRK-02 check 4).
+ * formatted, a typed tag kept as text (UC-WRK-02 check 4).
  */
 async function readOnlyTitleAndNotes(page) {
-  for (const name of ['Title', 'Notes']) {
-    const field = page.getByRole('textbox', { name, exact: true }).first();
-    await field.waitFor({ timeout: 10_000 });
-    assert.equal(await field.evaluate((el) => el.readOnly), true, `the ${name.toLowerCase()} can be typed in`);
-  }
-  assert.equal(await page.getByRole('textbox', { name: 'Notes', exact: true }).inputValue(), NOTES);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Edit title' }).count(), 0, 'the title can be edited');
+  const notes = page.getByRole('textbox', { name: 'Notes', exact: true });
+  await notes.waitFor({ timeout: 10_000 });
+  assert.notEqual(await notes.getAttribute('contenteditable'), 'true', 'the notes can be typed in');
+  // Read formatted (UC-WRK-02 check 4): the bold is bold, the tag stays text, the line its own.
+  assert.equal(await notes.locator('strong', { hasText: 'Not bold' }).count(), 1, 'the notes are not read formatted');
+  assert.equal(await notes.locator('b').count(), 0, 'markup typed into the notes became a tag');
+  assert.match(await notes.innerText(), /<b>not a tag<\/b>/);
 }
 
 /** A collection's template and a workspace-wide one, and one private saved view. */

@@ -152,14 +152,11 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   assert.equal(backend.policies[0]?.goals.find((goal) => goal.kind === 'FIRST_RESPONSE')?.minutes, 240);
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
-  const promised = page.getByRole('list', { name: 'Promised times' });
+  // The concept's ticket (ET-1): the promised times are the rail's first section.
+  const promised = page.locator('[data-entry-sla]');
   await promised.waitFor({ timeout: 5_000 });
   assert.match(await promised.innerText(), /First reply/);
-  // §5.6: a desk entry's promised times sit under the head, above the notes.
-  assert.equal(await promised.evaluate((node) => {
-    const notes = document.querySelector('[aria-label="Notes"]');
-    return notes !== null && Boolean(node.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING);
-  }), true, 'the promised times stand above the notes');
+  assert.equal(await page.getByRole('complementary', { name: 'Details' }).locator('section').first().getByText('Deadlines', { exact: true }).count(), 1, 'the deadlines are not the rail\'s first section');
   const requester = page.getByRole('region', { name: 'Requester' });
   await requester.getByText('Acme Plumbing').waitFor({ timeout: 5_000 });
   assert.match(await requester.innerText(), new RegExp(OTHER.display_name));
@@ -225,7 +222,9 @@ test('chromium: service desk - 390 px, a requester\'s long other request scrolls
   const { page } = walk;
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
-  await page.getByRole('region', { name: 'Requester' }).getByRole('link', { name: long.title }).waitFor({ timeout: 10_000 });
+  // On a phone the rail is the sheet behind *All properties* (§7).
+  await page.getByRole('button', { name: /^All properties/ }).click();
+  await page.getByRole('dialog').getByRole('region', { name: 'Requester' }).getByRole('link', { name: long.title }).waitFor({ timeout: 10_000 });
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 });
@@ -265,9 +264,9 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
   assert.deepEqual(walk.errors(), []);
 });
 
-// A desk entry's detail by type (user-experience.md §5.6): its triage fields directly under the head,
-// above the notes and not folded among the details; no done checkbox where its workflow decides
-// completion; who raised it before what sits under it.
+// A desk entry's detail by type (the work surface's ticket, ET-1/ET-6): its triage fields in the rail
+// as *Classification*, not folded among the details; no done checkbox where its workflow decides
+// completion; who raised it in the rail after the details.
 test('chromium: service desk - a request shows its triage under the head, no done checkbox, the requester before its parts', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -302,14 +301,15 @@ test('chromium: service desk - a request shows its triage under the head, no don
   const triage = page.locator('[data-entry-triage]');
   await triage.waitFor({ timeout: 10_000 });
   assert.equal(await triage.getByText('Priority').count(), 1, 'the priority is not among the triage fields');
-  assert.equal(await page.locator('aside.details').getByText('Priority').count(), 0, 'the priority is still among the details');
+  assert.equal(await page.locator('[data-details]').getByText('Priority').count(), 0, 'the priority is still among the details');
   const before = (first, second) => page.evaluate(([a, b]) => {
     const x = document.querySelector(a);
     const y = document.querySelector(b);
     return Boolean(x && y && x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING);
   }, [first, second]);
-  assert.ok(await before('[data-entry-triage]', '.notes-field'), 'the triage is not above the notes');
+  // The concept's ticket (ET-1, ET-6): *Classification* in the rail above the details, the requester after them.
+  assert.ok(await before('[data-entry-triage]', '[data-details]'), 'the triage is not above the details');
   assert.equal(await page.locator('.head').getByRole('checkbox').count(), 0, 'a done checkbox is drawn where the workflow decides');
   await page.locator('[data-requester-panel]').waitFor({ timeout: 10_000 });
-  assert.ok(await before('[data-requester-panel]', '[data-tour="levels"]'), 'what sits under it comes before who raised it');
+  assert.ok(await before('[data-details]', '[data-requester-panel]'), 'the requester stands before the details');
 });

@@ -122,9 +122,12 @@ for (const width of [375, 768, 1280]) {
     const browser = await chromium.launch();
     const { page, failures, close } = await openEntry(browser, { width });
     try {
-      for (const name of ['Ask AI about this entry', 'Ask AI about the notes', 'Ask AI about the steps']) {
+      for (const name of ['Ask AI about this entry', 'Ask AI about the notes']) {
         assert.equal(await menu(page, name).count(), 1, `${name} is offered`);
       }
+      // On a phone one section shows at a time (§7): the parts are a press away.
+      if (width < 600) await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Parts/ }).click();
+      assert.equal(await menu(page, 'Ask AI about the steps').count(), 1, 'Ask AI about the steps is offered');
       assert.equal(await page.getByText('Nothing has been suggested', { exact: false }).count(), 0, 'no empty area');
       assert.equal(await page.getByRole('heading', { name: 'Suggestions' }).count(), 0, 'no section heading');
       assert.equal(await page.locator('section[data-ai]').count(), 0, 'no proposal drawn');

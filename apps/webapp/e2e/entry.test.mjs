@@ -82,15 +82,16 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   const { page, failures, close, unstubbed } = await openEntry(browser, 1280, written);
   t.after(close);
 
-  // One heading, read and not drawn; the trail through the levels.
-  assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
-  assert.equal(await page.getByRole('heading', { level: 1 }).evaluate((el) => el.getBoundingClientRect().width <= 1), true, 'the h1 is drawn as well as read');
+  // One heading, the title drawn in the head (§6.9); the trail through the levels.
+  const h1 = page.getByRole('heading', { level: 1 });
+  assert.equal(await h1.count(), 1);
+  assert.equal((await h1.textContent()).trim(), ENTRY.title);
   const trail = page.getByRole('navigation', { name: 'Where you are' });
   assert.deepEqual((await trail.getByRole('link').allTextContents()).map((each) => each.trim()), [HUB.name, COLLECTION.name]);
 
-  // Completion from the page: the same write the row makes, announced. UC-WRK-04 checks 1 and 2:
-  // the checkbox before the title completes, the title is struck through, and the same checkbox
-  // reopens and takes the stroke away.
+  // Completion from the head: the status button's next step, *Done*, makes the same write the row
+  // makes; the title is struck through, and the status's *To do* reopens and takes the stroke away
+  // (UC-WRK-04 checks 1, 2 - the checkbox stays the row's).
   // The client re-reads the entry after either write, so the entry answers what was last written.
   let current = ENTRY;
   await page.route(new RegExp(`/api/v1/items/${ENTRY.id}(:complete|:reopen)?(\\?.*)?$`), (route) => {
@@ -107,23 +108,29 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
     }
     return route.fallback();
   });
-  const done = page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` });
-  const struck = () => page.getByRole('textbox', { name: 'Title' }).first().evaluate((el) => getComputedStyle(el).textDecorationLine);
+  const head = page.locator('[data-tour="entry"]');
+  const struck = () => h1.locator('.title-text').evaluate((el) => getComputedStyle(el).textDecorationLine);
   assert.equal(await struck(), 'none', 'an open entry is struck through');
-  await done.click();
+  await head.getByRole('button', { name: 'Done', exact: true }).click();
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${ENTRY.id}:complete`)), `no completion was written: ${JSON.stringify(written)}`);
-  assert.equal(await struck(), 'line-through', 'a completed entry is not struck through');
-  await page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as not done` }).click();
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('h1 .title-text')).textDecorationLine === 'line-through', undefined, { timeout: 5_000 })
+    .catch(() => assert.fail('a completed entry is not struck through'));
+  await head.getByRole('button', { name: /^Status: / }).click();
+  await page.getByRole('menuitemradio', { name: /To do/ }).first().click();
   await page.waitForTimeout(300);
-  assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${ENTRY.id}:reopen`)), `the same checkbox did not reopen: ${JSON.stringify(written)}`);
+  assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${ENTRY.id}:reopen`)), `the status did not reopen: ${JSON.stringify(written)}`);
   assert.equal(await struck(), 'none', 'a reopened entry is still struck through');
 
-  // The title in place: text until it has focus, Enter saves what moved and nothing else.
-  const title = page.getByRole('textbox', { name: 'Title' }).first();
+  // The title in place: the pencil opens it, Enter saves what moved and nothing else.
+  const edit = async () => {
+    await head.getByRole('button', { name: 'Edit title' }).click();
+    const field = page.getByRole('textbox', { name: 'Title', exact: true });
+    await field.waitFor({ timeout: 5_000 });
+    return field;
+  };
+  let title = await edit();
   assert.equal(await title.inputValue(), ENTRY.title);
-  assert.equal(await title.evaluate((el) => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'the title field draws a border at rest');
-  await title.focus();
   await title.fill('Order the tiles, both rooms');
   const beforeTitle = written.length;
   await page.keyboard.press('Enter');
@@ -143,28 +150,29 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
     'POST /items:query',
   ], 'a title costs more than the write, the entry, its history and the subtree: ' + JSON.stringify(written.slice(beforeTitle).filter((w) => w.path.endsWith(':query')).map((w) => w.body.scope)));
   // Escape restores an unsaved edit.
-  await title.focus();
+  title = await edit();
   await title.fill('Not this');
   await page.keyboard.press('Escape');
-  assert.notEqual(await title.inputValue(), 'Not this');
+  assert.notEqual((await h1.textContent()).trim(), 'Not this');
+  assert.ok(!written.some((w) => w.body?.title === 'Not this'), 'Escape in the title saved it');
   // The notes: leaving the field saves them.
   const notes = page.getByRole('textbox', { name: 'Notes' });
   await notes.fill('Check the delivery date first.');
-  await page.getByRole('textbox', { name: 'Title' }).first().focus();
+  await head.getByRole('button', { name: 'Edit title' }).focus();
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.notes === 'Check the delivery date first.'), `the notes were not written: ${JSON.stringify(written.map((w) => w.body))}`);
   // UC-WRK-02 check 3: the title saves on Enter (above) and on leaving the field, the notes on
   // leaving theirs, and Escape in either restores the text as it was.
-  await title.focus();
+  title = await edit();
   await title.fill('Order the tiles, all rooms');
   await notes.focus();
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'PATCH' && w.body?.title === 'Order the tiles, all rooms'), `leaving the title did not save it: ${JSON.stringify(written.map((w) => w.body))}`);
-  const notesBefore = await notes.inputValue();
+  const notesBefore = await notes.textContent();
   await notes.fill('Not these notes');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(300);
-  assert.equal(await notes.inputValue(), notesBefore, 'Escape kept the unsaved notes');
+  assert.equal(await notes.textContent(), notesBefore, 'Escape kept the unsaved notes');
   assert.ok(!written.some((w) => w.body?.notes === 'Not these notes'), 'Escape in the notes saved them');
 
   // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
@@ -204,8 +212,9 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   // The subtree: a task holding work packages and an activity of its own is headed by neither
   // name alone, and its count is every direct child of either kind - completed out of how many
   // (UC-WRK-03 check 5); every level, and a count on a branch.
-  const heading = page.getByRole('heading', { level: 2, name: /Under this entry/ });
-  assert.ok((await heading.textContent()).replace(/\s+/g, ' ').includes('1/3'), 'the section head does not count every kind');
+  // The count stands beside the section's heading (ET-2).
+  assert.equal(await page.getByRole('heading', { level: 2, name: /Under this entry/ }).count(), 1);
+  assert.equal((await page.locator('#entry-parts .count').first().textContent()).trim(), '1/3', 'the section head does not count every kind');
   const rows = page.locator('.level .row [data-row], .level [data-row]');
   assert.equal(await rows.count(), 5, 'direct children open and their activities shown');
   assert.equal(await page.getByText('1/2', { exact: true }).count() >= 1, true);
@@ -252,9 +261,9 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.notEqual(await up.getAttribute('aria-disabled'), 'true', 'an activity may move out of its work package to the task');
   await page.keyboard.press('Escape');
 
-  // Comments and activity as tabs.
-  const tabs = page.getByRole('tablist', { name: "The entry's history" });
-  assert.deepEqual((await tabs.getByRole('tab').allTextContents()).map((each) => each.trim()), ['Comments · 0', 'History']);
+  // The conversation as tabs (§6.9): everything, the comments, the history.
+  const tabs = page.getByRole('tablist', { name: 'Conversation' });
+  assert.deepEqual((await tabs.getByRole('tab').allTextContents()).map((each) => each.trim().replace(/\s*·.*$/, '')), ['All', 'Comments', 'History']);
   await tabs.getByRole('tab', { name: 'History' }).click();
   await page.getByRole('feed').or(page.getByText(/Nothing has happened|No history|nothing/i)).first().waitFor({ timeout: 5_000 }).catch(() => {});
   assert.equal(await page.getByRole('tab', { name: 'History' }).getAttribute('aria-selected'), 'true');
@@ -272,7 +281,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: 375 px — the title in the bar, the details folded under the head, a row opens a drawer', async (t) => {
+test('chromium: 375 px — the title in the bar, the details behind All properties, a row opens a drawer', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close, unstubbed } = await openEntry(browser, 375);
@@ -280,26 +289,22 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
 
   assert.equal((await page.getByRole('banner', { name: 'Application bar' }).locator('[data-bar="title"]').textContent()).trim(), ENTRY.title);
   assert.equal(await page.getByRole('link', { name: COLLECTION.name }).count(), 1, 'the parent as the way up');
-  const fold = page.locator('details.details-fold');
-  assert.equal(await fold.evaluate((el) => el.open), false, 'the details stand open on a phone');
-  // The details come before the subtree in the document, so a reader meets them after the head.
-  const order = await page.evaluate(() => {
-    const details = document.querySelector('details.details-fold');
-    const subtree = document.querySelector('main .level');
-    return details && subtree ? details.compareDocumentPosition(subtree) & Node.DOCUMENT_POSITION_FOLLOWING ? 'details first' : 'subtree first' : 'missing';
-  });
-  assert.equal(order, 'details first');
-  await page.locator('summary.details-summary').click();
+  // On a phone the rail is a sheet behind *All properties* (§7): closed until asked for.
+  assert.equal(await page.locator('[data-detail]').filter({ visible: true }).count(), 0, 'the details stand open on a phone');
+  await page.getByRole('button', { name: /^All properties/ }).click();
   await unfoldFields(page);
-  await page.locator('[data-detail="due"]').click();
-  const drawer = page.locator('dialog[open]');
-  await drawer.waitFor({ timeout: 5_000 });
-  assert.equal(await drawer.getByRole('heading', { name: 'Date' }).count(), 1, 'the editor is not a drawer on a phone');
+  await page.getByRole('dialog').locator('[data-detail="due"]').click();
+  // The row's editor opens over the sheet as a drawer of its own.
+  const drawer = page.locator('dialog.drawer[open]').filter({ has: page.getByRole('heading', { name: 'Dates', exact: true }) });
+  await drawer.waitFor({ timeout: 5_000 }).catch(() => assert.fail('the editor is not a drawer on a phone'));
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, 'the entry scrolls sideways');
-  // The subtree's indent is capped in the narrow tree.
+  // The subtree's indent is capped in the narrow tree - read where it is drawn: on a phone one
+  // section shows at a time (§7).
+  await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Parts/ }).click();
+  await page.locator('.task-row').first().waitFor();
   const indents = await page.locator('.task-row').evaluateAll((rows) => rows.map((row) => getComputedStyle(row).paddingInlineStart));
   assert.deepEqual([...new Set(indents)].sort(), ['0px', '16px'], `the indent steps are ${indents}`);
   assert.deepEqual(failures, []);
@@ -405,14 +410,15 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 
   const pack = await rowsOf(CHILDREN[ENTRY.id][0].id);
   assert.deepEqual(pack, ['assignee', 'due', 'labels', 'reminders', 'language', 'attachments']);
-  assert.equal(await page.locator('.notes-field').count(), 1, 'a work package carries notes');
+  // The pages' editor arrives a moment after the head (E-3, a lazy chunk).
+  await page.getByRole('textbox', { name: 'Notes', exact: true }).waitFor({ timeout: 10_000 }).catch(() => assert.fail('a work package carries notes'));
 
   const activity = await rowsOf(CHILDREN[CHILDREN[ENTRY.id][0].id][0].id);
   assert.deepEqual(activity, ['assignee', 'due', 'reminders', 'language']);
-  assert.equal(await page.locator('.notes-field').count(), 0, 'an activity was offered notes it cannot keep');
+  assert.equal(await page.locator('#entry-description').count(), 0, 'an activity was offered notes it cannot keep');
   // And no conversation either: no tab standing there with a gate inside it saying so.
   assert.deepEqual(
-    (await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab').allTextContents()).map((each) => each.trim()),
+    (await page.getByRole('tablist', { name: 'Conversation' }).getByRole('tab').allTextContents()).map((each) => each.trim()),
     ['History'],
   );
 
@@ -444,7 +450,8 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   // decision is about is the room it takes.
   const above = await page.evaluate(() => {
     const head = document.querySelector('[data-tour="entry"]');
-    const title = head?.querySelector('.title-row');
+    // The object's head (trail, key, title) starts where the head does: no cover is drawn above it.
+    const title = head?.querySelector('.object-head');
     if (!head || !title) return 'missing';
     return Math.round(title.getBoundingClientRect().top - head.getBoundingClientRect().top);
   });
