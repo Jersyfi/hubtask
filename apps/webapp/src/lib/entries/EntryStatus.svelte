@@ -46,13 +46,24 @@
   const read = resource<EntrySteps>(untrack(() => `/items/${item.id}/steps`));
   const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
 
-  function asksLine(step: StepVerdict): string | undefined {
-    const fields = step.asks
-      .filter((key) => key.startsWith('custom_fields.'))
-      .map((key) => key.slice('custom_fields.'.length))
-      .map((key) => fieldName(customFields.of(item.collection_id).find((each) => each.key === key), key));
+  /** A form key a step names (`due_date`, `custom_fields.<key>`) in the reader's words. */
+  function formKeyName(key: string): string {
+    if (key === 'due_date') return t('app.entry_forms.own_due_date');
+    if (!key.startsWith('custom_fields.')) return key;
+    const field = key.slice('custom_fields.'.length);
+    return fieldName(customFields.of(item.collection_id).find((each) => each.key === field), field);
+  }
+
+  // What a step asks for in its small form, what it needs filled (✓ where it is), and whether it
+  // waits for an approval: one line under the step in the menu and on its card in the picture.
+  function asksLine(step: Pick<StepVerdict, 'asks' | 'requires' | 'missing' | 'approval_levels'>): string | undefined {
+    const asked = step.asks.filter((key) => key.startsWith('custom_fields.')).map(formKeyName);
+    const missing = new Set(step.missing ?? []);
+    const needed = (step.requires ?? []).map((key) =>
+      missing.has(key) ? formKeyName(key) : t('app.workflows.requires_met', { field: formKeyName(key) }));
     const parts = [
-      ...(fields.length > 0 ? [t('app.workflows.asks', { fields: fields.join(', ') })] : []),
+      ...(asked.length > 0 ? [t('app.workflows.asks', { fields: asked.join(', ') })] : []),
+      ...(needed.length > 0 ? [t('app.workflows.requires', { fields: needed.join(', ') })] : []),
       ...((step.approval_levels ?? 0) > 0 ? [t('app.workflows.needs_approval')] : []),
     ];
     return parts.length > 0 ? parts.join(' · ') : undefined;

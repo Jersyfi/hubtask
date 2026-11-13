@@ -14668,6 +14668,8 @@
   "app.workflows.picture_here": "Hier steht der Eintrag",
   "app.workflows.complete": "Erledigt",
   "app.workflows.close": "Schließen",
+  "app.workflows.requires": "braucht {fields}",
+  "app.workflows.requires_met": "{field} ✓",
   "app.entry.marks": "Abschnitte von {key}",
   "app.entry.mark_description": "Beschreibung",
   "app.entry.mark_parts": "Teile",

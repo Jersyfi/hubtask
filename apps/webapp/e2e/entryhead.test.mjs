@@ -44,7 +44,7 @@ const BOARD = [
   { id: '00000000-0000-4000-8000-00000000c003', name: 'Shipped', completes: true },
 ];
 
-async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, title, board, patches = [], extra }) {
+async function open(width, { runs, asks = false, requires = false, path = `/items/${ENTRY.id}`, title, board, patches = [], extra }) {
   const browser = await chromium.launch();
   const { context, page } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -61,6 +61,7 @@ async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, ti
     if (runs && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, entry_type: 'incident', status: 'new' } });
     if (runs && read === `/items/${ENTRY.id}/steps`) {
       const steps = [{ key: 'start', name: 'Start work', to: 'in_progress', asks: [], allowed: true }];
+      if (requires) Object.assign(steps[0], { asks: ['custom_fields.reviewer'], requires: ['due_date', 'custom_fields.points'], missing: ['custom_fields.points'] });
       if (asks) steps.push({ key: 'resolve', name: 'Resolve', to: 'resolved', asks: ['custom_fields.resolution'], allowed: true });
       const blocked = asks ? [] : [{ key: 'resolve', name: 'Resolve', to: 'resolved', reason: 'workflows.step_who_unmet', roles: ['ADMIN'], people: [], groups: [] }];
       const picture = { ...SHAPE, steps: SHAPE.steps.map((step) => ({ name: null, limited: step.key === 'resolve', approval: false, ...step })) };
@@ -128,6 +129,25 @@ for (const width of [1280, 390]) {
       assert.equal(await page.getByRole('button', { name: 'Open in designer' }).count(), 0, 'no designer without the right to the structure');
       const scroll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       assert.ok(scroll <= 0, `nothing scrolls sideways: ${scroll}`);
+    } finally {
+      await close();
+    }
+  });
+}
+
+for (const width of [1280, 390]) {
+  test(`chromium ${width}: a step says in the status menu what it asks and what it needs, ✓ where it is filled (E-23)`, { timeout: 60_000 }, async () => {
+    const { page, close } = await open(width, { runs: true, requires: true });
+    try {
+      const status = page.locator('[data-steps]');
+      await status.waitFor({ timeout: 10_000 });
+      await status.getByRole('button', { name: /Change status/ }).click();
+      const surface = page.locator('[role=menu]:visible, dialog[open]').last();
+      await surface.waitFor({ timeout: 5_000 });
+      const row = surface.locator('button.row').filter({ hasText: 'Start work' });
+      const line = await row.innerText();
+      assert.ok(line.includes('asks: reviewer'), `what it asks: ${line}`);
+      assert.ok(line.includes('needs Due date ✓, points'), `what it needs, ✓ where filled: ${line}`);
     } finally {
       await close();
     }
