@@ -594,6 +594,8 @@
         load={views.WhiteboardsView}
         props={{
           boardId: route.params.id,
+          isNew: route.query['new'] === '1',
+          thread: route.query['comment'],
           onnavigate: (path: string) => router.navigate(path),
         }}
       />

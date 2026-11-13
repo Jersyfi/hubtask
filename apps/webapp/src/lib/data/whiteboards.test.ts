@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import {
   backlinkHref, linkAddress, placeCarried, boardFileName, boardInWords, cardEntries, clockOf, commentParts, entryOfNote, liveBoardPath, mentionOf, notesInFrame, peerColour, pictureColours, pinOf, readNative,
-  threadsOf, voterKey,
+  openToYou, threadsOf, voterKey,
 } from './whiteboards.ts';
 
 test('a board lives at its own live document', () => {
@@ -142,3 +142,21 @@ test('a web link is kept as an address the server takes: a space in it encoded, 
   assert.equal(linkAddress(`https://example.com/${'a'.repeat(2048)}`), undefined);
 });
 
+
+test('the home lists the open threads in which someone else names you, the newest first (scene whome 4)', () => {
+  const me = '0192F000-0000-7000-8000-0000000000A1';
+  const a1 = '0192f000-0000-7000-8000-0000000000a1';
+  const other = '0192f000-0000-7000-8000-0000000000b2';
+  const at = (n: number) => `2026-11-1${n}T09:00:00Z`;
+  const base = { element_id: null, x: 0, y: 0, resolved: false, deleted: false };
+  const comments = [
+    { ...base, id: 't1', parent_id: null, author_id: other, body: `Hi [@Ann](hubtask:person/${a1}), can you book it?`, created_at: at(1) },
+    { ...base, id: 't2', parent_id: null, author_id: other, body: 'No one named', created_at: at(2) },
+    { ...base, id: 'r2', parent_id: 't2', author_id: other, body: `[@Ann](hubtask:person/${a1}) look`, created_at: at(4) },
+    { ...base, id: 't3', parent_id: null, author_id: a1, body: `I name [@Ann](hubtask:person/${a1}) myself`, created_at: at(3) },
+    { ...base, id: 't4', parent_id: null, author_id: other, body: `[@Ann](hubtask:person/${a1}) done`, created_at: at(5), resolved: true },
+  ];
+  const listed = openToYou(comments, me);
+  assert.deepEqual(listed.map((each) => [each.thread.id, each.said.id]), [['t2', 'r2'], ['t1', 't1']]);
+  assert.equal(listed[1]?.words, 'Hi @Ann, can you book it?');
+});

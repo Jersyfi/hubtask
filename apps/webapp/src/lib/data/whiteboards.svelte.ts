@@ -23,6 +23,8 @@ export * from './whiteboards.ts';
 export const boardsPath = (hubId: string) => `/hubs/${hubId}/whiteboards`;
 export const boardPath = (boardId: string) => `/whiteboards/${boardId}`;
 export const boardCommentsPath = (boardId: string) => `/whiteboards/${boardId}/comments`;
+/** Where a board just made opens: at once, its templates as a sheet (scene wnew). */
+export const newBoardPath = (boardId: string) => `/whiteboards/${boardId}?new=1`;
 
 const touched = (hubId: string, boardId: string) => [boardPath(boardId), boardsPath(hubId)];
 

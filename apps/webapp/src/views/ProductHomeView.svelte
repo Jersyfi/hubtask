@@ -37,7 +37,11 @@
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
   import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, ItemAggregateResult, MySprintList, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
   import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
-  import BoardTemplates, { type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
+  import BoardTemplates, { type BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
+  import BoardsForYou from '../lib/whiteboards/BoardsForYou.svelte';
+  import { makeBoard } from '../lib/whiteboards/make.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { renderProblem } from '../lib/problem.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
   import { pagesPath } from '../lib/data/pages.svelte.ts';
@@ -318,13 +322,20 @@
     }));
   });
 
-  /** The boards' *Templates*: a card starts a board in the hub holding most of them, its gallery open. */
-  let boardStart = $state<BoardStart>('BLANK');
-  let boardFormat = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
+  /** A board is made at once in the hub holding most of them (scene wnew): blank with its templates as a sheet, or from a card. */
+  async function makeBoardIn(hubId: string, choice: BoardStart = 'BLANK'): Promise<void> {
+    try {
+      onnavigate(await makeBoard(hubId, choice));
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    }
+  }
   function startBoard(choice: BoardStart): void {
     const hub = createPlaces[0];
-    if (hub) onnavigate(`/hubs/${encodeURIComponent(hub.id)}/contents?kind=whiteboards&new=1&start=${choice}`);
+    if (hub) void makeBoardIn(hub.id, choice);
   }
+  /** The open comments naming the reader on the boards listed, for the band (scene whome 1). */
+  let boardComments = $state(0);
   const hubName = (id: string) => containers.find(id)?.name ?? '';
 
   const creation = $derived(hubCreationHere());
@@ -410,7 +421,7 @@
     const first = createPlaces[0];
     if (!first) return undefined;
     // The place's own create dialog opens there (§5.2): the act creates, it does not list.
-    const go = (id: string) => onnavigate(createAt(module, id) ?? `/hubs/${id}`);
+    const go = (id: string) => (module === 'WHITEBOARD' ? void makeBoardIn(id) : onnavigate(createAt(module, id) ?? `/hubs/${id}`));
     return {
       label: t(createAct.code),
       icon: 'plus' as const,
@@ -432,9 +443,10 @@
   const startEmpty = $derived(firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
   // The band of a product with its own colour (work-surface E-1): its tile and two or three figures,
   // each a word with its number, and none while the reads are out (P-11).
-  const BANDS: Partial<Record<string, { product: 'plans' | 'assets'; icon: 'calendar' | 'shield' }>> = {
+  const BANDS: Partial<Record<string, { product: 'plans' | 'assets' | 'whiteboards'; icon: 'calendar' | 'shield' | 'layout-template' }>> = {
     PLANNING: { product: 'plans', icon: 'calendar' },
     ASSETS: { product: 'assets', icon: 'shield' },
+    WHITEBOARD: { product: 'whiteboards', icon: 'layout-template' },
   };
   const band = $derived(BANDS[module]);
   const bandFigures = $derived.by((): string[] => {
@@ -444,6 +456,15 @@
         t('app.product_home.band_sprints', { count: running.length }),
         t('app.product_home.band_releases', { count: upcoming.length }),
         ...(plansLate > 0 ? [t('app.product_home.band_plans_late', { count: plansLate })] : []),
+      ];
+    }
+    if (module === 'WHITEBOARD' && hubsWith.every((hub) => boardsAt[hub.id] !== undefined)) {
+      const all = hubsWith.flatMap((hub) => boardsAt[hub.id] ?? []);
+      const changedToday = all.filter((board) => todayIn(actor.zone, Date.parse(board.updated_at)) === today).length;
+      return [
+        t('app.product_home.band_boards', { count: all.length }),
+        ...(changedToday > 0 ? [t('app.product_home.band_boards_today', { count: changedToday })] : []),
+        ...(boardComments > 0 ? [t('app.product_home.band_boards_comments', { count: boardComments })] : []),
       ];
     }
     if (module === 'ASSETS' && inventory.isWhole && assetHubs.length > 0) {
@@ -536,7 +557,7 @@
     </section>
   {:else if currentTab === 'templates'}
     {#if createPlaces.length > 0}
-      <BoardTemplates bind:chosen={boardStart} bind:format={boardFormat} onpick={startBoard} />
+      <BoardTemplates look="tiles" onpick={startBoard} />
     {:else if !isReading}
       <EmptyState kind="unused" icon="layout-template" title={t('app.product_home.templates_none_title')} description={t('app.product_home.templates_none')} />
     {/if}
@@ -744,7 +765,10 @@
         </Stack>
       </section>
     {/if}
-    {#if boards.length > 0 && (currentTab === 'foryou' || currentTab === 'all')}
+    {#if module === 'WHITEBOARD' && currentTab === 'foryou' && !isUnusedHere}
+      <BoardsForYou {boards} {hubName} {onnavigate} onstart={createPlaces.length > 0 ? startBoard : undefined} oncomments={(count) => (boardComments = count)} />
+    {/if}
+    {#if boards.length > 0 && currentTab === 'all'}
       <section aria-labelledby="product-boards">
         <Stack gap="100">
           <h2 class="heading" id="product-boards">{t('app.product_home.boards_recent')}</h2>

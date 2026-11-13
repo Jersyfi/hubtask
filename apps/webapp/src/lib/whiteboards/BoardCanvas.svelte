@@ -22,7 +22,7 @@
   import { tick as settled, untrack, type Snippet } from 'svelte';
   import { tokens } from '@hubtask/design-system';
   import {
-    Avatar, AvatarGroup, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, Menu, Popover, Select, Stack, VisuallyHidden, type MenuItem,
+    Avatar, AvatarGroup, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, Kbd, Menu, Popover, ProductTile, Select, Stack, VisuallyHidden, type MenuItem,
   } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
   import type {
@@ -45,7 +45,7 @@
   import { followedViewport, peersOf, stillFollowing, type Peer } from './peers.ts';
   import BoardComments from './BoardComments.svelte';
   import BoardList from './BoardList.svelte';
-  import BoardTemplates, { templateOf, type BoardStart, type RetroFormat } from './BoardTemplates.svelte';
+  import BoardTemplates, { templateOf, type BoardStart } from './BoardTemplates.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { initialsOf } from '../data/grants.ts';
@@ -81,9 +81,15 @@
     back?: string;
     /** The screen's own verbs on the board (rename, the trash), at the end of the board's menu. */
     boardMenu?: { items: readonly MenuItem[]; onselect: (id: string) => void };
+    /** A board just made: an empty one opens with the templates as a sheet (scene wnew). */
+    isNew?: boolean;
+    /** What the new board's sheet was answered with, a template or blank. */
+    onbegin?: (choice: BoardStart) => void;
+    /** A thread to open at once, from the home's comments to the reader (scene whome 4). */
+    thread?: string;
   }
 
-  const { board, collections, onnavigate, heading, back, boardMenu }: Props = $props();
+  const { board, collections, onnavigate, heading, back, boardMenu, isNew = false, onbegin, thread }: Props = $props();
 
   type Tool = DockTool | 'LINK';
 
@@ -140,8 +146,15 @@
   let isMapShown = $state(false);
   let guides = $state<Guide[]>([]);
   let isTemplating = $state(false);
-  let templateStart = $state<BoardStart>('RETRO');
-  let templateFormat = $state<RetroFormat>('RETRO_START_STOP_CONTINUE');
+  let templateStart = $state<BoardStart>('RETRO_START_STOP_CONTINUE');
+  /** The new board's sheet (scene wnew): open on a board just made and still empty. */
+  let isBeginning = $state(untrack(() => isNew && writable && saved.length === 0));
+  function begin(choice: BoardStart) {
+    isBeginning = false;
+    const name = templateOf(choice);
+    if (name) putTemplate(name);
+    onbegin?.(choice);
+  }
 
   const byId = $derived(new Map(elements.map((e) => [e.id, e])));
   const shown = $derived(culled(elements, view, 200));
@@ -1135,7 +1148,7 @@
   // --- Comments pinned to objects and places (UC-CNV-09) -----------------------------------------
 
   let comments = $state<WhiteboardComment[]>([]);
-  let openThread = $state<string | undefined>(undefined);
+  let openThread = $state<string | undefined>(untrack(() => thread));
   let withResolved = $state(false);
   $effect(() => {
     const id = board.id;
@@ -1198,7 +1211,7 @@
 
   /** One sheet open at a time beside the canvas, closed until its control in the head opens it. */
   type Sheet = 'session' | 'comments' | 'history' | 'links' | 'frames' | 'export';
-  let sheet = $state<Sheet | undefined>(undefined);
+  let sheet = $state<Sheet | undefined>(untrack(() => (thread ? 'comments' : undefined)));
   let sheetTitle = $state<HTMLHeadingElement | undefined>(undefined);
   /** On a phone the selection bar waits to be asked for; elsewhere it stands above the selection. */
   let barAsked = $state(false);
@@ -1734,12 +1747,37 @@
     {/if}
     <VisuallyHidden><span id="board-canvas-hint">{t(writable ? 'app.whiteboards.hint_write' : 'app.whiteboards.hint_read')}</span></VisuallyHidden>
     {#if elements.length === 0 && (isLive || status !== 'connecting')}
-      <div class="blank" data-board-blank>
-        <p class="blank-title">{t(writable ? 'app.whiteboards.blank_write' : 'app.whiteboards.blank_read')}</p>
+      <div class="blank" class:beginning={isBeginning} data-board-blank>
         {#if writable}
-          <p class="quiet">{t('app.whiteboards.hint_write')}</p>
-          <Button size="sm" tone="secondary" icon="layout-template" onclick={() => (isTemplating = true)}>{t('app.whiteboards.template_put_menu')}</Button>
+          <!-- The first use's hint (scene wnew 2): the three ways in, as keys. -->
+          <span class="blank-mark"><ProductTile icon="layout-template" product="whiteboards" size="md" /></span>
+          <p class="blank-title">{t('app.whiteboards.first_title')}</p>
+          {#if viewport.isCompact}
+            <p class="quiet">{t('app.whiteboards.first_phone')}</p>
+          {:else}
+            <p class="quiet keys" data-board-first-use>
+              <Kbd>N</Kbd> {t('app.whiteboards.first_note')} · <Kbd>{t('app.whiteboards.first_double')}</Kbd> {t('app.whiteboards.first_double_does')} · <Kbd>{t('app.whiteboards.first_space')}</Kbd> {t('app.whiteboards.first_space_does')}
+            </p>
+          {/if}
+          {#if !isBeginning}
+            <Button size="sm" tone="secondary" icon="layout-template" onclick={() => (isTemplating = true)}>{t('app.whiteboards.template_put_menu')}</Button>
+          {/if}
+        {:else}
+          <p class="blank-title">{t('app.whiteboards.blank_read')}</p>
         {/if}
+      </div>
+    {/if}
+    {#if isBeginning}
+      <div class="begin" role="dialog" aria-modal="false" aria-labelledby="board-begin-title" tabindex="-1" data-board-begin
+        onkeydown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); begin('BLANK'); } }}>
+        <header class="begin-head">
+          <div>
+            <h2 id="board-begin-title" class="begin-title">{t('app.whiteboards.begin_title')}</h2>
+            <p class="quiet">{t('app.whiteboards.begin_body')}</p>
+          </div>
+          <Button tone="subtle" size="sm" onclick={() => begin('BLANK')}>{t('app.whiteboards.begin_leave_empty')}</Button>
+        </header>
+        <BoardTemplates look="tiles" bind:chosen={templateStart} onpick={begin} />
       </div>
     {/if}
 
@@ -2105,8 +2143,8 @@
 
 {#if isTemplating}
   <Dialog size="l" bind:isOpen={isTemplating} title={t('app.whiteboards.template_put_menu')} dismissLabel={t('app.links.cancel')}
-    primary={{ label: t('app.whiteboards.template_put_button'), onclick: () => { const name = templateOf(templateStart, templateFormat); if (name) putTemplate(name); } }}>
-    <BoardTemplates bind:chosen={templateStart} bind:format={templateFormat} withBlank={false} />
+    primary={{ label: t('app.whiteboards.template_put_button'), onclick: () => { const name = templateOf(templateStart); if (name) putTemplate(name); } }}>
+    <BoardTemplates bind:chosen={templateStart} withBlank={false} />
     {#snippet actions()}
       <Button tone="secondary" onclick={() => (isTemplating = false)}>{t('app.links.cancel')}</Button>
     {/snippet}
@@ -2312,6 +2350,28 @@
   }
   .blank :global(button) { pointer-events: auto; }
   .blank-title { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); color: var(--text-primary); }
+  .blank.beginning { margin-block-start: var(--sp-1000); }
+  .keys { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--sp-050); }
+  .begin {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: var(--sp-300);
+    z-index: 3;
+    display: grid;
+    gap: var(--sp-200);
+    inline-size: min(calc(100% - 2 * var(--sp-200)), calc(var(--layout-pane-width) * 2.2));
+    max-block-size: calc(100% - 2 * var(--sp-300));
+    margin-inline: auto;
+    padding: var(--sp-300);
+    box-sizing: border-box;
+    overflow: auto;
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-xl);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+  }
+  .begin-head { display: flex; align-items: start; justify-content: space-between; gap: var(--sp-200); }
+  .begin-title { margin: 0 0 var(--sp-050); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   /* The sheet lies over the canvas below the top-right island, so opening it never moves the board. */
   .sheet {

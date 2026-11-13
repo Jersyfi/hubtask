@@ -3,7 +3,8 @@
 <script lang="ts">
   // One whiteboard drawn full-bleed (M4, UC-CNV-01 … UC-CNV-03; user-experience.md §7.2): renamed,
   // put in the trash and brought back from here. A hub's boards are listed and made in *All
-  // contents* (the navigation concept §2.4), so this view opens one board only.
+  // contents* (the navigation concept §2.4), so this view opens one board only; a new one is made at
+  // once and opens here with its templates as a sheet (scene wnew).
   //
   // **What the reader may never do is not drawn** (P-05): the board's own `writable` says whether
   // its menu offers a write.
@@ -21,14 +22,19 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
+  import type { BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   interface Props {
     boardId: string;
+    /** A board just made (`?new=1`): it opens with the templates as a sheet (scene wnew). */
+    isNew?: boolean;
+    /** A thread to open at once (`?comment=`), from the home's comments to the reader. */
+    thread?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { boardId, onnavigate }: Props = $props();
+  const { boardId, isNew = false, thread, onnavigate }: Props = $props();
 
   const opened = untrack(() => resource<WhiteboardRead>(boardPath(boardId)));
   const current = $derived(opened.state.status === 'ready' ? opened.state.data : undefined);
@@ -70,6 +76,13 @@
     if (done) onnavigate(boardsOf(board.hub_id));
   }
 
+  /** A board made untitled takes its template's name, until a person names it (scene wnew). */
+  async function begun(choice: BoardStart) {
+    const board = current;
+    if (!board || choice === 'BLANK' || board.title !== t('app.create.untitled', { kind: 'whiteboard' })) return;
+    await act(() => whiteboards.rename(board, t(`app.whiteboards.start_${choice.toLowerCase()}`)));
+  }
+
   const collections = $derived(hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name, settings: each.structure?.settings })) : []);
   const boardMenu = $derived(
     current?.writable
@@ -99,7 +112,7 @@
   </div>
 {:else}
   {#key current.id}
-    <BoardCanvas board={current} {collections} {onnavigate} {boardMenu} back={hub ? boardsOf(hub.id) : '/whiteboards'}>
+    <BoardCanvas board={current} {collections} {onnavigate} {boardMenu} {isNew} {thread} onbegin={(choice) => void begun(choice)} back={hub ? boardsOf(hub.id) : '/whiteboards'}>
       {#snippet heading()}
         <div class="trail">
           <ProductTile icon="layout-template" product="whiteboards" size="sm" />
