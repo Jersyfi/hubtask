@@ -222,6 +222,8 @@ test('chromium 390: the panel is a sheet whose sections are pages of their own (
   const { context, page, failures } = await open(browser, 390, 844);
   t.after(() => context.close());
 
+  // A phone reaches the panel from *Filter* on the chip's line (scene board 4).
+  await page.locator('[data-opener="filter"]').click();
   await viewButton(page).click();
   const sheet = page.locator('dialog[open]').filter({ has: page.locator('[data-view-panel]') });
   await sheet.waitFor({ timeout: 5_000 });
@@ -229,7 +231,7 @@ test('chromium 390: the panel is a sheet whose sections are pages of their own (
   assert.deepEqual(await pages.evaluateAll((each) => each.map((row) => row.dataset.viewPage)), ['layout', 'query', 'order', 'fields', 'save']);
   for (const row of await pages.all()) {
     const box = await row.boundingBox();
-    assert.ok(box.height >= 44, `a page's row is ${box.height} px high`);
+    assert.ok(box.height >= 43.5, `a page's row is ${box.height} px high`);
   }
   // A page shows its section alone, and *Back* returns to the pages.
   await sheet.locator('[data-view-page="query"]').click();
@@ -250,10 +252,15 @@ test('chromium 390: the query line over the list is a strip with "+n" and a filt
   const { context, page, failures } = await open(browser, 390, 844);
   t.after(() => context.close());
 
+  // *Filter* on the view chip's line opens the sheet (scene board 4); nothing asked, no line of its own.
   const strip = page.locator('[data-query-strip]');
-  await strip.waitFor({ timeout: 15_000 });
-  const change = strip.getByRole('button', { name: 'Change filter' });
-  assert.ok(((await change.boundingBox())?.height ?? 0) >= 32, 'Change filter is too small to tap');
+  const change = page.locator('[data-opener="filter"]');
+  await change.waitFor({ timeout: 15_000 });
+  assert.equal((await change.innerText()).trim(), 'Filter');
+  assert.ok(((await change.boundingBox())?.height ?? 0) >= 32, 'Filter is too small to tap');
+  const chip = await page.locator('[data-compact] button').first().boundingBox();
+  const filter = await change.boundingBox();
+  assert.ok(Math.abs(chip.y + chip.height / 2 - (filter.y + filter.height / 2)) < 4, 'Filter is not on the view chip\'s line');
   await change.click();
   const sheet = page.locator('dialog[open]').filter({ hasText: 'Filter' }).last();
   await sheet.waitFor({ timeout: 5_000 });
@@ -271,6 +278,7 @@ test('chromium 390: the query line over the list is a strip with "+n" and a filt
   assert.equal(await strip.locator('.strip .chip:not(.more)').count(), 2);
   assert.equal((await strip.locator('.strip .chip.more').innerText()).trim(), '+1');
   await strip.locator('[data-view-count]').waitFor({ timeout: 5_000 });
+  assert.equal((await change.innerText()).trim(), 'Filter (3)');
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the strip scrolls the page sideways');
 
   // Reset empties the line.

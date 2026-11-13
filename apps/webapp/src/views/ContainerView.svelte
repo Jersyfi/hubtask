@@ -886,6 +886,8 @@
 
   /** The one panel *Ansicht* (E-21): open beside the list, a sheet on a phone. */
   let isFilterOpen = $state(false);
+  /** A phone's filter sheet, opened by *Filter* on the view chip's line. */
+  let isPhoneFilterOpen = $state(false);
   /**
    * Comfortable or compact (WB-4, E-5), a matter of this device like the theme; the switch keeps
    * it. Only from `expanded`: below it the frame's own density (spacious on a phone) holds.
@@ -1053,7 +1055,8 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id.startsWith('level:')) levelAsked = id.slice('level:'.length) as LevelSwitch;
+    if (id === 'select') selection.start();
+    else if (id.startsWith('level:')) levelAsked = id.slice('level:'.length) as LevelSwitch;
     else if (id === 'settings') openStructure();
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
@@ -1338,6 +1341,12 @@
     ...(maySelect ? [{ id: 'page:menu-select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, run: () => selection.start() }] : []),
     ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure() }] : []),
   ]);
+  /** A phone's ⋯ leads with selecting, which the list's line holds from `medium` up (scene board 4). */
+  const placeItems = $derived<MenuItem[]>(
+    viewport.isCompact && maySelect
+      ? [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' }, ...pageMenu.map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item))]
+      : pageMenu,
+  );
   const headMenu = $derived({
     label: t('app.workspace.actions', { name: container?.name ?? '' }),
     items: pageMenu,
@@ -1443,7 +1452,7 @@
     {#if isListLayout(layout) && !viewport.isBelowExpanded}
       <DensitySwitch label={t('app.list.density')} comfortableLabel={t('app.list.density_comfortable')} compactLabel={t('app.list.density_compact')} list="collection" bind:density={listDensity} />
     {/if}
-    {#if maySelect}
+    {#if maySelect && !viewport.isCompact}
       <Button size="sm" tone="secondary" icon="square-check" data-opener="select" onclick={() => { isFilterOpen = false; selection.start(); }}>{t('app.bulk.select_mode')}</Button>
     {/if}
   {/snippet}
@@ -1493,6 +1502,19 @@
     {/snippet}
     {#snippet compactTools()}
       {@render insideToggle()}
+      <!-- A phone (scene board 4): *Filter* on the chip's line opens the strip's sheet, and *View*
+           is reached from there; selecting is in ⋯. -->
+      {#if container.type === 'COLLECTION'}
+        <Button size="sm" tone={queryPieces.length > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isPhoneFilterOpen} onclick={() => (isPhoneFilterOpen = true)}>{t('app.viewcfg.phone_filter', { count: String(queryPieces.length) })}</Button>
+      {/if}
+    {/snippet}
+    {#snippet phoneViewRow()}
+      <button type="button" class="phone-view" data-opener="view" aria-expanded={isFilterOpen} onclick={() => { isPhoneFilterOpen = false; isFilterOpen = true; }}>
+        <Icon name="sliders-horizontal" size="sm" />
+        <span class="phone-view-name">{filterLabel}</span>
+        <span class="phone-view-hint">{t('app.viewcfg.phone_view_hint')}</span>
+        <Icon name="chevron-right" size="sm" />
+      </button>
     {/snippet}
   <WorkPage>
     {#snippet top()}
@@ -1504,7 +1526,7 @@
       onnavigate={(path) => onnavigate(keepingOpen(path))}
       figure={container.figure || hasAi || hasMilestone ? collectionFigure : undefined}
       primary={newMenu}
-      place={{ items: pageMenu, onselect: choseFromMenu }}
+      place={{ items: placeItems, onselect: choseFromMenu }}
       add={{ label: t('app.views.menu_save'), onselect: () => choseView('save') }}
       tools={barTools}
       {compactTools}
@@ -1599,10 +1621,10 @@
            `expanded`, a drawer from the bottom below it. -->
       <!-- The line over the list (scene viewcfg): what is seen as chips, each removable, and the
            one panel *Ansicht* beside them, with what changed against the tab's view. -->
-      <div class="list-tools" role="group" aria-label={t('app.list.tools')}>
+      <div class="list-tools" role="group" aria-label={t('app.list.tools')} data-bare={viewport.isCompact && queryPieces.length === 0 ? '' : undefined}>
         {#if viewport.isCompact}
           <!-- A phone: the strip with "+n" and the filter sheet (scene qline 5). -->
-          <QueryStrip {line} keys={queryKeys} total={lineCount} values={(key) => valueCounts[key] ?? []} ontyping={(key) => (typingKey = key)} onchange={(next) => { line = next; if (next.trim() === '') kept = undefined; }} />
+          <QueryStrip {line} keys={queryKeys} total={lineCount} values={(key) => valueCounts[key] ?? []} ontyping={(key) => (typingKey = key)} onchange={(next) => { line = next; if (next.trim() === '') kept = undefined; }} bind:isSheetOpen={isPhoneFilterOpen} sheetEnd={phoneViewRow} />
         {:else if queryPieces.length > 0}
           <ul class="query-chips" aria-label={t('app.viewcfg.query')}>
             {#each queryPieces as piece, index (index)}
@@ -1610,7 +1632,7 @@
             {/each}
           </ul>
         {/if}
-        <span class="tools-end">{@render filterTool()}{@render entryTools()}</span>
+        {#if !viewport.isCompact}<span class="tools-end">{@render filterTool()}{@render entryTools()}</span>{/if}
       </div>
       <ViewPanel
         bind:isOpen={isFilterOpen}
@@ -1900,6 +1922,28 @@
 
 
   .list-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  /* A phone with nothing asked: no line of its own, only the sheet it keeps. */
+  .list-tools[data-bare], .list-tools[data-bare] :global(.query-strip), .list-tools[data-bare] :global(.query) { display: contents; }
+  .phone-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-050) var(--sp-100);
+    inline-size: 100%;
+    min-block-size: var(--layout-target);
+    margin-block-end: var(--sp-200);
+    padding: var(--sp-100) 0;
+    border: 0;
+    border-block: var(--bw-hairline) solid var(--border-subtle);
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .phone-view:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .phone-view-name { font-weight: var(--fw-medium); }
+  .phone-view-hint { flex: 1; color: var(--text-secondary); font-size: var(--fs-075); }
   .tools-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
   .query-chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; min-inline-size: 0; }
   .query-chips li { display: inline-flex; align-items: center; gap: var(--sp-025); padding-inline-start: var(--sp-100); font-size: var(--fs-075); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); max-inline-size: 100%; }

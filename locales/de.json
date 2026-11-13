@@ -6512,6 +6512,8 @@
   "app.viewcfg.phone_show": "{count, plural, one {# Eintrag zeigen} other {# Einträge zeigen}}",
   "app.viewcfg.phone_show_some": "Einträge zeigen",
   "app.viewcfg.phone_more": "+{count}",
+  "app.viewcfg.phone_filter": "{count, plural, =0 {Filter} other {Filter (#)}}",
+  "app.viewcfg.phone_view_hint": "Layout, Ordnen, Felder, Speichern",
   "app.viewcfg.dir_ASC": "Aufsteigend",
   "app.viewcfg.dir_DESC": "Absteigend",
   "app.viewcfg.sharing_PRIVATE": "Nur ich",

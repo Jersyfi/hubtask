@@ -361,9 +361,11 @@ for (const width of WIDTHS) {
     const sent = writes(context);
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
     await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
-    // Selecting is the list's tools' from `expanded`; narrower, the bar's *Filter* sheet holds it.
-    if ((await page.getByRole('button', { name: 'Select entries' }).count()) === 0) await viewBar(page).getByRole('button', { name: 'Filter' }).click();
-    await page.getByRole('button', { name: 'Select entries' }).click();
+    // Selecting is the list's tools' from `medium`; on a phone it is in the bar's ⋯ (scene board 4).
+    if ((await page.getByRole('button', { name: 'Select entries' }).count()) === 0) {
+      await page.locator('[data-bar="menu"] button').click();
+      await page.getByRole('menuitem', { name: 'Select entries' }).click();
+    } else await page.getByRole('button', { name: 'Select entries' }).click();
     await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
     await page.getByLabel('Do this').selectOption({ label: 'Give to somebody' });
     const apply = page.getByRole('button', { name: 'Apply', exact: true });

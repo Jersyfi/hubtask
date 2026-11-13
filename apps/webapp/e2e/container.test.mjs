@@ -178,15 +178,17 @@ test('chromium: 375 px — the folded head, the panel as a sheet of pages, the b
   // own add at its end, never one pinned over the bottom bar.
   await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
   const menu = page.getByRole('menu');
-  assert.deepEqual(await labelsOf(menu), MENU);
+  // A phone's ⋯ leads with selecting (scene board 4).
+  assert.deepEqual(await labelsOf(menu), ['Select entries', ...MENU]);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add in the head');
 
-  // The list's line: *View*, whose sheet holds its sections as pages (scene viewcfg 4), and selecting.
+  // *Filter* on the view chip's line, whose sheet leads on to *View*, whose sheet holds its
+  // sections as pages (scenes board 4, viewcfg 4).
   const toolbar = viewBar(page);
-  const tools = page.getByRole('group', { name: 'The list’s tools' });
   assert.equal(await toolbar.getByRole('button', { name: 'Views' }).count(), 0);
-  await tools.getByRole('button', { name: 'View' }).click();
+  await page.locator('[data-opener="filter"]').click();
+  await page.locator('[data-opener="view"]').click();
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   assert.deepEqual(await drawer.locator('[data-view-page]').evaluateAll((pages) => pages.map((each) => each.dataset.viewPage)), ['layout', 'query', 'order', 'fields', 'save'], 'the sheet\'s pages');
@@ -211,11 +213,12 @@ test('chromium: 375 px — the folded head, the panel as a sheet of pages, the b
 
   // Selecting is a mode, and its default is off (ADR-0063 decision 8): no row carries a pick and
   // no bar stands above the list until somebody says they are selecting. The way in on a phone is
-  // the list's line, because a modifier is what a mouse has and a long press is what a finger has.
+  // the ⋯, because a modifier is what a mouse has and a long press is what a finger has.
   await chooseView(page, 'List');
   assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'a row carries a pick with nobody selecting');
   assert.equal(await page.locator('main .bar').count(), 0, 'the bulk bar stands above a list nobody is selecting in');
-  await tools.getByRole('button', { name: 'Select entries' }).click();
+  await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
+  await page.getByRole('menuitem', { name: 'Select entries' }).click();
 
   // The bulk bar: once something is picked it is fixed above the bottom bar, and the bottom bar stays.
   const pick = page.getByRole('checkbox', { name: /Select .*Order the tiles/ });
