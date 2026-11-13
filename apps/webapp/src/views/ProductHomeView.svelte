@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, EmptyState, Icon, ListRow, PageHeader, Skeleton, Stack, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, EmptyState, Icon, ListRow, PageHeader, ProductBand, Skeleton, Stack, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -308,6 +308,32 @@
   });
   /** The first use's create act on the empty answer, where the head would otherwise carry it. */
   const firstCreate = $derived(primary ? { label: primary.label, onclick: primary.onclick } : undefined);
+  // The band of a product with its own colour (work-surface E-1): its tile and two or three figures,
+  // each a word with its number, and none while the reads are out (P-11).
+  const BANDS: Partial<Record<string, { product: 'plans' | 'assets'; icon: 'calendar' | 'shield' }>> = {
+    PLANNING: { product: 'plans', icon: 'calendar' },
+    ASSETS: { product: 'assets', icon: 'shield' },
+  };
+  const band = $derived(BANDS[module]);
+  const bandFigures = $derived.by((): string[] => {
+    if (isReading || isUnusedHere) return [];
+    if (module === 'PLANNING') {
+      return [
+        t('app.product_home.band_sprints', { count: running.length }),
+        t('app.product_home.band_releases', { count: upcoming.length }),
+      ];
+    }
+    if (module === 'ASSETS' && inventory.isWhole && assetHubs.length > 0) {
+      return [
+        t('app.product_home.band_items', { count: inventory.total }),
+        ...(inventory.wanting > 0 ? [t('app.product_home.band_attention', { count: inventory.wanting })] : []),
+      ];
+    }
+    return [];
+  });
+  /** *For you* is never empty (E-4): where nothing runs and nothing is due, it says so and leads on. */
+  const isPlanQuiet = $derived(module === 'PLANNING' && currentTab === 'foryou' && !isReading && !isUnusedHere && hubsWith.length > 0 && running.length === 0 && upcoming.length === 0);
+
   /** A hub made from a template opens where its main product is; any other on the product's screen. */
   function created(id: string, landing?: string): void {
     startingFrom = undefined;
@@ -320,6 +346,23 @@
 {:else}
 <WorkPage>
   {#snippet top()}
+  {#if band}
+  <ProductBand
+    product={band.product}
+    icon={band.icon}
+    {name}
+    figures={bandFigures}
+    primary={isUnusedHere ? undefined : primary}
+    breadcrumb={{
+      trail: [
+        { id: 'products', label: t('app.nav.products') },
+        { id: 'product', label: name },
+      ],
+      label: t('app.product_home.trail'),
+      expandLabel: t('app.admin.expand_trail'),
+    }}
+  />
+  {:else}
   <PageHeader
     title={name}
     subtitle={t(`app.modules.hint_${module.toLowerCase()}`)}
@@ -335,6 +378,7 @@
     }}
   />
 
+  {/if}
   {/snippet}
   {#snippet tabs()}
     {#if homeViews.length > 1}
@@ -415,6 +459,9 @@
           </Stack>
         </section>
       {/if}
+    {/if}
+    {#if isPlanQuiet}
+      <p class="quiet" data-plan-quiet>{t('app.product_home.plans_quiet')}</p>
     {/if}
     {#if running.length > 0 && (currentTab === 'foryou' || currentTab === 'sprints')}
       <section aria-labelledby="product-sprints">
@@ -561,6 +608,7 @@
   .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
   .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
   .why { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
