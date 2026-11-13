@@ -239,7 +239,8 @@
 
   .relation { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
 
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
+  /* One column no wider than the section: an auto track would grow to a title that does not wrap. */
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
 
   /* One tight line per link: the reference, its state at the end, the remove. */
   .row { display: flex; align-items: center; gap: var(--sp-100); min-block-size: var(--sp-400); }

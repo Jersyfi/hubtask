@@ -413,7 +413,7 @@ test('chromium 1280: links are tight rows by relation, each far end in its own s
   });
   const answer = {
     links: [
-      link(1, 'blocks', true, far(1, 'Passkey recovery through a second device with a long title that runs past the line', { status_name: 'In review', status_category: 'IN_PROGRESS' })),
+      link(1, 'blocks', true, far(1, 'Passkey recovery through a second device with a long title that runs past the line, and on past the column into the rail beside it', { status_name: 'In review', status_category: 'IN_PROGRESS' })),
       link(2, 'depends_on', true, far(2, 'Rate limiting per API key', { completed: true })),
       link(3, 'depends_on', true, far(3, 'Webhooks retried', { status_name: null, status_category: 'TODO' })),
     ],
@@ -432,10 +432,12 @@ test('chromium 1280: links are tight rows by relation, each far end in its own s
     const look = await section.locator('[data-link] a').first().evaluate((anchor) => {
       const style = getComputedStyle(anchor);
       const row = anchor.closest('[data-link]').getBoundingClientRect();
-      return { underline: style.textDecorationLine, height: row.height };
+      const column = anchor.closest('[data-links]').getBoundingClientRect();
+      return { underline: style.textDecorationLine, height: row.height, past: row.right - column.right };
     });
     assert.equal(look.underline, 'none', 'a link row is not underlined at rest');
     assert.ok(look.height <= 36, `a long title stays on one line: ${look.height} px`);
+    assert.ok(look.past <= 0.5, `a long title is cut inside the column, not pushed past it: ${look.past} px over`);
     // The section and its jump mark carry the same count (ET-2: *Links 7*).
     assert.match(await section.locator('h2.section').innerText(), /^Links\s+3$/);
     assert.match(await page.getByRole('navigation', { name: /Sections of/ }).getByRole('link', { name: /Links/ }).innerText(), /Links\s*3/);
