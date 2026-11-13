@@ -37,6 +37,11 @@
   const read = resource<EntryLinks>(untrack(() => entryLinksPath(item.id)));
   $effect(() => untrack(() => linkTypes.open()));
 
+  /** A group folds from five rows (ET-3); the groups opened here, by name. */
+  const LINK_FOLD = 5;
+  let openGroups = $state<string[]>([]);
+  const cut = <T,>(name: string, rows: readonly T[]): readonly T[] => (openGroups.includes(name) || rows.length <= LINK_FOLD ? rows : rows.slice(0, LINK_FOLD));
+
   const answer = $derived(read.state.status === 'ready' ? read.state.data : undefined);
   const groups = $derived(answer ? groupLinks(answer.links, linkTypes.all, t) : []);
   const backlinks = $derived(answer?.backlinks ?? []);
@@ -101,6 +106,8 @@
 <section class="links" aria-labelledby="links-heading-{item.id}" data-links>
   <div class="head">
     <h2 class="section" id="links-heading-{item.id}">{t('app.links.title')}</h2>
+    <!-- Nothing linked: the section is one line (ET-3). -->
+    {#if answer && !failure && groups.length === 0 && backlinks.length === 0 && pageBacklinks.length === 0 && mentioned.length === 0}<span class="quiet none">{t('app.links.none')}</span>{/if}
     {#if mayChange && typeOptions.length > 0}
       <Button size="sm" tone="subtle" icon="link" data-draw-link onclick={startDraw}>{t('app.links.add')}</Button>
     {/if}
@@ -111,14 +118,11 @@
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={2} /></div>
   {:else}
-    {#if groups.length === 0 && backlinks.length === 0 && pageBacklinks.length === 0 && mentioned.length === 0}
-      <p class="quiet">{t('app.links.none')}</p>
-    {/if}
     {#each groups as group (group.name)}
       <div class="group">
-        <h3 class="relation">{group.name}</h3>
+        <h3 class="relation">{group.name} <span class="count">{group.rows.length}</span></h3>
         <ul class="rows">
-          {#each group.rows as row (row.id)}
+          {#each cut(group.name, group.rows) as row (row.id)}
             <li class="row" data-link={row.id}>
               <ReferenceChip target={row.other} />
               {#if mayChange}
@@ -132,13 +136,14 @@
             </li>
           {/each}
         </ul>
+        {@render more(group.name, group.rows.length)}
       </div>
     {/each}
     {#if backlinks.length > 0}
       <div class="group">
-        <h3 class="relation">{t('app.links.backlinks')}</h3>
+        <h3 class="relation">{t('app.links.backlinks')} <span class="count">{backlinks.length}</span></h3>
         <ul class="rows">
-          {#each backlinks as backlink (`${backlink.source_kind}:${backlink.source_id}:${backlink.anchor ?? ''}`)}
+          {#each cut('backlinks', backlinks) as backlink (`${backlink.source_kind}:${backlink.source_id}:${backlink.anchor ?? ''}`)}
             <li class="row" data-backlink={backlink.entry.id}>
               <span class="backlink">
                 <ReferenceChip target={backlink.entry} strength={backlink.strength} />
@@ -147,35 +152,47 @@
             </li>
           {/each}
         </ul>
+        {@render more('backlinks', backlinks.length)}
       </div>
     {/if}
     {#if pageBacklinks.length > 0}
       <div class="group">
-        <h3 class="relation">{t('app.links.page_backlinks')}</h3>
+        <h3 class="relation">{t('app.links.page_backlinks')} <span class="count">{pageBacklinks.length}</span></h3>
         <ul class="rows">
-          {#each pageBacklinks as backlink (backlink.page.id)}
+          {#each cut('pages', pageBacklinks) as backlink (backlink.page.id)}
             <li class="row" data-page-backlink={backlink.page.id}>
               <ReferenceChip target={backlink.page} strength={backlink.strength} />
             </li>
           {/each}
         </ul>
+        {@render more('pages', pageBacklinks.length)}
       </div>
     {/if}
     {#if mentioned.length > 0}
       <div class="group">
-        <h3 class="relation">{t('app.mentions.title')}</h3>
+        <h3 class="relation">{t('app.mentions.title')} <span class="count">{mentioned.length}</span></h3>
         <ul class="rows mentions">
-          {#each mentioned as found, index (`${found.reference.kind}/${found.reference.id}#${found.reference.anchor ?? ''}`)}
+          {#each cut('mentions', mentioned) as found, index (`${found.reference.kind}/${found.reference.id}#${found.reference.anchor ?? ''}`)}
             <li class="row" data-mention={found.reference.id}>
               <ReferenceChip target={mentions.targets[index]} strength={found.strength} />
             </li>
           {/each}
         </ul>
+        {@render more('mentions', mentioned.length)}
       </div>
     {/if}
   {/if}
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </section>
+
+{#snippet more(name: string, total: number)}
+  {#if total > LINK_FOLD}
+    {@const isOpen = openGroups.includes(name)}
+    <button type="button" class="more" aria-expanded={isOpen} onclick={() => (openGroups = isOpen ? openGroups.filter((each) => each !== name) : [...openGroups, name])}>
+      {isOpen ? t('app.entry.show_less') : t('app.entry.show_all', { count: String(total) })}
+    </button>
+  {/if}
+{/snippet}
 
 {#if isDrawOpen}
   <Dialog size="l" primary={{ label: t('app.links.confirm'), isBusy: isDrawing, disabledReason: chosen ? undefined : t('app.links.choose_first'), onclick: () => void draw() }}
@@ -196,6 +213,8 @@
 {/if}
 
 <style>
+  .none { flex: 1; min-inline-size: 0; font-size: var(--fs-075); }
+
   .links { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
@@ -213,6 +232,11 @@
   .backlink { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
+
+  .count { color: var(--text-subtle); font-weight: var(--fw-regular); }
+
+  .more { align-self: flex-start; padding: 0; border: none; background: none; color: var(--text-brand); font: inherit; font-size: var(--fs-075); cursor: pointer; }
+  .more:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   .refusal { margin: 0; color: var(--text-danger); }
 </style>

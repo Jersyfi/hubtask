@@ -91,6 +91,8 @@
 <section class="affected" aria-labelledby="affected-heading-{itemId}" data-affected-cis>
   <div class="head">
     <h2 class="section" id="affected-heading-{itemId}">{t('app.affected.title')}</h2>
+    <!-- Nothing named: the section is one line (ET-3). -->
+    {#if answer && !failure && answer.cis.length === 0}<span class="quiet none">{t('app.affected.none')}</span>{/if}
     {#if mayChange}
       <Button size="sm" tone="subtle" icon="plus" data-name-ci onclick={open}>{t('app.affected.add')}</Button>
     {/if}
@@ -100,9 +102,7 @@
     <p class="refusal" role="alert">{failure}</p>
   {:else if !answer}
     <div aria-busy="true"><Skeleton lines={2} /></div>
-  {:else if answer.cis.length === 0}
-    <p class="quiet">{t('app.affected.none')}</p>
-  {:else}
+  {:else if answer.cis.length > 0}
     <ul class="rows">
       {#each answer.cis as ci (ci.ci_id)}
         <li class="row" data-affected-ci={ci.ci_id}>
@@ -187,6 +187,8 @@
 {/if}
 
 <style>
+  .none { flex: 1; min-inline-size: 0; font-size: var(--fs-075); }
+
   .affected { display: flex; flex-direction: column; gap: var(--sp-100); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .section { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
