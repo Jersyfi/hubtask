@@ -387,11 +387,12 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
       await page.getByRole('button', { name: 'Queue: All open (3)' }).waitFor({ timeout: 5_000 });
     }
     const table = panel.getByRole('table', { name: 'Requests in All open' });
-    await table.locator('[data-sla="breached"]').waitFor({ timeout: 10_000 });
+    await table.locator('[data-sla="breached"] >> visible=true').first().waitFor({ timeout: 10_000 });
     const headings = await table.locator('thead th').allTextContents();
-    assert.deepEqual(headings.map((each) => each.trim()), ['Key', 'Request', 'Requester', 'Status', 'Priority', 'SLA', 'Assignee']);
-    const cells = await table.locator('tbody tr.row').evaluateAll((rows) => rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent.trim().replace(/\s+/g, ' '))));
-    assert.deepEqual(cells.map((row) => [row[0], row[2], row[4], row[5]]), [
+    // The calm table (WB-4, scene queue): the status is the group, each with its count and "+ request".
+    if (width >= 600) assert.deepEqual(headings.map((each) => each.trim()).filter(Boolean), ['Key', 'Request', 'Type', 'Requester', 'Priority', 'SLA', 'Assignee']);
+    const cells = await table.locator('tbody tr.row').evaluateAll((rows) => rows.map((row) => [...row.querySelectorAll('td')].filter((cell) => !cell.classList.contains('select')).map((cell) => cell.textContent.trim().replace(/\s+/g, ' '))));
+    if (width >= 600) assert.deepEqual(cells.map((row) => [row[0], row[3], row[4], row[5]]), [
       ['INC-1', ACCOUNT.display_name, 'P2', '1 h 0 min left'], ['INC-2', ACCOUNT.display_name, 'P3', 'Breached 18 min ago'], ['INC-3', ACCOUNT.display_name, 'P4', 'Paused'],
     ], JSON.stringify(cells));
     assert.equal(await page.locator('[data-desk-figure]').textContent(), '3 open · 2 unassigned');
@@ -399,7 +400,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     const title = await table.locator('.title').first().evaluate((node) => [node.scrollWidth, node.clientWidth]);
     if (width < 600) assert.ok(title[0] <= title[1] + 1 && title[1] >= 150, `the title is cut: ${title}`);
     // The SLA bar's track stands apart from the row it is drawn on, in dark mode too.
-    const track = await table.locator('.sla .bar').first().evaluate((node) => {
+    const track = await table.locator('.sla .track >> visible=true').first().evaluate((node) => {
       const channels = (colour) => (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
       const lightness = ([r, g, b]) => (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
       let behind = node.parentElement;

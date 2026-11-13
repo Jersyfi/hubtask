@@ -80,3 +80,25 @@ export function priorityOf(item: { readonly custom_fields?: Record<string, unkno
   }
   return undefined;
 }
+
+const PRIORITY_WORDS: Readonly<Record<string, 1 | 2 | 3 | 4>> = { highest: 1, critical: 1, urgent: 1, high: 2, medium: 3, normal: 3, low: 4, lowest: 4 };
+
+/** A priority's level for its mark: by the number it carries (*P2*), else by its word; else medium. */
+export function priorityLevel(value: string): 1 | 2 | 3 | 4 {
+  const number = /[1-4]/u.exec(value)?.[0];
+  if (number) return Number(number) as 1 | 2 | 3 | 4;
+  return PRIORITY_WORDS[value.trim().toLowerCase()] ?? 3;
+}
+
+/**
+ * The rows by their status as a queue's groups (WB-4): a group stands where its first row stood,
+ * so the group of what breaks first leads, and each keeps the server's order inside it.
+ */
+export function groupedByStatus<T>(rows: readonly T[], statusOf: (row: T) => string): T[] {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const status = statusOf(row);
+    groups.set(status, [...(groups.get(status) ?? []), row]);
+  }
+  return [...groups.values()].flat();
+}

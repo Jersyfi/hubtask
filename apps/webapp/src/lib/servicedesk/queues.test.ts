@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DESK_QUEUES, desksOf, priorityOf, queueQuery, queueTotal } from './queues.ts';
+import { DESK_QUEUES, desksOf, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal } from './queues.ts';
 
 // UC-SVC-03 checks 1 to 3: a queue is ordered by what breaks first and counted exactly; the four
 // queues of §7.4 differ only in their narrowing, all inside the hub's desks and open.
@@ -54,4 +54,20 @@ test('a priority is the first field the policies name that the entry answers, el
   assert.equal(priorityOf({ custom_fields: { priority: 'P2' } }, [null, 'severity']), 'P2');
   assert.equal(priorityOf({ custom_fields: { priority: 3 } }, []), undefined);
   assert.equal(priorityOf({ custom_fields: null }, ['priority']), undefined);
+});
+
+test('a priority reads as one of four levels, by its number or its word', () => {
+  assert.equal(priorityLevel('P1'), 1);
+  assert.equal(priorityLevel('P4'), 4);
+  assert.equal(priorityLevel('Highest'), 1);
+  assert.equal(priorityLevel('high'), 2);
+  assert.equal(priorityLevel('Medium'), 3);
+  assert.equal(priorityLevel('low'), 4);
+  assert.equal(priorityLevel('whenever'), 3);
+});
+
+test('requests stand grouped by status, the group of what breaks first on top, each in its order', () => {
+  const rows = [{ id: 'a', status: 'open' }, { id: 'b', status: 'waiting' }, { id: 'c', status: 'open' }, { id: 'd', status: undefined }, { id: 'e', status: 'waiting' }];
+  assert.deepEqual(groupedByStatus(rows, (row) => row.status ?? '').map((row) => row.id), ['a', 'c', 'b', 'e', 'd']);
+  assert.deepEqual(groupedByStatus([], (row: { id: string }) => row.id), []);
 });
