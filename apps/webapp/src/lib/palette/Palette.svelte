@@ -594,6 +594,7 @@
     if (row.kind === 'place') return row.id.startsWith('page:') ? 'file-text' : 'arrow-right';
     if (row.kind === 'setting') return 'settings';
     if (row.kind === 'recent') return 'clock';
+    if (row.id === 'frame:capture') return 'plus';
     return 'zap';
   }
 
@@ -1072,6 +1073,8 @@
     color: var(--text-secondary);
     font-size: var(--fs-075);
     inline-size: 100%;
+    /* A paragraph's reading measure would end the keys' line short of the list's width. */
+    max-inline-size: none;
     box-sizing: border-box;
   }
 
