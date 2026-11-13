@@ -270,3 +270,12 @@ test('a text is bold and links to app paths, never a link elsewhere', () => {
   ]);
   assert.equal(textPieces('[x](//evil)')[0]!.kind, 'plain');
 });
+
+test('a figure widget writes its target and warning line back, another kind never', () => {
+  const base = { id: 'w', title: 'Offen', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT' } }, goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 3, h: 2 };
+  const number = widgetWrite({ ...base, chart: 'NUMBER', target: 30, warn_at: 40 } as unknown as DashboardWidget);
+  assert.equal(number.target, 30);
+  assert.equal(number.warn_at, 40);
+  const bars = widgetWrite({ ...base, chart: 'BAR', target: 30, warn_at: null } as unknown as DashboardWidget);
+  assert.equal(bars.target, undefined);
+});

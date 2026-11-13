@@ -22,11 +22,16 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Dialog, IconButton, Inline, Input, PageHeader, Select, Skeleton, Stack, WorkPage,
+    Button, Dialog, Icon, IconButton, Inline, Input, Menu, PageHeader, Select, Skeleton, Stack, WorkPage,
   } from '@hubtask/design-system/components';
+  import { formatQuery, parseQuery, type QueryKey } from '@hubtask/query';
   import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { ticketKeyOf } from '../lib/data/ticket.ts';
+  import { lineOf, readQuery, type Names } from '../lib/data/viewquery.ts';
+  import QueryStrip from '../lib/entries/QueryStrip.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { entryTypes, typeNameOf } from '../lib/data/entrytypes.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -40,11 +45,11 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import WidgetChart from '../lib/goals/WidgetChart.svelte';
+  import WidgetChart, { type ListEntry } from '../lib/goals/WidgetChart.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import SharingPicker, { type Sharing } from '../lib/goals/SharingPicker.svelte';
   import WidgetEditor from '../lib/goals/WidgetEditor.svelte';
-  import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -121,7 +126,7 @@
   async function saveLayout() {
     const at = dashboard;
     if (!at) return;
-    const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], widgets: layout }), t('app.dashboards.saved'));
+    const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], filter: at.filter ?? '', widgets: layout }), t('app.dashboards.saved'));
     if (ok) isEditing = false;
   }
 
@@ -165,8 +170,15 @@
   async function saveName() {
     const at = dashboard;
     if (!at) return;
-    const ok = await act(() => goals.updateDashboard(at, { name: draft.name.trim(), sharing: draft.sharing, group_ids: draft.sharing === 'GROUPS' ? draft.groupIds : [], widgets: at.widgets.map(widgetWrite) }), t('app.dashboards.saved'));
+    const ok = await act(() => goals.updateDashboard(at, { name: draft.name.trim(), sharing: draft.sharing, group_ids: draft.sharing === 'GROUPS' ? draft.groupIds : [], filter: at.filter ?? '', widgets: at.widgets.map(widgetWrite) }), t('app.dashboards.saved'));
     if (ok) isRenaming = false;
+  }
+  function openSharing() {
+    if (!dashboard) return;
+    draft.name = dashboard.name;
+    draft.sharing = dashboard.sharing;
+    draft.groupIds = [...(dashboard.group_ids ?? [])];
+    isRenaming = true;
   }
   let isDeleting = $state(false);
   async function remove() {
@@ -302,6 +314,105 @@
       rows.map((row) => [row.label, row.column ?? '', { text: row.text, value: row.value }]), asSheet);
   }
   type Cell = string | { text: string; value: number | undefined };
+
+  // --- The filter every widget inherits (§6.5) --------------------------------------------------
+
+  /** Names for the line: a place by its name, a person by theirs; what names nobody the server refuses. */
+  const names: Names = {
+    person: () => undefined,
+    label: () => undefined,
+    collection: (name) => {
+      const wanted = name.toLowerCase();
+      return [...containers.hubs, ...containers.loadedCollections].find((each) => each.name.toLowerCase() === wanted)?.id;
+    },
+    nameOf: (field, value) => (field === 'hub_id' || field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+  };
+  /** A stored query text - identifiers for names - as the line a person reads. */
+  function namedLine(text: string | undefined): string {
+    if (!text) return '';
+    const parsed = parseQuery(text);
+    if (!parsed.ok || !parsed.query.filter) return text;
+    return lineOf({ filter: parsed.query.filter as never }, names) ?? text;
+  }
+  const filterLine = $derived(namedLine(dashboard?.filter));
+  const filterPieces = $derived(filterLine === '' ? [] : filterLine.match(/(?:[^\s"]+:\s*(?:"[^"]*"|\S+))|"[^"]*"|\S+/gu) ?? []);
+  const queryKeys = $derived<readonly QueryKey[]>(((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')));
+  let filterRefusal = $state<string | undefined>(undefined);
+  async function saveFilter(next: string) {
+    const at = dashboard;
+    if (!at) return;
+    const read = readQuery(next, names);
+    if (!read.ok) { filterRefusal = t(read.error.code); return; }
+    if (read.unknown.length > 0) { filterRefusal = t('app.dashboards.filter_unknown', { names: read.unknown.join(', ') }); return; }
+    filterRefusal = undefined;
+    const filter = read.query.filter ? formatQuery({ filter: read.query.filter as never }) : '';
+    if (filter === (at.filter ?? '')) return;
+    await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], filter, widgets: at.widgets.map(widgetWrite) }));
+  }
+  /** Widgets that do not take the whole filter: one fed by a saved view, or one that released a field. */
+  const ownFilters = $derived(shown.filter((widget) => widget.source === 'VIEW' || (widget.released?.length ?? 0) > 0).length);
+
+  // --- One widget's anatomy: title, content, its query in one line, ⋯ -----------------------------
+
+  let tables = $state<Record<string, boolean>>({});
+  const viewName = (id: string | null | undefined) => views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === id)?.name ?? t('app.dashboards.view_unread');
+  /** The widget's query in one line, as its foot shows it. */
+  function sourceLine(widget: DashboardWidgetWrite): string {
+    if (widget.source === 'VIEW') return t('app.dashboards.from_view', { name: viewName(widget.view_id) });
+    if (widget.source === 'GOALS') return t('app.dashboards.from_goals', { count: String(widget.goal_ids?.length ?? 0) });
+    if (widget.source !== 'QUERY') return '';
+    const query = (widget.query ?? {}) as { q?: unknown; filter?: unknown };
+    const own = typeof query.q === 'string' ? query.q : query.filter ? (lineOf({ filter: query.filter as never }, names) ?? '') : '';
+    const released = widget.released?.length ? t('app.dashboards.released_line', { fields: widget.released.join(', ') }) : '';
+    return [own, released].filter(Boolean).join(' · ');
+  }
+  /** Where the widget's entries are listed: its saved view, or the collection it counts in. */
+  function listHref(widget: DashboardWidgetWrite): string | undefined {
+    if (widget.source === 'VIEW' && widget.view_id) {
+      const view = views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === widget.view_id) as { container_id?: string | null } | undefined;
+      return view?.container_id ? `/collections/${view.container_id}?view=${widget.view_id}` : undefined;
+    }
+    const scope = (widget.query as { scope_container_id?: unknown } | undefined)?.scope_container_id;
+    return typeof scope === 'string' && containers.find(scope)?.type === 'COLLECTION' ? `/collections/${scope}` : undefined;
+  }
+  function widgetMenu(widget: DashboardWidgetWrite, key: string) {
+    const href = listHref(widget);
+    return [
+      { id: 'list', label: t('app.dashboards.open_list'), icon: 'list' as const, ...(href ? {} : { disabledReason: t('app.dashboards.open_list_none') }) },
+      { id: 'table', label: t(tables[key] ? 'app.dashboards.as_chart' : 'app.dashboards.as_table'), icon: 'table' as const },
+      { id: 'csv', label: t('app.dashboards.export_csv'), icon: 'file-text' as const, hasSeparatorBefore: true },
+      { id: 'xlsx', label: t('app.dashboards.export_xlsx'), icon: 'layout-template' as const },
+    ];
+  }
+  function onWidgetMenu(widget: DashboardWidgetWrite, key: string, id: string) {
+    if (id === 'list') { const href = listHref(widget); if (href) onnavigate(href); }
+    if (id === 'table') tables = { ...tables, [key]: !tables[key] };
+    if (id === 'csv') exportWidget(widget);
+    if (id === 'xlsx') exportWidget(widget, true);
+  }
+  /** A LIST widget's entries: key, title and its one column in words. */
+  function entriesOf(widget: DashboardWidgetWrite): ListEntry[] {
+    const now = Date.now();
+    return (figureOf(widget.id)?.data ?? []).map((row) => {
+      const id = String(row['id'] ?? '');
+      const collection = typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined;
+      const key = ticketKeyOf(collection, typeof row['number'] === 'number' ? row['number'] : undefined) ?? '';
+      const { text, tone } = columnText(widget.column ?? '', row[widget.column ?? ''], now);
+      return { id, key, title: String(row['title'] ?? ''), href: `/items/${id}`, column: text, ...(tone ? { tone } : {}) };
+    });
+  }
+  function columnText(field: string, value: unknown, now: number): { text: string; tone?: 'danger' | 'warning' } {
+    if (value === null || value === undefined || value === '') return { text: '' };
+    if ((field === 'due_at' || field.endsWith('_at')) && typeof value === 'string') {
+      const at = Date.parse(value);
+      if (field === 'due_at' && at < now) return { text: t('app.dashboards.overdue'), tone: 'danger' };
+      return { text: formatRelative(value, locale, now), ...(field === 'due_at' && at - now < 86_400_000 ? { tone: 'warning' as const } : {}) };
+    }
+    if (field === 'assignee_id' || field === 'created_by') return { text: accounts.nameOf(String(value)) ?? t('app.people.unnamed') };
+    if (field === 'status') return { text: groupName('status', String(value)) };
+    return { text: String(value) };
+  }
+  const computedAgo = $derived(figures ? formatRelative(figures.computed_at, locale) : '');
   function exportTable(title: string, heads: string[], lines: Cell[][], asSheet: boolean) {
     const name = title.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 60) || 'widget';
     if (asSheet) {
@@ -322,7 +433,7 @@
   {#snippet top()}
   <PageHeader
     title={dashboard?.name ?? t('app.dashboards.dashboard')}
-    subtitle={dashboard ? t(`app.dashboards.subtitle_${dashboard.sharing}`, { place: placeName }) : undefined}
+    subtitle={dashboard ? [t(`app.dashboards.subtitle_${dashboard.sharing}`, { place: placeName }), ...(computedAgo ? [t('app.dashboards.computed_ago', { when: computedAgo })] : [])].join(' · ') : undefined}
     isTitleInBar={viewport.isCompact}
     breadcrumb={{
       trail: [{ id: 'dashboards', label: t('app.goals.tab_dashboards'), href: '/goals?tab=dashboards' }, { id: 'dashboard', label: dashboard?.name ?? '' }],
@@ -336,7 +447,7 @@
     secondary={mayEdit
       ? isEditing
         ? [{ label: t('app.dashboards.save_layout'), icon: 'check', onclick: () => void saveLayout() }]
-        : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }]
+        : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }, { label: t('app.dashboards.share'), icon: 'users', onclick: openSharing }]
       : []}
     menu={dashboard ? {
       label: t('app.goals.more'),
@@ -351,7 +462,7 @@
       onselect: (id: string) => {
         if (id === 'digest') isDigestOpen = true;
         if (id === 'cancel') isEditing = false;
-        if (id === 'rename' && dashboard) { draft.name = dashboard.name; draft.sharing = dashboard.sharing; draft.groupIds = [...(dashboard.group_ids ?? [])]; isRenaming = true; }
+        if (id === 'rename') openSharing();
         if (id === 'delete') isDeleting = true;
       },
     } : undefined}
@@ -365,8 +476,26 @@
   {:else if !dashboard}
     <div aria-busy="true"><Skeleton lines={8} /></div>
   {:else}
-    {#if figures && !isEditing}<p class="quiet">{t('app.dashboards.computed', { when: formatDateTime(figures.computed_at, locale) })}</p>{/if}
     {#if figuresRefusal}<FailureNote problem={figuresRefusal} />{/if}
+
+    <!-- The filter every widget inherits (§6.5): chips of one query line; a reader reads them. -->
+    {#if mayEdit || filterPieces.length > 0}
+      <section class="filterbar" aria-label={t('app.dashboards.filter_all')} data-dashboard-filter>
+        <span class="filter-lead"><Icon name="funnel" size="sm" />{t('app.dashboards.filter_all')}</span>
+        {#if mayEdit}
+          <QueryStrip line={filterLine} keys={queryKeys} onchange={(next) => void saveFilter(next)} />
+        {:else}
+          <ul class="chips">
+            {#each filterPieces as piece, i (i)}
+              {@const at = piece.indexOf(':')}
+              <li class="chip">{#if at > 0}<span class="chip-key">{piece.slice(0, at)}</span><span>{piece.slice(at + 1).trim()}</span>{:else}{piece}{/if}</li>
+            {/each}
+          </ul>
+        {/if}
+        {#if ownFilters > 0}<span class="own">{t('app.dashboards.own_filters', { count: String(ownFilters) })}</span>{/if}
+      </section>
+      {#if filterRefusal}<p class="failure" role="alert">{filterRefusal}</p>{/if}
+    {/if}
     {#if isEditing}<p class="quiet">{t('app.dashboards.editing_hint')}</p>{/if}
 
     {#if ordered.length === 0}
@@ -374,15 +503,18 @@
         description={mayEdit ? t('app.dashboards.no_widgets') : undefined}
         create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
     {:else}
-      <div class="grid" class:stacked={viewport.isCompact}>
+      <div class="grid" class:stacked={viewport.isCompact} class:half={!viewport.isCompact && viewport.isBelowExpanded}>
         {#each ordered as each (each.widget.id ?? `new-${each.index}`)}
           {@const figure = figureOf(each.widget.id)}
-          <article class="widget" style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} aria-label={each.widget.title}>
+          {@const key = each.widget.id ?? `new-${each.index}`}
+          {@const foot = sourceLine(each.widget)}
+          <article class="widget" style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} style:--half={Math.min(6, Math.max(1, Math.ceil(each.w / 2)))} aria-label={each.widget.title} data-widget={each.widget.chart}>
             <header class="widget-head">
               <h2 class="heading">{each.widget.title}</h2>
-              {#if !isEditing && figure && !figure.error}
-                <IconButton icon="file-text" size="sm" tone="subtle" label={t('app.dashboards.export', { title: each.widget.title })} onclick={() => exportWidget(each.widget)} />
-                <IconButton icon="layout-template" size="sm" tone="subtle" label={t('app.dashboards.export_sheet', { title: each.widget.title })} onclick={() => exportWidget(each.widget, true)} />
+              {#if !isEditing && figure && !figure.error && each.widget.chart !== 'TEXT'}
+                <Menu label={t('app.dashboards.widget_menu', { title: each.widget.title })} items={widgetMenu(each.widget, key)} placement={{ side: 'block-end', align: 'end' }} onselect={(id) => onWidgetMenu(each.widget, key, id)}>
+                  {#snippet trigger(props)}<IconButton icon="ellipsis" size="sm" tone="subtle" label={t('app.dashboards.widget_menu', { title: each.widget.title })} {...props} />{/snippet}
+                </Menu>
               {/if}
             </header>
             {#if isEditing}
@@ -407,10 +539,15 @@
             {:else if figure.error}
               <p class="refused" role="status">{t(figure.error)}</p>
             {:else}
-              <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={rowsOf(each.widget)} table={tableOf(each.widget)} empty={emptyOf(each.widget)} />
+              <div class="content">
+                <WidgetChart title={each.widget.title} chart={each.widget.chart} rows={each.widget.chart === 'LIST' ? [] : rowsOf(each.widget)} table={tableOf(each.widget)}
+                  entries={each.widget.chart === 'LIST' ? entriesOf(each.widget) : []} text={each.widget.text ?? ''} target={each.widget.target} warnAt={each.widget.warn_at}
+                  isTable={tables[key] === true} empty={emptyOf(each.widget)} />
+              </div>
               {#if figure.compare?.error}<p class="refused" role="status">{t('app.dashboards.series_refused', { title: each.widget.compare?.title ?? '', reason: t(figure.compare.error) })}</p>{/if}
               {#if figure.truncated || figure.compare?.truncated}<p class="quiet">{t('app.dashboards.truncated')}</p>{/if}
             {/if}
+            {#if foot && !isEditing}<p class="foot" data-widget-query>{foot}</p>{/if}
           </article>
         {/each}
       </div>
@@ -478,14 +615,26 @@
     flex-direction: column;
     gap: var(--sp-100);
     min-width: 0;
-    padding: var(--sp-150);
+    padding: var(--sp-150) var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
   }
+  /* A tablet halves the columns and places the widgets in reading order; a phone stacks them. */
+  .grid.half { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: row dense; }
+  .grid.half .widget { grid-column: span var(--half); grid-row: auto; }
   .grid.stacked { display: flex; flex-direction: column; }
-  .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); min-block-size: var(--sp-300); }
+  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .content { flex: 1 1 auto; min-width: 0; }
+  .foot { margin: 0; overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .filterbar :global([data-query-strip]) { flex: 1 1 0; }
+  .filter-lead { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
+  .chips { display: flex; flex: 1 1 0; flex-wrap: wrap; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .chip { display: inline-flex; gap: var(--sp-050); padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); font-size: var(--fs-075); }
+  .chip-key { color: var(--text-secondary); }
+  .own { margin-inline-start: auto; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refused { margin: 0; color: var(--text-warning); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }

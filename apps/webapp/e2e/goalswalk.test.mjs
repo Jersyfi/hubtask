@@ -277,16 +277,25 @@ test('chromium: a widget names its groups and periods, and every chart draws som
   const { page } = walk;
 
   await page.goto(`${served.origin}/dashboards/${board.id}`);
-  const types = page.getByRole('table', { name: 'Open by type' });
-  await types.getByText('Change request', { exact: true }).waitFor({ timeout: 10_000 });
-  await types.getByText('Bug', { exact: true }).waitFor({ timeout: 5_000 });
+  // Bars lie down with the value at the bar (UC-GOL-04 check 16): the names stay legible, words not keys.
+  const bars = page.locator('[data-chart="BAR"]');
+  await bars.getByText('Change request', { exact: true }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(await bars.locator('.name').allTextContents(), ['Bug', 'Change request']);
+  assert.deepEqual(await bars.locator('.figure').allTextContents(), ['3', '5'], 'each bar carries its value');
   assert.equal(await page.getByText('change_request').count(), 0, 'no type key reaches the reader');
+  // Every chart has its table as a toggle in the widget's menu (§8).
+  assert.equal(await page.getByRole('table').count(), 0, 'the tables wait for their toggle');
+  for (const title of ['Open by type', 'Done per week']) {
+    await page.getByRole('button', { name: `More for ${title}` }).click();
+    await page.getByRole('menuitem', { name: 'As table' }).click();
+  }
+  const types = page.getByRole('table', { name: 'Open by type' });
+  await types.getByText('Bug', { exact: true }).waitFor({ timeout: 5_000 });
   await page.getByRole('table', { name: 'Done per week' }).getByText('Week of Nov 2, 2026', { exact: true }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByText('2026-11-02').count(), 0, 'no ISO day reaches the reader');
-  const bars = page.locator('[data-plot="BAR"]');
-  assert.deepEqual(await bars.locator('.y span').allTextContents(), ['5', '0'], 'the value axis runs from nothing to the highest bar');
-  assert.deepEqual(await bars.locator('.x span').allTextContents(), ['Bug', 'Change request']);
-  const dot = await page.locator('[data-plot="LINE"] path.dots').boundingBox();
+  await page.getByRole('button', { name: 'More for Done per week' }).click();
+  await page.getByRole('menuitem', { name: 'As chart' }).click();
+  const dot = await page.locator('[data-chart="LINE"] path.dots').boundingBox();
   assert.ok(dot && dot.width > 0 && dot.height > 0, `a line of one week draws its dot: ${JSON.stringify(dot)}`);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);

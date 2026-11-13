@@ -199,6 +199,10 @@ export function widgetWrite(widget: DashboardWidget): DashboardWidgetWrite {
   if (widget.source === 'TEXT') write.text = widget.text ?? '';
   if (widget.chart === 'LIST' && widget.column) write.column = widget.column;
   if (widget.source === 'QUERY' && widget.released?.length) write.released = [...widget.released];
+  if ((widget.chart === 'NUMBER' || widget.chart === 'LINE') && typeof widget.target === 'number') {
+    write.target = widget.target;
+    if (typeof widget.warn_at === 'number') write.warn_at = widget.warn_at;
+  }
   return write;
 }
 

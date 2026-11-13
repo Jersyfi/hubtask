@@ -37,6 +37,8 @@ const NAMED: Readonly<Record<string, 'person' | 'label' | 'collection' | 'releas
   collection_id: 'collection',
   release_id: 'release',
   sprint_id: 'sprint',
+  // A hub is a place named as a collection is: the names' collection lookup answers both.
+  hub_id: 'collection',
 };
 const IDENTIFIER = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const isWord = (value: unknown): value is string => typeof value === 'string' && !value.startsWith('@') && !IDENTIFIER.test(value);
