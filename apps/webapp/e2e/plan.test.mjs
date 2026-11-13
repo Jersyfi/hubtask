@@ -425,7 +425,10 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
     const lanes = document.querySelector('.timeline .lanes').getBoundingClientRect();
     const bars = [...document.querySelectorAll('.timeline .cell[data-filled]')].map((each) => each.getBoundingClientRect())
       .filter((each) => each.right > box.left && each.left < box.right);
-    return { width: box.width, title: title.width, titleBottom: title.bottom, lanesTop: lanes.top, axis: axis.left, lanes: lanes.left, bars: bars.length, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    // The chart's own surface pads it: the title takes the width inside that padding.
+    const style = getComputedStyle(scroller);
+    const inner = scroller.clientWidth - parseFloat(style.paddingInlineStart) - parseFloat(style.paddingInlineEnd);
+    return { width: inner, title: title.width, titleBottom: title.bottom, lanesTop: lanes.top, axis: axis.left, lanes: lanes.left, bars: bars.length, sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth };
   });
   assert.ok(at.title >= at.width * 0.95, `the title takes ${Math.round(at.title)} of ${Math.round(at.width)} px`);
   assert.ok(at.titleBottom <= at.lanesTop + 1, 'the title stands above its bar');
@@ -437,7 +440,8 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
     scroller.scrollLeft = scroller.scrollWidth;
     const box = scroller.getBoundingClientRect();
     const title = document.querySelector('.timeline .lead').getBoundingClientRect();
-    return { box: box.left, title: title.left };
+    const style = getComputedStyle(scroller);
+    return { box: box.left + parseFloat(style.borderInlineStartWidth) + parseFloat(style.paddingInlineStart), title: title.left };
   });
   assert.equal(Math.round(scrolled.title), Math.round(scrolled.box), 'the title stays in view as the chart scrolls');
 });
