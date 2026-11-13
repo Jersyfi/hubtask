@@ -73,6 +73,12 @@ function goalsBackend({ seed } = {}) {
       dashboards.push(made);
       return { status: 201, json: made };
     }
+    // An unsaved widget computed as it stands: 9 once it has a line of its own, 5 without.
+    const drafted = /^\/dashboards\/([^/]+)\/figures:draft$/.exec(path);
+    if (drafted && method === 'POST') {
+      seed?.drafts?.push(body);
+      return { json: { dashboard_id: drafted[1], computed_at: '2026-11-01T09:00:00Z', widgets: body.widgets.map((each) => ({ id: each.id ?? 'new', data: [{ group: null, period: null, count: each.query?.filter ? 9 : 5, value: null }], truncated: false, error: null, compare: null, remaining: null })) } };
+    }
     const board = /^\/dashboards\/([^/]+)(\/figures|\/digest)?$/.exec(path);
     const dashboard = board && dashboards.find((each) => each.id === board[1]);
     if (dashboard && !board[2] && method === 'GET') return { json: dashboard };
@@ -614,4 +620,51 @@ test('chromium: the widget editor releases an inherited filter and names its fie
   await page.locator('[data-edit-band]').waitFor({ state: 'detached', timeout: 5_000 });
   assert.deepEqual(puts[0].widgets[0].released, ['is_completed']);
   assert.deepEqual(walk.errors(), []);
+});
+
+// UC-GOL-04 check 23: the widget being edited stands large and live over the dimmed grid - its
+// chart and line computed by the server as they are typed - and nothing is saved before Apply.
+test('chromium: the widget editor draws the edited widget live, and its line is the chips of every list', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = {
+    id: '01a0e2e0-0000-7000-8000-00000000a651', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null,
+    query: { scope: { workspace: true }, aggregate: { function: 'COUNT' } },
+    goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 6, h: 2,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a652', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: 'is: open', version: 1, widgets: [widget] };
+  const puts = [];
+  const drafts = [];
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board], puts, drafts, figures: { [widget.id]: [{ group: null, period: null, count: 3, value: null }] } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await page.getByRole('button', { name: 'Change By status' }).click();
+  const preview = page.locator('[data-widget-preview]');
+  await preview.getByText('Preview · live').waitFor({ timeout: 5_000 });
+  await preview.getByText('5', { exact: true }).first().waitFor({ timeout: 5_000 });
+  assert.equal(drafts[0]?.filter, 'is: open', 'the draft is computed under the dashboard\'s filter');
+
+  const editor = page.locator('[data-widget-editor]');
+  await editor.getByRole('tab', { name: 'Look' }).click();
+  await editor.getByLabel('Drawn as').selectOption('NUMBER');
+  await preview.locator('[data-chart="NUMBER"]').waitFor({ timeout: 5_000 });
+  await editor.getByRole('tab', { name: 'Data' }).click();
+  const line = editor.locator('[data-widget-line]').first().getByRole('combobox', { name: 'What is seen' });
+  await line.click();
+  await page.keyboard.type('title: milk ');
+  await line.press('Enter');
+  await preview.getByText('9', { exact: true }).first().waitFor({ timeout: 5_000 });
+  assert.ok(drafts.some((each) => JSON.stringify(each.widgets[0].query?.filter ?? {}).includes('milk')), 'the line went into the draft');
+  assert.equal(puts.length, 0, 'nothing is saved while editing');
+
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await page.locator('[data-edit-band]').getByRole('button', { name: 'Done' }).click();
+  await page.locator('[data-edit-band]').waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(puts[0].widgets[0].chart, 'NUMBER');
+  assert.match(JSON.stringify(puts[0].widgets[0].query.filter), /milk/u);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
 });

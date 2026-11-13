@@ -271,7 +271,35 @@
   function closeWidget() {
     isWidgetOpen = false;
     preset = undefined;
+    onDraft(undefined);
   }
+
+  // The widget as it is being edited, drawn large and live (scene wedit, UC-GOL-04 check 23): the
+  // server computes the unsaved definition as the reader and stores nothing. Asked once typing
+  // rests, so a line being written is not computed letter by letter.
+  let draftWidget = $state<DashboardWidgetWrite | undefined>(undefined);
+  let draftFigure = $state<Figure | undefined>(undefined);
+  let draftAsked = $state('');
+  let draftTimer: ReturnType<typeof setTimeout> | undefined;
+  const DRAFT_REST_MS = 300;
+  function onDraft(next: DashboardWidgetWrite | undefined) {
+    draftWidget = next;
+    clearTimeout(draftTimer);
+    if (!next) { draftAsked = ''; draftFigure = undefined; return; }
+    const body = JSON.stringify({ filter: dashboard?.filter ?? '', widgets: [{ ...next, x: 0, y: 0 }] });
+    if (body === draftAsked) return;
+    draftTimer = setTimeout(() => (draftAsked = body), DRAFT_REST_MS);
+  }
+  $effect(() => {
+    const body = draftAsked;
+    if (body === '') return;
+    const path = `${dashboardPath(dashboardId)}/figures:draft`;
+    return untrack(() => engine.subscribe<DashboardFigures>({ path, body: JSON.parse(body) }, (next) => {
+      if (next.status === 'ready') draftFigure = next.data.widgets[0];
+      if (next.status === 'failed') draftFigure = { id: '', data: [], truncated: false, error: renderProblem(next.error, messages).message, compare: null, remaining: null };
+    }));
+  });
+  $effect(() => () => clearTimeout(draftTimer));
   function saveWidget(write: DashboardWidgetWrite) {
     if (editingIndex < 0) {
       change([...layout, { ...write, ...nextBox(layout.map(boxOf), 6, 2) }]);
@@ -402,20 +430,20 @@
     return { group: (value) => groupName(aggregate?.group_by, value), period: (day) => periodName(aggregate?.bucket?.period, day) };
   }
 
+  type Figure = DashboardFigures['widgets'][number];
   const figureOf = (id: string | undefined) => (id ? figures?.widgets.find((each) => each.id === id) : undefined);
   /** A widget's own rows, as running totals where it is cumulative. */
-  function rowsOf(widget: DashboardWidgetWrite): FigureRow[] {
-    const rows = figureRows(figureOf(widget.id)?.data ?? [], namingOf(widget));
+  function rowsOf(widget: DashboardWidgetWrite, figure: Figure | undefined = figureOf(widget.id)): FigureRow[] {
+    const rows = figureRows(figure?.data ?? [], namingOf(widget));
     return widget.cumulative ? runningRows(rows) : rows;
   }
   /** A widget with a second series as one table: its own, the second, and with running totals what is left. */
-  function tableOf(widget: DashboardWidgetWrite): SeriesTable | undefined {
-    const figure = figureOf(widget.id);
+  function tableOf(widget: DashboardWidgetWrite, figure: Figure | undefined = figureOf(widget.id)): SeriesTable | undefined {
     if (!widget.compare || !figure) return undefined;
     const running = widget.cumulative === true;
     const second = figureRows(figure.compare?.data ?? [], namingOf(widget));
     return seriesTable([
-      { name: widget.compare.first_title, rows: rowsOf(widget), isRunning: running },
+      { name: widget.compare.first_title, rows: rowsOf(widget, figure), isRunning: running },
       ...(figure.compare?.error ? [] : [{ name: widget.compare.title, rows: running ? runningRows(second) : second, isRunning: running }]),
       ...(figure.remaining ? [{ name: t('app.dashboards.series_left'), rows: leftRows(figure.remaining, namingOf(widget)) }] : []),
     ]);
@@ -563,9 +591,9 @@
     if (id === 'xlsx') exportWidget(widget, true);
   }
   /** A LIST widget's entries: key, title and its one column in words. */
-  function entriesOf(widget: DashboardWidgetWrite): ListEntry[] {
+  function entriesOf(widget: DashboardWidgetWrite, figure: Figure | undefined = figureOf(widget.id)): ListEntry[] {
     const now = Date.now();
-    return (figureOf(widget.id)?.data ?? []).map((row) => {
+    return (figure?.data ?? []).map((row) => {
       const id = String(row['id'] ?? '');
       const collection = typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined;
       const key = ticketKeyOf(collection, typeof row['number'] === 'number' ? row['number'] : undefined) ?? '';
@@ -683,6 +711,26 @@
       {#if isWidgetOpen}{@render editorPanel()}{/if}
     {:else}
       <div class="board" class:with-side={isEditing && (isLibraryOpen || isWidgetOpen)}>
+      <div class="stage">
+      {#if isWidgetOpen && draftWidget}
+        {@const live = draftWidget}
+        {@const foot = sourceLine(live)}
+        <!-- The edited widget large and live over the dimmed grid (scene wedit). -->
+        <article class="widget preview" aria-label={t('app.dashboards.preview_of', { title: live.title })} aria-busy={draftFigure === undefined} data-widget-preview>
+          <header class="widget-head"><h2 class="heading">{live.title}</h2><span class="quiet">{t('app.dashboards.preview_live')}</span></header>
+          {#if !draftFigure}
+            <Skeleton lines={3} />
+          {:else if draftFigure.error}
+            <p class="refused" role="status">{messages.has(draftFigure.error) ? t(draftFigure.error) : draftFigure.error}</p>
+          {:else}
+            <div class="content">
+              <WidgetChart title={live.title} chart={live.chart} rows={live.chart === 'LIST' ? [] : rowsOf(live, draftFigure)} table={tableOf(live, draftFigure)}
+                entries={live.chart === 'LIST' ? entriesOf(live, draftFigure) : []} text={live.text ?? ''} target={live.target} warnAt={live.warn_at} empty={emptyOf(live)} />
+            </div>
+          {/if}
+          {#if foot}<p class="foot">{foot}</p>{/if}
+        </article>
+      {/if}
       <div bind:this={grid} class="grid" class:editing={isEditing} class:stacked={viewport.isCompact} class:half={!viewport.isCompact && viewport.isBelowExpanded}>
         {#each ordered as each (each.widget.id ?? `new-${each.index}`)}
           {@const figure = figureOf(each.widget.id)}
@@ -734,6 +782,7 @@
           </div>
         {/if}
       </div>
+      </div>
       {#if isWidgetOpen}
         {@render editorPanel()}
       {:else if isEditing && isLibraryOpen}
@@ -775,7 +824,7 @@
       <h2 class="heading">{editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })}</h2>
       <IconButton icon="x" size="sm" tone="subtle" label={t('app.links.cancel')} onclick={closeWidget} />
     </header>
-    <WidgetEditor widget={editingIndex < 0 ? preset : layout[editingIndex]} {summaryViews} goals={goalChoices} inherited={inheritedChips} onsave={saveWidget} oncancel={closeWidget}
+    <WidgetEditor widget={editingIndex < 0 ? preset : layout[editingIndex]} {summaryViews} goals={goalChoices} inherited={inheritedChips} keys={queryKeys} {names} ondraft={onDraft} onsave={saveWidget} oncancel={closeWidget}
       onlist={editedList ? () => { const widget = editedList; closeWidget(); if (widget) openList(widget); } : undefined} />
   </aside>
 {/snippet}
@@ -843,6 +892,8 @@
   .grid.half { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: row dense; }
   .grid.half .widget { grid-column: span var(--half); grid-row: auto; }
   .grid.stacked { display: flex; flex-direction: column; }
+  .stage { display: flex; flex-direction: column; gap: var(--sp-200); min-width: 0; }
+  .widget.preview { min-block-size: calc(var(--sp-1000) * 3); outline: var(--bw-thick) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; }
   .board.with-side { grid-template-columns: minmax(0, 1fr) var(--layout-pane-width); }
   .grid.editing { padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-lg); }

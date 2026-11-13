@@ -13697,8 +13697,7 @@
   "app.dashboards.scope": "Where to count",
   "app.dashboards.scope_workspace": "Everything I may read in the workspace",
   "app.dashboards.line": "Which entries",
-  "app.dashboards.line_hint": "The search line's language, for example is:open type:task due:week. Empty counts every entry.",
-  "app.dashboards.line_kept": "The widget keeps the entries it counts; write a line to count others.",
+  "app.dashboards.line_hint": "Every list's line; empty counts every entry.",
   "app.dashboards.line_words": "A summary narrows by key:value only; free words are not counted.",
   "app.dashboards.function": "Count",
   "app.dashboards.fn_COUNT": "How many",
@@ -15437,5 +15436,7 @@
   "app.desk.requester.open_many": "{count} other open requests:",
   "app.desk.requester.other_named": "{key}: {title}",
   "app.comments.more": "More for this comment",
-  "app.flow.action.take_step": "Take a workflow step"
+  "app.flow.action.take_step": "Take a workflow step",
+  "app.dashboards.preview_live": "Preview · live",
+  "app.dashboards.preview_of": "Preview of {title}"
 }

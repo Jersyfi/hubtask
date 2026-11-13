@@ -13697,8 +13697,7 @@
   "app.dashboards.scope": "Wo gezählt wird",
   "app.dashboards.scope_workspace": "Alles, was ich im Arbeitsbereich lesen darf",
   "app.dashboards.line": "Welche Einträge",
-  "app.dashboards.line_hint": "Die Sprache der Suchzeile, zum Beispiel is:open type:task due:week. Leer zählt jeden Eintrag.",
-  "app.dashboards.line_kept": "Das Widget behält die Einträge, die es zählt; schreib eine Zeile, um andere zu zählen.",
+  "app.dashboards.line_hint": "Die Zeile jeder Liste; leer zählt jeden Eintrag.",
   "app.dashboards.line_words": "Eine Auswertung grenzt nur mit Schlüssel:Wert ein; freie Wörter werden nicht gezählt.",
   "app.dashboards.function": "Rechnung",
   "app.dashboards.fn_COUNT": "Wie viele",
@@ -15437,5 +15436,7 @@
   "app.desk.requester.open_many": "{count} weitere offene Anfragen:",
   "app.desk.requester.other_named": "{key}: {title}",
   "app.comments.more": "Mehr zu diesem Kommentar",
-  "app.flow.action.take_step": "Workflow-Schritt gehen"
+  "app.flow.action.take_step": "Workflow-Schritt gehen",
+  "app.dashboards.preview_live": "Vorschau · live",
+  "app.dashboards.preview_of": "Vorschau von {title}"
 }

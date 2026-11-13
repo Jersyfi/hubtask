@@ -4,11 +4,12 @@
   // A dashboard widget made or changed (UC-GOL-04 check 1): its title and chart, and what it
   // runs - a saved summary view, a summary asked here, or goals' progress.
   //
-  // **A summary asked here is the query language as one line** (ADR-0066, `searchquery.ts`): the
-  // reader writes `is:open type:task due:week`, the line compiles to the filter `POST
-  // /items:aggregate` takes, and a token the installation does not know is refused by name before
-  // anything is sent. The summary's function, measure, grouping and period are chosen beside it;
-  // the server holds the document to its grammar on save (`work.ParseSummary`).
+  // **A summary asked here is the query line of every list** (Q-1, the chips of `QueryStrip`): the
+  // line is read as a collection's (`viewquery.ts`), names become identifiers, and a name nobody
+  // here bears is refused by name before anything is sent. The summary's function, measure,
+  // grouping and period are chosen beside it; the server holds the document to its grammar
+  // (`work.ParseSummary`). Every valid change is handed up as a draft (`ondraft`), which the
+  // dashboard computes live without storing it (UC-GOL-04 check 23).
   //
   // What a summary counts is one of four sources (F-9): entries, the links between them, the time
   // recorded on them, or the pages of the spaces in scope. Each source offers only what the
@@ -21,13 +22,14 @@
 
   import { untrack } from 'svelte';
   import { Button, Checkbox, CheckboxGroup, Icon, Inline, Input, Select, Stack, Tabs, Textarea } from '@hubtask/design-system/components';
-  import { READER_KEYS } from '@hubtask/query';
+  import { READER_KEYS, type QueryKey } from '@hubtask/query';
   import type { DashboardWidgetWrite, Goal, SavedView } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { groupableFields, queryFields } from '../data/query.ts';
-  import { compile, parse, type Context } from '../data/searchquery.ts';
+  import { lineOf, readQuery, type Names } from '../data/viewquery.ts';
+  import QueryStrip from '../entries/QueryStrip.svelte';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -39,13 +41,19 @@
     goals: readonly Goal[];
     /** The dashboard's conditions, each a chip the widget inherits until it releases its field. */
     inherited?: readonly { readonly field: string; readonly piece: string }[];
+    /** The query line's keys, as every list offers them. */
+    keys: readonly QueryKey[];
+    /** Names in the line, read and written as a collection's line does. */
+    names: Names;
     onsave: (widget: DashboardWidgetWrite) => void;
+    /** The widget as edited so far, whenever it would save; none while it would not. */
+    ondraft?: (widget: DashboardWidgetWrite | undefined) => void;
     oncancel?: () => void;
     /** Opens the list the widget counts, where one can be opened. */
     onlist?: (() => void) | undefined;
   }
 
-  const { widget, summaryViews, goals, inherited = [], onsave, oncancel, onlist }: Props = $props();
+  const { widget, summaryViews, goals, inherited = [], keys, names, onsave, ondraft, oncancel, onlist }: Props = $props();
 
   /** A field by the name a person reads (the query's key word), never its key. */
   function fieldLabel(field: string): string {
@@ -70,7 +78,7 @@
 
   type Aggregate = { source?: string; function?: string; field?: string; group_by?: string; bucket?: { field?: string; period?: string } };
   // svelte-ignore state_referenced_locally
-  const asked = (widget?.query ?? {}) as { scope?: { container_id?: string; workspace?: boolean }; filter?: unknown; include_archived?: boolean; aggregate?: Aggregate };
+  const asked = (widget?.query ?? {}) as { scope?: { container_id?: string; workspace?: boolean }; q?: unknown; filter?: unknown; include_archived?: boolean; aggregate?: Aggregate };
   /** A stored filter is kept as it is until the reader writes a line in its place. */
   // svelte-ignore state_referenced_locally
   const kept = asked.filter;
@@ -79,20 +87,30 @@
   const comparedAsked = (widget?.compare?.query ?? {}) as { filter?: unknown; include_archived?: boolean; aggregate?: Aggregate };
   const comparedKept = comparedAsked.filter;
 
+  /** A stored filter as the line a person reads; the stored one is sent on until the line is changed. */
+  function storedLine(filter: unknown): string {
+    if (typeof asked.q === 'string' && filter === asked.filter) return asked.q;
+    return filter && typeof filter === 'object' ? (lineOf({ filter: filter as never }, names) ?? '') : '';
+  }
+
   // svelte-ignore state_referenced_locally
   const draft = $state({
     hasCompare: widget?.compare != null,
     firstTitle: widget?.compare?.first_title ?? '',
     secondTitle: widget?.compare?.title ?? '',
     secondStamp: comparedAsked.aggregate?.bucket?.field ?? 'completed_at',
-    secondLine: '',
+    // svelte-ignore state_referenced_locally
+    secondLine: storedLine(comparedKept),
+    isSecondLineChanged: false,
     cumulative: widget?.cumulative === true,
     title: widget?.title ?? '',
     chart: (widget?.chart ?? 'BAR') as Chart,
     source: (widget?.source ?? 'QUERY') as Source,
     viewId: widget?.view_id ?? '',
     scope: asked.scope?.container_id ?? '',
-    line: '',
+    // svelte-ignore state_referenced_locally
+    line: storedLine(kept),
+    isLineChanged: false,
     summarySource: (SOURCES as readonly string[]).includes(asked.aggregate?.source ?? '') ? (asked.aggregate?.source as SummarySource) : 'entries',
     fn: asked.aggregate?.function ?? 'COUNT',
     field: asked.aggregate?.field ?? '',
@@ -115,7 +133,6 @@
   const targetValue = $derived(draft.target.trim() === '' ? undefined : Number(draft.target.replace(',', '.')));
   const warnValue = $derived(draft.warnAt.trim() === '' ? undefined : Number(draft.warnAt.replace(',', '.')));
 
-  const reported = $derived(new Set(queryFields(manifest.value).map((field) => field.field)));
   const groups = $derived([
     ...OWN_GROUPS[draft.summarySource],
     ...(draft.summarySource === 'pages' ? [] : groupableFields(manifest.value).map((field) => field.field)),
@@ -146,28 +163,19 @@
     return () => opened.forEach((close) => close());
   });
   const everyCollection = $derived(containers.hubs.flatMap((hub) => containers.collectionsOf(hub.id)));
-  const context = $derived<Context>({
-    fields: reported,
-    collection: (name) => {
-      const wanted = name.trim().toLowerCase();
-      return everyCollection.find((each) => each.name.toLowerCase() === wanted || each.id === name.trim())?.id;
-    },
-    label: () => undefined,
-    hasCollection: false,
-  });
-  const compiled = $derived(compile(parse(draft.line), context));
-  const lineError = $derived.by(() => {
-    if (compiled.q && compiled.q.trim() !== '') return t('app.dashboards.line_words');
-    const first = compiled.problems[0];
-    return first ? t(first.code, first.params) : undefined;
-  });
-
-  const compiledSecond = $derived(compile(parse(draft.secondLine), context));
-  const secondLineError = $derived.by(() => {
-    if (compiledSecond.q && compiledSecond.q.trim() !== '') return t('app.dashboards.line_words');
-    const first = compiledSecond.problems[0];
-    return first ? t(first.code, first.params) : undefined;
-  });
+  /** A line read as a filter tree, or the problem that refuses it, by its code or the names nobody bears. */
+  function filterOf(line: string): { filter?: unknown; error?: string } {
+    if (line.trim() === '') return {};
+    const read = readQuery(line, names);
+    if (!read.ok) return { error: t(read.error.code) };
+    if (read.unknown.length > 0) return { error: t('app.dashboards.filter_unknown', { names: read.unknown.join(', ') }) };
+    if (read.query.filter && JSON.stringify(read.query.filter).includes('"field":"text"')) return { error: t('app.dashboards.line_words') };
+    return read.query.filter ? { filter: read.query.filter } : {};
+  }
+  const compiled = $derived(filterOf(draft.line));
+  const lineError = $derived(draft.isLineChanged ? compiled.error : undefined);
+  const compiledSecond = $derived(filterOf(draft.secondLine));
+  const secondLineError = $derived(draft.isSecondLineChanged ? compiledSecond.error : undefined);
   const drawsSeries = $derived(draft.source !== 'GOALS' && (draft.chart === 'BAR' || draft.chart === 'LINE' || draft.chart === 'TABLE'));
 
   const problem = $derived.by(() => {
@@ -195,8 +203,8 @@
     return undefined;
   });
 
-  function save() {
-    if (problem) return;
+  /** The widget as it would be saved. */
+  function build(): DashboardWidgetWrite {
     const write: DashboardWidgetWrite = {
       ...(widget?.id ? { id: widget.id } : {}),
       title: draft.title.trim(),
@@ -219,11 +227,10 @@
       write.column = draft.column;
       write.query = {
         scope: draft.scope ? { container_id: draft.scope } : { workspace: true },
-        ...(draft.line.trim() === '' && kept !== undefined ? { filter: kept } : compiled.filter ? { filter: compiled.filter } : {}),
+        ...(!draft.isLineChanged && kept !== undefined ? { filter: kept } : compiled.filter ? { filter: compiled.filter } : {}),
         sort: [{ field: 'due_at', dir: 'ASC' }],
       };
-      onsave(write);
-      return;
+      return write;
     }
     if (draft.source === 'QUERY') {
       const aggregate: Aggregate = { function: draft.fn };
@@ -233,9 +240,9 @@
       if (draft.period) aggregate.bucket = { field: draft.bucketField, period: draft.period };
       write.query = {
         scope: draft.scope ? { container_id: draft.scope } : { workspace: true },
-        ...(draft.summarySource === 'pages' ? {} : draft.line.trim() === '' && kept !== undefined
+        ...(draft.summarySource === 'pages' ? {} : !draft.isLineChanged && kept !== undefined
           ? { filter: kept, ...(asked.include_archived ? { include_archived: true } : {}) }
-          : { ...(compiled.filter ? { filter: compiled.filter } : {}), ...(compiled.includeArchived ? { include_archived: true } : {}) }),
+          : compiled.filter ? { filter: compiled.filter } : {}),
         aggregate,
       };
       if (drawsSeries && draft.hasCompare && draft.period) {
@@ -244,11 +251,11 @@
           title: draft.secondTitle.trim(),
           query: {
             ...write.query,
-            ...(draft.summarySource === 'pages' ? {} : draft.secondLine.trim() === ''
+            ...(draft.summarySource === 'pages' ? {} : !draft.isSecondLineChanged
               ? comparedKept !== undefined
                 ? { filter: comparedKept, ...(comparedAsked.include_archived ? { include_archived: true } : {}) }
                 : {}
-              : { filter: compiledSecond.filter, ...(compiledSecond.includeArchived ? { include_archived: true } : {}) }),
+              : { filter: compiledSecond.filter }),
             aggregate: { ...aggregate, bucket: { field: draft.secondStamp, period: draft.period } },
           },
         };
@@ -258,8 +265,16 @@
     // A saved view's second series is asked through the contract; the form keeps it as it was.
     if (draft.source === 'VIEW' && widget?.compare && drawsSeries) write.compare = widget.compare;
     if (drawsSeries && draft.cumulative) write.cumulative = true;
-    onsave(write);
+    return write;
   }
+  function save() {
+    if (!problem) onsave(build());
+  }
+  // The draft goes up whenever it would save, so the dashboard draws it live.
+  $effect(() => {
+    const next = problem ? undefined : build();
+    untrack(() => ondraft?.(next));
+  });
 </script>
 
 <Stack gap="150">
@@ -317,7 +332,7 @@
       </div>
     {/if}
     {#if draft.summarySource !== 'pages'}
-      <Input label={t('app.dashboards.line')} hint={kept !== undefined && draft.line.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.line_hint')} bind:value={draft.line} error={lineError} spellcheck={false} />
+      {@render line(t('app.dashboards.line'), t('app.dashboards.line_hint'), draft.line, lineError, (next) => { draft.line = next; draft.isLineChanged = true; })}
     {/if}
     <Inline gap="100" isWrapping>
       <Select label={t('app.dashboards.function')} bind:value={draft.fn} options={functions.map((each) => ({ value: each, label: t(`app.dashboards.fn_${each}`) }))} />
@@ -348,7 +363,7 @@
         <Select label={t('app.dashboards.series_second_stamp')} bind:value={draft.secondStamp}
           options={stamps.map((field) => ({ value: field, label: fieldLabel(field) }))} />
         {#if draft.summarySource !== 'pages'}
-          <Input label={t('app.dashboards.series_second_line')} hint={comparedKept !== undefined && draft.secondLine.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.series_second_line_hint')} bind:value={draft.secondLine} error={secondLineError} spellcheck={false} />
+          {@render line(t('app.dashboards.series_second_line'), t('app.dashboards.series_second_line_hint'), draft.secondLine, secondLineError, (next) => { draft.secondLine = next; draft.isSecondLineChanged = true; })}
         {/if}
       {/if}
     {/if}
@@ -364,7 +379,19 @@
   </Inline>
 </Stack>
 
+{#snippet line(label: string, hint: string, value: string, error: string | undefined, onchange: (next: string) => void)}
+  <!-- The chips of every list's line (Q-1), not a text field of its own. -->
+  <div class="line" role="group" aria-label={label} data-widget-line>
+    <span class="line-label">{label}</span>
+    <QueryStrip line={value} {keys} {onchange} />
+    {#if error}<p class="error" role="alert">{error}</p>{:else}<span class="quiet">{hint}</span>{/if}
+  </div>
+{/snippet}
+
 <style>
+  .line { display: flex; flex-direction: column; gap: var(--sp-050); }
+  .line-label { font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-primary); }
+  .error { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
   .inherited { display: flex; flex-direction: column; gap: var(--sp-050); }
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   .chip { display: inline-flex; align-items: center; gap: var(--sp-050); padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-075); text-decoration: line-through; cursor: pointer; }
