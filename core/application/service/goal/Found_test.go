@@ -68,3 +68,22 @@ func TestTheQueryKnowsEveryGoalState(t *testing.T) {
 		t.Errorf("the query spells %d states", len(view.GoalStates))
 	}
 }
+
+// A search finds the workspace's portfolios for a reader of the workspace, and none for one who
+// does not read it; a portfolio stands in no hub (UC-WRK-18 check 9, Q-5).
+func TestASearchFindsThePortfoliosOfAWorkspaceTheReaderReads(t *testing.T) {
+	growth := shared.ID("0193a0c0-0000-7000-8000-0000000000e1")
+	names := st.Names{Rows: []searchrepo.Row{{ID: growth, Title: "Growth", State: "ON_TRACK"}}}
+	reads := PortfolioFinder{Steward: searchSteward(st.HubReader{Workspace: true}), Names: names}
+	found, err := reads.Find(t.Context(), st.Actor(itemsRead), search.Question{Terms: []string{"grow"}, Size: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found.Count != 1 || found.Hits[0].ID != growth || found.Hits[0].State != "ON_TRACK" || !found.Hits[0].HubID.IsZero() {
+		t.Fatalf("found %+v, want the portfolio", found)
+	}
+	outsider := PortfolioFinder{Steward: searchSteward(st.HubReader{Hubs: map[shared.ID]bool{st.HubA: true}}), Names: names}
+	if found, err := outsider.Find(t.Context(), st.Actor(itemsRead), search.Question{Terms: []string{"grow"}, Size: 5}); err != nil || found.Count != 0 {
+		t.Fatalf("a reader outside the workspace found %+v, %v", found, err)
+	}
+}

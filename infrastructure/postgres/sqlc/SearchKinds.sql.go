@@ -592,6 +592,167 @@ func (q *Queries) SearchPeopleNames(ctx context.Context, arg SearchPeopleNamesPa
 	return items, nil
 }
 
+const searchPortfolioNames = `-- name: SearchPortfolioNames :many
+SELECT p.id, p.name, p.status, p.updated_at,
+       coalesce(strpos(lower(p.name), ($1::text[])[1]) = 1, false) AS leads
+FROM portfolio p
+WHERE p.tenant_id = current_tenant_id()
+  AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(p.name), t) = 0)
+ORDER BY leads DESC, p.updated_at DESC, p.id
+LIMIT $2
+`
+
+type SearchPortfolioNamesParams struct {
+	Terms []string
+	Batch int32
+}
+
+type SearchPortfolioNamesRow struct {
+	ID        pgtype.UUID
+	Name      string
+	Status    string
+	UpdatedAt pgtype.Timestamptz
+	Leads     interface{}
+}
+
+// A portfolio is the workspace's and stands in no hub.
+func (q *Queries) SearchPortfolioNames(ctx context.Context, arg SearchPortfolioNamesParams) ([]SearchPortfolioNamesRow, error) {
+	rows, err := q.db.Query(ctx, searchPortfolioNames, arg.Terms, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchPortfolioNamesRow{}
+	for rows.Next() {
+		var i SearchPortfolioNamesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Status,
+			&i.UpdatedAt,
+			&i.Leads,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchReleaseNames = `-- name: SearchReleaseNames :many
+SELECT r.id, r.hub_id, r.name, r.state, r.updated_at,
+       coalesce(strpos(lower(r.name), ($1::text[])[1]) = 1, false) AS leads
+FROM release r
+JOIN container h ON h.tenant_id = r.tenant_id AND h.id = r.hub_id AND h.deleted_at IS NULL
+WHERE r.tenant_id = current_tenant_id()
+  AND ($2::uuid IS NULL OR r.hub_id = $2::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(r.name), t) = 0)
+ORDER BY leads DESC, r.updated_at DESC, r.id
+LIMIT $3
+`
+
+type SearchReleaseNamesParams struct {
+	Terms []string
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type SearchReleaseNamesRow struct {
+	ID        pgtype.UUID
+	HubID     pgtype.UUID
+	Name      string
+	State     string
+	UpdatedAt pgtype.Timestamptz
+	Leads     interface{}
+}
+
+func (q *Queries) SearchReleaseNames(ctx context.Context, arg SearchReleaseNamesParams) ([]SearchReleaseNamesRow, error) {
+	rows, err := q.db.Query(ctx, searchReleaseNames, arg.Terms, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchReleaseNamesRow{}
+	for rows.Next() {
+		var i SearchReleaseNamesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.Name,
+			&i.State,
+			&i.UpdatedAt,
+			&i.Leads,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchSprintNames = `-- name: SearchSprintNames :many
+SELECT s.id, c.parent_id AS hub_id, s.collection_id, s.name, s.state, s.updated_at,
+       coalesce(strpos(lower(s.name), ($1::text[])[1]) = 1, false) AS leads
+FROM sprint s
+JOIN container c ON c.tenant_id = s.tenant_id AND c.id = s.collection_id AND c.deleted_at IS NULL
+WHERE s.tenant_id = current_tenant_id()
+  AND ($2::uuid IS NULL OR c.parent_id = $2::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(s.name), t) = 0)
+ORDER BY leads DESC, s.updated_at DESC, s.id
+LIMIT $3
+`
+
+type SearchSprintNamesParams struct {
+	Terms []string
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type SearchSprintNamesRow struct {
+	ID           pgtype.UUID
+	HubID        pgtype.UUID
+	CollectionID pgtype.UUID
+	Name         string
+	State        string
+	UpdatedAt    pgtype.Timestamptz
+	Leads        interface{}
+}
+
+// A sprint stands in its collection; its hub is the collection's.
+func (q *Queries) SearchSprintNames(ctx context.Context, arg SearchSprintNamesParams) ([]SearchSprintNamesRow, error) {
+	rows, err := q.db.Query(ctx, searchSprintNames, arg.Terms, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchSprintNamesRow{}
+	for rows.Next() {
+		var i SearchSprintNamesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.CollectionID,
+			&i.Name,
+			&i.State,
+			&i.UpdatedAt,
+			&i.Leads,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const searchWhiteboardComments = `-- name: SearchWhiteboardComments :many
 SELECT wc.id, wc.body, coalesce(wc.edited_at, wc.created_at)::timestamptz AS changed_at, w.id AS whiteboard_id,
        w.title AS whiteboard_title, w.hub_id

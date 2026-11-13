@@ -26,6 +26,10 @@ func seedEveryKind(ctx context.Context, t *testing.T, tenant shared.ID, word str
 		item.String()).Scan(&hub); err != nil {
 		t.Fatalf("reading the hub: %v", err)
 	}
+	var collection string
+	if err := admin.QueryRow(ctx, `SELECT collection_id FROM work_item WHERE id = $1`, item.String()).Scan(&collection); err != nil {
+		t.Fatalf("reading the collection: %v", err)
+	}
 	period, media := freshID(t), freshID(t)
 	statements := []struct {
 		sql  string
@@ -41,6 +45,12 @@ func seedEveryKind(ctx context.Context, t *testing.T, tenant shared.ID, word str
 		  VALUES ($1, $2, $3, $4, $5, 'SCOPE', now(), now())`, []any{freshID(t).String(), tenant.String(), hub.String(), authorA.String(), word + " dashboard"}},
 		{`INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, created_by, created_at, updated_by, updated_at)
 		  VALUES ($1, $2, $3, 'server', $4, 'IN_USE', 'OK', $5, now(), $5, now())`, []any{freshID(t).String(), tenant.String(), hub.String(), word + " server", authorA.String()}},
+		{`INSERT INTO portfolio (id, tenant_id, name, status, created_at, updated_at)
+		  VALUES ($1, $2, $3, 'ON_TRACK', now(), now())`, []any{freshID(t).String(), tenant.String(), word + " portfolio"}},
+		{`INSERT INTO release (id, tenant_id, hub_id, name, release_on, state, created_at, updated_at)
+		  VALUES ($1, $2, $3, $4, '2026-12-01', 'PLANNED', now(), now())`, []any{freshID(t).String(), tenant.String(), hub.String(), word + " release"}},
+		{`INSERT INTO sprint (id, tenant_id, collection_id, name, start_on, end_on, state, created_at, updated_at)
+		  VALUES ($1, $2, $3, $4, '2026-11-01', '2026-11-14', 'PLANNED', now(), now())`, []any{freshID(t).String(), tenant.String(), collection, word + " sprint"}},
 		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, $3)`, []any{freshID(t).String(), tenant.String(), word + " Person"}},
 		{`INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, created_by, file_name, status)
 		  VALUES ($1, $2, $5, 'application/pdf', 10, 'ATTACHMENT', $3, $4, 'READY')`, []any{media.String(), tenant.String(), authorA.String(), word + "-report.pdf", "key-" + media.String()}},
@@ -56,17 +66,23 @@ func seedEveryKind(ctx context.Context, t *testing.T, tenant shared.ID, word str
 	return hub, item
 }
 
-// UC-WRK-18 check 9. Every kind is found by its words, in its hub, and never by the workspace next door; a word not
+// UC-WRK-18 check 9. Every kind is found by its words, in its hub, and never by the workspace next door (portfolios
+// and people standing in none); a word not
 // held finds nothing; the server's own comment lines are not searched (UC-WRK-18 check 9).
 func TestEveryKindIsFoundByItsNameInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
 	word := "zq" + freshName(t)[:6]
 	hub, item := seedEveryKind(ctx, t, tenantA, word)
+	var collection string
+	if err := adminPool(ctx, t).QueryRow(ctx, `SELECT collection_id FROM work_item WHERE id = $1`, item.String()).Scan(&collection); err != nil {
+		t.Fatalf("reading the collection: %v", err)
+	}
 	repo := postgres.NewSearchNamesRepository()
 	kinds := map[string]func(context.Context, repository.Ask) ([]repository.Row, error){
 		"whiteboards": repo.Whiteboards, "goals": repo.Goals, "dashboards": repo.Dashboards,
 		"cis": repo.Cis, "people": repo.People, "files": repo.EntryFiles, "comments": repo.EntryComments,
+		"portfolios": repo.Portfolios, "releases": repo.Releases, "sprints": repo.Sprints,
 	}
 	ask := repository.Ask{Terms: []string{strings.ToLower(word)}, Batch: 10}
 	for name, find := range kinds {
@@ -79,8 +95,11 @@ func TestEveryKindIsFoundByItsNameInItsWorkspaceAlone(t *testing.T) {
 				if len(rows) != 1 {
 					t.Fatalf("found %+v, want one", rows)
 				}
-				if name != "people" && rows[0].HubID != hub {
+				if name != "people" && name != "portfolios" && rows[0].HubID != hub {
 					t.Errorf("the hit stands in %s, want %s", rows[0].HubID, hub)
+				}
+				if name == "sprints" && rows[0].CollectionID.String() != collection {
+					t.Errorf("the sprint stands in %s, want the collection %s", rows[0].CollectionID, collection)
 				}
 				if (name == "files" || name == "comments") && rows[0].OnID != item {
 					t.Errorf("the hit is on %s, want the entry %s", rows[0].OnID, item)

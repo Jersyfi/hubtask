@@ -41,6 +41,39 @@ WHERE d.tenant_id = current_tenant_id()
 ORDER BY leads DESC, d.updated_at DESC, d.id
 LIMIT sqlc.arg('batch');
 
+-- name: SearchPortfolioNames :many
+-- A portfolio is the workspace's and stands in no hub.
+SELECT p.id, p.name, p.status, p.updated_at,
+       coalesce(strpos(lower(p.name), (sqlc.arg('terms')::text[])[1]) = 1, false) AS leads
+FROM portfolio p
+WHERE p.tenant_id = current_tenant_id()
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(p.name), t) = 0)
+ORDER BY leads DESC, p.updated_at DESC, p.id
+LIMIT sqlc.arg('batch');
+
+-- name: SearchReleaseNames :many
+SELECT r.id, r.hub_id, r.name, r.state, r.updated_at,
+       coalesce(strpos(lower(r.name), (sqlc.arg('terms')::text[])[1]) = 1, false) AS leads
+FROM release r
+JOIN container h ON h.tenant_id = r.tenant_id AND h.id = r.hub_id AND h.deleted_at IS NULL
+WHERE r.tenant_id = current_tenant_id()
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR r.hub_id = sqlc.narg('hub_id')::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(r.name), t) = 0)
+ORDER BY leads DESC, r.updated_at DESC, r.id
+LIMIT sqlc.arg('batch');
+
+-- name: SearchSprintNames :many
+-- A sprint stands in its collection; its hub is the collection's.
+SELECT s.id, c.parent_id AS hub_id, s.collection_id, s.name, s.state, s.updated_at,
+       coalesce(strpos(lower(s.name), (sqlc.arg('terms')::text[])[1]) = 1, false) AS leads
+FROM sprint s
+JOIN container c ON c.tenant_id = s.tenant_id AND c.id = s.collection_id AND c.deleted_at IS NULL
+WHERE s.tenant_id = current_tenant_id()
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR c.parent_id = sqlc.narg('hub_id')::uuid)
+  AND NOT EXISTS (SELECT 1 FROM unnest(sqlc.arg('terms')::text[]) t WHERE strpos(lower(s.name), t) = 0)
+ORDER BY leads DESC, s.updated_at DESC, s.id
+LIMIT sqlc.arg('batch');
+
 -- name: SearchCiNames :many
 -- A merged item lives on in the one it was merged into. Its owner is a person or a group; its
 -- tag is the asset record's, empty where none was written.

@@ -54,9 +54,9 @@ func TestOneSearchAnswersEveryKindWithItsCount(t *testing.T) {
 	}
 }
 
-// Narrowed to a hub, people - who stand in no hub - are not asked; every kind is asked when none
-// is named.
-func TestAHubSearchLeavesPeopleOut(t *testing.T) {
+// Narrowed to a hub, people and portfolios - which stand in no hub - are not asked; every kind is
+// asked when none is named, releases and sprints among them.
+func TestAHubSearchLeavesPeopleAndPortfoliosOut(t *testing.T) {
 	var asked []Question
 	finders := map[string]Finder{}
 	for _, k := range Kinds {
@@ -66,8 +66,13 @@ func TestAHubSearchLeavesPeopleOut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(answer.Facets) != len(Kinds) || len(asked) != len(Kinds)-1 || answer.Facets[7].Kind != KindPerson || answer.Facets[7].Count != 0 {
+	if len(answer.Facets) != len(Kinds) || len(asked) != len(Kinds)-2 || answer.Facets[7].Kind != KindPerson || answer.Facets[7].Count != 0 {
 		t.Fatalf("asked %d finders, facets %+v", len(asked), answer.Facets)
+	}
+	for _, f := range answer.Facets {
+		if (f.Kind == KindRelease || f.Kind == KindSprint) && f.Count != 1 || f.Kind == KindPortfolio && f.Count != 0 {
+			t.Errorf("facet %+v", f)
+		}
 	}
 }
 
@@ -130,7 +135,7 @@ func TestAKeyKeepsTheSearchToItsKind(t *testing.T) {
 		}},
 		{"type: page, whiteboard budget", []string{KindPage, KindWhiteboard}, nil},
 		{"type: ticket printer", []string{KindTicket}, nil},
-		{"budget", []string{KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment}, nil},
+		{"budget", []string{KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment, KindPortfolio, KindRelease, KindSprint}, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.q, func(t *testing.T) {

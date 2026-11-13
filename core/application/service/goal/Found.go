@@ -10,7 +10,9 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/search"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 )
 
 // GoalFinder finds the goals whose titles hold the words, of the workspace and the hubs the
@@ -72,5 +74,34 @@ func (f DashboardFinder) Find(ctx context.Context, actor appshared.ActorContext,
 	}
 	return search.Narrowed(rows, allowed, q.Size, func(row searchrepo.Row) search.Hit {
 		return search.Hit{ID: row.ID, HubID: row.HubID, Title: row.Title, State: row.State, UpdatedAt: row.UpdatedAt}
+	}), nil
+}
+
+// PortfolioFinder finds the workspace's portfolios whose names hold the words, for a reader of
+// the workspace - the question ListPortfolios asks (UC-WRK-18 check 9).
+type PortfolioFinder struct {
+	Steward Steward
+	Names   searchrepo.Names
+}
+
+// Find keeps the candidates where the reader reads the workspace.
+func (f PortfolioFinder) Find(ctx context.Context, actor appshared.ActorContext, q search.Question) (search.Found, error) {
+	if person(actor) != nil || actor.RequireScope(itemsRead) != nil {
+		return search.Found{}, nil
+	}
+	rows, err := search.Within(ctx, f.Steward.UnitOfWork, actor, f.Names.Portfolios, q.Ask())
+	if err != nil || len(rows) == 0 {
+		return search.Found{}, err
+	}
+	reads, err := f.Steward.permitted(ctx, actor, service.PermissionRead, [][]identity.Scope{workspace}, PortfolioReadAction, itemsRead, portfolioTarget)
+	if err != nil {
+		return search.Found{}, err
+	}
+	allowed := make([]bool, len(rows))
+	for i := range rows {
+		allowed[i] = len(reads) > 0 && reads[0]
+	}
+	return search.Narrowed(rows, allowed, q.Size, func(row searchrepo.Row) search.Hit {
+		return search.Hit{ID: row.ID, Title: row.Title, State: row.State, UpdatedAt: row.UpdatedAt}
 	}), nil
 }

@@ -207,6 +207,62 @@ func (SearchNamesRepository) Cis(ctx context.Context, ask repository.Ask) ([]rep
 	})
 }
 
+// Portfolios answers the workspace's portfolios by their names; a portfolio stands in no hub.
+func (SearchNamesRepository) Portfolios(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, _, batch, err := searchArgs(ctx, repository.Ask{Batch: ask.Batch})
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchPortfolioNames(ctx, sqlc.SearchPortfolioNamesParams{Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("portfolios", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchPortfolioNamesRow) (repository.Row, error) {
+		id, err := idFrom(r.ID)
+		return repository.Row{ID: id, Title: r.Name, State: r.Status, UpdatedAt: optionalTime(r.UpdatedAt)}, err
+	})
+}
+
+// Releases answers the releases of living hubs by their names.
+func (SearchNamesRepository) Releases(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, hub, batch, err := searchArgs(ctx, ask)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchReleaseNames(ctx, sqlc.SearchReleaseNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("releases", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchReleaseNamesRow) (repository.Row, error) {
+		id, place, err := hitIDs(r.ID, r.HubID)
+		if err != nil {
+			return repository.Row{}, err
+		}
+		return repository.Row{ID: id, HubID: place[0], Title: r.Name, State: r.State, UpdatedAt: optionalTime(r.UpdatedAt)}, nil
+	})
+}
+
+// Sprints answers the sprints of living collections by their names, with the collection's hub.
+func (SearchNamesRepository) Sprints(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
+	queries, hub, batch, err := searchArgs(ctx, ask)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchSprintNames(ctx, sqlc.SearchSprintNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
+	if err != nil {
+		return nil, searchFailed("sprints", err)
+	}
+	return mapRows(rows, func(r sqlc.SearchSprintNamesRow) (repository.Row, error) {
+		id, place, err := hitIDs(r.ID, r.HubID, r.CollectionID)
+		if err != nil {
+			return repository.Row{}, err
+		}
+		return repository.Row{
+			ID: id, HubID: place[0], CollectionID: place[1], Title: r.Name, State: r.State, UpdatedAt: optionalTime(r.UpdatedAt),
+		}, nil
+	})
+}
+
 // People answers the people by their display names.
 func (SearchNamesRepository) People(ctx context.Context, ask repository.Ask) ([]repository.Row, error) {
 	queries, _, batch, err := searchArgs(ctx, repository.Ask{Batch: ask.Batch})

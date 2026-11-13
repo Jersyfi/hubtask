@@ -28,7 +28,7 @@ type Ask struct {
 type Row struct {
 	ID    shared.ID
 	HubID shared.ID
-	// CollectionID is the collection of the entry a file or comment is on.
+	// CollectionID is a sprint's collection, or that of the entry a file or comment is on.
 	CollectionID shared.ID
 	// OnID is the entry, page or board a file or comment is on.
 	OnID shared.ID
@@ -40,7 +40,8 @@ type Row struct {
 	Title string
 	// Tile is a class key, a media type or an account kind.
 	Tile string
-	// State is a goal's status, an item's stage or an account's status.
+	// State is a goal's or a portfolio's status, a release's or a sprint's state, an item's stage
+	// or an account's status.
 	State string
 	// Text is a comment's body, which the snippet is cut from.
 	Text string
@@ -61,6 +62,11 @@ type Names interface {
 	Goals(ctx context.Context, ask Ask) ([]Row, error)
 	Dashboards(ctx context.Context, ask Ask) ([]Row, error)
 	Cis(ctx context.Context, ask Ask) ([]Row, error)
+	// Portfolios ignores the hub: a portfolio is the workspace's.
+	Portfolios(ctx context.Context, ask Ask) ([]Row, error)
+	Releases(ctx context.Context, ask Ask) ([]Row, error)
+	// Sprints names each sprint's collection and, as HubID, that collection's hub.
+	Sprints(ctx context.Context, ask Ask) ([]Row, error)
 	// People ignores the hub: a person stands in none.
 	People(ctx context.Context, ask Ask) ([]Row, error)
 	EntryFiles(ctx context.Context, ask Ask) ([]Row, error)

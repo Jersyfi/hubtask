@@ -9389,6 +9389,9 @@ const (
 	SearchKindGOAL       SearchKind = "GOAL"
 	SearchKindPAGE       SearchKind = "PAGE"
 	SearchKindPERSON     SearchKind = "PERSON"
+	SearchKindPORTFOLIO  SearchKind = "PORTFOLIO"
+	SearchKindRELEASE    SearchKind = "RELEASE"
+	SearchKindSPRINT     SearchKind = "SPRINT"
 	SearchKindTICKET     SearchKind = "TICKET"
 	SearchKindWHITEBOARD SearchKind = "WHITEBOARD"
 )
@@ -9411,6 +9414,12 @@ func (e SearchKind) Valid() bool {
 	case SearchKindPAGE:
 		return true
 	case SearchKindPERSON:
+		return true
+	case SearchKindPORTFOLIO:
+		return true
+	case SearchKindRELEASE:
+		return true
+	case SearchKindSPRINT:
 		return true
 	case SearchKindTICKET:
 		return true
@@ -24469,13 +24478,13 @@ type SearchAllHit struct {
 	// AuthorId The account that made it; for entries, tickets and pages, null for the other kinds.
 	AuthorId *openapi_types.UUID `json:"author_id"`
 
-	// CollectionId An entry's collection, or that of the entry a comment or file is on.
+	// CollectionId An entry's or a sprint's collection, or that of the entry a comment or file is on.
 	CollectionId *openapi_types.UUID `json:"collection_id"`
 
 	// CreatedAt When it was made; for entries, tickets and pages, null for the other kinds.
 	CreatedAt *time.Time `json:"created_at"`
 
-	// HubId The hub it stands in; null for the workspace's own and for people.
+	// HubId The hub it stands in; null for the workspace's own, for portfolios and for people.
 	HubId *openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID  `json:"id"`
 
@@ -24492,7 +24501,7 @@ type SearchAllHit struct {
 	// Snippet The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for.
 	Snippet *string `json:"snippet"`
 
-	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's status, an inventory item's stage, a dashboard's sharing, a person's account status.
+	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory item's stage, a dashboard's sharing, a person's account status.
 	State *string `json:"state"`
 
 	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.

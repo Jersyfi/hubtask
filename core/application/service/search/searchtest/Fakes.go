@@ -62,6 +62,21 @@ func (n Names) Cis(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, err
 	return n.all(ctx, a)
 }
 
+// Portfolios answers the candidates.
+func (n Names) Portfolios(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
+// Releases answers the candidates.
+func (n Names) Releases(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
+// Sprints answers the candidates.
+func (n Names) Sprints(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
+	return n.all(ctx, a)
+}
+
 // People answers the candidates.
 func (n Names) People(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {
 	return n.all(ctx, a)
