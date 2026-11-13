@@ -509,7 +509,7 @@ otherwise.
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingToolbar` ·
-`BlockHandle` · `BoxPopover`
+`BlockHandle` · `BoxPopover` · `LiveBlock`
 
 The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
 §5; its mockups are the look), built before any screen uses them so that one pattern looks the same
@@ -600,7 +600,9 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
 
 * **`FloatingToolbar`**, **`BlockHandle`**, **`BoxPopover`** — the tools of a page while writing (S-1): the bar above
   selected words, "+" with the handle at the start of a line, the handle's menu being the way
-  that needs no dragging, and what "/" or "+" offers opened under that line. Neither is an element's overlay: both are anchored to a box (the
+  that needs no dragging, and what "/" or "+" offers opened under that line.
+* **`LiveBlock`** — work living in a page (S-4): the product's tile, what it is, *Live* in words
+  beside a mark and the way to the original over the live content. Neither is an element's overlay: both are anchored to a box (the
   selection, the line) through a phantom element `rectAnchor` lays over it inside the container
   (`anchor.ts`), so no call site measures where an overlay goes.
 
