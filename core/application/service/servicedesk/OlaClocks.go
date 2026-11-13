@@ -60,7 +60,11 @@ var _ eventbus.Subscriber = OLAClocks{}
 func (s OLAClocks) Name() string { return OLAClocksConsumer }
 
 // Wants reports whether an event can move a team's clock.
-func (s OLAClocks) Wants(eventType event.Type) bool { return SLAClocks{}.Wants(eventType) }
+// Beside the requester's events it hears the assignment's own: an OLA follows who holds the
+// entry, and the assignment use case announces that as ItemAssigned or ItemUnassigned.
+func (s OLAClocks) Wants(eventType event.Type) bool {
+	return eventType == event.ItemAssigned || eventType == event.ItemUnassigned || SLAClocks{}.Wants(eventType)
+}
 
 // Deliver moves the entry's OLA clocks.
 func (s OLAClocks) Deliver(ctx context.Context, envelope event.Envelope) error {
@@ -99,7 +103,7 @@ func (s OLAClocks) Deliver(ctx context.Context, envelope event.Envelope) error {
 	}
 	members := groupCache{groups: s.Groups, held: map[shared.ID][]shared.ID{}}
 	switch envelope.Type {
-	case event.ItemCreated, event.ItemUpdated, event.ItemRestored:
+	case event.ItemCreated, event.ItemUpdated, event.ItemRestored, event.ItemAssigned, event.ItemUnassigned:
 		if err := s.follow(ctx, clocks, item, policies, records, &members, now); err != nil {
 			return err
 		}
