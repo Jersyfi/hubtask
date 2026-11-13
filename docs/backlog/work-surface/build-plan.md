@@ -1,0 +1,124 @@
+# Work surface — build plan (second build)
+
+**State:** started 2026-11-13 on the branch `ux/work-surface-v2`, from `main` at `617bd76c5` plus the
+released concept ([`README.md`](./README.md)) and its mockups ([`mockups/`](./mockups/index.html)),
+nothing else. The first build (`ux/work-surface`, kept only as the local ref
+`archive/work-surface-attempt-1`) was discarded by the owner: the concept was right, the way it was cut
+into steps was not. This plan replaces the concept's §13 as the order of the build; everything else in
+the concept stays binding.
+
+## 1. What the owner asked for
+
+* The concept built **completely and in detail**, as one coherent platform: the products, every product
+  view and everything on it — menus, dropdowns, popups, dialogs, deeper pages — brought to the concept's
+  structure, layout and UI/UX, not only the 59 drawn scenes.
+* The mockups are the look. Where a view has no mockup, it follows the scene closest to it and the
+  rules (WB-, ET-, S-, W-, B-, Q-, C-, F-, IN-, PO-, §7 devices, §8 what stays bound). Where a mockup
+  contradicts another or the code, a working solution in the spirit of the whole is designed and built.
+* Functionality is kept and made to work; nothing faked, nothing claimed that is not measured.
+* Out of scope as before: the navigation (except *Beiträge*, B-2) and the layout of the configuration and
+  administration pages (the page system).
+* The end: a filled demo, and one file that shows every view old beside new to scroll through; then the
+  owner's feedback before any pull request.
+* The owner's later decisions of 2026-11-12 hold and are built into their areas: the desk template ships
+  an automation rule that sets priority from impact × urgency (configurable); the desk home shows "my
+  deadlines kept" for any number of deadline kinds over the handler's own tickets; lists, board columns
+  and workflows follow the three levels with a column ↔ status mapping, with the one-off repair (§5).
+
+## 2. Why the first build went wrong, and what this build does differently
+
+| First build | This build |
+|---|---|
+| Cut by use case (17 steps), each worker built a slice end to end and moved on | Cut by **foundation, then families of screens**: the shared pieces first, then each family of views built whole, so the same pattern looks the same everywhere |
+| Only drawn scenes were touched; the rest of each product stayed as it was | A **screen inventory** of every view, menu, dialog and deeper page in scope; each row names the scene or rule it follows and is ticked only when walked |
+| The builder judged its own result; "kept differences" piled up | A **separate reviewer** compares each family's screenshots with the rendered mockups and the inventory; a difference stays only with a reason the orchestrator accepts |
+| Workers spent their budget on bookkeeping and long test runs | Workers build; the e2e set runs at the end of a family, not per commit; documents are written once the family stands |
+| Models were redesigned mid-build | The model decisions are settled before their family starts (§5) |
+| No picture of "before" | Every in-scope screen is captured on `main` first, at three widths, with menus and dialogs open |
+
+## 3. Phases
+
+**Phase 0 — Groundwork (no product code).**
+1. A fresh demo: its own PostgreSQL, migrated by `main`, seeded with the showcase (`make demo`), an empty
+   workspace beside it, the story `TAMA-18` and the ticket `SA-12` filled to the edge as in the survey. A
+   database dump of that state, so the "before" can be redrawn at any time.
+2. The mockups rendered: every scene at 1440 (as drawn), 820 and 390, as PNG files beside a JSON index.
+3. The screen inventory: every route, tab, menu, dropdown, popup, dialog and deeper page of the work
+   surfaces in `apps/webapp`, each with the scene or rule it follows and the products it belongs to.
+4. "Before": every inventory row captured on `main` at 1280, 820 and 390.
+5. The e2e baseline on `main`: which suites already fail.
+
+**Phase 1 — Foundation.** Tokens (`product.*`, `chart.categorical.1–7`, `layout.rail`, `layout.reading`,
+`density.row.compact`); the design-system blocks of §5 built to the mockups' look and states: `ObjectHead`,
+`StatusButton`, `StateLozenge`, `PropertyRail`, `ProductBand`, `Widget`, `Composer`, `DataTable` (groups,
+density, hover act, stacked phone row with swipe), `QueryLine`, the jump marks, the self-folding section,
+the sheet patterns for the phone. Each with stories for every state; reviewed against mockup crops.
+
+**Phase 2 — Shared capabilities on the server, contract first.** The Hubtask query (one parser for both
+spellings onto `FilterNode`, fields per product, counts, the doors API/MCP/`hubctl`/OData); allowed and
+blocked transitions with reason codes and the read-only workflow picture (E-23); the list/board/workflow
+levels with the column ↔ status mapping and the repair; status names for the portal; the side findings
+of §10 (internal flag, OLA reassignment, OOXML upload, "0 on you", desk home). Each test-first, with a
+cross-tenant test per new repository method.
+
+**Phase 3 — Families of screens, each built whole, then reviewed.**
+
+| # | Family | Scenes | Also every view of the family without a scene |
+|---|---|---|---|
+| 3.1 | Objects in detail | `grammar`, `task`, `wf`, `deskentry`, `ci` | goal, release, agent, portfolio, activity, work package; pane and page; every menu and dialog on them |
+| 3.2 | Collections | `queue`, `board`, `viewcfg`, `sprint`, `backlog`, `qline` | outline, timeline, calendar, every collection kind, the queue's and the board's menus, bulk edit, capture in place |
+| 3.3 | Find and create | `palette`, `search`, `create` | every "new …" button the concept retires or keeps |
+| 3.4 | Homes | `today`, `hub`, `deskhome`, `homeplans`, `homeassets`, `homeagents`, `time`, `goals`, `emptygoals`, `emptytime`, `empty` | every product home's tabs and sub-pages, every empty state |
+| 3.5 | Dashboards | `dashboard`, `dedit`, `wedit`, `wcat` | key results counting a query, an automation's scope line |
+| 3.6 | The plan | `plan`, `gantt`, `planview`, `plantable`, `plandeps`, `planrel`, `plansprints` | the plan's dialogs, settings menu, exports |
+| 3.7 | Pages and posts | `pread`, `pcover`, `pwrite`, `phist`, `phome`, `pnew`, `posts`, `post`, `postwrite` | page details, permissions dialog, templates, the *Beiträge* section |
+| 3.8 | Whiteboards | `wboard`, `wsel`, `wsess`, `whome`, `wnew` | every panel and menu of the board |
+| 3.9 | Files | `viewer`, `wbfiles` | files on every object; the document-server row |
+| 3.10 | Portal | `portal`, `portaldir`, `portalext` | request form, request detail, approvals, knowledge |
+| 3.11 | Inventory | `invlist`, `ci`, `invmap`, `invcare`, `invreg` | every former sub-page under *Pflege*, alerts, devices |
+
+A family is done when: its inventory rows are walked at three widths beside their mockup or rule; the
+reviewer's findings are fixed; its use cases are written or updated with checks proven by tests; `make
+check` is green.
+
+**Phase 4 — Coherence.** One reviewer walks the whole inventory across families for consistency (heads,
+toolbars, menus, sheets, empty states, wording, spacing), the heights the concept measures (an entry ≤ 1.25
+screens on desktop, Today ≤ 1.5 to the switch on the phone), keyboard and focus, both themes. Findings
+fixed.
+
+**Phase 5 — Proof and documents.** The whole e2e set; the subject documents of the concept's §12 item 6;
+the three ADRs named to the owner; the use cases' `state:`, `checked_by:` and *Today* moved.
+
+**Phase 6 — Presentation.** The demo filled and running; one HTML file with every inventory row — before,
+after (and the mockup where one exists) — at the three widths, with what changed and why; then the owner's
+feedback.
+
+## 4. How the work is run
+
+* One builder at a time on this branch (one checkout); read-only research and reviews may run beside it.
+* Every builder gets: this plan, the concept, its family's rendered mockups and inventory rows, the rules
+  of `AGENTS.md`. It commits by concern with the `Task: work-surface` trailer, pushes nothing, and writes
+  where it stopped into §6 below.
+* The reviewer is never the builder. It reports differences with screenshots; the orchestrator decides.
+* The demo server is restarted only by its own PID; the demo's data is never discarded.
+
+## 5. The list, board and workflow model (owner's decision of 2026-11-12)
+
+Three levels per entry type in a collection, derived and never a setting: **L0** a list without columns
+and workflow — a checkbox in the list, *Offen/Erledigt* in the entry; **L1** board columns without a
+workflow — the columns are the states, exactly one done column, the server keeps done column and
+completion together through every door, the list shows a column chip instead of a checkbox; **L2** a
+workflow — the board keeps its own columns, each column shows one or more statuses (Jira-like mapping),
+unmapped statuses in a folded *Ohne Spalte* column that accepts drops, a drop takes the one possible step,
+asks among several, refuses none with a reason; the list shows the status chip. Switching levels always
+previews (column ↔ status, *Workflow aus diesen Spalten*, back to a list keeps completion). One control in
+the same place on the list row, the card, the entry head and the phone sheet. Owner's answers: open entries
+standing in a done column are completed by the repair; unmapped statuses are shown folded, never hidden;
+the L2 list chip shows the status; unused *Projekt* starting columns go (soft delete); every L1 board has
+exactly one done column. The repair is a one-off, idempotent job with a dry run, run by an administrator.
+
+## 6. Progress
+
+| Phase | State | Where it stands |
+|---|---|---|
+| 0 Groundwork | started 2026-11-13 | — |
