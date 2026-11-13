@@ -16,6 +16,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -60,6 +61,80 @@ type BucketWriter struct {
 	// Boards keeps one done column per board and places a deleted column's entries where the board
 	// says (domain-model.md §3.5a); unwired, a done mark is only the column's own.
 	Boards Boards
+	// Activity writes the history of an entry a moved done mark completes; unwired, none.
+	Activity ActivityJournal
+}
+
+const (
+	// causeDoneMoved is the history's why of an entry completed because the done mark moved onto
+	// the column it stands in.
+	causeDoneMoved = "DONE_COLUMN_MOVED"
+	// causeBoardRepair is the history's why of an entry the board repair completed.
+	causeBoardRepair = "BOARD_REPAIR"
+)
+
+// settleDone keeps column and completion together once the done mark moved from one column to
+// another (domain-model.md §3.5a): the completed entries of the old done column go with the mark,
+// and the open ones standing in the new done column are completed, each with its history.
+func (w BucketWriter) settleDone(
+	ctx context.Context, actor appshared.ActorContext, collectionID, from, to shared.ID, now time.Time,
+) error {
+	if w.Boards.Statuses == nil || to.IsZero() {
+		return nil
+	}
+	if !from.IsZero() {
+		moved, err := w.Boards.Statuses.PlaceByCompletion(ctx, collectionID, true, from, to, now)
+		if err != nil {
+			return err
+		}
+		if err := w.recordEntries(ctx, actor, collectionID, moved, domain.FieldBucketID, idOrNil(to)); err != nil {
+			return err
+		}
+	}
+	completed, err := w.Boards.Statuses.CompleteInColumn(ctx, collectionID, to, actor.AccountID, now)
+	if err != nil {
+		return err
+	}
+	return w.recordCompleted(ctx, actor, collectionID, completed, causeDoneMoved, now)
+}
+
+// recordCompleted writes what completing entries in bulk owes each of them: its change for offline
+// clients and its history - who: the actor, why: the cause. No completion event is announced, so
+// neither a notification nor a rule runs for an entry nobody completed by hand (§3.5a).
+func (w BucketWriter) recordCompleted(
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, entries []repository.MovedEntry, cause string, now time.Time,
+) error {
+	if err := w.recordEntries(ctx, actor, collectionID, entries, domain.FieldCompletion, map[string]any{
+		"is_completed": true, "completed_at": now.UTC(), "completed_by": actor.AccountID.String(),
+	}); err != nil {
+		return err
+	}
+	if w.Activity.Entries == nil {
+		return nil
+	}
+	for _, entry := range entries {
+		if err := w.Activity.RecordStep(ctx, actor, actor.TenantID, entry.ID, collectionID, activity.ItemCompleted,
+			activity.ChangeSet(activity.Full, activity.Field{Name: "cause", Detail: activity.WithValues, To: cause}), now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// recordEntries tells offline clients the field a bulk write set on each entry.
+func (w BucketWriter) recordEntries(
+	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, entries []repository.MovedEntry, field string, value any,
+) error {
+	for _, entry := range entries {
+		if err := w.Changes.Record(ctx, changelog.Change{
+			TenantID: actor.TenantID, Entity: itemTarget, EntityID: entry.ID, Op: changelog.Upsert,
+			ContainerID: collectionID, ActorID: actor.AccountID, HLC: w.HLC.Next(),
+			Field: field, Payload: map[string]any{field: value, "version": entry.Version},
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // UpdateBucket changes a column's own fields.
@@ -135,6 +210,9 @@ func (w BucketWriter) unmarkOthers(
 	cleared := false
 	for _, other := range others {
 		if err := w.setDone(ctx, actor, other.ID, &cleared, collection); err != nil {
+			return err
+		}
+		if err := w.settleDone(ctx, actor, collectionID, other.ID, keep, w.Clock.Now()); err != nil {
 			return err
 		}
 	}

@@ -1111,7 +1111,7 @@ func run() error {
 		Boards:  boards,
 		Buckets: buckets, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+		Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms, Activity: journal,
 	}
 
 	// Both verbs that change an existing label share one dependency set, for the reason the bucket

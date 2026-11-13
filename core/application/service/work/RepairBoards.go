@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	changelog "github.com/Jersyfi/hubtask/core/application/repository/sync"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -157,12 +156,10 @@ func (h RepairBoards) repairColumns(
 		return err
 	}
 	report.Completed += len(completed)
-	if err := h.recordEntries(ctx, actor, collection.ID, moved, domain.FieldBucketID, idOrNil(keep.ID)); err != nil {
+	if err := h.Columns.recordEntries(ctx, actor, collection.ID, moved, domain.FieldBucketID, idOrNil(keep.ID)); err != nil {
 		return err
 	}
-	return h.recordEntries(ctx, actor, collection.ID, completed, domain.FieldCompletion, map[string]any{
-		"is_completed": true, "completed_at": now.UTC(), "completed_by": actor.AccountID.String(),
-	})
+	return h.Columns.recordCompleted(ctx, actor, collection.ID, completed, causeBoardRepair, now)
 }
 
 // repairMapped gives each status no column shows a column of its own, at the right end, and puts
@@ -226,7 +223,7 @@ func (h RepairBoards) repairMapped(
 			return err
 		}
 		report.PlacedByStatus += len(placed)
-		if err := h.recordEntries(ctx, actor, collection.ID, placed, domain.FieldBucketID, idOrNil(column)); err != nil {
+		if err := h.Columns.recordEntries(ctx, actor, collection.ID, placed, domain.FieldBucketID, idOrNil(column)); err != nil {
 			return err
 		}
 	}
@@ -294,22 +291,6 @@ func (h RepairBoards) mark(ctx context.Context, actor appshared.ActorContext, co
 	}
 	wanted.Version = column.Version + 1
 	return w.recordChanges(ctx, wanted, collection, actor, changes)
-}
-
-// recordEntries tells offline clients the field the repair wrote on each entry.
-func (h RepairBoards) recordEntries(
-	ctx context.Context, actor appshared.ActorContext, collectionID shared.ID, entries []repository.MovedEntry, field string, value any,
-) error {
-	for _, entry := range entries {
-		if err := h.Columns.Changes.Record(ctx, changelog.Change{
-			TenantID: actor.TenantID, Entity: itemTarget, EntityID: entry.ID, Op: changelog.Upsert,
-			ContainerID: collectionID, ActorID: actor.AccountID, HLC: h.Columns.HLC.Next(),
-			Field: field, Payload: map[string]any{field: value, "version": entry.Version},
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // recordAudit writes the run's evidence: counts only, nothing a person typed (rule 10).

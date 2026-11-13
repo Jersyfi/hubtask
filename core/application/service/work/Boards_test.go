@@ -10,6 +10,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -42,6 +43,22 @@ type mapping struct {
 	placed   []placedByStatus
 	cells    []domain.BoardCell
 	statused []placedByStatus
+	// completedIn are the columns whose open entries were completed.
+	completedIn []shared.ID
+}
+
+// completedBy checks that a bulk completion wrote the entry's history: completed, by the actor,
+// with the cause.
+func completedBy(t *testing.T, history *journal, cause string) {
+	t.Helper()
+	for _, entry := range history.entries {
+		if entry.Verb == activity.ItemCompleted && entry.ItemID == taskID && entry.Actor.ID == actor().AccountID {
+			if got, _ := entry.ChangeSet["cause"].(map[string]any); got["to"] == cause {
+				return
+			}
+		}
+	}
+	t.Errorf("no completion history with cause %s: %+v", cause, history.entries)
 }
 
 // unplaced marks a PlaceUnplaced call among the placements.
@@ -58,8 +75,9 @@ type placedByStatus struct {
 func (m *mapping) Collections(context.Context) ([]shared.ID, error) {
 	return []shared.ID{collectionID}, nil
 }
-func (m *mapping) CompleteInColumn(context.Context, shared.ID, shared.ID, shared.ID, time.Time) ([]repository.MovedEntry, error) {
-	return nil, nil
+func (m *mapping) CompleteInColumn(_ context.Context, _ shared.ID, column shared.ID, _ shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
+	m.completedIn = append(m.completedIn, column)
+	return []repository.MovedEntry{{ID: taskID, Version: 5}}, nil
 }
 func (m *mapping) EntriesOnBoard(context.Context, shared.ID) (int, error) { return 0, nil }
 
@@ -372,7 +390,10 @@ func TestOneDoneColumnPerBoard(t *testing.T) {
 	marked := true
 	h := newWriterHarness()
 	threeColumnBoard(h.buckets)
-	h.update.Writer.Boards = Boards{Buckets: h.buckets}
+	board := &mapping{}
+	history := &journal{}
+	h.update.Writer.Boards = Boards{Buckets: h.buckets, Statuses: board}
+	h.update.Writer.Activity = ActivityJournal{Entries: history, IDs: &ids{}}
 	if _, err := h.update.Execute(t.Context(), actor(), UpdateBucketCommand{
 		BucketID: doingColumn, Attributes: domain.BucketAttributes{IsDoneBucket: &marked},
 	}); err != nil {
@@ -389,6 +410,15 @@ func TestOneDoneColumnPerBoard(t *testing.T) {
 	if !unmarked {
 		t.Error("the mark was taken off without a write against its version")
 	}
+	// Done column and completion at once: the old done column's entries go with the mark, and the
+	// open ones in the new done column are completed, each with its history.
+	if len(board.placed) != 1 || board.placed[0] != (placedByStatus{completed: true, from: doneColumn, column: doingColumn}) {
+		t.Errorf("placed %+v, want the completed entries of Erledigt into In Arbeit", board.placed)
+	}
+	if len(board.completedIn) != 1 || board.completedIn[0] != doingColumn {
+		t.Errorf("completed in %v, want In Arbeit", board.completedIn)
+	}
+	completedBy(t, history, causeDoneMoved)
 
 	cleared := false
 	_, err := h.update.Execute(t.Context(), actor(), UpdateBucketCommand{
@@ -402,20 +432,41 @@ func TestOneDoneColumnPerBoard(t *testing.T) {
 // Door: deleting a column. The done column names its successor, which its entries go into; under a
 // mapped workflow the entries go by status, so into *Ohne Spalte*.
 func TestDeletingAColumnKeepsTheBoardCoupled(t *testing.T) {
-	t.Run("the done column", func(t *testing.T) {
+	t.Run("the done column asks which column means done instead", func(t *testing.T) {
 		h, deleter := newDeleteHarness()
 		threeColumnBoard(h.buckets)
 		deleter.Writer.Boards = Boards{Buckets: h.buckets}
-		deletion, err := deleter.Execute(t.Context(), actor(), DeleteBucketCommand{BucketID: doneColumn})
+		_, err := deleter.Execute(t.Context(), actor(), DeleteBucketCommand{BucketID: doneColumn})
+		var coded *shared.Error
+		if !errors.As(err, &coded) || coded.DetailCode != "buckets.done_successor_required" ||
+			coded.Params["suggested_bucket_id"] != doingColumn.String() {
+			t.Fatalf("deleting the done column without a successor: %v", err)
+		}
+		if h.buckets.stored[doneColumn].DeletedAt != nil {
+			t.Error("the refused deletion took the column off")
+		}
+	})
+	t.Run("the done column with its successor", func(t *testing.T) {
+		h, deleter := newDeleteHarness()
+		threeColumnBoard(h.buckets)
+		board := &mapping{}
+		history := &journal{}
+		deleter.Writer.Boards = Boards{Buckets: h.buckets, Statuses: board}
+		deleter.Writer.Activity = ActivityJournal{Entries: history, IDs: &ids{}}
+		deletion, err := deleter.Execute(t.Context(), actor(), DeleteBucketCommand{BucketID: doneColumn, NewDoneBucketID: todoColumn})
 		if err != nil {
 			t.Fatalf("deleting: %v", err)
 		}
-		if deletion.DoneBucketID != doingColumn || deletion.TargetBucketID != doingColumn {
+		if deletion.DoneBucketID != todoColumn || deletion.TargetBucketID != todoColumn {
 			t.Errorf("successor %s, entries into %s", deletion.DoneBucketID, deletion.TargetBucketID)
 		}
-		if !h.buckets.stored[doingColumn].IsDoneBucket {
+		if !h.buckets.stored[todoColumn].IsDoneBucket {
 			t.Error("the successor carries no done mark")
 		}
+		if len(board.completedIn) != 1 || board.completedIn[0] != todoColumn {
+			t.Errorf("completed in %v, want the successor's open entries", board.completedIn)
+		}
+		completedBy(t, history, causeDoneMoved)
 	})
 	t.Run("an open column passes over the done column", func(t *testing.T) {
 		h, deleter := newDeleteHarness()

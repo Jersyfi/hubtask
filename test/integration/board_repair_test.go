@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"testing"
 
+	activityrepo "github.com/Jersyfi/hubtask/core/application/repository/activity"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -61,6 +62,7 @@ func boardRepair(ctx context.Context, t *testing.T) work.RepairBoards {
 			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(),
 			Audit: postgres.NewAuditSink(ids), UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
 			Text: textadapter.Forms{}, Boards: boards,
+			Activity: work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 		},
 	}
 }
@@ -213,6 +215,16 @@ func TestTheBoardRepair(t *testing.T) {
 	t.Run("L1: open entries in the done column are completed", func(t *testing.T) {
 		if entry := readEntry(ctx, t, tenantA, openInDone); entry.BucketID != done.ID || !entry.Completion.IsCompleted {
 			t.Errorf("in %s, done %v", entry.BucketID, entry.Completion.IsCompleted)
+		}
+		// History stays truthful: completed by the administrator, because of the repair.
+		history := historyOf(ctx, t, tenantA, openInDone, activityrepo.Page{Size: 10})
+		found := false
+		for _, entry := range history.Entries {
+			cause, _ := entry.ChangeSet["cause"].(map[string]any)
+			found = found || (entry.Verb == "item.completed" && entry.Actor.ID == authorA && cause["to"] == "BOARD_REPAIR")
+		}
+		if !found {
+			t.Errorf("no completion in the history by the administrator for the repair: %+v", history.Entries)
 		}
 	})
 	t.Run("L2: a column per unmapped status, entries placed by status", func(t *testing.T) {
