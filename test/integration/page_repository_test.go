@@ -700,7 +700,7 @@ func TestAPageUnderATakenIdentifierIsRefusedAsTaken(t *testing.T) {
 	}
 }
 
-// Among pages that match equally well, the verified one comes first - also against a newer
+// UC-WRK-18 check 10. Among pages that match equally well, the verified one comes first - also against a newer
 // unverified one; a page past its review date counts as unverified. The order changes, not what
 // is found (E-8, UC-DOC-01 check 3).
 func TestAVerifiedPageRanksBeforeAnEquallyGoodUnverifiedOne(t *testing.T) {
