@@ -56,14 +56,14 @@
 </script>
 
 {#if look === 'tiles'}
-  <ul class="tiles" aria-label={t('app.whiteboards.templates')}>
+  <ul class="tiles" class:row={only !== undefined} aria-label={t('app.whiteboards.templates')}>
     {#each offered as each (each)}
       {@const objects = previews.get(each) ?? []}
       <li data-board-start={each}>
         <button type="button" class="tile" aria-pressed={onpick ? undefined : chosen === each} onclick={() => { chosen = each; onpick?.(each); }}>
           <span class="preview" aria-hidden="true">{#if objects.length > 0}<BoardThumb elements={objects} />{/if}</span>
           <span class="name">{nameOf(each)}</span>
-          <span class="hint">{hintOf(each)}</span>
+          {#if only === undefined}<span class="hint">{hintOf(each)}</span>{/if}
         </button>
       </li>
     {/each}
@@ -98,13 +98,13 @@
   .templates { display: grid; gap: var(--sp-150); }
   .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--sp-1600) * 2.4), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--sp-1600) * 1.4)), 1fr));
     gap: var(--sp-150);
     margin: 0;
     padding: 0;
     list-style: none;
   }
-  .tile {
+    .tile {
     display: grid;
     grid-template-rows: auto auto 1fr;
     align-content: start;

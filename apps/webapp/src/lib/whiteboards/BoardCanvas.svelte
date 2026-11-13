@@ -2372,7 +2372,7 @@
   }
   .blank :global(button) { pointer-events: auto; }
   .blank-title { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); color: var(--text-primary); }
-  .blank.beginning { margin-block-start: var(--sp-1000); }
+  .blank.beginning { inset-block: calc(var(--sp-1600) + var(--sp-400)) auto; margin-block: 0; }
   .keys { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--sp-050); }
   .begin {
     position: absolute;
