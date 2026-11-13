@@ -3544,7 +3544,8 @@ paths:
         are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own
         permissions. A hub with a desk and no queue view answers the four standard queues by
         `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over
-        the open entries of its desks; a hub with neither answers none. A count that takes longer
+        the open entries of its desks; a hub with neither answers none. `desks` names the hub's
+        desks either way. A count that takes longer
         than two seconds, or whose view anchors something the caller may not read, is null. Needs
         READ on the hub and the service desk switched on.
       responses:
@@ -36320,6 +36321,13 @@ components:
       required: [data]
       properties:
         data: { type: array, items: { $ref: "#/components/schemas/HubQueue" } }
+        desks:
+          type: array
+          items: { type: string, format: uuid }
+          description: >
+            The hub's collections that act as a desk - those offering a type the requester portal
+            takes - over which the standard queues count; empty where the hub has none. A client
+            names a desk by this, not by reading the entry types itself.
 
     HubQueue:
       type: object

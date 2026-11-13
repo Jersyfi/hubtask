@@ -4072,6 +4072,7 @@ class SavedViewUpdate(TypedDict, total=False):
 
 class HubQueueList(TypedDict, total=False):
     data: Required[list["HubQueue"]]
+    desks: list[str]
 
 class HubQueue(TypedDict, total=False):
     view_id: Required[str | None]

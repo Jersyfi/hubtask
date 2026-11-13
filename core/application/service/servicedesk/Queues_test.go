@@ -138,9 +138,13 @@ func queueView(id, scope shared.ID, key, name string, position int) view.SavedVi
 // of them are at risk or breached beside it.
 func TestAHubWithADeskAnswersTheStandardQueues(t *testing.T) {
 	counter := &counting{}
-	queues, err := queueUseCase(nil, portalTypes{}, counter, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
+	answer, err := queueUseCase(nil, portalTypes{}, counter, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
 	if err != nil {
 		t.Fatal(err)
+	}
+	queues := answer.Queues
+	if len(answer.Desks) != 1 || answer.Desks[0] != queueDesk {
+		t.Errorf("the hub's desks are not named: %v", answer.Desks)
 	}
 	want := []string{QueueMine, QueueUnassigned, QueueBreaching, QueueOpen}
 	if len(queues) != len(want) {
@@ -183,11 +187,12 @@ func TestAHubsQueueViewsAreCountedByTheirOwnFilter(t *testing.T) {
 		queueView(second, elsewhere, "theirs", "Theirs", 2),
 	}
 	counter := &counting{}
-	queues, err := queueUseCase(views, portalTypes{none: true}, counter, keptOut{hub: elsewhere}).
+	answer, err := queueUseCase(views, portalTypes{none: true}, counter, keptOut{hub: elsewhere}).
 		Execute(context.Background(), reader(), queueHub)
 	if err != nil {
 		t.Fatal(err)
 	}
+	queues := answer.Queues
 	if len(queues) != 2 || queues[0].ViewID != first || queues[0].Name != "Mine" || !queues[0].Counted ||
 		queues[1].ViewID != second || queues[1].Counted {
 		t.Fatalf("answered %+v", queues)
@@ -197,9 +202,13 @@ func TestAHubsQueueViewsAreCountedByTheirOwnFilter(t *testing.T) {
 	}
 
 	slow := &counting{slow: true}
-	queues, err = queueUseCase(views[:1], portalTypes{}, slow, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
+	answer, err = queueUseCase(views[:1], portalTypes{}, slow, &gate{allow: true}).Execute(context.Background(), reader(), queueHub)
+	queues = answer.Queues
 	if err != nil || len(queues) != 1 || queues[0].Counted {
 		t.Fatalf("a count past its budget answered %+v, %v", queues, err)
+	}
+	if len(answer.Desks) != 1 || answer.Desks[0] != queueDesk {
+		t.Errorf("a hub with queue views names its desks too: %v", answer.Desks)
 	}
 	out := HubQueueOutput(queues[0])
 	if out["count"] != nil || out["at_risk"] != nil || out["view_id"] != first.String() {
@@ -210,10 +219,10 @@ func TestAHubsQueueViewsAreCountedByTheirOwnFilter(t *testing.T) {
 // A hub without a desk and without queue views has no queues; a reader who may not read the hub
 // is told it does not exist.
 func TestAHubWithoutADeskHasNoQueues(t *testing.T) {
-	queues, err := queueUseCase(nil, portalTypes{none: true}, &counting{}, &gate{allow: true}).
+	answer, err := queueUseCase(nil, portalTypes{none: true}, &counting{}, &gate{allow: true}).
 		Execute(context.Background(), reader(), queueHub)
-	if err != nil || len(queues) != 0 {
-		t.Fatalf("answered %+v, %v", queues, err)
+	if err != nil || len(answer.Queues) != 0 || len(answer.Desks) != 0 {
+		t.Fatalf("answered %+v, %v", answer, err)
 	}
 	if _, err := queueUseCase(nil, portalTypes{}, &counting{}, &gate{allow: false}).
 		Execute(context.Background(), reader(), queueHub); !errors.Is(err, shared.ErrNotFound) {
@@ -236,6 +245,9 @@ func TestTheHubsQueuesThroughTheDoor(t *testing.T) {
 	if len(data) != 4 || data[0]["key"] != QueueMine || data[0]["view_id"] != nil || data[0]["name"] != nil ||
 		data[0]["count"] != 7 || data[0]["at_risk"] != 1 {
 		t.Fatalf("answered %v", data)
+	}
+	if desks, _ := out["desks"].([]string); len(desks) != 1 || desks[0] != queueDesk.String() {
+		t.Errorf("the desks are not answered: %v", out["desks"])
 	}
 }
 

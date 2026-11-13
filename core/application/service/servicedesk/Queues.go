@@ -63,11 +63,23 @@ type HubQueue struct {
 	Counted bool
 }
 
-// Execute answers the hub's queues in their order.
-func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]HubQueue, error) {
+// HubQueues is the answer: the queues in their order and the hub's desks, which a client names
+// a desk by rather than reading the entry types itself.
+type HubQueues struct {
+	Queues []HubQueue
+	Desks  []shared.ID
+}
+
+// Execute answers the hub's queues in their order and its desks.
+func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (HubQueues, error) {
 	if err := h.Desk.hub(ctx, actor, hubID, service.PermissionRead, QueuesReadAction, deskRead); err != nil {
-		return nil, err
+		return HubQueues{}, err
 	}
+	queues, desks, err := h.queues(ctx, actor, hubID)
+	return HubQueues{Queues: queues, Desks: desks}, err
+}
+
+func (h ListHubQueues) queues(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]HubQueue, []shared.ID, error) {
 
 	var (
 		saved []view.SavedView
@@ -75,19 +87,19 @@ func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext
 	)
 	err := h.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		if saved, err = h.Views.ListHubQueues(ctx, actor.AccountID, hubID); err != nil || len(saved) > 0 {
+		if saved, err = h.Views.ListHubQueues(ctx, actor.AccountID, hubID); err != nil {
 			return err
 		}
 		desks, err = h.desksOf(ctx, actor, hubID)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	within, err := atRisk()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	queues := make([]HubQueue, 0, max(len(saved), 4))
 	if len(saved) > 0 {
@@ -98,27 +110,27 @@ func (h ListHubQueues) Execute(ctx context.Context, actor appshared.ActorContext
 				err = h.count(ctx, actor, spec, within, &queue)
 			}
 			if err != nil && !unanswerable(err) {
-				return nil, err
+				return nil, nil, err
 			}
 			queues = append(queues, queue)
 		}
-		return queues, nil
+		return queues, desks, nil
 	}
 	if len(desks) == 0 {
-		return queues, nil
+		return queues, desks, nil
 	}
 	for _, key := range []string{QueueMine, QueueUnassigned, QueueBreaching, QueueOpen} {
 		spec, err := StandardQueue(key, hubID, desks)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		queue := HubQueue{Key: key}
 		if err := h.count(ctx, actor, spec, within, &queue); err != nil && !unanswerable(err) {
-			return nil, err
+			return nil, nil, err
 		}
 		queues = append(queues, queue)
 	}
-	return queues, nil
+	return queues, desks, nil
 }
 
 func (h ListHubQueues) count(
@@ -288,7 +300,8 @@ func (h ListHubQueues) Descriptor() usecase.Descriptor {
 		Summary: "Lists a hub's queues with their counts: the hub's saved views marked as queues the caller " +
 			"sees, by their place, each with how many entries its query holds and how many of them are " +
 			"AT_RISK or BREACHED, counted with the caller's own permissions. A hub with a desk and no queue " +
-			"view answers the standard queues mine, unassigned, breaching and open by key; a count that " +
+			"view answers the standard queues mine, unassigned, breaching and open by key; desks names the " +
+			"hub's collections that act as a desk either way; a count that " +
 			"cannot be made in two seconds, or whose view the caller cannot ask, is null.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  deskRead, ReadOnly: true,
@@ -301,15 +314,19 @@ func (h ListHubQueues) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			queues, err := h.Execute(ctx, actor, hub)
+			answer, err := h.Execute(ctx, actor, hub)
 			if err != nil {
 				return nil, err
 			}
-			data := make([]usecase.Output, 0, len(queues))
-			for _, queue := range queues {
+			data := make([]usecase.Output, 0, len(answer.Queues))
+			for _, queue := range answer.Queues {
 				data = append(data, HubQueueOutput(queue))
 			}
-			return usecase.Output{"data": data}, nil
+			desks := make([]string, 0, len(answer.Desks))
+			for _, desk := range answer.Desks {
+				desks = append(desks, desk.String())
+			}
+			return usecase.Output{"data": data, "desks": desks}, nil
 		}),
 	}, queuesTarget)
 }

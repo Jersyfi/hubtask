@@ -18754,6 +18754,9 @@ type HubQueue struct {
 // HubQueueList defines model for HubQueueList.
 type HubQueueList struct {
 	Data []HubQueue `json:"data"`
+
+	// Desks The hub's collections that act as a desk - those offering a type the requester portal takes - over which the standard queues count; empty where the hub has none. A client names a desk by this, not by reading the entry types itself.
+	Desks *[]openapi_types.UUID `json:"desks,omitempty"`
 }
 
 // HubTemplatePage defines model for HubTemplatePage.
@@ -38524,7 +38527,7 @@ type ClientInterface interface {
 
 	// ListHubQueues A hub's queues with their counts
 	//
-	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 	//
 	// Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
 	ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -56220,7 +56223,7 @@ func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body 
 
 // ListHubQueues A hub's queues with their counts
 //
-// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 //
 // Corresponds with GET /hubs/{hubId}/queues (the `ListHubQueues` operationId).
 func (c *Client) ListHubQueues(ctx context.Context, hubId HubId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -115501,7 +115504,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListHubQueuesWithResponse A hub's queues with their counts
 	//
-	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -173637,7 +173640,7 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 
 // ListHubQueuesWithResponse A hub's queues with their counts
 //
-// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
+// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //

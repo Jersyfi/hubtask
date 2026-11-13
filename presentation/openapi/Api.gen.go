@@ -18748,6 +18748,9 @@ type HubQueue struct {
 // HubQueueList defines model for HubQueueList.
 type HubQueueList struct {
 	Data []HubQueue `json:"data"`
+
+	// Desks The hub's collections that act as a desk - those offering a type the requester portal takes - over which the standard queues count; empty where the hub has none. A client names a desk by this, not by reading the entry types itself.
+	Desks *[]openapi_types.UUID `json:"desks,omitempty"`
 }
 
 // HubTemplatePage defines model for HubTemplatePage.
