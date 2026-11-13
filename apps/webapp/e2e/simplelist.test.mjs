@@ -21,6 +21,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, GROCERIES, GROCERY_ITEMS, GROCERY_LABELS, PAGE, pushed, resetGroceries, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -229,8 +230,11 @@ test('the entry page shows and changes the amount where the list offers one (che
   assert.ok(writes.some((write) => write.method === 'PATCH' && write.path.endsWith(idOf('milk')) && write.body?.amount === '3'));
 
   // A collection that does not offer an amount draws no such row.
+  // Its empty fields wait under the folded More fields; unfolded, an amount is still not among them.
   await page.goto(`${served.origin}/items/01a0e2e0-0000-7000-8000-000000000033`);
-  await page.locator('[data-detail]').first().waitFor({ state: 'attached' });
+  await page.getByRole('button', { name: /^All properties/ }).click();
+  await unfoldFields(page);
+  await page.getByRole('dialog').locator('[data-detail]').first().waitFor({ state: 'attached' });
   assert.equal(await page.locator('[data-detail="amount"]').count(), 0);
   await context.close();
 });

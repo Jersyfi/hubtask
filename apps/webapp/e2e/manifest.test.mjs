@@ -27,6 +27,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, MANIFEST, stub } from './fixture.mjs';
+import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ENTRY = ITEMS[0];
@@ -112,13 +113,15 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   answers = true;
   await surface.getByRole('button', { name: 'Try again' }).click();
 
-  // No reload. The rows arrive because the manifest did.
-  await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
+  // No reload. The rows arrive because the manifest did - the set ones in Details, the empty
+  // ones under the rail's folded More fields.
+  await page.locator('[data-detail], button[aria-controls$="-more-fields"]').first().waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('asking again from the bar did not bring the entry back'));
   await page.keyboard.press('Escape');
+  await unfoldFields(page);
   assert.deepEqual(
-    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail'))),
-    ROWS,
+    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')).sort()),
+    [...ROWS].sort(),
   );
   // The pages' editor is its own chunk (E-3): it arrives a moment after the rows.
   await page.getByRole('textbox', { name: 'Notes' }).waitFor({ timeout: 10_000 }).catch(() => assert.fail('the notes did not come back'));
@@ -212,11 +215,12 @@ test('chromium: a stale bearer signs the reader out, and the sign-in reads the m
   // entry drew as though its type carried nothing until somebody reloaded.
   await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   assert.equal(new URL(page.url()).pathname, `/items/${ENTRY.id}`, 'the reader was not returned to the entry');
-  await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
+  await page.locator('[data-detail], button[aria-controls$="-more-fields"]').first().waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('the manifest was not read again as the signed-in actor'));
+  await unfoldFields(page);
   assert.deepEqual(
-    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail'))),
-    ROWS,
+    await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')).sort()),
+    [...ROWS].sort(),
   );
   // Nothing is left over from the failure: the mark is quiet again.
   assert.equal(await markOf(page).locator('.dot').count(), 0, 'the bar still says the installation is unread');
