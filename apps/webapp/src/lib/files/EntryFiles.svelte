@@ -11,7 +11,7 @@
   // folders instead of pasting it, and on a Nextcloud may link a read-only share (UC-INT-17).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, Checkbox, Dialog, Icon, IconButton, Input, Select, Stack, type SelectOption } from '@hubtask/design-system/components';
+  import { Badge, Button, Checkbox, Dialog, IconButton, Input, Select, Stack, VisuallyHidden, type SelectOption } from '@hubtask/design-system/components';
   import FailureNote from '../frame/FailureNote.svelte';
   import type { FileLink, FileLinkList, FileStoreConnection, FileStoreItem } from '@hubtask/sync-engine';
 
@@ -102,14 +102,13 @@
 {#if mayChange || links.length > 0}
   <section class="files" aria-labelledby="entry-files-head-{itemId}" data-entry-files>
     <div class="head">
-      <h3 id="entry-files-head-{itemId}" class="title"><Icon name="paperclip" size="sm" />{t('app.files.title')}</h3>
+      <!-- The section above says *Files*; this names the linked ones for a screen reader only. -->
+      <h3 id="entry-files-head-{itemId}" class="title"><VisuallyHidden>{t('app.files.title')}</VisuallyHidden></h3>
       {#if mayChange}
         <Button size="sm" tone="subtle" icon="plus" data-link-file onclick={open}>{t('app.files.add')}</Button>
       {/if}
     </div>
-    {#if links.length === 0}
-      <p class="quiet">{t('app.files.none')}</p>
-    {:else}
+    {#if links.length > 0}
       <ul class="rows">
         {#each links as each (each.id)}
           {@const href = fileHref(each.address)}

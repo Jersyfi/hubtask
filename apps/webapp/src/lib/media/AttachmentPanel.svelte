@@ -19,7 +19,7 @@
   import { untrack } from 'svelte';
 
   import {
-    Button,
+    IconButton,
     ListRow,
     LoadMore,
     Stack,
@@ -174,21 +174,18 @@
     {#if readFailure}<p class="failure" role="alert">{readFailure.message}</p>{/if}
 
     {#if rows.length === 0}
-      <p class="quiet">{t('app.media.attachments_none')}</p>
+      {#if !isChangeable}<p class="quiet">{t('app.media.attachments_none')}</p>{/if}
     {:else}
       <ul class="files">
         {#each rows as object (object.id)}
           <li>
             <ListRow>
               {#snippet trailing()}
+                <!-- One row a file (ET-4): its acts as icons, named for a screen reader. -->
                 <div class="actions">
-                  <Button size="sm" tone="secondary" onclick={() => void download(object)}>
-                    {t('app.media.download')}
-                  </Button>
+                  <IconButton icon="download" size="sm" tone="subtle" label={t('app.media.download')} onclick={() => void download(object)} />
                   {#if isChangeable}
-                    <Button size="sm" tone="secondary" onclick={() => void detach(object)}>
-                      {t('app.media.detach')}
-                    </Button>
+                    <IconButton icon="x" size="sm" tone="subtle" label={t('app.media.detach')} onclick={() => void detach(object)} />
                   {/if}
                 </div>
               {/snippet}
@@ -212,7 +209,6 @@
     {#if isChangeable}
       <UploadField
         label={t('app.media.attachments')}
-        hint={t('app.media.attach_hint')}
         chooseLabel={t('app.media.attach_choose')}
         dropLabel={t('app.media.drop')}
         cancelLabel={t('app.media.cancel')}
