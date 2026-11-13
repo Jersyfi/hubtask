@@ -135,3 +135,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0100](./ADR-0100-a-hub-level-in-the-navigation-and-one-content-tree.md) | A hub level in the navigation, and one content tree | accepted | Design, navigation |
 | [0101](./ADR-0101-one-page-system.md) | One page system: page kinds, two levels, the dialog ladder | accepted | Design system, clients, API |
 | [0102](./ADR-0102-one-query-language.md) | One query language: the Hubtask query, two spellings onto the filter tree | accepted | Domain, API, clients |
+| [0103](./ADR-0103-a-board-keeps-one-source-of-done.md) | A board maps its columns to statuses and keeps one source of done | accepted | Domain, application, clients |

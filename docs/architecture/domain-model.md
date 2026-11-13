@@ -141,7 +141,7 @@ change is a **draft** beside the shape in force, which stays in force until the 
 type, or for every type: a collection's row wins over its hub's, a type's over the row for every
 type (`work.ResolveWorkflow`); where none resolves, no workflow runs. An entry carries its
 **status** (`work_item.status`, null where none runs) and **in a workflow collection completion
-follows the status's category** (D-02): one gate (`WorkflowGate`) holds every move - `TakeStep`,
+follows the status's category** (D-02; a board's columns, §3.5a): one gate (`WorkflowGate`) holds every move - `TakeStep`,
 `CompleteWorkItem` and `ReopenWorkItem` take a step into or out of a done status the person may
 take or are refused (`workflows.step_not_offered`, `workflows.step_not_allowed`,
 `workflows.step_refused` naming each empty field and failing check, `workflows.no_step_to_done`),
@@ -738,7 +738,7 @@ stateDiagram-v2
 
 | Entity | Key fields | Rules |
 |---|---|---|
-| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket`, `colorToken?` | The "list" of the requirements. `isDoneBucket` marks the column that means finished; it is stored and reported, and the server completes nothing because of it. A colour, where set, is one of the ten label tokens, as a label's |
+| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket`, `colorToken?` | The "list" of the requirements. `isDoneBucket` marks the column that means finished: without a workflow a board has exactly one, and the server keeps it and completion together (§3.5a). A colour, where set, is one of the ten label tokens, as a label's |
 | `Label` | `collectionId`, `name`, `colorToken`, `description?` | The colour is required and is one of the ten label tokens (`LabelTokens.go`), never a colour value, so clients theme it ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?`, `internal` | An internal note (UC-SVC-04) is the team's: every reader of the entry reads it, a requester in the portal never does; a reply to one is internal, and the flag is fixed when written. Only the author or an admin may change it. Deletion erases the body and keeps identifier, author and timestamps, so the thread stays readable and no removed text is retained — except under a legal hold, where the row keeps the text, no read serves it, and the retention pass clears it once no hold covers it ([data-retention.md](./data-retention.md) §4) |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a message code (below) |
@@ -778,6 +778,24 @@ Rules of the history:
 * A container has no `ActivityEntry` (it is keyed on `itemId`, read only by
   `/items/{id}/activity`); what a hub or a collection changed is in the audit trail and the change
   log.
+
+### 3.5a Lists, boards and workflows
+
+The owner's decision of 2026-11-12 (ADR-0103). Each entry type in a collection stands at one of
+three levels, **derived from what the collection has and never stored** (`work.StateModeOf`):
+
+| Level | `StateMode` | What decides where an entry stands |
+|---|---|---|
+| L0 | `NONE` | Completion alone: open or done. |
+| L1 | `COLUMNS` | The board's columns (tasks only, I-W6). **Exactly one done column**, and the server keeps column and completion together through every door: entering the done column completes, leaving it reopens; completing moves into it, reopening out of it into the first column (`Board.Coupled`). An entry without a column reads as the first column when open and the done column when completed. Deleting the done column names its successor. |
+| L2 | `WORKFLOW` | The status (D-02). Each column shows one or more statuses (`bucket_status`), a status at most one column per board; a column is done iff all its statuses are DONE. A status no column shows stands in the virtual column *Ohne Spalte*. The column follows the status on every step and is never set by hand (`board.step_required`). |
+
+A **drop** onto a column (`Board.PlanDrop`) moves at L1; at L2 it takes the one step the person may
+take into a status of the column, offers the choice among several, or is refused with a reason
+(`board.no_step`, `board.step_blocked`, `board.column_without_status`). A mapping is proposed by
+`work.DefaultMapping`: the same name first, then the done column takes the DONE statuses, the first
+column the initial one, the next empty column the first IN_PROGRESS; the rest stay unmapped with a
+suggestion. Switching levels always previews.
 
 ### 3.6 Automatic assignment
 
