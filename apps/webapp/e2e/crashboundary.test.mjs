@@ -59,12 +59,14 @@ test('chromium: 1280 px — the start screen throwing while drawing leaves the f
   t.after(() => browser.close());
   const { page, close } = await signedIn(browser, 1280, 1000);
   t.after(close);
+  // Today's heading greets by the hour where the reader is, and only that greeting reads the hour
+  // in the 24-hour cycle; that one construction throws while Today draws. Nothing else is touched.
   await page.addInitScript(() => {
-    const Original = window.URLSearchParams;
-    window.URLSearchParams = class extends Original {
-      constructor(init) {
-        if (init && typeof init === 'object' && init.f === 'who:me is:open due:today') throw new TypeError('forced for the test');
-        super(init);
+    const Original = Intl.DateTimeFormat;
+    Intl.DateTimeFormat = class extends Original {
+      constructor(locales, options) {
+        if (options && options.hourCycle === 'h23' && options.hour === 'numeric' && options.minute === undefined) throw new TypeError('forced for the test');
+        super(locales, options);
       }
     };
   });
