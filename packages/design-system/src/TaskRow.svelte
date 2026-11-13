@@ -61,6 +61,11 @@
     /** Labels, a badge, a menu. Not part of the row's own activation. */
     trailing?: Snippet;
     /**
+     * The state control in the checkbox's place, where the entry is not completed by a tick: a
+     * column chip on a board without a workflow, a status chip under one (build-plan §5).
+     */
+    state?: Snippet;
+    /**
      * A change this device made and the server has not yet confirmed: the row carries
      * the `pending` motion role beside a word, so it reads without motion too. Resolved text -
      * "Waiting to be sent" - and absent for an entry the server has.
@@ -86,6 +91,7 @@
     onToggleComplete,
     onToggleExpand,
     trailing,
+    state,
     pendingLabel,
     isOneLine = false,
   }: Props = $props();
@@ -125,13 +131,17 @@
            a screen reader announces as checked or not. Its label is announced and not drawn — the
            title beside it is what the reader sees, and "Completed" printed against every row would
            be noise on screen and nothing in the tree. -->
-      <Checkbox
-        label={completeLabel}
-        isLabelHidden
-        checked={isCompleted}
-        disabledReason={completeDisabledReason}
-        onchange={() => onToggleComplete?.()}
-      />
+      {#if state}
+        {@render state()}
+      {:else}
+        <Checkbox
+          label={completeLabel}
+          isLabelHidden
+          checked={isCompleted}
+          disabledReason={completeDisabledReason}
+          onchange={() => onToggleComplete?.()}
+        />
+      {/if}
       <!-- The level's mark below the top only: a top-level row is the collection's own kind, and
            its indent and twist already say where a nested one stands. -->
       {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
