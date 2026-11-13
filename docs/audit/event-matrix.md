@@ -241,6 +241,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Boards
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `boards.repaired` | RepairBoards | `workspace` | NOTICE | When refused |
+
 ## Business_calendar
 
 | Action | Use case | Target | Severity | Recorded |
@@ -395,6 +401,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.cover_set` | SetCover | `item` | INFO | Every time |
 | `item.created` | CreateWorkItem | `item` | INFO | Every time |
 | `item.custom_field_set` | SetCustomField | `item` | INFO | Every time |
+| `item.dropped` | DropItemOnColumn | `item` | INFO | When refused |
 | `item.due_cleared` | ClearDueDate | `item` | INFO | Every time |
 | `item.due_set` | SetDueDate | `item` | INFO | Every time |
 | `item.duplicated` | DuplicateWorkItem | `item` | INFO | Every time |
