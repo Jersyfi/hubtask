@@ -22,7 +22,7 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-test('chromium: a refused new whiteboard keeps its dialog open with the reason inside it', async (t) => {
+test('chromium: a refused new whiteboard leaves the reader where they were with the reason in words (scene wnew)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context } = await signedIn(browser, 1280, 900);
@@ -42,14 +42,10 @@ test('chromium: a refused new whiteboard keeps its dialog open with the reason i
     return stub(route);
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}/whiteboards`);
+  // A board is made at once, with no dialog: a refusal is said where the reader stands.
   await page.getByRole('button', { name: 'New whiteboard' }).first().click();
-  const dialog = page.getByRole('dialog', { name: 'New whiteboard' });
-  await dialog.getByLabel('Title').fill('Retro');
-  await dialog.getByRole('button', { name: 'Make the whiteboard' }).click();
-
-  await dialog.locator('.banner[data-tone=danger]').first().waitFor({ timeout: 5_000 });
-  assert.equal(await dialog.isVisible(), true, 'the dialog closed on a refusal');
-  assert.equal(await dialog.getByLabel('Title').inputValue(), 'Retro', 'the title was lost');
+  await page.locator('[data-tone=danger]').first().waitFor({ timeout: 5_000 });
+  assert.ok(new URL(page.url()).pathname.startsWith(`/hubs/${HUB.id}/`), 'a refused board was opened');
 });
 
 const SERVER_CLASS = {

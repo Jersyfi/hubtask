@@ -121,7 +121,7 @@ test('chromium: on a phone the tools are at the foot of the board, all on the sc
   assert.deepEqual(failures, []);
 });
 
-test('chromium: an empty hub starts a board from a template in one press, named and drawn from it', async (t) => {
+test('chromium: an empty hub starts a board from a template in one press, named and drawn from it, with no dialog between (UC-CNV-01 check 12)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const posted = [];
@@ -131,20 +131,17 @@ test('chromium: an empty hub starts a board from a template in one press, named 
   await start.waitFor({ timeout: 20_000 });
   assert.deepEqual(
     await start.locator('[data-board-start]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-board-start'))),
-    ['BLANK', 'RETRO', 'BRAINSTORM', 'USER_STORY_MAP', 'KANBAN', 'FLOWCHART'],
+    ['BLANK', 'RETRO_START_STOP_CONTINUE', 'RETRO_FOUR_LS', 'RETRO_MAD_SAD_GLAD', 'KANBAN', 'BRAINSTORM', 'FLOWCHART', 'USER_STORY_MAP'],
+    'the three retrospectives are not cards of their own',
   );
-  await start.locator('[data-board-start=RETRO] button').click();
-  const dialog = page.getByRole('dialog', { name: 'New whiteboard' });
-  await dialog.waitFor({ timeout: 5_000 });
-  assert.equal(await dialog.getByLabel('Title').inputValue(), 'Retrospective', 'the title is not the template’s name');
-  assert.equal(await dialog.locator('[data-board-start=RETRO] button').getAttribute('aria-pressed'), 'true');
-  await dialog.getByLabel('Questions of the retrospective').selectOption('RETRO_MAD_SAD_GLAD');
-  await dialog.getByRole('button', { name: 'Make the whiteboard' }).click();
+  await start.locator('[data-board-start=RETRO_MAD_SAD_GLAD] button').click();
   await page.waitForFunction(() => location.pathname.startsWith('/whiteboards/'), null, { timeout: 5_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'New whiteboard' }).count(), 0, 'a dialog stood between the card and the board');
 
   assert.equal(posted.length, 1);
-  assert.equal(posted[0].title, 'Retrospective');
+  assert.equal(posted[0].title, 'Mad, sad, glad');
   const frames = posted[0].elements.filter((e) => e.kind === 'FRAME').map((e) => e.text);
   assert.deepEqual(frames, ['Mad', 'Sad', 'Glad'], 'the board was not made from the chosen questions');
+  assert.ok(!page.url().includes('new=1'), 'a board made from a template asked again what to start with');
   assert.deepEqual(failures, []);
 });
