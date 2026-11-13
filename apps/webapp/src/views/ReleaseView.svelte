@@ -14,6 +14,7 @@
   // shows the releases and their entries, not controls.
 
   import { untrack } from 'svelte';
+  import { formatQuery } from '@hubtask/query';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
@@ -362,7 +363,7 @@
             {/snippet}
           </DataTable>
         {/if}
-        <p class="quiet" data-release-query>{t('app.releases.from_everywhere')} <code>plan.release: {shown.id}</code></p>
+        <p class="quiet" data-release-query>{t('app.releases.from_everywhere')} <code>{formatQuery({ filter: { field: 'release_id', op: 'EQ', value: shown.name } })}</code></p>
       </section>
       {/if}
     </div>

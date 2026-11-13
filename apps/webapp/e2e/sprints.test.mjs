@@ -357,7 +357,8 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   const row = page.getByRole('row', { name: ITEMS[0].title });
   await row.getByText('HOME-3', { exact: true }).waitFor({ timeout: 5_000 });
   await row.getByText('Fitted', { exact: true }).waitFor({ timeout: 5_000 });
-  await page.locator('[data-release-query]').getByText(`plan.release: ${COMING.id}`, { exact: true }).waitFor({ timeout: 5_000 });
+  // The query names the release; the read sends its id (§6.11 Q-2, ADR-0102).
+  await page.locator('[data-release-query]').getByText('plan.release: 1.1', { exact: true }).waitFor({ timeout: 5_000 });
 
   // The releases stand on an axis, each a mark that chooses it (scene planrel 2), and as cards,
   // their counts from the list itself: no release is read for them.
