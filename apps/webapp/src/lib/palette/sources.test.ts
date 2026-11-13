@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import type { Capabilities, Container } from '@hubtask/sync-engine';
 
 import { PRODUCTS } from '../navigation.ts';
-import { collectionOffers, containerOffers, contextOf, placeTabOffers, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
+import { collectionOffers, containerOffers, contextOf, goToOffers, placeTabOffers, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
@@ -238,4 +238,15 @@ test('a collection named in the palette offers its views as Go to, by what its h
   // the plan (§6.3, E-16).
   assert.deepEqual(ids(placeTabOffers(placed(KITCHEN, HOUSE), workspaceOn, ['KNOWLEDGE'], t)), ['go-to:c1:timeline']);
   assert.deepEqual(placeTabOffers(placed(ARCHIVED, HOUSE), workspaceOn, workspaceOn, t), [], 'an archived collection is not offered');
+});
+
+// §6.11: before anything is typed, *Schnell* goes to Today, the inbox, what waits for one's yes
+// and each product switched on, by the routes the column uses.
+test('the quick go-tos are Today, the inbox, the approvals and the products on', () => {
+  const offers = goToOffers({ ...MEMBER_REACH, modulesOn: ['SERVICE_DESK', 'KNOWLEDGE', 'GOALS'] }, t);
+  assert.deepEqual(ids(offers), ['goto:workspace', 'goto:jumble', 'goto:approvals', 'goto:product:pages', 'goto:product:desk', 'goto:product:goals']);
+  assert.ok(offers.every((offer) => offer.kind === 'action'));
+  assert.deepEqual(offers.map((offer) => (offer.target.kind === 'route' ? offer.target.path : '')), ['/', '/jumble', '/approvals', '/pages', '/desk', '/goals']);
+  assert.equal(offers[0]?.label, 'app.palette.go_to {"place":"app.nav.today"}');
+  assert.deepEqual(ids(goToOffers({ ...MEMBER_REACH, hasJumble: false }, t)), ['goto:workspace']);
 });

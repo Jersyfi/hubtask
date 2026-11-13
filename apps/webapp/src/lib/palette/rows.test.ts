@@ -137,3 +137,11 @@ test('an empty list has nowhere to go', () => {
   assert.equal(step(-1, 0, 1), -1);
   assert.equal(step(-1, 0, -1), -1);
 });
+
+// §6.11: the go-tos stand after the few actions and are never cut by their cap.
+test('an empty field lists the go-tos after the actions, every one of them', () => {
+  const acts = Array.from({ length: 8 }, (_, i) => ({ kind: 'action' as const, id: `a${i}`, label: `Act ${i}` }));
+  const goTos = Array.from({ length: 6 }, (_, i) => ({ kind: 'action' as const, id: `goto:${i}`, label: `Go ${i}` }));
+  const empty = rank([...goTos, ...acts], '');
+  assert.deepEqual(empty.map((each) => each.id), [...acts.slice(0, EMPTY_ACTIONS).map((each) => each.id), ...goTos.map((each) => each.id)]);
+});

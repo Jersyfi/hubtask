@@ -31,7 +31,7 @@
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
   import { groupOf, indexOfKey, keyOf, rank, rowId, step, type Candidate, type Group, type Row } from './rows.ts';
-  import { collectionOffers, containerOffers, placeTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
+  import { collectionOffers, containerOffers, goToIcon, goToOffers, placeTabOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
   import { catalogueOffers, type Place } from '../settings/catalogue.ts';
@@ -285,6 +285,8 @@
     ...matchedHubs.flatMap((each) => placeTabOffers(each, manifest.value?.modules_on, hubModules[each.container.id], t)),
     ...matchedCollections.flatMap((each) => placeTabOffers(each, manifest.value?.modules_on, hubModules[each.container.parent_id ?? ''], t)),
     ...placeOffers(reach, t),
+    // Before anything is typed, *Schnell* goes to the places; typed, they are found as places.
+    ...(words === '' ? goToOffers(reach, t) : []),
     ...settings,
     ...catalogueRows,
     ...recentOffers(recents.rows.slice(0, GLANCE)),
@@ -595,6 +597,7 @@
     if (row.kind === 'setting') return 'settings';
     if (row.kind === 'recent') return 'clock';
     if (row.id === 'frame:capture') return 'plus';
+    if (row.id.startsWith('goto:')) return goToIcon(row.id) as IconName;
     return 'zap';
   }
 

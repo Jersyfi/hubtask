@@ -470,6 +470,16 @@ test('chromium: the empty palette offers the common actions and the places opene
   const names = await rowNames(page);
   assert.ok(names.includes('Create …'), 'the empty palette does not offer Create');
   assert.ok(names.includes('Kitchen'), 'the empty palette does not offer the collection opened last');
+  // *Quick* goes to Today, the inbox and each product on, by the column's routes (§6.11).
+  for (const name of ['Go to Today', 'Go to Inbox']) assert.ok(names.includes(name), `no ${name}: ${names.join(' | ')}`);
+  const quick = listOf(page).locator('[role="group"]').filter({ has: page.locator('.head', { hasText: /^Quick$/u }) });
+  assert.ok((await quick.getByRole('option').allTextContents()).some((text) => text.includes('Go to Today')), 'Go to Today stands outside Quick');
+  await quick.getByRole('option', { name: /Go to Inbox/u }).click();
+  await page.waitForURL(/\/jumble$/u);
+  await page.goto(`${served.origin}/items/${ITEMS[0].id}`);
+  await page.getByRole('main').waitFor();
+  await page.waitForTimeout(600);
+  await ask(page, '');
 
   // Standing on one of its entries, the collection's acts are offered without naming it.
   await page.keyboard.type('board');

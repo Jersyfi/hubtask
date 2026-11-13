@@ -23,7 +23,7 @@ import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
 import { modulesHere } from '../data/modules.ts';
 import { collectionViews, isOwnPage, hubPlaces } from '../workspace/placeViews.ts';
-import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type AccountAction, type SectionGroup } from '../navigation.ts';
+import { DESTINATIONS, KEEPING, PRODUCTS, SETTINGS, account, administrationFor, instanceSection, primary, products, workspaceBand, type AccountAction, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
 
@@ -225,6 +225,27 @@ function sectionOffers(groups: readonly SectionGroup[], area: Area, section: str
  * keeping band, the account group, Your settings, the administration where it is theirs and the
  * installation for an operator. A page reached two ways is listed under the first.
  */
+/**
+ * The go-tos *Schnell* lists before anything is typed (§6.11): Today, the inbox, what waits for
+ * one's yes and each product switched on - the column's own places and routes, as acts, so they
+ * stand with *Create …*. Typed, the places are found as places instead.
+ */
+export function goToOffers(reach: Reach, t: Translate): readonly Offer[] {
+  const places = primary({ hasJumble: reach.hasJumble === true, modulesOn: reach.modulesOn }).flatMap((destination) =>
+    destination.target.kind === 'route' && destination.id !== 'search' ? [{ id: destination.id, code: destination.code, path: destination.target.path }] : [],
+  );
+  const owned = products({ modulesOn: reach.modulesOn }).map((row) => ({ id: `product:${row.id}`, code: row.code, path: row.path }));
+  return [...places, ...owned].map((each): Offer => ({ kind: 'action', id: `goto:${each.id}`, label: t('app.palette.go_to', { place: t(each.code) }), target: { kind: 'route', path: each.path } }));
+}
+
+/** A go-to's mark: its place's in the column. */
+export function goToIcon(id: string): string {
+  const place = id.replace(/^goto:/u, '');
+  return place.startsWith('product:')
+    ? (PRODUCTS.find((row) => `product:${row.id}` === place)?.icon ?? 'arrow-right')
+    : (DESTINATIONS.find((destination) => destination.id === place)?.icon ?? 'arrow-right');
+}
+
 export function placeOffers(reach: Reach, t: Translate): readonly Offer[] {
   const offers: Offer[] = [
     ...primary({ hasJumble: reach.hasJumble === true, modulesOn: reach.modulesOn }).flatMap((destination): Offer[] =>

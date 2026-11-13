@@ -10043,6 +10043,7 @@
   "app.palette.best": "Best hits",
   "app.palette.more_kinds": "More kinds",
   "app.palette.saved": "Saved queries",
+  "app.palette.go_to": "Go to {place}",
   "app.palette.quick_head": "{group, select, places {Go to} actions {Quick} settings {Settings} other {Quick}}",
   "app.palette.jump": "Go to",
   "app.palette.jump_group": "The entry with this key",
