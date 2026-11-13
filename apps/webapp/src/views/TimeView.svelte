@@ -737,7 +737,9 @@
   .cap { display: block; inline-size: 100%; min-inline-size: var(--sp-500); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--bg-surface-sunken); overflow: hidden; }
   .cap-fill { display: block; block-size: 100%; border-radius: inherit; background: var(--text-secondary); }
   .day[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
-  .eyebrow { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); letter-spacing: 0.06em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); text-transform: uppercase; }
+  /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+  .eyebrow { letter-spacing: 0.06em; }
   .bookings { display: grid; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   .booking { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-100); padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
   .booking-title { overflow: hidden; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; }
