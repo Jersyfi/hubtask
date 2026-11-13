@@ -31,10 +31,10 @@ const job = (n, status, at) => ({ id: `01a0e2e0-0000-7000-8000-00000000022${n}`,
 const JOBS = [job(1, 'FAILED', '2026-11-02T08:00:00Z'), job(2, 'DONE', '2026-11-03T08:00:00Z')];
 const pageOf = (n, title, at, more = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000003${n}`, hub_id: HUB.id, parent_id: null, title, icon: null, position: n, template: false, content_language: null, owner_id: null, verified_until: null, verified_at: null, verified_by: null, due_for_review: false, archived: false, restricted: false, daily_for: null, trashed_at: null, created_by: ACCOUNT.id, created_at: at, updated_by: ACCOUNT.id, updated_at: at, version: 1, ...more });
 const PAGES = [
-  pageOf('01', 'Onboarding guide', '2026-10-02T09:00:00Z'),
+  pageOf('01', 'Onboarding guide', '2026-10-02T09:00:00Z', { verified_until: '2099-01-15T00:00:00Z' }),
   pageOf('02', 'How we release, step by step, for every team that ships to customers', '2026-10-31T09:00:00Z'),
   pageOf('03', 'Meeting notes template', '2026-11-01T09:00:00Z', { template: true }),
-  pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true }),
+  pageOf('04', 'Support rota', '2026-09-01T09:00:00Z', { owner_id: ACCOUNT.id, due_for_review: true, verified_until: '2026-09-01T00:00:00Z' }),
 ];
 const HEALTH = { total: 42, completeness: 0.9, correctness: 0.8, stale: 2, orphans: 1, duplicates: 0, without_owner: 3, review_overdue: 4, classes: [{ class: 'laptop', total: 12, completeness: 1, stale: 0, orphans: 0, duplicates: 0 }, { class: 'server', total: 30, completeness: 0.9, stale: 2, orphans: 1, duplicates: 0 }], problems: [{ ci_id: '01a0e2e0-0000-7000-8000-000000000401', class: 'server', kinds: ['STALE'] }, { ci_id: '01a0e2e0-0000-7000-8000-000000000402', class: 'server', kinds: ['NO_OWNER'] }], stale_relations: 0, services: [], sources: [] };
 // The handler's own deadlines kept: four kinds, so the card draws three and "+ 1 more".
@@ -410,17 +410,31 @@ test('chromium 1280 px: the agents\' home lists the agents, their held acts and 
   assert.deepEqual(failures, []);
 });
 
-// §2.2: the pages' home lists the reader's pages to review and the recently changed ones, the
-// space's content only; the assets' home opens with the inventory's health across hubs.
+// §2.2, scene phome: the pages' home's band counts the pages, the spaces, the verified ones and the
+// reader's reviews beside *today's note*; the reviews with *Review*, how much of each space is
+// verified, what was read here last, and the recently changed pages - the space's content only.
+// The assets' home opens with the inventory's health across hubs.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   test(`chromium ${width} px, ${scheme}: the pages' home shows what waits for review and what changed`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width, scheme, path: '/pages', modulesOn: ['KNOWLEDGE'] });
     t.after(close);
-    const review = page.getByRole('region', { name: 'Waiting for your review' });
+    const review = page.getByRole('region', { name: 'Due for your review · 1' });
     await review.waitFor({ timeout: 10_000 });
     assert.deepEqual(await review.locator('.name').allTextContents(), ['Support rota']);
+    assert.equal(await review.getByRole('button', { name: 'Review' }).count(), 1, 'each review has its act');
+    // The phone's band is compact: two figures (§7).
+    assert.match(await page.locator('[data-product="pages"]').first().innerText(), width > 600 ? /3 pages[\s\S]*in 1 space[\s\S]*1 verified[\s\S]*1 due for your review/ : /3 pages[\s\S]*in 1 space/);
+    await page.getByRole('button', { name: "Today's note" }).waitFor();
+    const verified = page.getByRole('region', { name: 'Spaces · verified' });
+    assert.match(await verified.innerText(), /1 of 3/);
+    // A page read on this device comes back to continue reading.
+    await page.evaluate(([account, id]) => localStorage.setItem(`hubtask.pages-read.${account}`, JSON.stringify({ [id]: 1 })), [ACCOUNT.id, PAGES[0].id]);
+    await page.reload();
+    const reading = page.getByRole('region', { name: 'Continue reading' });
+    await reading.waitFor({ timeout: 10_000 });
+    assert.match(await reading.innerText(), /Onboarding guide[\s\S]*Verified|Verified[\s\S]*Onboarding guide/);
     const recent = page.getByRole('region', { name: 'Recently changed pages' });
     assert.deepEqual(await recent.locator('.name').allTextContents(), [PAGES[1].title, 'Onboarding guide', 'Support rota']);
     assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/pages/${PAGES[1].id}`);
@@ -841,7 +855,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     t.after(opened.close);
     await opened.page.addInitScript(watch);
     await opened.page.reload();
-    await opened.page.getByRole('region', { name: 'Waiting for your review' }).getByRole('link').first().waitFor({ timeout: 10_000 });
+    await opened.page.getByRole('region', { name: 'Due for your review · 1' }).getByRole('link').first().waitFor({ timeout: 10_000 });
     const seen = await opened.page.evaluate(() => window.__arrivals ?? []);
     assert.deepEqual(opened.failures, []);
     return seen;
@@ -859,7 +873,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
     await opened.page.addInitScript(watch);
     if (choice) await opened.page.addInitScript((value) => localStorage.setItem('hubtask.motion', value), choice);
     await opened.page.reload();
-    await opened.page.getByRole('region', { name: 'Waiting for your review' }).getByRole('link').first().waitFor({ timeout: 10_000 });
+    await opened.page.getByRole('region', { name: 'Due for your review · 1' }).getByRole('link').first().waitFor({ timeout: 10_000 });
     assert.deepEqual(await opened.page.evaluate(() => window.__arrivals ?? []), [], `a row moved although ${label} asked for reduced motion`);
     assert.deepEqual(opened.failures, []);
   }

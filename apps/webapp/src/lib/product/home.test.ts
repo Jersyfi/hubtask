@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
+import { continueReading, pagesFigures, verifiedBySpace, collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf, attentionAcross, planCounts } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -315,4 +315,19 @@ test('planCounts: a hub holds plans by its releases, dated entries and its colle
   assert.deepEqual(planCounts(['a', 'b'], { a: [1], b: [] }, { a: [], b: [1, 2] }, { c1: [1] }, hubOf), { a: 2, b: 2 });
   assert.deepEqual(planCounts(['a', 'b'], { a: [] }, { a: [], b: [] }, {}, hubOf), { a: 0 }, 'a hub whose releases are still read is left out');
   assert.equal(isUnused(planCounts(['a', 'b'], { a: [] }, { a: [], b: [] }, {}, hubOf), ['a', 'b']), undefined);
+});
+
+test('the pages\' home counts the pages, the spaces, the verified and the reader\'s reviews; per space how much is verified; what to continue (phome)', () => {
+  const now = '2026-11-14T10:00:00Z';
+  const page = (id: string, extra: Partial<Record<string, unknown>> = {}) => ({
+    id, hub_id: 'h1', updated_at: '2026-11-01T00:00:00Z', owner_id: 'me', template: false, archived: false, due_for_review: false, trashed_at: null, daily_for: null, verified_until: null, ...extra,
+  });
+  const lists = {
+    h1: [page('a', { verified_until: '2027-01-15T00:00:00Z' }), page('b', { verified_until: '2026-11-01T00:00:00Z', due_for_review: true }), page('t', { template: true })],
+    h2: [page('c', { hub_id: 'h2', verified_until: '2027-01-01T00:00:00Z' })],
+    h3: [],
+  };
+  assert.deepEqual(pagesFigures(lists, ['h1', 'h2', 'h3'], now, 1), { pages: 3, spaces: 2, verified: 2, toReview: 1 });
+  assert.deepEqual(verifiedBySpace(lists, ['h1', 'h2', 'h3'], now), [{ hubId: 'h1', verified: 1, total: 2 }, { hubId: 'h2', verified: 1, total: 1 }]);
+  assert.deepEqual(continueReading(lists, ['h1', 'h2'], ['c', 'gone', 't', 'a', 'b'], 2).map((each) => each.id), ['c', 'a'], 'a page no longer read, or a template, is left out');
 });

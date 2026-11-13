@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, Dialog, EmptyState, Icon, ListRow, PageHeader, ProductBand, Select, Skeleton, Stack, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, Button, Dialog, EmptyState, Icon, ListRow, PageHeader, ProductBand, Select, Skeleton, Stack, StateLozenge, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -23,7 +23,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { attentionAcross, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { attentionAcross, continueReading, isVerified, pagesFigures, verifiedBySpace, phasesOf, planCounts, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasePath, releasesPath } from '../lib/data/releases.svelte.ts';
   import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
@@ -45,7 +45,8 @@
   import { renderProblem } from '../lib/problem.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
-  import { pagesPath } from '../lib/data/pages.svelte.ts';
+  import { pages, pagesPath } from '../lib/data/pages.svelte.ts';
+  import { pagesRead } from '../lib/pages/reading.ts';
   import { classesPath, classWord, cmdb, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
   import DeskHome from '../lib/servicedesk/DeskHome.svelte';
@@ -137,6 +138,24 @@
   const knowledgeHubs = $derived(module === 'KNOWLEDGE' ? hubsWith.map((hub) => hub.id) : []);
   const toReview = $derived(pagesToReview(pagesAt, knowledgeHubs, actor.account?.id));
   const recent = $derived(recentPages(pagesAt, knowledgeHubs, PAGES_SHOWN));
+  /** The pages' home (scene phome): what was read here last, and per space how much is verified. */
+  const READING_SHOWN = 3;
+  const now = new Date().toISOString();
+  const reading = $derived(module === 'KNOWLEDGE' ? continueReading(pagesAt, knowledgeHubs, pagesRead(actor.account?.id), READING_SHOWN) : []);
+  const spacesVerified = $derived(module === 'KNOWLEDGE' ? verifiedBySpace(pagesAt, knowledgeHubs, now) : []);
+  const isPagesWhole = $derived(knowledgeHubs.every((hubId) => pagesAt[hubId] !== undefined));
+  let isOpeningToday = $state(false);
+  async function openToday() {
+    isOpeningToday = true;
+    try {
+      const note = await pages.today();
+      onnavigate(`/pages/${note.id}`);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isOpeningToday = false;
+    }
+  }
 
   /** The plans' home lists the releases still to go out (§2.2), the soonest first. */
   const RELEASES_SHOWN = 8;
@@ -451,8 +470,9 @@
   const startEmpty = $derived(firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
   // The band of a product with its own colour (work-surface E-1): its tile and two or three figures,
   // each a word with its number, and none while the reads are out (P-11).
-  const BANDS: Partial<Record<string, { product: 'plans' | 'assets' | 'whiteboards'; icon: 'calendar' | 'shield' | 'layout-template' }>> = {
+  const BANDS: Partial<Record<string, { product: 'plans' | 'assets' | 'pages' | 'whiteboards'; icon: 'calendar' | 'shield' | 'book-open' | 'layout-template' }>> = {
     PLANNING: { product: 'plans', icon: 'calendar' },
+    KNOWLEDGE: { product: 'pages', icon: 'book-open' },
     ASSETS: { product: 'assets', icon: 'shield' },
     WHITEBOARD: { product: 'whiteboards', icon: 'layout-template' },
   };
@@ -475,6 +495,15 @@
         ...(boardComments > 0 ? [t('app.product_home.band_boards_comments', { count: boardComments })] : []),
       ];
     }
+    if (module === 'KNOWLEDGE' && isPagesWhole && knowledgeHubs.length > 0) {
+      const figures = pagesFigures(pagesAt, knowledgeHubs, now, toReview.length);
+      return [
+        t('app.product_home.band_pages', { count: figures.pages }),
+        t('app.product_home.band_spaces', { count: figures.spaces }),
+        t('app.product_home.band_verified', { count: figures.verified }),
+        ...(figures.toReview > 0 ? [t('app.product_home.band_to_review', { count: figures.toReview })] : []),
+      ];
+    }
     if (module === 'ASSETS' && inventory.isWhole && assetHubs.length > 0) {
       return [
         t('app.product_home.band_items', { count: inventory.total }),
@@ -493,6 +522,10 @@
   }
 </script>
 
+{#snippet todayNote()}
+  <Button tone="secondary" icon="calendar" isBusy={isOpeningToday} onclick={openToday} data-today-note>{t('app.notes.today')}</Button>
+{/snippet}
+
 {#if module === 'SERVICE_DESK'}
   <DeskHome hubs={hubsWith} {isReading} {tab} {onnavigate} {createHub} templates={starts} />
 {:else}
@@ -505,6 +538,7 @@
     {name}
     figures={bandFigures}
     primary={isUnusedHere ? undefined : primary}
+    aside={module === 'KNOWLEDGE' ? todayNote : undefined}
     breadcrumb={{
       trail: [
         { id: 'products', label: t('app.nav.products') },
@@ -736,7 +770,62 @@
         </Stack>
       </section>
     {/if}
-    {#if toReview.length > 0 && currentTab === 'foryou'}
+    {#if reading.length > 0 && currentTab === 'foryou'}
+      <section aria-labelledby="product-reading" data-pages-reading>
+        <Stack gap="100">
+          <h2 class="eyebrow" id="product-reading">{t('app.product_home.pages_continue')}</h2>
+          <ul class="read-cards">
+            {#each reading as each (each.id)}
+              <li>
+                <a class="read-card" href={`/pages/${each.id}`} onclick={(event) => { event.preventDefault(); onnavigate(`/pages/${each.id}`); }}>
+                  <span class="read-top">
+                    <span class="read-icon" aria-hidden="true">{#if each.icon}{each.icon}{:else}<Icon name="book-open" size="md" />{/if}</span>
+                    {#if isVerified(each, now)}<StateLozenge size="sm" tone="success" icon="shield" label={t('app.product_home.verified')} />{/if}
+                  </span>
+                  <span class="read-title">{each.title}</span>
+                  <span class="purpose">{[hubName(each.hub_id), formatRelative(each.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
+                </a>
+              </li>
+            {/each}
+          </ul>
+        </Stack>
+      </section>
+    {/if}
+    {#if module === 'KNOWLEDGE' && currentTab === 'foryou' && (toReview.length > 0 || spacesVerified.length > 0)}
+      <div class="pages-pair">
+        {#if toReview.length > 0}
+          <section class="panel" aria-labelledby="product-review" data-pages-review>
+            <div class="panel-head">
+              <h2 class="heading" id="product-review"><Icon name="triangle-alert" size="sm" /> {t('app.product_home.pages_review_count', { count: toReview.length })}</h2>
+              <span class="purpose">{t('app.product_home.pages_review_yours')}</span>
+            </div>
+            <ul class="review-rows">
+              {#each toReview as each (each.id)}
+                <li>
+                  <a class="name" href={`/pages/${each.id}`} title={each.title} onclick={(event) => { event.preventDefault(); onnavigate(`/pages/${each.id}`); }}>{each.icon ? `${each.icon} ` : ''}{each.title}</a>
+                  <span class="purpose">{hubName(each.hub_id)}</span>
+                  {#if each.verified_until}<StateLozenge size="sm" tone="warning" icon="clock" label={t('app.product_home.review_since', { when: formatRelative(each.verified_until, messages.locale) })} />{/if}
+                  <Button size="sm" tone="secondary" icon="shield" onclick={() => onnavigate(`/pages/${each.id}`)}>{t('app.product_home.review')}</Button>
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
+        {#if spacesVerified.length > 0}
+          <section class="panel" aria-labelledby="product-verified" data-pages-verified>
+            <h2 class="eyebrow" id="product-verified">{t('app.product_home.spaces_verified')}</h2>
+            <ul class="space-rows">
+              {#each spacesVerified as space (space.hubId)}
+                <li>
+                  <a class="name" href={`/hubs/${space.hubId}/pages`} onclick={(event) => { event.preventDefault(); onnavigate(`/hubs/${space.hubId}/pages`); }}>{hubName(space.hubId)}</a>
+                  <span class="purpose">{t('app.product_home.verified_of', { verified: space.verified, total: space.total })}</span>
+                </li>
+              {/each}
+            </ul>
+          </section>
+        {/if}
+      </div>
+    {:else if toReview.length > 0 && currentTab === 'foryou'}
       <section aria-labelledby="product-review">
         <Stack gap="100">
           <h2 class="heading" id="product-review">{t('app.product_home.pages_review')}</h2>
@@ -766,6 +855,10 @@
                   {#snippet leading()}<Icon name="book-open" size="sm" />{/snippet}
                   <span class="name" title={each.title}>{each.title}</span>
                   <span class="purpose">{[hubName(each.hub_id), formatRelative(each.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
+                  {#snippet trailing()}
+                    {#if each.due_for_review}<StateLozenge size="sm" tone="warning" icon="clock" label={t('app.pages.due_for_review')} />
+                    {:else if isVerified(each, now)}<StateLozenge size="sm" tone="success" icon="shield" label={t('app.product_home.verified')} />{/if}
+                  {/snippet}
                 </ListRow>
               </li>
             {/each}
@@ -877,6 +970,39 @@
   .why { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  /* The pages' home (scene phome): cards to continue reading, the reviews beside how verified each space is. */
+  .eyebrow { margin: 0; color: var(--text-subtle); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-transform: uppercase;
+    /* design-system-lint-ignore: tracking in em follows the type step it spaces */
+    letter-spacing: 0.06em; }
+  .read-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
+  .read-card {
+    display: grid; gap: var(--sp-100); align-content: start; block-size: 100%; padding: var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised);
+    color: var(--text-primary); text-decoration: none;
+  }
+  .read-card:hover { border-color: var(--border-default); }
+  .read-card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  .read-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--sp-100); }
+  .read-icon { font-size: var(--fs-300); line-height: var(--lh-tight); }
+  .read-title { font-weight: var(--fw-semibold); }
+  .pages-pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; min-inline-size: 0; }
+  /* design-system-lint-ignore: `primitive.breakpoint.large` (905px); a media query cannot read a custom property. */
+  @media (width >= 905px) {
+    .pages-pair { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+    .pages-pair > [data-pages-verified] { grid-column: -2 / -1; }
+  }
+  .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised); }
+  .panel > .eyebrow { padding: var(--sp-150) var(--sp-200) var(--sp-050); }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .panel-head .heading { display: inline-flex; gap: var(--sp-050); align-items: center; }
+  .review-rows, .space-rows { margin: 0; padding: 0; list-style: none; }
+  .review-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); padding: var(--sp-100) var(--sp-200); }
+  .review-rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
+  .review-rows .name { flex: 1 1 var(--sp-1600); min-inline-size: 0; color: var(--text-primary); text-decoration: none; }
+  .space-rows li .purpose { flex: none; }
+  .space-rows li { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-100); padding: var(--sp-100) var(--sp-200); }
+  .space-rows .name { flex: 1; min-inline-size: 0; color: var(--text-primary); text-decoration: none; }
+  .review-rows .name:hover, .space-rows .name:hover { text-decoration: underline; }
   .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
   .name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

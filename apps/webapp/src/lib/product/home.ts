@@ -254,6 +254,8 @@ export interface PageRow {
   readonly due_for_review: boolean;
   readonly trashed_at: string | null;
   readonly daily_for: string | null;
+  /** Until when the page is known to be right; absent where a list does not carry it. */
+  readonly verified_until?: string | null;
 }
 
 // A template is a start, an archived or trashed page is put away, and a daily note is somebody's
@@ -304,6 +306,36 @@ export function pagesToReview<P extends PageRow>(lists: Readonly<Record<string, 
     .flatMap((hubId) => lists[hubId] ?? [])
     .filter((page) => isContent(page) && page.due_for_review && page.owner_id === viewerId)
     .sort((a, b) => (a.updated_at < b.updated_at ? -1 : a.updated_at > b.updated_at ? 1 : 0));
+}
+
+/** A page is verified while its verification runs: a date to come and no review due. */
+export const isVerified = (page: PageRow, now: string): boolean =>
+  !page.due_for_review && typeof page.verified_until === 'string' && page.verified_until > now;
+
+/** The pages' home's band (scene phome 1): the space's pages, the spaces, how many verified, the reader's reviews. */
+export function pagesFigures(lists: Readonly<Record<string, readonly PageRow[]>>, hubIds: readonly string[], now: string, toReview: number): {
+  readonly pages: number; readonly spaces: number; readonly verified: number; readonly toReview: number;
+} {
+  const content = hubIds.flatMap((hubId) => (lists[hubId] ?? []).filter(isContent));
+  const spaces = hubIds.filter((hubId) => (lists[hubId] ?? []).some(isContent)).length;
+  return { pages: content.length, spaces, verified: content.filter((page) => isVerified(page, now)).length, toReview };
+}
+
+/** Per space how much of it is verified (scene phome 5), the spaces with pages only, the most pages first. */
+export function verifiedBySpace(lists: Readonly<Record<string, readonly PageRow[]>>, hubIds: readonly string[], now: string): { hubId: string; verified: number; total: number }[] {
+  return hubIds
+    .map((hubId) => {
+      const content = (lists[hubId] ?? []).filter(isContent);
+      return { hubId, verified: content.filter((page) => isVerified(page, now)).length, total: content.length };
+    })
+    .filter((space) => space.total > 0)
+    .sort((a, b) => b.total - a.total);
+}
+
+/** *Continue reading* (scene phome 3): the pages read here last that the spaces still hold as content, at most `limit`. */
+export function continueReading<P extends PageRow & { readonly id: string }>(lists: Readonly<Record<string, readonly P[]>>, hubIds: readonly string[], read: readonly string[], limit: number): P[] {
+  const byId = new Map(hubIds.flatMap((hubId) => (lists[hubId] ?? []).filter(isContent).map((page) => [page.id, page] as const)));
+  return read.flatMap((id) => byId.get(id) ?? []).slice(0, limit);
 }
 
 /** The inventory's summary across hubs (§2.2): configuration items in all and those found wanting. */
