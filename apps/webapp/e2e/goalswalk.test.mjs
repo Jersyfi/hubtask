@@ -395,6 +395,39 @@ test('chromium: a widget grouped by status names the statuses as the workflows d
   assert.deepEqual(walk.unstubbed(), []);
 });
 
+// A table longer than its widget scrolls inside the widget, so its head sticks to the widget's own
+// top - not as far down as the app bar is tall, over the first row.
+test('chromium: a table widget longer than its box starts with its head at the box\'s top and its first row in view', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const long = {
+    id: '01a0e2e0-0000-7000-8000-00000000a741', title: 'Open per group', chart: 'TABLE', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT', group_by: 'priority' } },
+    goal_ids: [], compare: null, cumulative: false, x: 0, y: 0, w: 6, h: 3,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a742', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], version: 1, widgets: [long] };
+  const groups = Array.from({ length: 14 }, (_, i) => ({ group: `group-${String(i + 1).padStart(2, '0')}`, period: null, count: 20 - i, value: null }));
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board], figures: { [long.id]: groups } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  const table = page.getByRole('table', { name: 'Open per group' });
+  await table.locator('tbody tr').first().waitFor({ timeout: 10_000 });
+  const measured = await page.locator('[data-chart="TABLE"]').evaluate((chart) => {
+    const box = chart.closest('.content');
+    const top = box.getBoundingClientRect();
+    const head = chart.querySelector('thead th').getBoundingClientRect();
+    const first = chart.querySelector('tbody tr').getBoundingClientRect();
+    return { scrolls: box.scrollHeight > box.clientHeight, boxTop: top.top, headTop: head.top, headBottom: head.bottom, firstTop: first.top, firstBottom: first.bottom, boxBottom: top.bottom };
+  });
+  assert.ok(measured.scrolls, `the table is longer than its widget: ${JSON.stringify(measured)}`);
+  assert.ok(Math.abs(measured.headTop - measured.boxTop) <= 2, `the head touches the box's top: ${JSON.stringify(measured)}`);
+  assert.ok(measured.firstTop >= measured.headBottom - 1 && measured.firstBottom <= measured.boxBottom, `the first row is in view under the head: ${JSON.stringify(measured)}`);
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
+});
+
 test('chromium: 375 px - a portfolio names its projects\' days in words and stacks them; an empty one says what fills it', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

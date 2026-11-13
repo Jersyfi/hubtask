@@ -942,8 +942,9 @@
   .card-text { display: flex; flex-direction: column; gap: var(--sp-025); font-size: var(--fs-075); }
   .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); min-block-size: var(--sp-300); }
   .heading { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: var(--fs-100); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
-  /* A widget is as tall as its cells (wcat): what is longer scrolls inside it. */
-  .content { flex: 1 1 auto; min-width: 0; min-block-size: 0; overflow: auto; }
+  /* A widget is as tall as its cells (wcat): what is longer scrolls inside it, so a table's head
+     sticks to the widget's top, not as far down as the app bar would be. */
+  .content { --page-sticky-top: 0; flex: 1 1 auto; min-width: 0; min-block-size: 0; overflow: auto; }
   .grid .widget { overflow: hidden; }
   .grid.half .widget, .grid.stacked .widget { overflow: visible; }
   .foot { flex: none; margin: 0; overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
