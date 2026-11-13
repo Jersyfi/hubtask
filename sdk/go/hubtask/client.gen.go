@@ -9395,6 +9395,7 @@ const (
 	SearchKindGOAL       SearchKind = "GOAL"
 	SearchKindPAGE       SearchKind = "PAGE"
 	SearchKindPERSON     SearchKind = "PERSON"
+	SearchKindTICKET     SearchKind = "TICKET"
 	SearchKindWHITEBOARD SearchKind = "WHITEBOARD"
 )
 
@@ -9416,6 +9417,8 @@ func (e SearchKind) Valid() bool {
 	case SearchKindPAGE:
 		return true
 	case SearchKindPERSON:
+		return true
+	case SearchKindTICKET:
 		return true
 	case SearchKindWHITEBOARD:
 		return true
@@ -24342,7 +24345,7 @@ type SavedViewCreate struct {
 	Layout string  `json:"layout"`
 	Name   string  `json:"name"`
 
-	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export.
+	// Query The query, anchored, in the use case's input shape - `scope_container_id`, not a nested `scope` object. See `SavedView.query`; both shapes are refused here rather than at the first export. A search saved as a view holds its line as `q`, the Hubtask query `POST /search:all` takes, read here by the same parser and refused where it does not read.
 	Query map[string]interface{} `json:"query"`
 
 	// Queue Marks a HUB-scoped view as one of the hub's queues; any other scope is refused as `views.queue_hub_only`. Omitted is false.
@@ -24476,7 +24479,7 @@ type SearchAllHit struct {
 	HubId *openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID  `json:"id"`
 
-	// Key An entry's ticket key where its collection has a handle.
+	// Key An entry's or a ticket's key where its collection has a handle or a key prefix.
 	Key  *string    `json:"key"`
 	Kind SearchKind `json:"kind"`
 
@@ -24489,10 +24492,10 @@ type SearchAllHit struct {
 	// Snippet The passage that matched, the words found between « and »; for pages and comments.
 	Snippet *string `json:"snippet"`
 
-	// State An entry's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's status, an inventory item's stage, a dashboard's sharing, a person's account status.
+	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's status, an inventory item's stage, a dashboard's sharing, a person's account status.
 	State *string `json:"state"`
 
-	// Tile What its tile shows: an entry's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.
+	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.
 	Tile *string `json:"tile"`
 
 	// Title The title, a name, a file name, or for a comment the title of what it is on.
@@ -24508,10 +24511,10 @@ type SearchAllRequest struct {
 	// HubId Only this hub's objects; people are not narrowed.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
-	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind.
+	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind. `TICKET` is the entries of the collections that act as a service desk; where it is asked, `ENTRY` holds the other entries, and where it is not, every entry.
 	Kinds *[]SearchKind `json:"kinds,omitempty"`
 
-	// Q The search as one Hubtask query: every free word must occur, every key narrows. A key of one kind (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`, `page.verified`, `page.owner`, `goal.state`) keeps the search to that kind and a key of entries to entries, the other kinds counting none; `type:` chooses kinds; keys alone need no words. Keys of two kinds, or keys of one kind bracketed together, are refused (`query.kinds_mixed`, `query.kind_filter_grouped`).
+	// Q The search as one Hubtask query: every free word must occur, every key narrows. A key of one kind (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`, `page.verified`, `page.owner`, `goal.state`) keeps the search to that kind and a key of entries to entries, the other kinds counting none; `type:` chooses kinds; keys alone need no words. Keys of two kinds, or keys of one kind bracketed together, are refused (`query.kinds_mixed`, `query.kind_filter_grouped`). A `q` that is one ticket key, `SA-12`, finds that entry first wherever the caller may read it.
 	Q string `json:"q"`
 
 	// Size At most this many hits per kind.
@@ -42713,7 +42716,7 @@ type ClientInterface interface {
 
 	// SearchAllWithBody One search over every kind of object the caller may read
 	//
-	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -42722,7 +42725,7 @@ type ClientInterface interface {
 
 	// SearchAll One search over every kind of object the caller may read
 	//
-	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -65198,7 +65201,7 @@ func (c *Client) SearchItems(ctx context.Context, body SearchItemsJSONRequestBod
 
 // SearchAllWithBody One search over every kind of object the caller may read
 //
-// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 //
 // Takes any type of body and a specified content type.
 //
@@ -65217,7 +65220,7 @@ func (c *Client) SearchAllWithBody(ctx context.Context, contentType string, body
 
 // SearchAll One search over every kind of object the caller may read
 //
-// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -120110,7 +120113,7 @@ type ClientWithResponsesInterface interface {
 
 	// SearchAllWithBodyWithResponse One search over every kind of object the caller may read
 	//
-	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -120119,7 +120122,7 @@ type ClientWithResponsesInterface interface {
 
 	// SearchAllWithResponse One search over every kind of object the caller may read
 	//
-	// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -181120,7 +181123,7 @@ func (c *ClientWithResponses) SearchItemsWithResponse(ctx context.Context, body 
 
 // SearchAllWithBodyWithResponse One search over every kind of object the caller may read
 //
-// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -181135,7 +181138,7 @@ func (c *ClientWithResponses) SearchAllWithBodyWithResponse(ctx context.Context,
 
 // SearchAllWithResponse One search over every kind of object the caller may read
 //
-// Entries, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names and comments whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
