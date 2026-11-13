@@ -365,6 +365,7 @@
       templates={administers ? SHIPPED_ROLES.slice(0, 3).map((kind) => ({ label: t(`app.agents.kind.${kind}`), description: t(`app.agents.role_purpose.${kind}`), icon: 'zap' as const, onclick: () => (drafting = { role: kind }) })) : []}
       whoCan={t('app.agents.empty_who')}
       isProductHome
+      templateShape="row"
     />
   {:else}
     <!-- What waits for the reader first (scene homeagents): the held acts they may decide, three. -->

@@ -60,9 +60,15 @@
     isProductHome?: boolean;
     /** The side way beside the main one: start empty, set up first. */
     side?: Act;
+    /**
+     * How the template cards are drawn, as each product's mockup draws them: `stacked` - mark, name,
+     * line and a *Use* mark (scene empty); `row` - mark beside name and line, no *Use* (the plans',
+     * inventory's, agents', goals' and time's homes).
+     */
+    templateShape?: 'stacked' | 'row';
   }
 
-  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome = false, side }: Props = $props();
+  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome = false, side, templateShape = 'stacked' }: Props = $props();
   const TILES: Record<string, ProductId> = {
     PLANNING: 'plans', KNOWLEDGE: 'pages', WHITEBOARD: 'whiteboards', SERVICE_DESK: 'desk', ASSETS: 'assets', TIME: 'time', GOALS: 'goals', AGENTS: 'agents',
   };
@@ -128,18 +134,18 @@
   footnote={saysWhoCan || guide || toured ? footnoteLine : undefined}
 />
 {#if templateCards}
-  <!-- The templates as cards under the empty state (scene empty): name, one line, Use. -->
+  <!-- The templates as cards under the empty state: name and one line, and Use where the product's mockup draws it. -->
   <section class="starts" aria-labelledby="product-empty-starts" data-empty-templates>
     <h2 class="eyebrow" id="product-empty-starts">{t('app.product_empty.or_template')}</h2>
     <ul class="cards">
       {#each templates as template (template.label)}
         <li>
           <!-- The whole card starts it; its name is the button's. -->
-          <button type="button" class="card" onclick={template.onclick}>
-            {#if template.icon && tile}<ProductTile icon={template.icon} product={tile} size="sm" />{/if}
+          <button type="button" class="card" data-shape={templateShape} onclick={template.onclick}>
+            {#if template.icon && tile}<span class="mark"><ProductTile icon={template.icon} product={tile} size="sm" /></span>{/if}
             <span class="name">{template.label}</span>
             {#if template.description}<span class="line">{template.description}</span>{/if}
-            <span class="use" aria-hidden="true">{t('app.product_empty.use')}</span>
+            {#if templateShape === 'stacked'}<span class="use" aria-hidden="true">{t('app.product_empty.use')}</span>{/if}
           </button>
         </li>
       {/each}
@@ -154,6 +160,9 @@
   .eyebrow { letter-spacing: 0.06em; }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
   .card { display: grid; align-content: start; justify-items: start; gap: var(--sp-100); box-sizing: border-box; inline-size: 100%; block-size: 100%; padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: start; cursor: pointer; }
+  .card[data-shape='row'] { grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--sp-025) var(--sp-150); padding: var(--sp-150) var(--sp-200); }
+  .card[data-shape='row'] .mark { grid-row: span 2; }
+  .card[data-shape='row'] .name, .card[data-shape='row'] .line { grid-column: 2; }
   .card:hover { border-color: var(--border-strong); }
   .card:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--bw-ring); }
   .use { padding: var(--sp-050) var(--sp-150); border: var(--bw-hairline) solid var(--border-strong); border-radius: var(--r-md); font-size: var(--fs-090); font-weight: var(--fw-medium); }

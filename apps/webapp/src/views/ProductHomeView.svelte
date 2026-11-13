@@ -535,6 +535,7 @@
         create={firstCreate}
         templates={starts}
         isProductHome
+        templateShape={module === 'PLANNING' || module === 'ASSETS' ? 'row' : 'stacked'}
         side={firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined}
       />
     {/if}
