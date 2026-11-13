@@ -3344,7 +3344,7 @@ func run() error {
 			Boards:       boards,
 		}.Descriptor(),
 		updateWorkItem.Descriptor(),
-		work.DropOnColumn{
+		work.DropItemOnColumn{
 			Update: updateWorkItem,
 			Step:   work.TakeStep{Completion: completion, Rules: stepRules, Approvals: stepApprovals},
 		}.Descriptor(),

@@ -452,7 +452,7 @@ func Descriptors() []usecase.Descriptor {
 		workflowservice.TryWorkflowStep{}.Descriptor(),
 		work.TakeStep{}.Descriptor(),
 		work.ListEntrySteps{}.Descriptor(),
-		work.DropOnColumn{}.Descriptor(),
+		work.DropItemOnColumn{}.Descriptor(),
 		work.SetItemEntryType{}.Descriptor(),
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),

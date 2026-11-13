@@ -15,7 +15,7 @@ import (
 func TestADropOnABoardWithoutAWorkflowMoves(t *testing.T) {
 	h := coupledUpdateHarness()
 	h.handler.Completion.Boards = h.handler.Boards
-	drop := DropOnColumn{Update: h.handler, Step: TakeStep{Completion: h.handler.Completion}}
+	drop := DropItemOnColumn{Update: h.handler, Step: TakeStep{Completion: h.handler.Completion}}
 
 	answer, err := drop.Execute(t.Context(), actorFixture(), DropCommand{ItemID: taskID, BucketID: doneColumn})
 	if err != nil {
@@ -32,7 +32,7 @@ func TestADropOnABoardWithoutAWorkflowMoves(t *testing.T) {
 
 // workflowBoard maps the review workflow onto the three columns: To do, In review, and Done with
 // Rejected in the done column.
-func workflowBoard(t *testing.T, role identity.Role) (*completionHarness, DropOnColumn) {
+func workflowBoard(t *testing.T, role identity.Role) (*completionHarness, DropItemOnColumn) {
 	t.Helper()
 	h, _ := workflowHarness(t)
 	h.writer.Workflow.Roles = roleOf{role: role}
@@ -46,7 +46,7 @@ func workflowBoard(t *testing.T, role identity.Role) (*completionHarness, DropOn
 	task.BucketID = doingColumn
 	task.CustomFields = map[string]any{"resolution": "fixed"}
 	h.items.stored[taskID] = task
-	return h, DropOnColumn{Step: TakeStep{Completion: h.writer}}
+	return h, DropItemOnColumn{Step: TakeStep{Completion: h.writer}}
 }
 
 // Under a workflow a drop takes the one step, offers several and writes nothing then, and refuses

@@ -24,12 +24,12 @@ const (
 	ItemDroppedAction audit.Action = "item.dropped"
 )
 
-// DropOnColumn resolves an entry dropped onto a board's column (domain-model.md §3.5a, UC-WRK-05,
+// DropItemOnColumn resolves an entry dropped onto a board's column (domain-model.md §3.5a, UC-WRK-05,
 // UC-FLW-06): without a workflow it moves the entry, whose completion follows; under one it takes
 // the one step that reaches the column, offers the steps where several do, and refuses with a
 // reason where none does. The writes are UpdateWorkItem's and TakeStep's, each with its own audit
 // and history; a choice writes nothing.
-type DropOnColumn struct {
+type DropItemOnColumn struct {
 	Update UpdateWorkItem
 	Step   TakeStep
 }
@@ -51,7 +51,7 @@ type DropAnswer struct {
 }
 
 // Execute plans the drop and runs what it resolves to.
-func (h DropOnColumn) Execute(ctx context.Context, actor appshared.ActorContext, cmd DropCommand) (DropAnswer, error) {
+func (h DropItemOnColumn) Execute(ctx context.Context, actor appshared.ActorContext, cmd DropCommand) (DropAnswer, error) {
 	w := h.Step.Completion
 	if cmd.ItemID.IsZero() {
 		return DropAnswer{}, itemIDRequired()
@@ -102,7 +102,7 @@ func (h DropOnColumn) Execute(ctx context.Context, actor appshared.ActorContext,
 
 // plan reads the board, the workflow in force and the steps the person may take, and resolves the
 // drop (Board.PlanDrop); a step named after a choice narrows the steps to it.
-func (h DropOnColumn) plan(
+func (h DropItemOnColumn) plan(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem, cmd DropCommand,
 ) (domain.DropPlan, error) {
 	w := h.Step.Completion
@@ -136,7 +136,7 @@ func (h DropOnColumn) plan(
 }
 
 // Descriptor is the catalogue entry.
-func (h DropOnColumn) Descriptor() usecase.Descriptor {
+func (h DropItemOnColumn) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:       DropOnColumnName,
 		Permission: service.PermissionWriteItems,
@@ -156,7 +156,7 @@ func (h DropOnColumn) Descriptor() usecase.Descriptor {
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read, for optimistic locking."},
 		},
 		Audit: usecase.AuditDeclaration{
-			Action: ItemDroppedAction, TargetType: itemTarget, Severity: audit.SeverityInfo,
+			Action: ItemDroppedAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "the column move or the step the drop runs writes the entry's history itself.",
@@ -165,7 +165,7 @@ func (h DropOnColumn) Descriptor() usecase.Descriptor {
 	}
 }
 
-func (h DropOnColumn) invoke(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+func (h DropItemOnColumn) invoke(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
 	itemID, err := in.ID("item_id")
 	if err != nil {
 		return nil, err

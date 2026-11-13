@@ -56,10 +56,6 @@ type BoardRepair struct {
 	ColumnsRemoved int
 }
 
-func (r BoardRepair) changed() bool {
-	return r.DoneMarked+r.MovedIntoDone+r.Completed+r.ColumnsAdded+r.PlacedByStatus+r.ColumnsRemoved > 0
-}
-
 // errDryRun rolls a dry run's transaction back once it has counted.
 var errDryRun = errors.New("board repair: dry run")
 
@@ -88,9 +84,6 @@ func (h RepairBoards) Execute(ctx context.Context, actor appshared.ActorContext,
 		}
 		if dryRun {
 			return errDryRun
-		}
-		if !report.changed() {
-			return nil
 		}
 		return h.recordAudit(ctx, actor, report, now)
 	})
@@ -211,7 +204,7 @@ func (h RepairBoards) repairMapped(
 		if err := w.Events.Append(ctx, announcement); err != nil {
 			return err
 		}
-		if err := (CreateBucket{Changes: w.Changes, HLC: w.HLC}).recordChange(ctx, column, collection, actor, announcement.Payload); err != nil {
+		if err := (CreateBucket{Changes: w.Changes, HLC: w.HLC, Text: w.Text}).recordChange(ctx, column, collection, actor, announcement.Payload); err != nil {
 			return err
 		}
 		mapping = append(mapping, domain.ColumnStatus{BucketID: column.ID, Status: key})
@@ -357,7 +350,7 @@ func (h RepairBoards) Descriptor() usecase.Descriptor {
 			{Name: "dry_run", Kind: usecase.KindBool, Description: "Count only; write nothing."},
 		},
 		Audit: usecase.AuditDeclaration{
-			Action: BoardsRepairedAction, TargetType: workspaceTarget, Severity: audit.SeverityNotice,
+			Action: BoardsRepairedAction, TargetType: workspaceTarget, Severity: audit.SeverityNotice, Required: true,
 		},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "a repair of the workspace's boards, not something a person did to an entry; " +
