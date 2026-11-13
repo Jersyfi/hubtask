@@ -12829,7 +12829,7 @@
   "app.goals.missing_title": "Unter dieser Adresse gibt es kein Ziel",
   "app.goals.missing_body": "Es wurde vielleicht gelöscht, oder der Link ist unvollständig.",
   "app.goals.missing_back": "Zu den Zielen",
-  "app.goals.goal_subtitle": "Ein Ziel von {place}",
+  "app.goals.goal_subtitle": "Ein Ziel von „{place}“",
   "app.goals.trail": "Wo du bist",
   "app.goals.expand_trail": "Ganzen Pfad zeigen",
   "app.goals.check_in": "Check-in",
@@ -14804,5 +14804,7 @@
   "app.media.kind.file": "Datei",
   "app.media.size_bytes": "{size} B",
   "app.entry.all_properties_title": "Alle Eigenschaften",
-  "app.entry.rail_more": "Weitere Felder"
+  "app.entry.rail_more": "Weitere Felder",
+  "app.goals.goal_subtitle_workspace": "Ein Ziel des Arbeitsbereichs",
+  "app.goals.goal_subtitle_unread": "Ein Ziel eines Hubs, den du nicht liest"
 }

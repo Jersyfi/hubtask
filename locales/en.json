@@ -14804,5 +14804,7 @@
   "app.media.kind.file": "File",
   "app.media.size_bytes": "{size} B",
   "app.entry.all_properties_title": "All properties",
-  "app.entry.rail_more": "More fields"
+  "app.entry.rail_more": "More fields",
+  "app.goals.goal_subtitle_workspace": "A goal of the workspace",
+  "app.goals.goal_subtitle_unread": "A goal of a hub you do not read"
 }

@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, COLLECTION } from './fixture.mjs';
+import { ACCOUNT, COLLECTION, HUB } from './fixture.mjs';
 import { ids, productWalk } from './productwalk.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -355,4 +355,29 @@ test('chromium: an address naming no goal is a not-found state with a way back',
   await page.getByText('No goal at this address').waitFor({ timeout: 10_000 });
   await page.getByRole('button', { name: 'Go to Goals' }).click();
   await page.waitForFunction(() => location.pathname === '/goals', null, { timeout: 5_000 });
+});
+
+// The head's place line is said whole per case, in German too: a hub's name cannot be declined
+// into "von {place}", so the workspace has its own sentence.
+test('chromium: in German a goal\'s head names its place in a sentence that reads', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const workspaceGoal = seeded(1, 'Kundinnen lösen ihr Anliegen selbst', { status: 'ON_TRACK' });
+  const hubGoal = seeded(2, 'Das Haus ist bezogen', { hub_id: HUB.id, status: 'AT_RISK' });
+  const backend = goalsBackend({ seed: { periods: [PERIOD], goals: [workspaceGoal, hubGoal] } });
+  const walk = await productWalk(browser, {
+    modules: ['GOALS'],
+    answer: (method, path, ...rest) => (path === '/accounts/me' && method === 'GET' ? { json: { ...ACCOUNT, locale: 'de' } } : backend(method, path, ...rest)),
+  });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/goals/${workspaceGoal.id}`);
+  const head = page.locator('header.object-head');
+  await head.getByText('Ein Ziel des Arbeitsbereichs').waitFor({ timeout: 10_000 });
+  assert.equal(await head.getByText(/von Der/).count(), 0, 'the workspace is declined as a name');
+
+  await page.goto(`${served.origin}/goals/${hubGoal.id}`);
+  await head.getByText(`Ein Ziel von „${HUB.name}“`).waitFor({ timeout: 10_000 });
+  assert.deepEqual(walk.errors(), []);
 });

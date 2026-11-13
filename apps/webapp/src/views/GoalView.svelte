@@ -99,7 +99,12 @@
   });
 
   const placeHub = $derived(hubOf(goal));
-  const placeName = $derived(placeHub ? (containers.find(placeHub)?.name ?? t('app.goals.hub_unread')) : t('app.goals.workspace'));
+  // Said whole per case: a place's name cannot be declined into "von {place}" (German grammar).
+  const placeLine = $derived.by(() => {
+    if (!placeHub) return t('app.goals.goal_subtitle_workspace');
+    const name = containers.find(placeHub)?.name;
+    return name ? t('app.goals.goal_subtitle', { place: name }) : t('app.goals.goal_subtitle_unread');
+  });
   const personName = (id: string | null | undefined) => (id ? (accounts.nameOf(id) ?? t('app.people.unnamed')) : t('app.goals.nobody'));
 
   let failure = $state<string | undefined>(undefined);
@@ -235,7 +240,7 @@
     {@const shown = goal}
     <ObjectHead hasActsOnPhone
       objectKey={{ label: t('app.goals.goal'), icon: 'flag', product: 'goals' }}
-      meta={t('app.goals.goal_subtitle', { place: placeName })}
+      meta={placeLine}
       title={shown.title}
       titleLabel={t('app.goals.goal')}
       next={mayWrite ? { label: t('app.goals.check_in'), icon: 'circle-check', onclick: openCheckIn } : undefined}
