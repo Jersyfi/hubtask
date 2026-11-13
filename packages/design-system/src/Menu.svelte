@@ -217,7 +217,15 @@
     border-radius: var(--r-lg);
     /* Drawn where its trigger is, so it would inherit a current row's weight: items are regular. */
     font-weight: var(--fw-regular);
-    background: var(--bg-raised);
+    /* A list taller than its room scrolls inside it, and says so where the scrollbar does not: a
+       shade at the edge with more to come, covered by the surface's own colour once it is reached. */
+    background:
+      linear-gradient(var(--bg-raised), transparent) top / 100% var(--sp-300) no-repeat local,
+      linear-gradient(transparent, var(--bg-raised)) bottom / 100% var(--sp-300) no-repeat local,
+      radial-gradient(farthest-side at 50% 0, var(--border-default), transparent) top / 100% var(--sp-150) no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, var(--border-default), transparent) bottom / 100% var(--sp-150) no-repeat scroll,
+      var(--bg-raised);
+    overscroll-behavior: contain;
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-attach-duration) var(--motion-attach-easing) both;
   }

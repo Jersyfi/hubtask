@@ -96,6 +96,14 @@ test('what the type does not carry is not listed', () => {
   assert.ok(ids.includes('dates') && ids.includes('person') && ids.includes('complete'));
 });
 
+test('an entry its workflow decides offers neither tick off nor reopen: its status button takes the steps', () => {
+  for (const isCompleted of [false, true]) {
+    const ids = idsOf(entryMenu(context({ surface: 'page', isStatusDriven: true, item: { title: 'x', isCompleted, hasDue: false } }), t));
+    assert.ok(!ids.includes('complete') && !ids.includes('reopen'), ids.join());
+    assert.ok(ids.includes('dates') && ids.includes('trash'));
+  }
+});
+
 test('a completed entry offers to reopen it, a dated one to change the date', () => {
   const ids = idsOf(entryMenu(context({ item: { title: 'Buy milk', isCompleted: true, hasDue: true } }), t));
   assert.ok(ids.includes('reopen') && !ids.includes('complete'));

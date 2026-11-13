@@ -132,6 +132,26 @@ for (const width of [1280, 390]) {
   });
 }
 
+test('chromium 1280x800: the head\'s menu of a workflow entry fits or scrolls to its last item, with no tick off', { timeout: 60_000 }, async () => {
+  const { page, close } = await open(1280, { runs: true });
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
+    await page.locator('[data-tour="entry"]').getByRole('button', { name: /^Actions for/ }).first().click();
+    const menu = page.getByRole('menu').last();
+    await menu.waitFor({ timeout: 5_000 });
+    assert.equal(await menu.getByRole('menuitem', { name: 'Mark as done' }).count(), 0, 'tick off steps around the workflow');
+    const trash = menu.getByRole('menuitem', { name: 'Move to the trash' });
+    await trash.scrollIntoViewIfNeeded();
+    const box = await trash.boundingBox();
+    assert.ok(box && box.y >= 0 && box.y + box.height <= 800, `the trash is out of reach: ${JSON.stringify(box)}`);
+    const surface = await menu.evaluate((list) => { const r = list.parentElement.getBoundingClientRect(); return { bottom: r.bottom }; });
+    assert.ok(surface.bottom <= 800, `the menu runs past the screen: ${surface.bottom}`);
+  } finally {
+    await close();
+  }
+});
+
 test('chromium: without a workflow the default holds and the primary button is Done (UC-FLW-06/5)', { timeout: 60_000 }, async () => {
   const { page, close } = await open(1280, { runs: false });
   try {

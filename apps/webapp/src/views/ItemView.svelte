@@ -601,6 +601,7 @@
             mayCreate: mayCreateHere,
             mayShare: mayShare(),
             readsPeople: true,
+            isStatusDriven: hasWorkflow,
             carries,
             level: actions?.levelOf(item),
           },
