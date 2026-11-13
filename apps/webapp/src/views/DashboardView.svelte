@@ -18,11 +18,11 @@
   // **By mail** (check 9): every reader may have the dashboard sent to them, daily or on one
   // weekday at an hour of their zone; the server computes the mail as them when it is sent.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Dialog, Icon, IconButton, Inline, Input, Menu, PageHeader, Select, Skeleton, Stack, WorkPage,
+    Button, Dialog, Icon, IconButton, Inline, Input, Menu, PageHeader, Select, Skeleton, Stack, VisuallyHidden, WorkPage,
   } from '@hubtask/design-system/components';
   import { formatQuery, parseQuery, type QueryKey } from '@hubtask/query';
   import type { Dashboard, DashboardDigest, DashboardFigures, DashboardWidgetWrite, GoalList } from '@hubtask/sync-engine';
@@ -112,22 +112,134 @@
     return t('app.dashboards.empty_query');
   }
 
+  /** The layouts before each change, newest last: *Rückgängig* takes one back. */
+  let history = $state<DashboardWidgetWrite[][]>([]);
+  let isLibraryOpen = $state(false);
   function startEditing() {
     if (!dashboard) return;
     layout = dashboard.widgets.map(widgetWrite);
+    history = [];
     isEditing = true;
+  }
+  function change(next: DashboardWidgetWrite[]) {
+    history = [...history, layout];
+    layout = next;
+  }
+  function undo() {
+    const last = history[history.length - 1];
+    if (!last) return;
+    history = history.slice(0, -1);
+    layout = last;
+  }
+  function discard() {
+    isEditing = false;
+    isLibraryOpen = false;
+    history = [];
   }
   const boxOf = (each: DashboardWidgetWrite) => ({ x: each.x ?? 0, y: each.y ?? 0, w: each.w ?? 6, h: each.h ?? 2 });
   const shown = $derived<DashboardWidgetWrite[]>(isEditing ? layout : (dashboard?.widgets ?? []).map(widgetWrite));
   const ordered = $derived(readingOrder(shown.map((widget, index) => ({ ...boxOf(widget), widget, index }))));
-  function place(index: number, next: { x: number; y: number; w: number; h: number }) {
-    layout = layout.map((each, i) => (i === index ? { ...each, ...next } : each));
+  function place(index: number, next: { x: number; y: number; w: number; h: number }, isLive = false) {
+    const placed = layout.map((each, i) => (i === index ? { ...each, ...next } : each));
+    if (isLive) layout = placed;
+    else change(placed);
+    const widget = placed[index];
+    if (widget) announced = t('app.dashboards.where_of', { title: widget.title, x: String(next.x + 1), y: String(next.y + 1), w: String(next.w), h: String(next.h) });
   }
+  let announced = $state('');
+
+  // Dragging by the handle and resizing by the corner move by whole cells (WCAG 2.5.7: the
+  // keyboard does both too - arrows move, Shift with arrows resizes).
+  let grid = $state<HTMLElement | undefined>(undefined);
+  function dragFrom(event: PointerEvent, index: number, mode: 'move' | 'size') {
+    const article = (event.currentTarget as HTMLElement).closest('article');
+    const start = layout[index];
+    if (!article || !grid || !start || event.button !== 0) return;
+    event.preventDefault();
+    const gap = Number.parseFloat(getComputedStyle(grid).columnGap) || 0;
+    const box = boxOf(start);
+    const cellW = (article.offsetWidth + gap) / box.w;
+    const cellH = (article.offsetHeight + gap) / box.h;
+    const handle = event.currentTarget as HTMLElement;
+    handle.setPointerCapture(event.pointerId);
+    history = [...history, layout];
+    const fromX = event.clientX;
+    const fromY = event.clientY;
+    const onMove = (next: PointerEvent) => {
+      const dx = Math.round((next.clientX - fromX) / cellW);
+      const dy = Math.round((next.clientY - fromY) / cellH);
+      place(index, mode === 'move' ? moved(box, dx, dy) : resized(box, dx, dy), true);
+    };
+    const onUp = () => {
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('pointercancel', onUp);
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('pointercancel', onUp);
+  }
+  function keyed(event: KeyboardEvent, index: number, mode: 'move' | 'size') {
+    const steps: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const step = steps[event.key];
+    const widget = layout[index];
+    if (!step || !widget) return;
+    event.preventDefault();
+    const box = boxOf(widget);
+    const handle = event.currentTarget as HTMLElement;
+    place(index, mode === 'size' || event.shiftKey ? resized(box, step[0], step[1]) : moved(box, step[0], step[1]));
+    // Moving in reading order moves the element, which drops its focus: the handle keeps it.
+    void tick().then(() => handle.focus());
+  }
+
+  // --- The library: the nine kinds, previewed with one's own data -------------------------------
+
+  type Kind = DashboardWidgetWrite['chart'];
+  const KINDS: readonly Kind[] = ['NUMBER', 'BAR', 'LINE', 'LIST', 'PIE', 'TABLE', 'MATRIX', 'PROGRESS', 'TEXT'];
+  const KIND_GROUP: Record<Kind, string> = { NUMBER: 'figures', BAR: 'charts', LINE: 'charts', PIE: 'charts', TABLE: 'lists', MATRIX: 'charts', LIST: 'lists', PROGRESS: 'goals', TEXT: 'text' };
+  let librarySearch = $state('');
+  let libraryGroup = $state('all');
+  const libraryKinds = $derived(KINDS.filter((kind) => (libraryGroup === 'all' || KIND_GROUP[kind] === libraryGroup)
+    && `${t(`app.dashboards.kind_${kind}`)} ${t(`app.dashboards.kind_${kind}_hint`)}`.toLowerCase().includes(librarySearch.trim().toLowerCase())));
+  const filterTree = $derived.by(() => {
+    const parsed = dashboard?.filter ? parseQuery(dashboard.filter) : undefined;
+    return parsed?.ok ? parsed.query.filter : undefined;
+  });
+  let previewRows = $state<FigureRow[]>([]);
+  let previewEntries = $state<ListEntry[]>([]);
+  $effect(() => {
+    if (!isLibraryOpen) return;
+    const filter = filterTree;
+    return untrack(() => {
+      const closers = [
+        engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:aggregate', body: { ...(filter ? { filter } : {}), aggregate: { function: 'COUNT', group_by: 'status' } } }, (next) => {
+          if (next.status === 'ready') previewRows = figureRows(next.data.data, { group: (value) => groupName('status', value), period: (day) => day });
+        }),
+        engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:query', body: { ...(filter ? { filter } : {}), size: 3 } }, (next) => {
+          if (next.status === 'ready') previewEntries = next.data.data.map((row) => ({ id: String(row['id']), key: ticketKeyOf(typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined, row['number'] as number) ?? '', title: String(row['title'] ?? ''), href: `/items/${String(row['id'])}`, column: '' }));
+        }),
+      ];
+      return () => closers.forEach((close) => close());
+    });
+  });
+  let preset = $state<DashboardWidgetWrite | undefined>(undefined);
+  /** A kind taken from the library opens the editor with it; the widget lands where the drop asked, else under the rest. */
+  function addKind(kind: Kind) {
+    const source = kind === 'PROGRESS' ? 'GOALS' : kind === 'TEXT' ? 'TEXT' : 'QUERY';
+    const query = kind === 'LIST' ? { q: 'is: open sort: due' }
+      : kind === 'LINE' ? { aggregate: { function: 'COUNT', bucket: { field: 'created_at', period: 'week' } } }
+        : kind === 'NUMBER' ? { aggregate: { function: 'COUNT' } }
+          : kind === 'MATRIX' ? { aggregate: { function: 'COUNT', group_by: 'status', bucket: { field: 'created_at', period: 'week' } } }
+            : { aggregate: { function: 'COUNT', group_by: 'status' } };
+    preset = { title: t(`app.dashboards.kind_${kind}`), chart: kind, source, ...(source === 'QUERY' ? { query } : {}), ...(kind === 'LIST' ? { column: 'due_at' } : {}), x: 0, y: 0, w: 6, h: 2 } as DashboardWidgetWrite;
+    openWidget(-1);
+  }
+  let isDropping = $state(false);
   async function saveLayout() {
     const at = dashboard;
     if (!at) return;
     const ok = await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], filter: at.filter ?? '', widgets: layout }), t('app.dashboards.saved'));
-    if (ok) isEditing = false;
+    if (ok) { isEditing = false; isLibraryOpen = false; history = []; }
   }
 
   // The widget dialog: a new one (`editingIndex` -1) or a change.
@@ -156,11 +268,12 @@
   }
   function saveWidget(write: DashboardWidgetWrite) {
     if (editingIndex < 0) {
-      layout = [...layout, { ...write, ...nextBox(layout.map(boxOf)) }];
+      change([...layout, { ...write, ...nextBox(layout.map(boxOf), 6, 2) }]);
     } else {
-      layout = layout.map((each, i) => (i === editingIndex ? { ...write, ...boxOf(each) } : each));
+      change(layout.map((each, i) => (i === editingIndex ? { ...write, ...boxOf(each) } : each)));
     }
     isWidgetOpen = false;
+    preset = undefined;
   }
 
   // --- Name and sharing, deleting ---------------------------------------------------------------
@@ -441,12 +554,10 @@
       expandLabel: t('app.goals.expand_trail'),
       onnavigate: () => onnavigate('/goals?tab=dashboards'),
     }}
-    primary={mayEdit && isEditing
-      ? { label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => openWidget(-1), ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }
-      : undefined}
+    primary={undefined}
     secondary={mayEdit
       ? isEditing
-        ? [{ label: t('app.dashboards.save_layout'), icon: 'check', onclick: () => void saveLayout() }]
+        ? [{ label: t('app.dashboards.add_widget'), icon: 'plus', onclick: () => { isLibraryOpen = !isLibraryOpen; }, ...(layout.length >= MAX_WIDGETS ? { disabledReason: t('dashboards.too_many_widgets') } : {}) }]
         : [{ label: t('app.dashboards.edit'), icon: 'pencil', onclick: startEditing }, { label: t('app.dashboards.share'), icon: 'users', onclick: openSharing }]
       : []}
     menu={dashboard ? {
@@ -454,14 +565,13 @@
       items: [
         { id: 'digest', label: t('app.dashboards.digest'), icon: 'mail' as const },
         ...(mayEdit ? [
-          ...(isEditing ? [{ id: 'cancel', label: t('app.dashboards.discard'), icon: 'x' as const }] : []),
           { id: 'rename', label: t('app.dashboards.rename'), icon: 'pencil' as const },
           { id: 'delete', label: t('app.dashboards.delete'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
         ] : []),
       ],
       onselect: (id: string) => {
         if (id === 'digest') isDigestOpen = true;
-        if (id === 'cancel') isEditing = false;
+        if (id === 'cancel') discard();
         if (id === 'rename') openSharing();
         if (id === 'delete') isDeleting = true;
       },
@@ -496,43 +606,46 @@
       </section>
       {#if filterRefusal}<p class="failure" role="alert">{filterRefusal}</p>{/if}
     {/if}
-    {#if isEditing}<p class="quiet">{t('app.dashboards.editing_hint')}</p>{/if}
+    {#if isEditing}
+      <div class="band" role="toolbar" aria-label={t('app.dashboards.editing')} data-edit-band>
+        <span class="quiet">{t('app.dashboards.editing_hint')}</span>
+        <Inline gap="100">
+          <Button icon="undo-2" disabledReason={history.length === 0 ? t('app.dashboards.undo_none') : undefined} onclick={undo}>{t('app.dashboards.undo')}</Button>
+          <Button onclick={discard}>{t('app.dashboards.discard_short')}</Button>
+          <Button tone="primary" icon="check" onclick={() => void saveLayout()}>{t('app.dashboards.done')}</Button>
+        </Inline>
+      </div>
+    {/if}
 
     {#if ordered.length === 0}
       <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind={mayEdit ? 'unused' : 'settled'} icon="gauge" title={t('app.dashboards.no_widgets_title')}
         description={mayEdit ? t('app.dashboards.no_widgets') : undefined}
         create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
     {:else}
-      <div class="grid" class:stacked={viewport.isCompact} class:half={!viewport.isCompact && viewport.isBelowExpanded}>
+      <div class="board" class:with-side={isEditing && isLibraryOpen}>
+      <div bind:this={grid} class="grid" class:editing={isEditing} class:stacked={viewport.isCompact} class:half={!viewport.isCompact && viewport.isBelowExpanded}>
         {#each ordered as each (each.widget.id ?? `new-${each.index}`)}
           {@const figure = figureOf(each.widget.id)}
           {@const key = each.widget.id ?? `new-${each.index}`}
           {@const foot = sourceLine(each.widget)}
           <article class="widget" style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} style:--half={Math.min(6, Math.max(1, Math.ceil(each.w / 2)))} aria-label={each.widget.title} data-widget={each.widget.chart}>
             <header class="widget-head">
+              {#if isEditing}
+                <button type="button" class="handle" aria-label={t('app.dashboards.move_handle', { title: each.widget.title })} aria-describedby="dashboard-keys"
+                  onpointerdown={(event) => dragFrom(event, each.index, 'move')} onkeydown={(event) => keyed(event, each.index, 'move')}><Icon name="grip-vertical" size="sm" /></button>
+              {/if}
               <h2 class="heading">{each.widget.title}</h2>
+              {#if isEditing}
+                <IconButton icon="settings" size="sm" tone="subtle" label={t('app.dashboards.change_widget', { title: each.widget.title })} onclick={() => openWidget(each.index)} />
+                <IconButton icon="trash" size="sm" tone="subtle" label={t('app.dashboards.remove_widget', { title: each.widget.title })} onclick={() => change(layout.filter((_, i) => i !== each.index))} />
+              {/if}
               {#if !isEditing && figure && !figure.error && each.widget.chart !== 'TEXT'}
                 <Menu label={t('app.dashboards.widget_menu', { title: each.widget.title })} items={widgetMenu(each.widget, key)} placement={{ side: 'block-end', align: 'end' }} onselect={(id) => onWidgetMenu(each.widget, key, id)}>
                   {#snippet trigger(props)}<IconButton icon="ellipsis" size="sm" tone="subtle" label={t('app.dashboards.widget_menu', { title: each.widget.title })} {...props} />{/snippet}
                 </Menu>
               {/if}
             </header>
-            {#if isEditing}
-              {@const index = each.index}
-              <p class="quiet">{t('app.dashboards.where', { x: String(each.x + 1), y: String(each.y + 1), w: String(each.w), h: String(each.h) })}</p>
-              <Inline gap="050" isWrapping>
-                <IconButton icon="arrow-left" size="sm" label={t('app.dashboards.move_left', { title: each.widget.title })} onclick={() => place(index, moved(each, -1, 0))} />
-                <IconButton icon="arrow-right" size="sm" label={t('app.dashboards.move_right', { title: each.widget.title })} onclick={() => place(index, moved(each, 1, 0))} />
-                <IconButton icon="chevron-up" size="sm" label={t('app.dashboards.move_up', { title: each.widget.title })} onclick={() => place(index, moved(each, 0, -1))} />
-                <IconButton icon="chevron-down" size="sm" label={t('app.dashboards.move_down', { title: each.widget.title })} onclick={() => place(index, moved(each, 0, 1))} />
-                <IconButton icon="minus" size="sm" label={t('app.dashboards.narrower', { title: each.widget.title })} onclick={() => place(index, resized(each, -1, 0))} />
-                <IconButton icon="plus" size="sm" label={t('app.dashboards.wider', { title: each.widget.title })} onclick={() => place(index, resized(each, 1, 0))} />
-                <IconButton icon="fold-vertical" size="sm" label={t('app.dashboards.shorter', { title: each.widget.title })} onclick={() => place(index, resized(each, 0, -1))} />
-                <IconButton icon="chevrons-up-down" size="sm" label={t('app.dashboards.taller', { title: each.widget.title })} onclick={() => place(index, resized(each, 0, 1))} />
-                <IconButton icon="pencil" size="sm" label={t('app.dashboards.change_widget', { title: each.widget.title })} onclick={() => openWidget(index)} />
-                <IconButton icon="trash" size="sm" tone="danger" label={t('app.dashboards.remove_widget', { title: each.widget.title })} onclick={() => (layout = layout.filter((_, i) => i !== index))} />
-              </Inline>
-            {:else if !figures}
+            {#if !figures && !isEditing}
               <div aria-busy="true"><Skeleton lines={3} /></div>
             {:else if !figure}
               <p class="quiet">{t('app.dashboards.not_computed')}</p>
@@ -547,17 +660,55 @@
               {#if figure.compare?.error}<p class="refused" role="status">{t('app.dashboards.series_refused', { title: each.widget.compare?.title ?? '', reason: t(figure.compare.error) })}</p>{/if}
               {#if figure.truncated || figure.compare?.truncated}<p class="quiet">{t('app.dashboards.truncated')}</p>{/if}
             {/if}
-            {#if foot && !isEditing}<p class="foot" data-widget-query>{foot}</p>{/if}
+            {#if foot}<p class="foot" data-widget-query>{foot}</p>{/if}
+            {#if isEditing}
+              <button type="button" class="corner" aria-label={t('app.dashboards.resize_handle', { title: each.widget.title })} aria-describedby="dashboard-keys"
+                onpointerdown={(event) => dragFrom(event, each.index, 'size')} onkeydown={(event) => keyed(event, each.index, 'size')}></button>
+            {/if}
           </article>
         {/each}
+        {#if isEditing && isDropping}
+          <div class="drop" role="region" aria-label={t('app.dashboards.drop_here')} ondragover={(event) => event.preventDefault()}
+            ondrop={(event) => { event.preventDefault(); isDropping = false; const kind = event.dataTransfer?.getData('text/plain') as Kind; if (KINDS.includes(kind)) addKind(kind); }}>
+            <Icon name="plus" size="sm" />{t('app.dashboards.drop_here_cells', { w: '6', h: '2' })}
+          </div>
+        {/if}
       </div>
+      {#if isEditing && isLibraryOpen}
+        <aside class="side" aria-label={t('app.dashboards.library')} data-widget-library>
+          <header class="side-head"><h2 class="heading">{t('app.dashboards.library')}</h2><IconButton icon="x" size="sm" tone="subtle" label={t('app.links.cancel')} onclick={() => (isLibraryOpen = false)} /></header>
+          <Input label={t('app.dashboards.library_search')} isLabelHidden placeholder={t('app.dashboards.library_search')} bind:value={librarySearch} />
+          <div class="kinds" role="group" aria-label={t('app.dashboards.library_groups')}>
+            {#each ['all', 'figures', 'charts', 'lists', 'goals', 'text'] as group (group)}
+              <button type="button" class="kind-chip" aria-pressed={libraryGroup === group} onclick={() => (libraryGroup = group)}>{t(`app.dashboards.library_${group}`)}</button>
+            {/each}
+          </div>
+          <ul class="cards">
+            {#each libraryKinds as kind (kind)}
+              <li>
+                <button type="button" class="card" draggable="true" data-kind={kind} onclick={() => addKind(kind)}
+                  ondragstart={(event) => { event.dataTransfer?.setData('text/plain', kind); isDropping = true; }} ondragend={() => (isDropping = false)}>
+                  <span class="preview" aria-hidden="true">
+                    <WidgetChart title={t(`app.dashboards.kind_${kind}`)} chart={kind === 'PROGRESS' ? 'BAR' : kind} rows={kind === 'LINE' ? previewRows.map((row, i) => ({ ...row, period: String(i) })) : previewRows}
+                      entries={previewEntries} text={t('app.dashboards.kind_TEXT_sample')} empty={t('app.dashboards.library_no_data')} />
+                  </span>
+                  <span class="card-text"><strong>{t(`app.dashboards.kind_${kind}`)}</strong><span class="quiet">{t(`app.dashboards.kind_${kind}_hint`)}</span></span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+          <p class="quiet">{t('app.dashboards.library_hint')}</p>
+        </aside>
+      {/if}
+      </div>
+      <VisuallyHidden><span id="dashboard-keys">{t('app.dashboards.keys_hint')}</span><span aria-live="polite">{announced}</span></VisuallyHidden>
     {/if}
   {/if}
 </WorkPage>
 
 {#if isWidgetOpen}
   <Dialog size="l" bind:isOpen={isWidgetOpen} title={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} dismissLabel={t('app.links.cancel')}>
-    <WidgetEditor widget={editingIndex < 0 ? undefined : layout[editingIndex]} {summaryViews} goals={goalChoices} onsave={saveWidget} />
+    <WidgetEditor widget={editingIndex < 0 ? preset : layout[editingIndex]} {summaryViews} goals={goalChoices} onsave={saveWidget} />
   </Dialog>
 {/if}
 
@@ -624,6 +775,25 @@
   .grid.half { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: row dense; }
   .grid.half .widget { grid-column: span var(--half); grid-row: auto; }
   .grid.stacked { display: flex; flex-direction: column; }
+  .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; }
+  .board.with-side { grid-template-columns: minmax(0, 1fr) var(--layout-pane-width); }
+  .grid.editing { padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-lg); }
+  .grid.editing .widget { position: relative; }
+  .handle { display: inline-grid; place-items: center; padding: 0; border: none; background: none; color: var(--text-subtle); cursor: grab; touch-action: none; }
+  .handle:focus-visible, .corner:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  .corner { position: absolute; inset-block-end: var(--sp-050); inset-inline-end: var(--sp-050); inline-size: var(--sp-200); block-size: var(--sp-200); padding: 0; border: none; border-block-end: var(--bw-thick) solid var(--text-subtle); border-inline-end: var(--bw-thick) solid var(--text-subtle); background: none; cursor: nwse-resize; touch-action: none; }
+  .drop { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: var(--sp-050); min-block-size: var(--sp-1000); border: var(--bw-thick) dashed var(--accent-primary); border-radius: var(--r-lg); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .band { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); padding: var(--sp-100) var(--sp-150); border-radius: var(--r-lg); background: var(--accent-primary-subtle); }
+  .side { display: flex; flex-direction: column; gap: var(--sp-150); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .side-head { display: flex; align-items: center; justify-content: space-between; }
+  .kinds { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+  .kind-chip { padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: var(--fs-075); cursor: pointer; }
+  .kind-chip[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .cards { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .card { display: grid; grid-template-columns: var(--sp-1000) minmax(0, 1fr); gap: var(--sp-150); inline-size: 100%; padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); color: var(--text-primary); font: inherit; text-align: start; cursor: grab; }
+  .card:hover { border-color: var(--border-strong); }
+  .preview { overflow: hidden; block-size: var(--sp-800); padding: var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); pointer-events: none; font-size: var(--fs-050); }
+  .card-text { display: flex; flex-direction: column; gap: var(--sp-025); font-size: var(--fs-075); }
   .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); min-block-size: var(--sp-300); }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .content { flex: 1 1 auto; min-width: 0; }

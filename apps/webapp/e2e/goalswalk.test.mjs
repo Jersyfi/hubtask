@@ -76,6 +76,13 @@ function goalsBackend({ seed } = {}) {
     const board = /^\/dashboards\/([^/]+)(\/figures|\/digest)?$/.exec(path);
     const dashboard = board && dashboards.find((each) => each.id === board[1]);
     if (dashboard && !board[2] && method === 'GET') return { json: dashboard };
+    if (dashboard && !board[2] && method === 'PUT') {
+      Object.assign(dashboard, { ...body, version: dashboard.version + 1, widgets: body.widgets.map((each, i) => ({ id: each.id ?? `01a0e2e0-0000-7000-8000-0000000b000${i}`, view_id: null, query: null, goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], ...each })) });
+      seed?.puts?.push(body);
+      return { json: dashboard };
+    }
+    if (path === '/items:aggregate' && method === 'POST' && seed?.preview) return { json: { data: [{ group: 'todo', period: null, count: 4, value: null }, { group: 'done', period: null, count: 2, value: null }] } };
+    if (path === '/items:query' && method === 'POST' && seed?.preview) return { json: page([]) };
     if (dashboard && board[2] === '/figures') {
       return { json: { dashboard_id: dashboard.id, computed_at: '2026-11-01T09:00:00Z', widgets: dashboard.widgets.map((each) => ({ id: each.id, data: seed?.figures?.[each.id] ?? [], truncated: false, error: null, compare: null, remaining: null })) } };
     }
@@ -475,4 +482,56 @@ test('chromium: 1280 px - a portfolio\'s project rows change the project, and no
   assert.ok(table.table <= table.frame + 1 && table.menus === 0, `the projects table runs past its frame: ${JSON.stringify(table)}`);
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls sideways: ${wide}`);
+});
+
+// UC-GOL-04 check 17: the layout is edited by handle and corner, with the keyboard as well (WCAG
+// 2.5.7), undone step by step, and the library offers the nine kinds previewed with one's own data.
+test('chromium: a dashboard is laid out by its handles and the keyboard, undone, and grows from a library of nine kinds', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = (n, title, x) => ({
+    id: `01a0e2e0-0000-7000-8000-00000000a61${n}`, title, chart: 'NUMBER', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT' } }, goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x, y: 0, w: 3, h: 2,
+  });
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a602', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: '', version: 1, widgets: [widget(1, 'Open', 0), widget(2, 'Late', 3)] };
+  const puts = [];
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board], puts, preview: true, figures: { [board.widgets[0].id]: [{ group: null, period: null, count: 38, value: null }] } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.getByText('38', { exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Edit' }).click();
+  const band = page.locator('[data-edit-band]');
+  await band.waitFor({ timeout: 5_000 });
+  const handle = page.getByRole('button', { name: 'Move Open', exact: true });
+  await handle.focus();
+  await page.keyboard.press('ArrowDown');
+  await page.getByText('Open: column 1, row 2, 3 wide, 2 high').waitFor({ state: 'attached', timeout: 5_000 });
+  await page.keyboard.press('Shift+ArrowRight');
+  await page.getByText('Open: column 1, row 2, 4 wide, 2 high').waitFor({ state: 'attached', timeout: 5_000 });
+  await band.getByRole('button', { name: 'Undo' }).click();
+  // The pointer drags by whole cells too.
+  const box = await page.getByRole('button', { name: 'Resize Late', exact: true }).boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 400, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await page.getByText(/^Late: column 4, row 1, [5-9] wide/).waitFor({ state: 'attached', timeout: 5_000 });
+
+  await page.getByRole('button', { name: 'Add widget' }).click();
+  const library = page.locator('[data-widget-library]');
+  await library.waitFor({ timeout: 5_000 });
+  assert.equal(await library.locator('.card').count(), 9, 'the library offers the nine kinds');
+  await library.locator('[data-kind="BAR"] [data-chart="BAR"]').getByText('4', { exact: true }).waitFor({ timeout: 5_000 });
+  await library.getByRole('button', { name: 'Lists' }).click();
+  assert.equal(await library.locator('.card').count(), 2, 'a kind filter narrows the cards');
+
+  await band.getByRole('button', { name: 'Done' }).click();
+  await band.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(puts.length, 1);
+  const open = puts[0].widgets.find((each) => each.title === 'Open');
+  assert.deepEqual([open.x, open.y, open.w, open.h], [0, 1, 3, 2], 'undo took the resize back, the move stayed');
+  assert.ok(puts[0].widgets.find((each) => each.title === 'Late').w > 3, 'the corner widened the widget');
+  assert.deepEqual(walk.errors(), []);
+  assert.deepEqual(walk.unstubbed(), []);
 });
