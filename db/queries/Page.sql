@@ -131,8 +131,9 @@ WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
 -- name: SearchPages :many
 -- The pages a text finds in the spaces named, ranked, narrowed to a label, the person who wrote a
 -- page first and a window of its last change; without a text, the pages the label or the author
--- names, newest first, with no passage. Archived and trashed pages stay out.
-SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at,
+-- names, newest first, with no passage. Archived and trashed pages stay out. Among equally good
+-- hits a page verified at the moment comes first: the order changes, not what is found (E-8).
+SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until,
        (CASE WHEN sqlc.arg('text')::text = '' THEN 0
              ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
        (CASE WHEN sqlc.arg('text')::text = '' THEN ''
@@ -150,7 +151,8 @@ WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY(sqlc.arg('hub_ids')::
   AND (sqlc.narg('author_id')::uuid IS NULL OR p.created_by = sqlc.narg('author_id')::uuid)
   AND (sqlc.narg('updated_from')::timestamptz IS NULL OR p.updated_at >= sqlc.narg('updated_from')::timestamptz)
   AND (sqlc.narg('updated_to')::timestamptz IS NULL OR p.updated_at < sqlc.narg('updated_to')::timestamptz)
-ORDER BY rank DESC, p.updated_at DESC, p.id
+ORDER BY rank DESC, (p.verified_until IS NOT NULL AND p.verified_until > sqlc.arg('at')::timestamptz) DESC,
+         p.updated_at DESC, p.id
 LIMIT sqlc.arg('batch');
 
 -- name: PageLabels :many

@@ -42340,6 +42340,13 @@ components:
               excerpt: { type: string, description: "The passage that matched, the words found between « and »." }
               rank: { type: number }
               updated_at: { type: string, format: date-time }
+              verified_until:
+                type: [string, "null"]
+                format: date-time
+                description: >
+                  When the page's verification lapses; null for a page never verified. Among
+                  equally good hits a page verified now comes first; a past date is a page due
+                  for review.
 
     Whiteboard:
       type: object

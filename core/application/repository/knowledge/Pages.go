@@ -31,6 +31,8 @@ type Hit struct {
 	Excerpt   string
 	Rank      float64
 	UpdatedAt time.Time
+	// VerifiedUntil is when the page's verification lapses; nil for a page never verified.
+	VerifiedUntil *time.Time
 }
 
 // Summary is a page as a reference shows it.
@@ -88,6 +90,8 @@ type PageQuery struct {
 	UpdatedFrom *time.Time
 	UpdatedTo   *time.Time
 	Limit       int
+	// At is the moment a verification is judged at (E-8).
+	At time.Time
 }
 
 // PageLabel is one label one page carries.

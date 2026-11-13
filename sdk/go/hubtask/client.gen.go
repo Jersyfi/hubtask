@@ -21225,6 +21225,9 @@ type PageHitList struct {
 		Rank      float32             `json:"rank"`
 		Title     string              `json:"title"`
 		UpdatedAt time.Time           `json:"updated_at"`
+
+		// VerifiedUntil When the page's verification lapses; null for a page never verified. Among equally good hits a page verified now comes first; a past date is a page due for review.
+		VerifiedUntil *time.Time `json:"verified_until,omitempty"`
 	} `json:"data"`
 }
 

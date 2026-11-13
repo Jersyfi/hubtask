@@ -120,6 +120,7 @@ func (h SearchPages) Execute(ctx context.Context, actor appshared.ActorContext, 
 		return []repository.Hit{}, err
 	}
 	query.HubIDs = readable
+	query.At = h.Space.Clock.Now()
 	var hits []repository.Hit
 	err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
@@ -248,7 +249,7 @@ func (h SearchPages) Descriptor() usecase.Descriptor {
 				data = append(data, usecase.Output{
 					"id": hit.ID.String(), "hub_id": hit.HubID.String(), "parent_id": idOrNil(hit.ParentID),
 					"title": hit.Title, "icon": nilIfEmpty(hit.Icon), "excerpt": hit.Excerpt,
-					"rank": hit.Rank, "updated_at": hit.UpdatedAt,
+					"rank": hit.Rank, "updated_at": hit.UpdatedAt, "verified_until": timeOrNil(hit.VerifiedUntil),
 				})
 			}
 			return usecase.Output{"data": data}, nil

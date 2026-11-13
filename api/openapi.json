@@ -69941,6 +69941,14 @@
                 "updated_at": {
                   "type": "string",
                   "format": "date-time"
+                },
+                "verified_until": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time",
+                  "description": "When the page's verification lapses; null for a page never verified. Among equally good hits a page verified now comes first; a past date is a page due for review.\n"
                 }
               }
             }

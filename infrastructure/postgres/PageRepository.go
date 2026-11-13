@@ -350,6 +350,7 @@ func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([
 		Text: query.Text, HubIds: hubs, Label: label, AuthorID: author,
 		UpdatedFrom: optionalTimestamp(query.UpdatedFrom), UpdatedTo: optionalTimestamp(query.UpdatedTo),
 		Batch: int32(query.Limit), //nolint:gosec // bounded by the use case
+		At:    timestamp(query.At),
 	})
 	if err != nil {
 		return nil, pageFailed("searching the pages", err)
@@ -363,6 +364,7 @@ func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([
 		return repository.Hit{
 			ID: ids[0], HubID: ids[1], ParentID: parent, Title: row.Title, Icon: row.Icon,
 			Excerpt: row.Excerpt, Rank: row.Rank, UpdatedAt: timeFrom(row.UpdatedAt),
+			VerifiedUntil: optionalTime(row.VerifiedUntil),
 		}, err
 	})
 }

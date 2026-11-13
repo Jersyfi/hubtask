@@ -699,3 +699,59 @@ func TestAPageUnderATakenIdentifierIsRefusedAsTaken(t *testing.T) {
 		t.Fatalf("the second page answered %v", err)
 	}
 }
+
+// Among pages that match equally well, the verified one comes first - also against a newer
+// unverified one; a page past its review date counts as unverified. The order changes, not what
+// is found (E-8, UC-DOC-01 check 3).
+func TestAVerifiedPageRanksBeforeAnEquallyGoodUnverifiedOne(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub := freshID(t)
+	repo := postgres.NewPageRepository()
+	at := time.Date(2026, 10, 29, 9, 0, 0, 0, time.UTC)
+	verified, lapsed, plain := freshID(t), freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, freshName(t), "a0")); err != nil {
+			return err
+		}
+		for i, id := range []shared.ID{verified, lapsed, plain} {
+			// The later a page was written, the higher it stood before: plain is the newest.
+			written := at.Add(time.Duration(i) * time.Hour)
+			page := knowledge.Page{ID: id, HubID: hub, Title: "Travel", Body: "travel expenses claim",
+				OrderKey: "a" + string(rune('0'+i)), CreatedBy: authorA, CreatedAt: written, UpdatedBy: authorA, UpdatedAt: written, Version: 1}
+			if err := repo.Insert(ctx, page); err != nil {
+				return err
+			}
+		}
+		future, past := at.AddDate(0, 3, 0), at.AddDate(0, -1, 0)
+		for id, until := range map[shared.ID]time.Time{verified: future, lapsed: past} {
+			page, err := repo.Find(ctx, id)
+			if err != nil {
+				return err
+			}
+			page.VerifiedUntil, page.VerifiedAt, page.VerifiedBy, page.OwnerID = &until, &at, authorA, authorA
+			page.UpdatedAt = at
+			if err := repo.Update(ctx, page, 1); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		hits, err := repo.Search(ctx, repository.PageQuery{Text: "travel", HubIDs: []shared.ID{hub}, Limit: 10, At: at.Add(24 * time.Hour)})
+		if err != nil {
+			return err
+		}
+		if len(hits) != 3 || hits[0].ID != verified {
+			t.Fatalf("hits %+v, want the verified page first of three", hits)
+		}
+		if hits[0].VerifiedUntil == nil || hits[1].ID == verified || hits[2].ID == verified {
+			t.Errorf("the verified page's date is not answered: %+v", hits)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
