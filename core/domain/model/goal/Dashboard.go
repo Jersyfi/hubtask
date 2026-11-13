@@ -100,8 +100,11 @@ type Widget struct {
 	// Released are the fields of the dashboard's filter this widget does not inherit (§6.5): its
 	// own query decides them.
 	Released []string
-	X, Y     int
-	W, H     int
+	// Target and WarnAt draw a figure's goal and its warning line ("Ziel ≤ 4 h · Warnung ab 6 h"),
+	// for NUMBER and LINE only; a warning line above the target means lower is better.
+	Target, WarnAt *float64
+	X, Y           int
+	W, H           int
 }
 
 // Compare is a widget's second series: a summary document as POST /items:aggregate takes it, and
@@ -280,6 +283,17 @@ func checkWidget(w Widget, at string, normalizer text.Normalizer) (Widget, error
 		released = nil
 	}
 	w.Released = released
+	if w.Target != nil || w.WarnAt != nil {
+		if w.Chart != ChartNumber && w.Chart != ChartLine {
+			return Widget{}, invalid(at+"/target", "dashboards.target_chart")
+		}
+		if w.Target == nil {
+			return Widget{}, invalid(at+"/warn_at", "dashboards.warn_needs_target")
+		}
+		if w.WarnAt != nil && *w.WarnAt == *w.Target {
+			return Widget{}, invalid(at+"/warn_at", "dashboards.warn_equal")
+		}
+	}
 	if (w.Compare != nil || w.Cumulative) && !w.Chart.Series() {
 		return Widget{}, invalid(at+"/chart", "dashboards.series_chart")
 	}

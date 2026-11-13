@@ -31214,6 +31214,8 @@ components:
           maxItems: 20
           items: { type: string, maxLength: 64 }
           description: "Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at."
+        target: { type: [number, "null"], description: "A NUMBER or LINE widget's goal, drawn beside its figure or as a line." }
+        warn_at: { type: [number, "null"], description: "A NUMBER or LINE widget's warning line, with a target; above the target, lower is better." }
         goal_ids: { type: array, maxItems: 20, items: { type: string, format: uuid }, description: "For GOALS." }
         compare: { $ref: "#/components/schemas/DashboardWidgetCompare" }
         cumulative: { type: boolean, description: "Each period drawn as the running total of the periods up to it, for BAR, LINE and TABLE over COUNT or SUM; with compare, the work left between the two series as well." }
@@ -31244,6 +31246,8 @@ components:
         text: { type: string, description: "A TEXT widget's words; empty for any other." }
         column: { type: string, description: "A LIST widget's column; empty for any other." }
         released: { type: array, items: { type: string }, description: "The dashboard filter's fields this widget does not inherit." }
+        target: { type: [number, "null"], description: "The widget's goal; null without one." }
+        warn_at: { type: [number, "null"], description: "The widget's warning line; null without one." }
         goal_ids: { type: array, items: { type: string, format: uuid } }
         compare:
           anyOf: [{ $ref: "#/components/schemas/DashboardWidgetCompare" }, { type: "null" }]

@@ -34,7 +34,7 @@ func TestEveryWidgetInheritsTheDashboardsFilter(t *testing.T) {
 	made := ok(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{
 		"name": "Servicedesk", "filter": "who: none created: -6w..",
 		"widgets": []any{
-			map[string]any{"title": "Offen", "chart": "NUMBER", "source": "QUERY", "query": count},
+			map[string]any{"title": "Offen", "chart": "NUMBER", "source": "QUERY", "query": count, "target": 30.0, "warn_at": 40.0},
 			map[string]any{"title": "SLA", "chart": "PIE", "source": "QUERY", "x": 6.0, "query": map[string]any{
 				"scope_container_id": listA.String(), "q": "is: open", "aggregate": map[string]any{"function": "COUNT", "group_by": "is_completed"},
 			}, "released": []any{"created_at"}},
@@ -82,6 +82,9 @@ func TestEveryWidgetInheritsTheDashboardsFilter(t *testing.T) {
 	widgets := read["widgets"].([]usecase.Output)
 	if widgets[2]["column"] != "due_at" || widgets[3]["text"] != "Diese Woche zählt SA-7." || len(widgets[1]["released"].([]string)) != 1 {
 		t.Fatalf("the widgets read back as %v", widgets)
+	}
+	if widgets[0]["target"] != 30.0 || widgets[0]["warn_at"] != 40.0 || widgets[1]["target"] != nil {
+		t.Fatalf("the target and warning line read back as %v / %v", widgets[0]["target"], widgets[0]["warn_at"])
 	}
 	if _, err := call(t, CreateDashboard{s}.Descriptor(), ana, usecase.Input{"name": "Bad", "filter": "is: open sort: -due"}); code(err) != "query.sort_not_here" {
 		t.Fatalf("a filter with an order was stored: %v", err)

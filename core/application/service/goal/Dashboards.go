@@ -46,7 +46,7 @@ func DashboardOutput(d domain.Dashboard) usecase.Output {
 		widgets = append(widgets, usecase.Output{
 			"id": w.ID.String(), "title": w.Title, "chart": string(w.Chart), "source": string(w.Source),
 			"view_id": idText(w.ViewID), "query": query, "goal_ids": goals, "compare": compare, "cumulative": w.Cumulative,
-			"text": w.Text, "column": w.Column, "released": releasedOut(w.Released), "x": w.X, "y": w.Y, "w": w.W, "h": w.H,
+			"text": w.Text, "column": w.Column, "released": releasedOut(w.Released), "target": numberOut(w.Target), "warn_at": numberOut(w.WarnAt), "x": w.X, "y": w.Y, "w": w.W, "h": w.H,
 		})
 	}
 	groups := make([]string, 0, len(d.GroupIDs))
@@ -221,6 +221,7 @@ func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 		}
 		w.Cumulative, _ = doc["cumulative"].(bool)
 		w.Text, w.Column = stringOf(doc["text"]), stringOf(doc["column"])
+		w.Target, w.WarnAt = numberIn(doc["target"]), numberIn(doc["warn_at"])
 		if fields, ok := doc["released"].([]any); ok {
 			for _, f := range fields {
 				w.Released = append(w.Released, stringOf(f))
@@ -291,7 +292,7 @@ var dashboardInput = []usecase.Field{
 	{Name: "sharing", Kind: usecase.KindString, Enum: []string{"PRIVATE", "SCOPE", "GROUPS"}, Description: "PRIVATE, the default, for its owner alone; SCOPE for everybody who reads its place; GROUPS for the members of group_ids who read it - each then sees the numbers their own reading allows."},
 	{Name: "group_ids", Kind: usecase.KindList, Description: "For GROUPS: one to 20 groups whose members see it."},
 	{Name: "filter", Kind: usecase.KindString, Description: "The dashboard's filter as a Hubtask query without an order (is: open hub: <id> created: -6w..), names as identifiers; every QUERY widget inherits it but for the fields it lists in released."},
-	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document - for LIST a POST /items:query document and column, the field shown beside key and title; GOALS with goal_ids; TEXT with text), released (the filter's fields it does not inherit), x, y, w, h; id to keep one. A BAR, LINE or TABLE widget may carry compare (first_title, title, query: a second series, resolved beside created) and cumulative (each period as the running total up to it, over a COUNT or SUM by period; with compare also what is left between the two)."},
+	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document - for LIST a POST /items:query document and column, the field shown beside key and title; GOALS with goal_ids; TEXT with text), released (the filter's fields it does not inherit), target and warn_at (a NUMBER or LINE widget's goal and warning line; a warning line above the target means lower is better), x, y, w, h; id to keep one. A BAR, LINE or TABLE widget may carry compare (first_title, title, query: a second series, resolved beside created) and cumulative (each period as the running total up to it, over a COUNT or SUM by period; with compare also what is left between the two)."},
 }
 
 // ListDashboards answers the dashboards a reader sees: their own and the shared ones of places
@@ -731,4 +732,20 @@ func (s Steward) run(ctx context.Context, actor appshared.ActorContext, handler 
 		return nil, shared.ErrUnavailable.WithDetail("dashboards.summaries_unwired")
 	}
 	return handler.Invoke(ctx, actor, in)
+}
+
+// numberOut writes a widget's optional figure as null when unset.
+func numberOut(v *float64) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+// numberIn reads an optional figure; anything but a number is none.
+func numberIn(v any) *float64 {
+	if n, ok := number(v); ok {
+		return &n
+	}
+	return nil
 }

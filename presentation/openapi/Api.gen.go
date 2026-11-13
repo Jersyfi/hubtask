@@ -17153,13 +17153,19 @@ type DashboardWidget struct {
 	Released *[]string             `json:"released,omitempty"`
 	Source   DashboardWidgetSource `json:"source"`
 
+	// Target The widget's goal; null without one.
+	Target *float32 `json:"target,omitempty"`
+
 	// Text A TEXT widget's words; empty for any other.
 	Text   *string             `json:"text,omitempty"`
 	Title  string              `json:"title"`
 	ViewId *openapi_types.UUID `json:"view_id"`
 	W      int                 `json:"w"`
-	X      int                 `json:"x"`
-	Y      int                 `json:"y"`
+
+	// WarnAt The widget's warning line; null without one.
+	WarnAt *float32 `json:"warn_at,omitempty"`
+	X      int      `json:"x"`
+	Y      int      `json:"y"`
 }
 
 // DashboardWidgetChart defines model for DashboardWidget.Chart.
@@ -17208,6 +17214,9 @@ type DashboardWidgetWrite struct {
 	// Source TEXT for a TEXT widget, which runs nothing.
 	Source DashboardWidgetWriteSource `json:"source"`
 
+	// Target A NUMBER or LINE widget's goal, drawn beside its figure or as a line.
+	Target *float32 `json:"target,omitempty"`
+
 	// Text A TEXT widget's words: plain text, **bold** and [links](/path).
 	Text  *string `json:"text,omitempty"`
 	Title string  `json:"title"`
@@ -17215,8 +17224,11 @@ type DashboardWidgetWrite struct {
 	// ViewId A saved summary view, for VIEW.
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
 	W      *int                `json:"w,omitempty"`
-	X      *int                `json:"x,omitempty"`
-	Y      *int                `json:"y,omitempty"`
+
+	// WarnAt A NUMBER or LINE widget's warning line, with a target; above the target, lower is better.
+	WarnAt *float32 `json:"warn_at,omitempty"`
+	X      *int     `json:"x,omitempty"`
+	Y      *int     `json:"y,omitempty"`
 }
 
 // DashboardWidgetWriteChart LIST shows a query's first entries, TEXT a short text with links.

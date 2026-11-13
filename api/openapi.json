@@ -47843,6 +47843,20 @@
             },
             "description": "Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at."
           },
+          "target": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "A NUMBER or LINE widget's goal, drawn beside its figure or as a line."
+          },
+          "warn_at": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "A NUMBER or LINE widget's warning line, with a target; above the target, lower is better."
+          },
           "goal_ids": {
             "type": "array",
             "maxItems": 20,
@@ -47984,6 +47998,20 @@
               "type": "string"
             },
             "description": "The dashboard filter's fields this widget does not inherit."
+          },
+          "target": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The widget's goal; null without one."
+          },
+          "warn_at": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "The widget's warning line; null without one."
           },
           "goal_ids": {
             "type": "array",

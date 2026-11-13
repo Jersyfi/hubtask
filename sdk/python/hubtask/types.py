@@ -2087,6 +2087,8 @@ class DashboardWidgetWrite(TypedDict, total=False):
     text: str
     column: str
     released: list[str]
+    target: float | None
+    warn_at: float | None
     goal_ids: list[str]
     compare: "DashboardWidgetCompare"
     cumulative: bool
@@ -2111,6 +2113,8 @@ class DashboardWidget(TypedDict, total=False):
     text: str
     column: str
     released: list[str]
+    target: float | None
+    warn_at: float | None
     goal_ids: Required[list[str]]
     compare: Required["DashboardWidgetCompare" | Any]
     cumulative: Required[bool]

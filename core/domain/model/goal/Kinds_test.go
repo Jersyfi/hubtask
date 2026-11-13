@@ -31,6 +31,11 @@ func TestTheListAndTextKindsAndTheFilterHoldTheirRules(t *testing.T) {
 		{"a list with a column no field names", widget(Widget{Chart: ChartList, Source: WidgetQuery, Query: query, Column: "DROP TABLE"}), "dashboards.column_invalid"},
 		{"a released field", widget(Widget{Chart: ChartNumber, Source: WidgetQuery, Query: query, Released: []string{"created_at"}}), ""},
 		{"a released key no field names", widget(Widget{Chart: ChartNumber, Source: WidgetQuery, Query: query, Released: []string{"a b"}}), "dashboards.released_invalid"},
+		{"a target and its warning line", widget(Widget{Chart: ChartNumber, Source: WidgetQuery, Query: query, Target: num(30), WarnAt: num(40)}), ""},
+		{"a target on a line", widget(Widget{Chart: ChartLine, Source: WidgetQuery, Query: query, Target: num(4)}), ""},
+		{"a target on bars", widget(Widget{Chart: ChartBar, Source: WidgetQuery, Query: query, Target: num(4)}), "dashboards.target_chart"},
+		{"a warning line without a target", widget(Widget{Chart: ChartNumber, Source: WidgetQuery, Query: query, WarnAt: num(4)}), "dashboards.warn_needs_target"},
+		{"a warning line on the target", widget(Widget{Chart: ChartNumber, Source: WidgetQuery, Query: query, Target: num(4), WarnAt: num(4)}), "dashboards.warn_equal"},
 		{"a filter", Dashboard{Name: "x", Filter: "type: ticket is: open"}, ""},
 		{"a filter with an order", Dashboard{Name: "x", Filter: "is: open sort: -updated"}, "query.sort_not_here"},
 		{"a filter of another kind", Dashboard{Name: "x", Filter: "type: page"}, "query.kind_not_here"},
@@ -52,3 +57,5 @@ func TestTheListAndTextKindsAndTheFilterHoldTheirRules(t *testing.T) {
 		t.Fatalf("a number widget kept a list's column or a text: %+v", w)
 	}
 }
+
+func num(v float64) *float64 { return &v }

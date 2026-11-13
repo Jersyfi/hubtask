@@ -67,6 +67,8 @@ type storedWidget struct {
 	Text       string         `json:"text,omitempty"`
 	Column     string         `json:"column,omitempty"`
 	Released   []string       `json:"released,omitempty"`
+	Target     *float64       `json:"target,omitempty"`
+	WarnAt     *float64       `json:"warn_at,omitempty"`
 	X          int            `json:"x"`
 	Y          int            `json:"y"`
 	W          int            `json:"w"`
@@ -139,7 +141,7 @@ func encodeWidgets(widgets []domain.Widget) ([]byte, error) {
 		stored = append(stored, storedWidget{
 			ID: w.ID.String(), Title: w.Title, Chart: string(w.Chart), Source: string(w.Source),
 			ViewID: w.ViewID.String(), Query: w.Query, GoalIDs: goals, Compare: compare, Cumulative: w.Cumulative,
-			Text: w.Text, Column: w.Column, Released: w.Released,
+			Text: w.Text, Column: w.Column, Released: w.Released, Target: w.Target, WarnAt: w.WarnAt,
 			X: w.X, Y: w.Y, W: w.W, H: w.H,
 		})
 	}
@@ -168,7 +170,7 @@ func decodeWidgets(raw []byte) ([]domain.Widget, error) {
 		out = append(out, domain.Widget{
 			ID: ids[0], Title: s.Title, Chart: domain.Chart(s.Chart), Source: domain.WidgetSource(s.Source),
 			ViewID: ids[1], Query: s.Query, GoalIDs: goals, Compare: compare, Cumulative: s.Cumulative,
-			Text: s.Text, Column: s.Column, Released: s.Released,
+			Text: s.Text, Column: s.Column, Released: s.Released, Target: s.Target, WarnAt: s.WarnAt,
 			X: s.X, Y: s.Y, W: s.W, H: s.H,
 		})
 	}
