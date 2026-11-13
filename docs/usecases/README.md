@@ -357,6 +357,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-41](./work/UC-WRK-41-find-any-object-in-a-long-list.md) | Find any object in a long list and act on it | work |
 | [UC-WRK-42](./work/UC-WRK-42-add-change-and-remove-the-same-way.md) | Add, change and remove the same way everywhere | work |
 | [UC-WRK-43](./work/UC-WRK-43-ask-the-same-question-everywhere-with-one-query-language.md) | Ask the same question everywhere with one query language | work |
+| [UC-WRK-44](./work/UC-WRK-44-read-and-move-an-object-the-same-way-in-every-product.md) | Read and move an object the same way in every product | work |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble |
 | [UC-JUM-03](./jumble/UC-JUM-03-forward-mail-into-the-jumble.md) | Forward mail into the jumble | jumble |

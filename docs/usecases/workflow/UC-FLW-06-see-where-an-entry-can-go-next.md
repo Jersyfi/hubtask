@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-12, P-13]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/EntryStepsPicture_test.go]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/EntryStepsPicture_test.go, apps/webapp/src/lib/entries/entrysteps.test.ts, apps/webapp/e2e/entryhead.test.mjs]
 ---
 
 # See where an entry can go next and how its workflow looks
@@ -54,7 +54,4 @@ to do, in progress and done, and the main button is *Done*, which completes the 
 
 ## Today
 
-* Check 1: not met — the web app's status menu with targets and blocked steps, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
-* Check 3: not met — the web app's route to done, work surface family 3.1.
-* Check 4: not met — the web app's read-only picture and *open in designer*, work surface family 3.1.
-* Check 5: not met — the server answers `state_mode` and `columns` in `/items/{id}/steps`; the web app's menu by level, work surface families 3.1 and 3.2.
+* Check 5: not met — the server answers `state_mode` and `columns` in `/items/{id}/steps`; the web app's menu offers to do and done without a workflow and the columns at L1 once work surface family 3.2 builds them (`docs/backlog/work-surface/build-plan.md` §5).
