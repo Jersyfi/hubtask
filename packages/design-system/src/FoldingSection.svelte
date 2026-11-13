@@ -109,15 +109,14 @@
 
   .body { min-inline-size: 0; }
 
-  /* A line count, not a length: the clamp is as tall as that many of the text's own lines. */
-  /* design-system-lint-ignore: a number of lines in `lh`, which follows the text it clamps */
-  .body[data-lines='3'] { max-block-size: 3lh; overflow: hidden; }
-  /* design-system-lint-ignore: a number of lines in `lh`, which follows the text it clamps */
-  .body[data-lines='5'] { max-block-size: 5lh; overflow: hidden; }
-  /* design-system-lint-ignore: a number of lines in `lh`, which follows the text it clamps */
-  .body[data-lines='8'] { max-block-size: 8lh; overflow: hidden; }
-  /* design-system-lint-ignore: a number of lines in `lh`, which follows the text it clamps */
-  .body[data-lines='12'] { max-block-size: 12lh; overflow: hidden; }
+  /* A line count, not a length: the clamp ends after that many whole lines of the text, counted
+     across its paragraphs and headings, so the fold never cuts through a line - a height in `lh`
+     did, wherever a heading's line was taller than the body's. */
+  .body[data-lines] { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+  .body[data-lines='3'] { -webkit-line-clamp: 3; line-clamp: 3; }
+  .body[data-lines='5'] { -webkit-line-clamp: 5; line-clamp: 5; }
+  .body[data-lines='8'] { -webkit-line-clamp: 8; line-clamp: 8; }
+  .body[data-lines='12'] { -webkit-line-clamp: 12; line-clamp: 12; }
 
   .more {
     display: inline-flex;
