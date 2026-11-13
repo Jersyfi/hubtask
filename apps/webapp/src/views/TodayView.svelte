@@ -63,9 +63,7 @@
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import { entrySlaPath } from '../lib/data/desk.svelte.ts';
   import { watchPageReviews, type ReviewRow } from '../lib/data/reviews.svelte.ts';
-  import { burndownLine, burndownTop, sprintDays } from '../lib/data/sprints.ts';
-  /** How far the burndown's lines stand from the chart's top and bottom edge, in its own units. */
-  const SPARK_INSET = 6;
+  import SprintBurndown from '../lib/plans/SprintBurndown.svelte';
   import { sprintPath } from '../lib/data/sprints.svelte.ts';
   import SlaRemaining from '../lib/servicedesk/SlaRemaining.svelte';
   import { agents, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
@@ -851,21 +849,7 @@
           line={[t('app.today.sprint_left', { count: sprintDaysLeft(mine.sprint.end_on, day) }), last ? t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit }) : undefined].filter(Boolean).join(' · ')}
           act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.(`/collections/${mine.sprint.collection_id}/sprints`) }}>
           <span class="from">{t('app.today.sprint_mine', { count: mine.my_entries })}</span>
-          {#if detail && detail.burndown.length > 0}
-            {@const days = sprintDays(detail.sprint)}
-            {@const top = burndownTop(detail.sprint, detail.burndown)}
-            <!-- The work left over the sprint's days, on axes that say both. -->
-            <div class="burndown" data-burndown>
-              <span class="y-top" aria-hidden="true">{top}</span>
-              <svg class="spark" viewBox="0 0 400 100" preserveAspectRatio="none" role="img" aria-label={t('app.sprints.burndown_label', { remaining: String(last?.remaining ?? 0), unit })}>
-                <polyline class="axis" points="0,0 0,100 400,100" />
-                <polyline class="ideal" points={burndownLine(detail.burndown, 'ideal', days, top, 400, 100, SPARK_INSET)} />
-                <polyline class="remaining" points={burndownLine(detail.burndown, 'remaining', days, top, 400, 100, SPARK_INSET)} />
-              </svg>
-              <span class="y-zero" aria-hidden="true">0</span>
-              <span class="x-days" aria-hidden="true"><span>{formatPlainDay(detail.sprint.start_on, messages.locale)}</span><span>{formatPlainDay(detail.sprint.end_on, messages.locale)}</span></span>
-            </div>
-          {/if}
+          {#if detail}<SprintBurndown {detail} />{/if}
         </Widget>
       </div>
     {/each}
@@ -1221,23 +1205,6 @@
   /* A title beside its hub and collection keeps room for a few words more than the row's least. */
   [data-entry-row] :global(.content) { min-inline-size: min(100%, 28ch); }
 
-  .burndown {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: 'top chart' 'zero chart' '. days';
-    column-gap: var(--sp-050);
-    color: var(--text-secondary);
-    font-size: var(--fs-075);
-    font-variant-numeric: tabular-nums;
-  }
-  .y-top { grid-area: top; align-self: start; text-align: end; }
-  .y-zero { grid-area: zero; align-self: end; text-align: end; }
-  .x-days { grid-area: days; display: flex; justify-content: space-between; gap: var(--sp-100); }
-  .spark { grid-area: chart; inline-size: 100%; block-size: var(--sp-600); overflow: hidden; }
-  .spark polyline { fill: none; stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
-  .spark .axis { stroke: var(--border-subtle); stroke-width: var(--bw-hairline); }
-  .spark .remaining { stroke: var(--accent-primary); }
-  .spark .ideal { stroke: var(--border-strong); }
 
   /* *Your collections*: a row each, the mark, the name, the figure at the end. */
   .places { display: grid; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
