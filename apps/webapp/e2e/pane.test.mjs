@@ -50,6 +50,13 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   await pane.getByRole('heading', { name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.equal(await pane.getByRole('heading', { name: ENTRY.title }).count(), 1);
   assert.equal(await pane.locator('[data-detail="due"]').count(), 1);
+  // The description first, the properties after it (the work surface's pane): not a rail to read past.
+  await pane.locator('#entry-description').waitFor({ timeout: 5_000 });
+  assert.ok(await pane.evaluate((root) => {
+    const description = root.querySelector('#entry-description');
+    const rail = root.querySelector('[data-details]');
+    return Boolean(description && rail && description.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }), 'the pane puts the properties before the description');
   assert.equal(await pane.getByRole('tab', { name: /Comments/ }).count(), 1);
   await pane.locator('[data-detail="labels"]').click();
   await page.getByRole('dialog', { name: 'Labels' }).waitFor({ timeout: 5_000 });

@@ -487,10 +487,12 @@ Every routed view renders exactly one page kind; the kinds take compositions in 
   of its own and an open section hands its *‹ Settings* to the bar. `browse` is the phone's Browse
   stack, the frame's navigation drawn as a page (page-system §7.10).
   `DetailPage` (`data-page-kind="detail"`) is one object read and edited in place, as the entry
-  screen is built (§11.8): its head, then the details column and the main column - the details
-  first in the document, under the head below `expanded`, beside the main column at the inline end
+  screen is built (§11.8): its head, then the main column and the details column - the main column
+  first in the document, so reading and tab order go from the head into the content before the
+  properties; the details under the head below `expanded`, beside the main column at the inline end
   and at the pane's width from `expanded` up, staying in place while it scrolls. Drawn in a work
-  page's side panel (`isInPane`) it is one column and no page kind of its own.
+  page's side panel (`isInPane`) it is one column and no page kind of its own, the details after
+  the content.
   `StandalonePage` (`data-page-kind="standalone"`) is a page outside the app frame - nobody is
   signed in, or the visitor is no member, so there is no bar and nowhere to go: `card`, one centred
   card on the canvas with the two ambient washes and the operator's legal links under it (sign-in,

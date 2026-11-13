@@ -279,6 +279,13 @@ test('chromium: jump marks with counts, the conversation opens on All (UC-WRK-44
   try {
     const marks = page.getByRole('navigation', { name: /Sections of/ });
     await marks.waitFor({ timeout: 10_000 });
+    // From the head the focus goes into the content before the properties beside it (2.4.3).
+    const order = await page.evaluate(() => {
+      const focusable = [...document.querySelectorAll('a[href], button, [tabindex="0"]')].filter((each) => each.getClientRects().length > 0);
+      const at = (selector) => focusable.findIndex((each) => each.closest(selector));
+      return { marks: at('[data-show]'), rail: at('aside.rail') };
+    });
+    assert.ok(order.marks >= 0 && order.rail >= 0 && order.marks < order.rail, `the rail comes before the content in the tab order: ${JSON.stringify(order)}`);
     const words = await marks.innerText();
     for (const word of ['Description', 'Links', 'Files', 'Conversation']) assert.ok(words.includes(word), `${word} is a mark: ${words}`);
     await marks.getByText('Conversation').click();
@@ -298,6 +305,13 @@ test('chromium 390: the marks are a switch and the properties a sheet (UC-WRK-44
   try {
     const marks = page.getByRole('navigation', { name: /Sections of/ });
     await marks.waitFor({ timeout: 10_000 });
+    // On a phone *All properties* stands under the head, above the marks (task.m).
+    const above = await page.evaluate(() => {
+      const all = [...document.querySelectorAll('aside.rail button')].find((each) => each.getClientRects().length > 0)?.getBoundingClientRect();
+      const nav = document.querySelector('[data-show] nav')?.getBoundingClientRect();
+      return all && nav ? all.bottom <= nav.top : undefined;
+    });
+    assert.equal(above, true, 'All properties is not under the head');
     await marks.getByText('Conversation').click();
     await page.waitForTimeout(300);
     assert.ok(await page.locator('#entry-conversation').isVisible(), 'the chosen section shows');
