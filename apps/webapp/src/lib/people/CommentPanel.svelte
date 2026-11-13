@@ -31,6 +31,7 @@
   import { formatDateTime } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import MentionDialog from '../entries/MentionDialog.svelte';
   import ReferenceChip from '../entries/ReferenceChip.svelte';
@@ -276,7 +277,8 @@
          an internal note (ET-7): on a ticket two tabs, the note yellow with a lock, the button
          saying what it does; snippets and macros as its menus (UC-SVC-06). -->
     {#if mayComment}
-      <div data-composer>
+      <!-- On a phone the reply is docked at the screen's foot (the scene's *Comment …*), the thread above it. -->
+      <div data-composer data-docked={viewport.isCompact ? '' : undefined}>
         <Composer
           bind:this={composer}
           editor={writing}
@@ -344,6 +346,15 @@
 
 <style>
   [data-composer] { display: flex; flex-direction: column; gap: var(--sp-100); }
+  [data-composer][data-docked] {
+    position: sticky;
+    inset-block-end: 0;
+    z-index: 1;
+    order: 1;
+    padding-block: var(--sp-100);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-canvas);
+  }
 
   .failure { margin: 0; color: var(--text-danger); }
 
