@@ -241,6 +241,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `backup.target_tested` | TestBackupTarget | `backup_target` | INFO | Every time |
 | `backup.verified` | VerifyBackup | `backup_run` | INFO | Every time |
 
+## Board
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `board.switched` | SwitchBoard | `container` | INFO | Every time |
+
 ## Boards
 
 | Action | Use case | Target | Severity | Recorded |
@@ -1332,6 +1338,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `workflow.created` | CopyWorkflowHere | `workflow` | INFO | Every time |
 | `workflow.created` | CreateWorkflow | `workflow` | INFO | Every time |
+| `workflow.created` | MakeBoardWorkflow | `workflow` | INFO | Every time |
 | `workflow.deleted` | DeleteWorkflow | `workflow` | INFO | Every time |
 | `workflow.drafted` | SaveWorkflowDraft | `workflow` | INFO | Every time |
 | `workflow.published` | PreviewWorkflowPublish | `workflow` | INFO | When refused |
