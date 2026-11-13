@@ -302,7 +302,9 @@ test('chromium: 375 px — the title in the bar, the details behind All properti
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, 'the entry scrolls sideways');
   // The subtree's indent is capped in the narrow tree - read where it is drawn: on a phone one
-  // section shows at a time (§7).
+  // section shows at a time (§7). The sheet closes first.
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 5_000 });
   await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Parts/ }).click();
   await page.locator('.task-row').first().waitFor();
   const indents = await page.locator('.task-row').evaluateAll((rows) => rows.map((row) => getComputedStyle(row).paddingInlineStart));
