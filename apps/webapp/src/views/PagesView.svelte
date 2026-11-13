@@ -29,6 +29,7 @@
 
   import { capture } from '../lib/capture/capture.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { notePageRead } from '../lib/pages/reading.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -79,6 +80,11 @@
   // The sidebar shows this hub's level; the route names only the page, board or item (`levelOf`).
   $effect(() => (hubFromRoute ? undefined : frame.locate(hubId || undefined)));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);
+  // The pages' home offers what was read here last to continue (scene phome).
+  $effect(() => {
+    const read = current?.id;
+    if (read) untrack(() => notePageRead(actor.account?.id, read, Date.now()));
+  });
 
 
   let treeState = $state<PageList | undefined>(undefined);
