@@ -118,6 +118,8 @@ export interface AnchorOptions {
   readonly placement: Placement;
   /** A surface that must keep its size: never shrunk, put over the page where no side fits. */
   readonly standalone?: boolean;
+  /** An overlay already in the top layer - a modal dialog - is tied, not raised a second time. */
+  readonly isInTopLayer?: boolean;
 }
 
 /**
@@ -165,7 +167,7 @@ export function raiseToTopLayer(overlay: HTMLElement): () => void {
  * Ties an overlay to its trigger and returns the function that unties it: two declarations and no
  * listeners, the flip done by the engine during layout rather than a frame after it.
  */
-export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false }: AnchorOptions): () => void {
+export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement, standalone = false, isInTopLayer = false }: AnchorOptions): () => void {
   const id = `hbt-anchor-${++sequence}`;
   trigger.dataset.hbtAnchor = id;
   overlay.dataset.hbtAnchored = id;
@@ -173,7 +175,7 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
   const target = stylesheet();
   const anchorRule = ruleFor(target, `[data-hbt-anchor='${id}']`);
   const overlayRule = ruleFor(target, `[data-hbt-anchored='${id}']`);
-  const lower = raiseToTopLayer(overlay);
+  const lower = isInTopLayer ? () => {} : raiseToTopLayer(overlay);
 
   // The user agent gives a `[popover]` element `inset: 0` and centres it with `margin: auto`; the
   // rule below says where the overlay goes, so it has to say that it means it.

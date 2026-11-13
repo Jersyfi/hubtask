@@ -31,6 +31,10 @@
   // finds it - and its foot goes, since the bar now holds both ways out. Without `size` it keeps the
   // look it had before the sizes, so no caller changes by accident; each names its rung in turn.
   //
+  // `hangsFrom` hangs it under the control that opened it, its end on the control's end, the way a
+  // menu hangs (`anchor.ts`): a panel worked in from the bar - *Create* - rather than a question
+  // put in the middle. The control names it, so it draws no head; Escape and the backdrop close it.
+  //
   // `onDismiss` is asked before the close control, Escape or the backdrop close it. Answering
   // `false` keeps it open, and the caller then opens its *Discard changes?* Dialog S - the one
   // dialog allowed over another. A close by an action never asks.
@@ -39,6 +43,7 @@
 
   import Button from './Button.svelte';
   import IconButton from './IconButton.svelte';
+  import { anchorTo } from './anchor.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
 
@@ -71,6 +76,8 @@
     primary?: DialogAction;
     /** Asked before the person closes it without answering; `false` keeps it open. */
     onDismiss?: () => boolean;
+    /** The control it hangs from instead of standing in the middle; it then draws no head. */
+    hangsFrom?: HTMLElement;
     /** The buttons that answer it - *Cancel*; the primary goes into `primary` where there is one. */
     actions?: Snippet;
     children: Snippet;
@@ -85,6 +92,7 @@
     size,
     primary,
     onDismiss,
+    hangsFrom,
     actions,
     children,
   }: Props = $props();
@@ -134,6 +142,7 @@
 
     opener = document.activeElement;
     if (!dialog.open) dialog.showModal();
+    const untie = hangsFrom ? anchorTo(hangsFrom, dialog, { placement: { side: 'block-end', align: 'end' }, isInTopLayer: true }) : undefined;
     firstField()?.focus();
 
     // Refused, the dismissal leaves the dialog open, so it goes back into the register - below the
@@ -145,6 +154,7 @@
     document.addEventListener('keydown', onKeydown);
 
     return () => {
+      untie?.();
       document.removeEventListener('keydown', onKeydown);
       handle.release();
       if (dialog.open) dialog.close();
@@ -174,6 +184,7 @@
   class="dialog"
   data-wide={isWide && !size ? '' : undefined}
   data-size={size}
+  data-hangs={hangsFrom ? '' : undefined}
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
@@ -274,6 +285,11 @@
     padding: var(--sp-200) var(--sp-300);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
+
+  /* Hung from its control: just under it, its head left to the control that names it. */
+  .dialog[data-hangs] { margin: 0; margin-block-start: var(--sp-100); }
+  .dialog[data-hangs] .head { display: none; }
+  .dialog[data-size][data-hangs] .body { padding-block-start: var(--sp-200); }
 
   .bar-primary { display: none; }
   .dismiss { display: inline-flex; }

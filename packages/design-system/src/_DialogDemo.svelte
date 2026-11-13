@@ -9,9 +9,11 @@
   import Popover from './Popover.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'confirm', size }: { mode?: 'confirm' | 'layers' | 'wide'; size?: 's' | 'm' | 'l' | 'discard' } = $props();
+  const { mode = 'confirm', size }: { mode?: 'confirm' | 'layers' | 'wide' | 'hang'; size?: 's' | 'm' | 'l' | 'discard' } = $props();
 
   let working = $state(false);
+  let hanging = $state(false);
+  let hook = $state<HTMLElement | undefined>(undefined);
 
   let confirming = $state(false);
   let editing = $state(false);
@@ -19,6 +21,13 @@
 
 {#if size}
   <DialogSizesDemo {size} />
+{:else if mode === 'hang'}
+  <Stack gap="200" align="end">
+    <span bind:this={hook}><Button tone="primary" icon="plus" onclick={() => (hanging = true)}>Create</Button></span>
+    <Dialog title="Create" bind:isOpen={hanging} dismissLabel="Close" size="l" hangsFrom={hook}>
+      <Input label="One sentence makes an entry" value="Write the release notes tomorrow" />
+    </Dialog>
+  </Stack>
 {:else if mode === 'wide'}
   <Stack gap="200">
     <Button tone="primary" icon="plus" onclick={() => (working = true)}>Capture</Button>
