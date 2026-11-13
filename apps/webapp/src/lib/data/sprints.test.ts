@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import type { Sprint } from '@hubtask/sync-engine';
 
-import { burndownLine, burndownTop, carryTargets, estimateOf, estimateText, planLoad, sprintColumns, sprintDays, sprintShown, valueOf } from './sprints.ts';
+import { burndownLine, burndownTop, carryTargets, estimateOf, estimateText, entriesToRead, planLoad, sprintColumns, sprintDays, sprintShown, valueOf } from './sprints.ts';
 
 const sprint = (id: string, state: Sprint['state'], start_on: string): Sprint => ({
   id, collection_id: 'c', name: id, goal: '', start_on, end_on: start_on, state, unit: 'POINTS',
@@ -90,4 +90,11 @@ test('a sprint\'s entries stand in the board\'s columns, a done one in the done 
   assert.equal(drawn?.[2]?.isDone, true);
   assert.equal(sprintColumns(entries.slice(0, 2), columns, (id) => at[id], 'No column')?.length, 3, 'no column-less column when every entry has one');
   assert.equal(sprintColumns(entries, [], () => null, 'No column'), undefined);
+});
+
+// Every entry of a sprint stands in its column, not only those on the collection's first page.
+test('a sprint reads the column of each open entry the collection\'s page did not hold', () => {
+  const entries = [{ item_id: 'a', done: false }, { item_id: 'b', done: false }, { item_id: 'c', done: true }];
+  assert.deepEqual(entriesToRead(entries, (id) => id === 'a'), ['b']);
+  assert.deepEqual(entriesToRead(entries, () => true), []);
 });

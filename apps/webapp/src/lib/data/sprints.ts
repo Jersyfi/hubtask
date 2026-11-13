@@ -152,6 +152,17 @@ export function sprintColumns<E extends { readonly item_id: string; readonly don
   return rest ? [...drawn, { id: null, name: noColumnName, isDone: false, entries: rest }] : drawn;
 }
 
+/**
+ * The open entries whose column is not known from what was read: the collection's read is a page,
+ * a sprint's entries are not. A done entry needs none - it stands in the done column.
+ */
+export function entriesToRead<E extends { readonly item_id: string; readonly done: boolean }>(
+  entries: readonly E[],
+  isKnown: (itemId: string) => boolean,
+): string[] {
+  return entries.filter((entry) => !entry.done && !isKnown(entry.item_id)).map((entry) => entry.item_id);
+}
+
 function round(n: number): number {
   return Math.round(n * 10) / 10;
 }

@@ -24,7 +24,7 @@
     DataTable, ViewSwitcher, WorkPage, type DataColumn, type View,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
-  import type { Sprint, SprintDetail, SprintEntry, SprintList, Velocity } from '@hubtask/sync-engine';
+  import type { Sprint, SprintDetail, SprintEntry, SprintList, Velocity, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -34,7 +34,7 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintColumns, sprintDays, sprintPath,
+    burndownLine, burndownTop, carryTargets, entriesToRead, estimateOf, estimateText, sprintColumns, sprintDays, sprintPath,
     sprints, sprintShown, sprintsPath, valueOf, velocityPath,
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -204,10 +204,27 @@
       return () => stops.forEach((stop) => stop());
     });
   });
-  const isPlaced = $derived(buckets.stateOf(collectionId)?.status === 'ready' && items.stateOf(`container:${collectionId}`)?.status === 'ready');
+  const isLevelRead = $derived(buckets.stateOf(collectionId)?.status === 'ready' && items.stateOf(`container:${collectionId}`)?.status === 'ready');
+  // The collection's level is a page; an open entry beyond it has its column read on its own, so
+  // every entry of the sprint stands in its column.
+  let columnRead = $state<Record<string, string | null>>({});
+  let reading = $state(0);
+  const toRead = $derived(isLevelRead && hasStartedLane ? entriesToRead(open, (itemId) => itemId in columnRead || items.find(itemId) !== undefined) : []);
+  $effect(() => {
+    const ids = toRead;
+    if (ids.length === 0) return;
+    untrack(() => {
+      reading += 1;
+      void Promise.all(ids.map((itemId) => engine.refresh<WorkItem>({ path: `/items/${itemId}` }).then((read) => [itemId, read.status === 'ready' ? (read.data.bucket_id ?? null) : null] as const)))
+        .then((pairs) => { columnRead = { ...columnRead, ...Object.fromEntries(pairs) }; })
+        .catch(() => { columnRead = { ...columnRead, ...Object.fromEntries(ids.map((itemId) => [itemId, null])) }; })
+        .finally(() => { reading -= 1; });
+    });
+  });
+  const isPlaced = $derived(isLevelRead && toRead.length === 0 && reading === 0);
   const columns = $derived(
     hasStartedLane && isPlaced
-      ? sprintColumns(open, buckets.of(collectionId), (itemId) => items.find(itemId)?.bucket_id, t('app.board.unbucketed'))
+      ? sprintColumns(open, buckets.of(collectionId), (itemId) => items.find(itemId)?.bucket_id ?? columnRead[itemId], t('app.board.unbucketed'))
       : undefined,
   );
   type Lane = { key: string; name: string; isDone: boolean; entries: readonly SprintEntry[]; empty: string };
