@@ -116,6 +116,13 @@ export interface ColumnOf {
   readonly id: string;
   readonly name: string;
   readonly is_done_bucket?: boolean;
+  /** Under a workflow, the statuses the column shows. */
+  readonly statuses?: readonly string[];
+}
+
+/** The workflow's statuses with their categories, in the workflow's order. */
+export interface StatusesOf {
+  readonly statuses: readonly { readonly key: string; readonly category: string }[];
 }
 
 /** A sprint's column: the board's column, or the column-less one (`id` null). */
@@ -123,33 +130,54 @@ export interface SprintColumn<E> {
   readonly id: string | null;
   readonly name: string;
   readonly isDone: boolean;
+  /** Drawn folded beside the done column, never wide: the column-less one. */
+  readonly isAside?: boolean;
   readonly entries: readonly E[];
 }
 
 /**
  * A sprint's entries in the board's columns, which carry the workflow's statuses (§6.2): a done
  * entry in the done column, the others in the column they stand in; the rest in a
- * column-less column, drawn only when it holds something. Nothing without columns: the caller
- * falls back to to do, in progress and done.
+ * column-less column, drawn only when it holds something and folded beside the done one. Nothing
+ * without columns: the caller falls back to to do, in progress and done.
+ *
+ * Under a workflow, a column of BACKLOG statuses is no column of the sprint (E-22: the backlog is
+ * its own tab) and its entries stand in the first open column; a column of DONE statuses without
+ * the workflow's first done one (a discard) is folded into the done column.
  */
 export function sprintColumns<E extends { readonly item_id: string; readonly done: boolean }>(
   entries: readonly E[],
   columns: readonly ColumnOf[],
   columnOf: (itemId: string) => string | null | undefined,
   noColumnName: string,
+  workflow?: StatusesOf,
 ): SprintColumn<E>[] | undefined {
   if (columns.length === 0) return undefined;
-  const known = new Set(columns.map((column) => column.id));
-  const doneColumn = columns.find((column) => column.is_done_bucket)?.id;
+  const categoryOf = new Map((workflow?.statuses ?? []).map((status) => [status.key, status.category]));
+  const firstDone = workflow?.statuses.find((status) => status.category === 'DONE')?.key;
+  const only = (column: ColumnOf, category: string) =>
+    (column.statuses ?? []).length > 0 && (column.statuses ?? []).every((key) => categoryOf.get(key) === category);
+  const isBacklog = (column: ColumnOf) => only(column, 'BACKLOG');
+  const isDiscard = (column: ColumnOf) => !column.is_done_bucket && only(column, 'DONE') && !(firstDone && column.statuses?.includes(firstDone));
+  const shown = columns.filter((column) => !isBacklog(column) && !isDiscard(column));
+  const doneColumn = (shown.find((column) => column.is_done_bucket) ?? shown.find((column) => firstDone && column.statuses?.includes(firstDone)))?.id;
+  const firstOpen = shown.find((column) => column.id !== doneColumn)?.id;
+  const byId = new Map(columns.map((column) => [column.id, column]));
   const placed = new Map<string | null, E[]>();
   for (const entry of entries) {
     const own = columnOf(entry.item_id);
-    const at = entry.done && doneColumn ? doneColumn : own && known.has(own) ? own : null;
+    const column = own ? byId.get(own) : undefined;
+    const at =
+      entry.done && doneColumn ? doneColumn
+      : column && isDiscard(column) ? (doneColumn ?? null)
+      : column && isBacklog(column) ? (firstOpen ?? null)
+      : column ? column.id
+      : null;
     placed.set(at, [...(placed.get(at) ?? []), entry]);
   }
-  const drawn: SprintColumn<E>[] = columns.map((column) => ({ id: column.id, name: column.name, isDone: column.is_done_bucket === true, entries: placed.get(column.id) ?? [] }));
+  const drawn: SprintColumn<E>[] = shown.map((column) => ({ id: column.id, name: column.name, isDone: column.id === doneColumn, entries: placed.get(column.id) ?? [] }));
   const rest = placed.get(null);
-  return rest ? [...drawn, { id: null, name: noColumnName, isDone: false, entries: rest }] : drawn;
+  return rest ? [...drawn, { id: null, name: noColumnName, isDone: false, isAside: true, entries: rest }] : drawn;
 }
 
 /**

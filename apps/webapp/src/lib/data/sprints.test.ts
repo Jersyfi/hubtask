@@ -92,6 +92,26 @@ test('a sprint\'s entries stand in the board\'s columns, a done one in the done 
   assert.equal(sprintColumns(entries, [], () => null, 'No column'), undefined);
 });
 
+// E-22: the backlog is its own tab, so a column of BACKLOG statuses is no column of the sprint; a
+// discard (a DONE status other than the first) goes with the done column, folded.
+test('under a workflow a sprint drops the backlog column and folds a discard into the done one', () => {
+  const workflow = { statuses: [
+    { key: 'backlog', category: 'BACKLOG' }, { key: 'todo', category: 'TODO' }, { key: 'doing', category: 'IN_PROGRESS' },
+    { key: 'done', category: 'DONE' }, { key: 'dropped', category: 'DONE' },
+  ] };
+  const columns = [
+    { id: 'b', name: 'Backlog', statuses: ['backlog'] }, { id: 't', name: 'To do', statuses: ['todo'] },
+    { id: 'p', name: 'Doing', statuses: ['doing'] }, { id: 'd', name: 'Done', statuses: ['done'] }, { id: 'x', name: 'Dropped', statuses: ['dropped'] },
+  ];
+  const at: Record<string, string | null> = { a: 'b', b: 'p', c: 'x', d: null };
+  const entries = [{ item_id: 'a', done: false }, { item_id: 'b', done: false }, { item_id: 'c', done: true }, { item_id: 'd', done: false }];
+  const drawn = sprintColumns(entries, columns, (id) => at[id], 'No column', workflow);
+  assert.deepEqual(drawn?.map((column) => [column.id, column.entries.map((e) => e.item_id)]), [['t', ['a']], ['p', ['b']], ['d', ['c']], [null, ['d']]]);
+  assert.deepEqual(drawn?.map((column) => column.isDone), [false, false, true, false]);
+  assert.equal(drawn?.[3]?.isAside, true, 'the column-less column is drawn wide');
+  assert.equal(sprintColumns(entries, columns, (id) => at[id], 'No column')?.length, 6, 'without a workflow every column stays');
+});
+
 // Every entry of a sprint stands in its column, not only those on the collection's first page.
 test('a sprint reads the column of each open entry the collection\'s page did not hold', () => {
   const entries = [{ item_id: 'a', done: false }, { item_id: 'b', done: false }, { item_id: 'c', done: true }];
