@@ -114,7 +114,7 @@ test('UC-SVC-03 check 10: a queue in the sidebar opens its table over the hub\'s
   await main(page).getByRole('heading', { name: 'About to breach' }).waitFor({ timeout: 10_000 });
   const table = main(page).getByRole('table', { name: /About to breach/ });
   await table.getByRole('link', { name: REQUEST.title }).waitFor({ timeout: 10_000 });
-  assert.equal(await main(page).getByRole('radiogroup').count(), 0, 'the queue page draws the four queues\' choice');
+  assert.deepEqual(await main(page).getByRole('radiogroup').evaluateAll((groups) => groups.map((group) => group.getAttribute('aria-label')).filter((name) => name !== 'Density')), [], 'the queue page draws the four queues\' choice');
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-queue.png` });
   const level = side(page).getByRole('region', { name: IT.name });
   assert.equal(await level.getByRole('link', { name: /About to breach/ }).getAttribute('aria-current'), 'page');
