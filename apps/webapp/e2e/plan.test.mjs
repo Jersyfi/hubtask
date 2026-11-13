@@ -96,6 +96,7 @@ async function plan(browser, width = 1280, schedule = SCHEDULE) {
     if (path === `/links/${LINK}/timing` && method === 'PUT') {
       return route.fulfill({ json: { id: LINK, type: 'depends_on', source_id: SECOND.id, target_id: FIRST.id, created_at: `${today}T09:00:00Z`, waits: 'SOURCE', ...body } });
     }
+    if (path === '/views' && method === 'POST') return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000f1c01', version: 1, ...body } });
     const scheduling = /^\/items\/([^/]+)\/scheduling$/.exec(path);
     if (scheduling && method === 'PUT') return route.fulfill({ json: { item_id: scheduling[1], mode: 'AUTOMATIC', milestone: false, ...body } });
     return stub(route);
@@ -290,6 +291,38 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   await page.waitForTimeout(300);
   assert.ok(written.some((each) => each.method === 'DELETE' && each.path === `/links/${LINK}`), 'the dependency was not removed');
   await page.getByRole('status').filter({ hasText: `${SECOND.title} no longer waits for ${FIRST.title}.` }).first().waitFor({ timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+// E-16, E-20 (UC-PLN-02 check 7): one schedule, two presentations; the view panel saved as a view.
+test('chromium: 1280 px — the Gantt and the light timeline are one tab, and the plan\'s view is saved as a view', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, written, close, unstubbed } = await plan(browser);
+  t.after(close);
+
+  // The Gantt is the default with the module: the outline columns and the critical switch.
+  const chart = page.locator('.timeline').first();
+  assert.equal(await chart.getAttribute('data-look'), 'gantt');
+  assert.equal(await page.locator('[data-critical-switch]').count(), 1);
+  // The same tab draws the light timeline: the same rows, no Gantt-only switches.
+  await page.locator('[data-plan-presentation="timeline"]').click();
+  assert.equal(await chart.getAttribute('data-look'), 'light');
+  assert.equal(await page.locator('[data-critical-switch]').count(), 0);
+  assert.equal(await page.locator('.timeline .rows [data-row]').count() >= 3, true, 'the light timeline lost rows');
+  // What changed is counted on the panel's opener, and the panel saves it as a view of the place.
+  assert.equal((await page.locator('[data-plan-view-open]').first().textContent()).trim(), 'View · 1');
+  await page.locator('[data-plan-view-open]').first().click();
+  const panel = page.locator('[data-plan-view-panel]');
+  await panel.getByLabel('Name').fill('Light');
+  await panel.locator('[data-plan-view-save]').click();
+  await page.waitForTimeout(300);
+  const saved = written.find((each) => each.method === 'POST' && each.path === '/views');
+  assert.equal(saved?.body?.layout, 'TIMELINE');
+  assert.equal(saved?.body?.name, 'Light');
+  assert.equal(saved?.body?.grouping?.plan?.presentation, 'timeline', `saved ${JSON.stringify(saved?.body)}`);
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
