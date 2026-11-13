@@ -1423,7 +1423,9 @@
               <div class="field-ai"><AiAsk {item} place="comments" mayChange={isWritable} {hasComments} standing={standingAt('comments')} /></div>
               <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
             {/if}
-            {#key shownTab}
+            <!-- Keyed on the desk too: the panel reads the desk's snippets and macros once, and whether an entry is a
+                 desk's is known only after the manifest and its collection arrive. -->
+            {#key `${shownTab}/${isDeskEntry}`}
               <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined}
                 isDesk={isDeskEntry} show={shownTab === 'all' ? 'all' : shownTab === 'replies' ? 'replies' : shownTab === 'notes' ? 'notes' : 'comments'} events={quietRows} requester={requesterName} />
             {/key}

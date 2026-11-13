@@ -159,6 +159,11 @@
     if (editor && library) editor.commands.setContent(library.fromMarkdown(markdown) as never, { emitUpdate: false });
   }
 
+  /** Whether the caret stands at the start of a line, where `/` opens the insert menu instead of being typed. */
+  export function isAtLineStart(): boolean {
+    return editor ? editor.state.selection.empty && editor.state.selection.$from.parentOffset === 0 : true;
+  }
+
   /** Puts Markdown - a mention, a reference - in at the caret, as the writer would have typed it. */
   export function insert(markdown: string): void {
     if (!editor || !library) return;

@@ -313,3 +313,70 @@ test('chromium: service desk - a request shows its triage under the head, no don
   await page.locator('[data-requester-panel]').waitFor({ timeout: 10_000 });
   assert.ok(await before('[data-details]', '[data-requester-panel]'), 'the requester stands before the details');
 });
+
+// UC-SVC-06 (ET-7): the reply offers the desk's snippets - by its button and by "/" - and its macros, each saying what it
+// does; a snippet is rendered for the ticket and inserted, a macro presses the rule with the trigger *by hand*.
+test('chromium: service desk - the reply inserts a snippet by its button and by /, and presses a macro that says what it does', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const desk = deskBackend();
+  const runner = '01a0e2e0-0000-7000-8000-000000002901';
+  const macro = {
+    id: '01a0e2e0-0000-7000-8000-000000002910', name: 'Ask for details', enabled: true, scope: { type: 'TENANT' }, run_as: runner,
+    trigger: { kind: 'MANUAL' }, conditions: [], actions: [{ kind: 'ADD_COMMENT', params: { body: 'More, please' } }],
+    throttle: { max_runs_per_hour: 100 }, on_error: 'CONTINUE', failure_count: 0, version: 1, created_by: runner,
+    created_at: '2026-09-01T00:00:00Z', updated_at: '2026-09-01T00:00:00Z', findings: [],
+  };
+  const event = { ...macro, id: '01a0e2e0-0000-7000-8000-000000002911', name: 'Escalate', trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.overdue.v1' } };
+  const asked = { rendered: 0, pressed: [] };
+  const answer = (method, path, query, body) => {
+    if (path === '/entry-types' && method === 'GET') {
+      return { json: { data: [{ key: 'request', level: 'TASK', name: 'Request', system: false, position: 1, archived: false, completable: true, workflow: true, record: false, schedulable: true, estimable: false, allowed_children: [], form: { channels: [{ channel: 'PORTAL' }] }, version: 1 }] } };
+    }
+    if (path === `/items/${REQUEST.id}` && method === 'GET') return { json: { ...REQUEST, created_by: OTHER.id, entry_type: 'request' } };
+    if (path === '/reply-templates' && method === 'GET') return { json: { data: [{ key: 'greeting', name: 'Greeting', body: 'Hello {{requester.name}}', version: 1 }] } };
+    if (path === `/items/${REQUEST.id}/reply-templates/greeting` && method === 'GET') {
+      asked.rendered += 1;
+      return { json: { key: 'greeting', body: 'Hello Olivia, thank you for writing.' } };
+    }
+    if (path === '/automation/rules' && method === 'GET') return { json: { data: [macro, event], page: { has_more: false, next_cursor: null } } };
+    if (path === `/automation/rules/${macro.id}:trigger` && method === 'POST') {
+      asked.pressed.push(body?.item_id);
+      return { status: 202, json: { run_id: '01a0e2e0-0000-7000-8000-000000002920' } };
+    }
+    return desk(method, path, query, body);
+  };
+  const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  const composer = page.locator('[data-composer]');
+  // At rest the reply is one line; its bar comes forward with the focus (§6.9).
+  await composer.getByRole('textbox').first().click();
+  const snippets = composer.getByRole('button', { name: 'Snippets', exact: true });
+  await snippets.waitFor({ timeout: 10_000 });
+  await snippets.click();
+  await page.getByRole('menuitem', { name: /Greeting/ }).click();
+  await composer.getByText('Hello Olivia, thank you for writing.').waitFor({ timeout: 10_000 });
+
+  // "/" at the start of a line opens the same snippets.
+  const editor = composer.getByRole('textbox').first();
+  await editor.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('/');
+  await page.getByRole('menuitem', { name: /Greeting/ }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+
+  // The macro menu lists only the rules pressed by hand, each with what it does.
+  await composer.getByRole('button', { name: 'Macros', exact: true }).click();
+  const item = page.getByRole('menuitem', { name: /Ask for details/ });
+  await item.waitFor({ timeout: 5_000 });
+  assert.match(await item.innerText(), /does: /, 'the macro does not say what it does');
+  assert.equal(await page.getByRole('menuitem', { name: /Escalate/ }).count(), 0, 'a rule with an event trigger is offered as a macro');
+  await item.click();
+  await page.getByText('The macro runs on this entry.').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(asked.pressed, [REQUEST.id], 'the macro was not pressed on this entry');
+  assert.ok(asked.rendered >= 1, 'the snippet was not rendered for the ticket');
+});

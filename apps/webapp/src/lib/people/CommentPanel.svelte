@@ -140,7 +140,7 @@
 
   // Written in the pages' editor (E-3, ET-5): the marks a page has, @ for people and entries, / to
   // insert, still stored as Markdown.
-  let writer = $state<{ format(kind: Format): void; insert(markdown: string): void; reset(markdown: string): void } | undefined>(undefined);
+  let writer = $state<{ format(kind: Format): void; insert(markdown: string): void; reset(markdown: string): void; isAtLineStart(): boolean } | undefined>(undefined);
   let composer = $state<{ openSnippets(): void } | undefined>(undefined);
   const WRITE_FORMATS: readonly { id: Format; icon: IconName }[] = [
     { id: 'bold', icon: 'bold' }, { id: 'italic', icon: 'italic' }, { id: 'strike', icon: 'strikethrough' }, { id: 'code', icon: 'code' },
@@ -161,7 +161,7 @@
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       send();
-    } else if (event.key === '/' && (draft === '' || draft.endsWith('\n'))) {
+    } else if (event.key === '/' && (writer ? writer.isAtLineStart() : draft === '' || draft.endsWith('\n'))) {
       event.preventDefault();
       composer?.openSnippets();
     }
