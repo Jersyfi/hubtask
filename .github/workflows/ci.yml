@@ -189,9 +189,12 @@ jobs:
               - 'packages/api-client/**'
               - 'api/openapi.yaml'
               - *workspace-manifests
-            # The browser's evaluator of forms and formulas, typed from the generated client.
+            # The browser's evaluator of forms and formulas, typed from the generated client, and
+            # the Hubtask query's twin with the shared lines it is held to.
             expression:
               - 'packages/expression/**'
+              - 'packages/query/**'
+              - 'test/querylanguage/**'
               - 'packages/api-client/**'
               - 'api/openapi.yaml'
               - *workspace-manifests
