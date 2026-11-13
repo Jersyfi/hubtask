@@ -21569,6 +21569,9 @@ type Page struct {
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
 
+	// Excerpt The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.
+	Excerpt *string `json:"excerpt,omitempty"`
+
 	// HubId The hub whose space the page is in.
 	HubId openapi_types.UUID `json:"hub_id"`
 	Icon  *string            `json:"icon"`
@@ -21919,6 +21922,9 @@ type PageRead struct {
 
 	// DueForReview Its verification has run out.
 	DueForReview bool `json:"due_for_review"`
+
+	// Excerpt The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.
+	Excerpt *string `json:"excerpt,omitempty"`
 
 	// HubId The hub whose space the page is in.
 	HubId openapi_types.UUID `json:"hub_id"`

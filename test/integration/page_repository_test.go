@@ -58,7 +58,7 @@ func TestASpaceIsReadAsItWasWritten(t *testing.T) {
 	at := time.Date(2026, 10, 29, 10, 0, 0, 0, time.UTC)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		tree, err := repo.List(ctx, hub, false, false, 100)
-		if err != nil || len(tree) != 2 || tree[0].ID != root || tree[0].Body != "" {
+		if err != nil || len(tree) != 2 || tree[0].ID != root || tree[0].Body != "" || tree[1].Head != "Day one" {
 			t.Errorf("tree %+v, %v", tree, err)
 		}
 		ancestors, err := repo.Ancestors(ctx, child)

@@ -69367,6 +69367,11 @@
             "maxLength": 1048576,
             "description": "The body in Markdown; absent in a tree's rows."
           },
+          "excerpt": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "The body's opening words as plain text, cut short; present in a tree's rows, where the body is not.\n"
+          },
           "icon": {
             "type": [
               "string",

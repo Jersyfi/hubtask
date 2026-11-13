@@ -3,7 +3,10 @@
 
 package knowledge
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // A search hit's passage is words, never the body's Markdown (UC-DOC-01/3): the passage is a
 // fragment, so a mark may have lost its partner.
@@ -25,5 +28,33 @@ func TestAnExcerptCarriesNoMarkdown(t *testing.T) {
 				t.Errorf("PlainExcerpt(%q) = %q, want %q", c.in, got, c.want)
 			}
 		})
+	}
+}
+
+// A tree row's excerpt is the body's first words, short, cut at a word.
+func TestAnOpeningIsShortPlainAndCutAtAWord(t *testing.T) {
+	long := "## Ziel\n\nDie App spricht **ausschließlich** mit der Public API v3. " + strings.Repeat("Es gibt keinen direkten Zugriff auf Datenbanken, ", 6)
+	cases := []struct{ name, in, want string }{
+		{"short stays whole", "# Titel\n\nEin *kurzer* Text.", "Titel Ein kurzer Text."},
+		{"empty", "", ""},
+		{"a mark cut by the head", "Der **Anfang", "Der Anfang"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := Opening(c.in); got != c.want {
+				t.Errorf("Opening(%q) = %q, want %q", c.in, got, c.want)
+			}
+		})
+	}
+	got := Opening(long)
+	runes := []rune(got)
+	if len(runes) > MaxOpeningRunes || !strings.HasSuffix(got, "…") || strings.Contains(got, "**") {
+		t.Fatalf("Opening(long) = %q (%d runes)", got, len(runes))
+	}
+	if !strings.HasPrefix(got, "Ziel Die App spricht ausschließlich mit der Public API v3.") {
+		t.Errorf("Opening(long) = %q", got)
+	}
+	if words := strings.Fields(strings.TrimSuffix(got, "…")); !strings.Contains(long, words[len(words)-1]) {
+		t.Errorf("Opening(long) cut inside a word: %q", got)
 	}
 }

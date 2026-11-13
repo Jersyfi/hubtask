@@ -54,6 +54,8 @@ type Page struct {
 	ParentID shared.ID
 	Title    string
 	Body     string
+	// Head is the start of the body a tree row carries in its place, for its excerpt (Opening).
+	Head     string
 	Icon     string
 	OrderKey string
 	// Template marks a page the space offers as the start of new ones (UC-DOC-05).

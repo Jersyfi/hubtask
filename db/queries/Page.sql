@@ -43,10 +43,12 @@ UPDATE page SET
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: ListHubPages :many
--- A space's tree without the bodies, at most a bound past the space's limit.
+-- A space's tree without the bodies, at most a bound past the space's limit; a body's head is
+-- read for the row's excerpt alone.
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
   AND deleted_at IS NULL
@@ -58,7 +60,8 @@ LIMIT sqlc.arg('batch');
 -- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id

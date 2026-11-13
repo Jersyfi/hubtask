@@ -78,6 +78,11 @@ func TestAPageIsWrittenAndFoundThroughTheDoors(t *testing.T) {
 	if err != nil || len(listed["data"].([]usecase.Output)) != 3 {
 		t.Fatalf("listing the space: %v %v", listed, err)
 	}
+	for _, row := range listed["data"].([]usecase.Output) {
+		if _, hasBody := row["body"]; hasBody || (row["title"] == "Onboarding" && row["excerpt"] != "Day one") {
+			t.Fatalf("a tree row carries its excerpt, not its body: %v", row)
+		}
+	}
 	if _, err := doors.Invoke(ctx, ListPagesName, as(bert), usecase.Input{"hub_id": private.String()}); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("Bert listed Anna's private hub: %v", err)
 	}

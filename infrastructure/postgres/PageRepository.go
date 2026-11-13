@@ -187,7 +187,7 @@ func (PageRepository) List(
 		return nil, pageFailed("listing the pages", err)
 	}
 	return mapRows(rows, func(row sqlc.ListHubPagesRow) (knowledge.Page, error) {
-		return pageFrom(bodiless(row))
+		return bodiless(row)
 	})
 }
 
@@ -208,7 +208,7 @@ func (PageRepository) Trashed(ctx context.Context, hubID shared.ID, limit int) (
 		return nil, pageFailed("listing the trashed pages", err)
 	}
 	return mapRows(rows, func(row sqlc.ListTrashedHubPagesRow) (knowledge.Page, error) {
-		return pageFrom(bodiless(sqlc.ListHubPagesRow(row)))
+		return bodiless(sqlc.ListHubPagesRow(row))
 	})
 }
 
@@ -786,16 +786,19 @@ func pageReadError(err error) error {
 	return pageFailed("reading the page", err)
 }
 
-// bodiless is a tree row as a page row with an empty body: a tree is read without its bodies.
-func bodiless(row sqlc.ListHubPagesRow) sqlc.FindPageRow {
-	return sqlc.FindPageRow{
+// bodiless is a tree row as a page with an empty body and the body's head: a tree is read without
+// its bodies.
+func bodiless(row sqlc.ListHubPagesRow) (knowledge.Page, error) {
+	page, err := pageFrom(sqlc.FindPageRow{
 		ID: row.ID, HubID: row.HubID, ParentID: row.ParentID, Title: row.Title, Icon: row.Icon,
 		OrderKey: row.OrderKey, Template: row.Template, ContentLanguage: row.ContentLanguage,
 		OwnerID: row.OwnerID, VerifiedUntil: row.VerifiedUntil, VerifiedAt: row.VerifiedAt,
 		VerifiedBy: row.VerifiedBy, ArchivedAt: row.ArchivedAt, DeletedAt: row.DeletedAt,
 		CreatedBy: row.CreatedBy, CreatedAt: row.CreatedAt, UpdatedBy: row.UpdatedBy,
 		UpdatedAt: row.UpdatedAt, Version: row.Version, Restricted: row.Restricted, DailyFor: row.DailyFor,
-	}
+	})
+	page.Head = row.BodyHead
+	return page, err
 }
 
 func pageFrom(row sqlc.FindPageRow) (knowledge.Page, error) {

@@ -546,7 +546,9 @@ func (h ListPages) Descriptor() usecase.Descriptor {
 func pageList(pages []domain.Page, now time.Time) usecase.Output {
 	data := make([]usecase.Output, 0, len(pages))
 	for _, page := range pages {
-		data = append(data, PageOutput(page, false, now))
+		row := PageOutput(page, false, now)
+		row["excerpt"] = domain.Opening(page.Head)
+		data = append(data, row)
 	}
 	return usecase.Output{"data": data}
 }

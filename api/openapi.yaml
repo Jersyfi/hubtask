@@ -42357,6 +42357,12 @@ components:
         parent_id: { type: [string, "null"], format: uuid, description: "The page it sits under; null at the top." }
         title: { type: string, maxLength: 200 }
         body: { type: string, maxLength: 1048576, description: "The body in Markdown; absent in a tree's rows." }
+        excerpt:
+          type: string
+          maxLength: 200
+          description: >
+            The body's opening words as plain text, cut short; present in a tree's rows, where the body
+            is not.
         icon: { type: [string, "null"], maxLength: 16 }
         position: { type: string, description: "Its place among its siblings: they sort by this, as text." }
         template: { type: boolean, description: "Offered as a template of the space." }

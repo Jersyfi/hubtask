@@ -5980,6 +5980,7 @@ class Page(TypedDict, total=False):
     parent_id: Required[str | None]
     title: Required[str]
     body: str
+    excerpt: str
     icon: Required[str | None]
     position: Required[str]
     template: Required[bool]
@@ -6051,6 +6052,7 @@ class PageRead(TypedDict, total=False):
     parent_id: Required[str | None]
     title: Required[str]
     body: Required[str]
+    excerpt: str
     icon: Required[str | None]
     position: Required[str]
     template: Required[bool]

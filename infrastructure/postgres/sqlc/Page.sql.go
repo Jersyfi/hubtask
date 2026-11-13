@@ -767,7 +767,8 @@ func (q *Queries) LastSiblingOrderKey(ctx context.Context, arg LastSiblingOrderK
 const listHubPages = `-- name: ListHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = $1
   AND deleted_at IS NULL
@@ -806,9 +807,11 @@ type ListHubPagesRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	BodyHead        string
 }
 
-// A space's tree without the bodies, at most a bound past the space's limit.
+// A space's tree without the bodies, at most a bound past the space's limit; a body's head is
+// read for the row's excerpt alone.
 func (q *Queries) ListHubPages(ctx context.Context, arg ListHubPagesParams) ([]ListHubPagesRow, error) {
 	rows, err := q.db.Query(ctx, listHubPages,
 		arg.HubID,
@@ -845,6 +848,7 @@ func (q *Queries) ListHubPages(ctx context.Context, arg ListHubPagesParams) ([]L
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.BodyHead,
 		); err != nil {
 			return nil, err
 		}
@@ -1017,7 +1021,8 @@ func (q *Queries) ListPagesUnderReview(ctx context.Context, arg ListPagesUnderRe
 const listTrashedHubPages = `-- name: ListTrashedHubPages :many
 SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language,
        owner_id, verified_until, verified_at, verified_by, archived_at, deleted_at,
-       created_by, created_at, updated_by, updated_at, version, restricted, daily_for
+       created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
+       left(body, 1000)::text AS body_head
 FROM page
 WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND deleted_at IS NOT NULL
 ORDER BY deleted_at DESC, id
@@ -1051,6 +1056,7 @@ type ListTrashedHubPagesRow struct {
 	Version         int32
 	Restricted      bool
 	DailyFor        pgtype.Date
+	BodyHead        string
 }
 
 func (q *Queries) ListTrashedHubPages(ctx context.Context, arg ListTrashedHubPagesParams) ([]ListTrashedHubPagesRow, error) {
@@ -1084,6 +1090,7 @@ func (q *Queries) ListTrashedHubPages(ctx context.Context, arg ListTrashedHubPag
 			&i.Version,
 			&i.Restricted,
 			&i.DailyFor,
+			&i.BodyHead,
 		); err != nil {
 			return nil, err
 		}
