@@ -22,6 +22,7 @@ import type {
   AutoAssignOutcome,
   BulkOperation,
   BulkResult,
+  DropAnswer,
   DuplicateResult,
   FilterNode,
   ItemMembers,
@@ -36,6 +37,8 @@ import { etagFor } from './etag.ts';
 import { ENTRY_LISTS, TOUCHES_ANY_ENTRY, TOUCHES_ANY_STATUS, touchesOf } from './touches.ts';
 
 const QUERY = '/items:query';
+
+
 
 /**
  * What the reader has asked of a level beyond "show it": a filter, an order, a grouping.
@@ -448,6 +451,21 @@ class Items {
       ifMatch: etagFor(version),
       invalidates: touchesOf(id),
     });
+  }
+
+  /**
+   * Drops an entry onto a board's column (`:drop`, build-plan §5): the server decides what a drop
+   * is at the collection's level - a move, the one step reaching the column, or the steps to
+   * choose among (`CHOOSE`, nothing written; asked again with `step`). `bucketId` null is the
+   * column of the statuses no column shows. Completion follows the done column on the server.
+   */
+  async drop(id: string, bucketId: string | null, version: number, step?: string): Promise<DropAnswer> {
+    return engine.mutate<DropAnswer>(
+      'POST',
+      `/items/${id}:drop`,
+      { ...(bucketId ? { bucket_id: bucketId } : {}), ...(step ? { step } : {}) },
+      { ifMatch: etagFor(version), idempotencyKey: crypto.randomUUID(), invalidates: [...touchesOf(id), '/items'] },
+    );
   }
 
   /**

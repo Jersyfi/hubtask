@@ -1250,6 +1250,14 @@ export function fallback(route, request, path) {
   // exercised what it is named after.
   const due = ALL_ITEMS.find((each) => read === `/items/${each.id}/due`);
   if (due) return route.fulfill({ json: { ...due, ...request.postDataJSON(), version: due.version + 1 } });
+  // A drop on a board's column (build-plan §5): answered as a move, completed in the done column -
+  // what the server does without a workflow.
+  const dropped = ALL_ITEMS.find((each) => read === `/items/${each.id}:drop`);
+  if (dropped) {
+    const body = request.postDataJSON() ?? {};
+    const into = BUCKETS.find((each) => each.id === body.bucket_id);
+    return route.fulfill({ json: { outcome: 'MOVED', steps: [], item: { ...dropped, bucket_id: body.bucket_id ?? null, completion: { is_completed: into?.is_done_bucket ?? false }, version: dropped.version + 1 } } });
+  }
   const ranked = ALL_ITEMS.find((each) => read === `/items/${each.id}:reorder`);
   if (ranked) return route.fulfill({ json: { ...ranked, ...request.postDataJSON(), version: ranked.version + 1 } });
   // What an entry's menu writes (UC-WRK-28): each answered with what it makes, so a walk that

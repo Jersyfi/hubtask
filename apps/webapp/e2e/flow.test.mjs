@@ -39,7 +39,7 @@ async function flow(browser, width, colorScheme = 'light') {
     const path = new URL(request.url()).pathname;
     if (request.method() !== 'GET') written.push({ method: request.method(), path, body: request.postDataJSON() });
     if (path.endsWith('/buckets')) return route.fulfill({ json: COLUMNS });
-    if (request.method() === 'PATCH' && path.endsWith(`/items/${REFUSED.id}`)) {
+    if (request.method() === 'POST' && path.endsWith(`/items/${REFUSED.id}:drop`)) {
       return route.fulfill({
         status: 422,
         contentType: 'application/problem+json',
@@ -67,7 +67,7 @@ async function moveByMenu(page, card, column) {
 test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the columns with a limit and a done column', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, context } = await flow(browser, 1280);
+  const { page, failures, context, written } = await flow(browser, 1280);
   t.after(() => context.close());
   // No layout was chosen: the board is the collection's default.
   await page.locator('[data-column-zone]').first().waitFor({ timeout: 10_000 });
@@ -75,16 +75,19 @@ test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the 
   for (const column of COLUMNS) {
     assert.equal(await page.locator(`[data-column-zone="${column.id}"]`).count(), 1, column.name);
   }
-  // *Doing* shows its count against its limit; *Done* is the column that completes.
+  // *Doing* shows its count and, beside it, the count against its limit; *Done* is the column that completes.
   const doing = page.locator(`[data-column-zone="${BUCKETS[1].id}"] .count`);
-  assert.equal((await doing.textContent())?.replace(/\s+/g, ''), '1/1');
+  assert.equal((await doing.textContent())?.replace(/\s+/g, ''), '1·WIP1/1', 'the count, and the limit as the concept draws it (WIP n / m)');
   const done = page.locator(`[data-column-zone="${BUCKETS[2].id}"] .done`);
   assert.equal(await done.getAttribute('title'), 'Entries moved here are marked as done.');
   assert.equal(await page.locator(`[data-column-zone="${BUCKETS[0].id}"] .done`).count(), 0);
-  // And an entry put in it is completed.
-  const completed = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`/items/${ACCEPTED.id}:complete`));
+  // And an entry put in it is dropped there; the server completes it (build-plan §5), the client
+  // sends no completion of its own.
+  const dropped = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`/items/${ACCEPTED.id}:drop`));
   await moveByMenu(page, ACCEPTED, BUCKETS[2].name);
-  await completed;
+  assert.equal((await dropped).postDataJSON()?.bucket_id, BUCKETS[2].id);
+  await page.waitForTimeout(300);
+  assert.equal(written.filter((each) => each.path.endsWith(':complete')).length, 0, 'the client completed the entry itself');
   assert.deepEqual(failures, []);
 });
 
@@ -107,7 +110,7 @@ test('chromium: UC-WRK-31 checks 2 and 3 — a refusal names the field; a move i
     (await said.textContent())?.trim(),
     `${ACCEPTED.title} moved to ${BUCKETS[1].name}, which now holds more than its limit of 1.`,
   );
-  const move = written.find((each) => each.method === 'PATCH' && each.path.endsWith(`/items/${ACCEPTED.id}`));
+  const move = written.find((each) => each.method === 'POST' && each.path.endsWith(`/items/${ACCEPTED.id}:drop`));
   assert.equal(move?.body?.bucket_id, BUCKETS[1].id, 'the move into the full column was not sent');
   assert.deepEqual(failures, []);
 });

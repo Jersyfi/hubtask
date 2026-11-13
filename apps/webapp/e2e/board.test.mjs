@@ -84,7 +84,7 @@ test('chromium: a card is carried from anywhere on it, and the click that ends t
   await carry(page, { x: from.x + from.width / 2, y: from.y + from.height / 2 }, { x: to.x + to.width / 2, y: to.y + 80 });
   await page.waitForTimeout(400);
 
-  const move = written.find((each) => each.method === 'PATCH' && each.path.endsWith(`/items/${ITEMS[0].id}`) && 'bucket_id' in (each.body ?? {}));
+  const move = written.find((each) => each.method === 'POST' && each.path.endsWith(`/items/${ITEMS[0].id}:drop`));
   assert.equal(move?.body?.bucket_id, BUCKETS[1].id, `the card did not change column: ${JSON.stringify(written)}`);
   // And letting go did not also open the entry it had just filed.
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`, 'the drag ended by opening the entry');
@@ -183,7 +183,7 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
   const to = await doing.boundingBox();
   const middle = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
   const target = { x: to.x + to.width / 2, y: to.y + 80 };
-  const moves = () => written.filter((each) => each.method === 'PATCH' && 'bucket_id' in (each.body ?? {}));
+  const moves = () => written.filter((each) => each.method === 'POST' && each.path.endsWith(':drop'));
 
   // A finger that moves at once is scrolling the board: nothing is carried, nothing is written.
   await fingerCarry(page, context, middle, target);
@@ -239,9 +239,9 @@ test('chromium: a card says what it holds - its parts, comments and files - and 
   assert.deepEqual(failures, []);
 });
 
-// user-experience.md §7.5: on a board of buckets completion and the done column are one - a card
-// dropped there completes, and a card marked as done moves there.
-test('chromium: a card marked as done from its menu moves to the done column', async (t) => {
+// build-plan §5: completion and the done column are kept together by the server through every
+// door - a card marked as done sends the completion only, never a column move of the client's own.
+test('chromium: a card marked as done from its menu sends the completion alone', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, written, close, unstubbed } = await board(browser);
@@ -255,9 +255,9 @@ test('chromium: a card marked as done from its menu moves to the done column', a
   await page.waitForTimeout(400);
 
   const completed = written.findIndex((w) => w.method === 'POST' && w.path.endsWith(`/items/${card.id}:complete`));
-  const moved = written.findIndex((w) => w.method === 'PATCH' && w.path.endsWith(`/items/${card.id}`) && w.body?.bucket_id === BUCKETS[2].id);
+  const moved = written.findIndex((w) => (w.method === 'PATCH' && 'bucket_id' in (w.body ?? {})) || w.path.endsWith(':drop'));
   assert.ok(completed >= 0, `Mark as done sent no :complete: ${JSON.stringify(written)}`);
-  assert.ok(moved > completed, `the card was not moved to the done column after: ${JSON.stringify(written)}`);
+  assert.equal(moved, -1, `the client moved the card itself: ${JSON.stringify(written)}`);
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });

@@ -1406,7 +1406,8 @@
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
-              statuses={boardShape}
+              level={container.state_mode}
+              workflow={boardShape}
               showsKey={arrangement?.fields.includes('key') ?? false}
             />
           {:else}

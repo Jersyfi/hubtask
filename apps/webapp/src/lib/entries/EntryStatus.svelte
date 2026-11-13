@@ -141,11 +141,12 @@
     void take(verdict, step.label);
   }
 
-  // A column move: the server completes into the done column and reopens out of it (Board).
+  // A column move is the board's drop (`:drop`): the server completes into the done column and
+  // reopens out of it, so the client never couples completion to the column.
   async function moveInto(step: WorkflowStep) {
     isTaking = true;
     try {
-      await items.setBucket(item.id, step.to.id, item.version);
+      await items.drop(item.id, step.to.id, item.version);
       toast.show({ text: t('app.workflows.step_taken', { name: step.label }), tone: 'success' });
       void read.refresh();
     } catch (error) {
