@@ -138,7 +138,7 @@ test('chromium: without a workflow the default holds and the primary button is D
     await page.locator('[data-steps]').waitFor({ timeout: 10_000 });
     assert.equal(await page.locator('[data-steps]').getAttribute('data-status'), 'todo');
     assert.ok(await page.locator('[data-tour="entry"]').getByRole('button', { name: 'Done', exact: true }).isVisible(), 'Done is the primary button');
-    assert.equal(await page.locator('[data-column-mark]').count(), 1, 'the column is still changed in the head');
+    assert.equal(await page.locator('[data-column-mark]').count(), 0, 'a second control beside the status sets the column');
   } finally {
     await close();
   }
@@ -151,6 +151,7 @@ test('chromium: on a board without a workflow the menu lists its columns, the do
     const status = page.locator('[data-steps]');
     await status.waitFor({ timeout: 10_000 });
     assert.equal(await status.getAttribute('data-status'), BOARD[0].id);
+    assert.equal(await page.locator('[data-column-mark]').count(), 0, 'the status is the one control for the column');
     await status.getByRole('button', { name: /Change status/ }).click();
     const rows = page.getByRole('menuitemradio');
     assert.deepEqual((await rows.allInnerTexts()).map((text) => text.split('\n')[0].trim()), ['Ideas', 'Building', 'Shipped']);
