@@ -102,7 +102,8 @@
 
 <section class="affected" aria-labelledby="affected-heading-{itemId}" data-affected-cis>
   <div class="head">
-    <h2 class="section" id="affected-heading-{itemId}">{t('app.affected.title')}</h2>
+    <!-- Named as its jump mark is: one name for one section. -->
+    <h2 class="section" id="affected-heading-{itemId}">{t('app.entry.mark_affected')}{#if answer?.cis.length}{' '}<span class="count">{answer.cis.length}</span>{/if}</h2>
     <!-- Nothing named: the section is one line (ET-3). -->
     {#if answer && !failure && answer.cis.length === 0}<span class="quiet none">{t('app.affected.none')}</span>{/if}
     {#if mayChange}
@@ -208,6 +209,7 @@
   .affected { display: flex; flex-direction: column; gap: var(--sp-100); }
   .head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .section { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .count { color: var(--text-subtle); font-weight: var(--fw-regular); }
   .group { display: flex; flex-direction: column; gap: var(--sp-050); }
   .relation { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }

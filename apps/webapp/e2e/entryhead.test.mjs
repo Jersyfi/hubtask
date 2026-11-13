@@ -416,3 +416,24 @@ test('chromium 1280: links are tight rows by relation, each far end in its own s
   }
 });
 
+test('chromium 1280: the affected items are named as their jump mark, both with their count (§6.9)', { timeout: 60_000 }, async () => {
+  const ci = (n, name) => ({ ci_id: `01a0e2e0-0000-7000-8000-0000000003f${n}`, hub_id: ENTRY.collection_id, class: 'server', name, stage: 'OPERATIONAL', added_at: '2026-11-01T09:00:00Z' });
+  const { page, close } = await open(1280, {
+    runs: false,
+    extra: (read, method) => {
+      if (method !== 'GET') return undefined;
+      if (read === '/meta/capabilities') return { ...MANIFEST, modules_on: ['ASSETS'] };
+      if (/^\/containers\/[^/]+\/modules$/.test(read)) return { modules_on: ['ASSETS'] };
+      if (read === `/items/${ENTRY.id}/cis`) return { item_id: ENTRY.id, cis: [ci(1, 'lb-01'), ci(2, 'db-01')], services: [], related: [], collisions: [] };
+      return undefined;
+    },
+  });
+  try {
+    const section = page.locator('#entry-affected');
+    await section.locator('[data-affected-ci]').first().waitFor({ timeout: 10_000 });
+    assert.match(await section.locator('h2.section').innerText(), /^Affected items\s+2$/, 'the section is named otherwise than its mark');
+    assert.match(await page.getByRole('navigation', { name: /Sections of/ }).getByRole('link', { name: /Affected items/ }).innerText(), /Affected items\s*2/);
+  } finally {
+    await close();
+  }
+});
