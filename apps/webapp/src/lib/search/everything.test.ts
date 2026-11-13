@@ -16,6 +16,13 @@ test('a kind whose module is off is never asked (P-17)', () => {
   assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'WHITEBOARD', 'ASSETS', 'GOALS', 'PLANNING']), [...BAR_KINDS]);
 });
 
+// UC-WRK-18 check 9. The header search asks what the search page asks; only comments, which its
+// scopes do not name (§6.11), are the page's alone.
+test('the header search asks every kind the search page asks, comments aside', () => {
+  assert.deepEqual([...BAR_KINDS].sort(), PAGE_KINDS.filter((kind) => kind !== 'COMMENT').sort());
+  assert.deepEqual(kindsOn(BAR_KINDS, ['GOALS']).filter((kind) => kind === 'GOAL' || kind === 'DASHBOARD'), ['GOAL', 'DASHBOARD']);
+});
+
 test('the line travels in the body, whole; nothing is asked without it (Q-5)', () => {
   assert.equal(requestOf('  ', ['ENTRY']), undefined);
   assert.deepEqual(requestOf('passkey type: task', ['ENTRY', 'PAGE'], { hubId: 'h', size: 3 }), { q: 'passkey type: task', kinds: ['ENTRY', 'PAGE'], hub_id: 'h', size: 3 });

@@ -44,10 +44,10 @@ export interface Answer {
 }
 
 /**
- * The scopes of the header search, in the order the concept draws them (§6.11), then the plans'
- * own objects, which nothing else finds by name.
+ * The scopes of the header search, in the order the concept draws them (§6.11), then the goals'
+ * and plans' objects: every kind of the search page but comments, which its scopes do not name.
  */
-export const BAR_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET', 'PORTFOLIO', 'RELEASE', 'SPRINT'];
+export const BAR_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'RELEASE', 'SPRINT'];
 
 /** Every kind of the search page, entries first, comments last. */
 export const PAGE_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'RELEASE', 'SPRINT', 'ASSET', 'PERSON', 'FILE', 'COMMENT'];

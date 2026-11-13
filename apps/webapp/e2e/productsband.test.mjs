@@ -772,8 +772,8 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
   }
 });
 
-// §6.11: goals, configuration items and dashboards are found by the search page, boards and the
-// inventory by the header search too, from the one search over every kind, each hit opening where it lives.
+// §6.11, UC-WRK-18 check 9: goals, configuration items and dashboards are found by the search page
+// and by the header search, from the one search over every kind, each hit opening where it lives.
 test('chromium 1280 px: the search and the palette find goals, configuration items and dashboards', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -795,9 +795,11 @@ test('chromium 1280 px: the search and the palette find goals, configuration ite
   await palette.click();
   await palette.fill('kick-off');
   await page.locator('#search-menu').getByRole('option', { name: /Kick-off/u }).waitFor({ timeout: 10_000 });
-  // The bar's scopes are the concept's (§6.11): inventory, not goals.
-  await palette.fill('fortigate');
-  await page.locator('#search-menu').getByRole('option', { name: /FortiGate 60F/u }).waitFor({ timeout: 10_000 });
+  // The bar asks the kinds the page asks: inventory, goals and dashboards too.
+  for (const [words, title] of [['fortigate', /FortiGate 60F/u], ['kundinnen', /Mehr Kundinnen gewinnen/u], ['morgen', /Betrieb am Morgen/u]]) {
+    await palette.fill(words);
+    await page.locator('#search-menu').getByRole('option', { name: title }).waitFor({ timeout: 10_000 });
+  }
   assert.deepEqual(failures, []);
 });
 
