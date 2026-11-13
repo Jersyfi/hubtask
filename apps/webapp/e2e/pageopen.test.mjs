@@ -74,15 +74,49 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   const body = page.getByRole('textbox', { name: /Product handbook/ });
   await body.getByText('Welcome to the team.').waitFor({ timeout: 10_000 });
   await page.waitForTimeout(500);
-  assert.equal(await page.locator('[data-page-tools]').count(), 0, 'reading shows no tools');
+  assert.equal(await page.locator('[data-page-tools], [data-block-handle], [data-floating-toolbar]').count(), 0, 'reading shows no tools');
 
-  await body.click();
-  await page.locator('[data-page-tools]').waitFor({ timeout: 5_000 });
+  // Writing: "+" and the handle at the caret's line, no bar over the page from a tablet on.
+  await body.getByText('Welcome to the team.').click();
+  await page.locator('[data-block-handle]').waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-page-tools]').count(), 0, 'the bar stands at the text, not over the page');
+  const handle = await page.locator('[data-block-handle]').boundingBox();
+  const line = await body.getByText('Welcome to the team.').boundingBox();
+  assert.ok(handle && line && handle.x + handle.width <= line.x + 1, 'the handle stands before the line');
+  assert.ok(Math.abs(handle.y - line.y) < line.height + 8, 'level with the line');
+
+  // Selected words: the bar above them; Bold makes them bold and keeps them selected.
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Home');
+  const bar = page.locator('[data-floating-toolbar]');
+  await bar.waitFor({ timeout: 5_000 });
+  const barBox = await bar.boundingBox();
+  const words = await body.getByText('Welcome to the team.').boundingBox();
+  assert.ok(barBox && words && barBox.y + barBox.height <= words.y + 2, 'the bar stands above the selection, not over it');
+  await bar.getByRole('button', { name: 'Bold' }).click();
+  await body.locator('strong', { hasText: 'Welcome to the team.' }).waitFor({ timeout: 5_000 });
+
+  // The handle's menu moves the line without dragging (WCAG 2.5.7).
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Next line');
+  await page.keyboard.press('ArrowUp');
+  await page.locator('[data-block-grip]').click();
+  await page.getByRole('menuitem', { name: 'Move down' }).click();
+  await body.locator(':scope > :first-child', { hasText: 'Next line' }).waitFor({ timeout: 5_000 });
+
+  // "/" on an empty line opens what can be inserted at that line; a block's fields come after the choice.
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('/');
-  await page.locator('[data-page-blocks]').waitFor({ timeout: 5_000 });
+  const panel = page.locator('[data-box-popover] [data-page-blocks]');
+  await panel.waitFor({ timeout: 5_000 });
   assert.equal(await body.getByText('/', { exact: true }).count(), 0, 'the slash opened the blocks and was not typed');
+  assert.equal(await panel.locator('input:not([type=file])').count(), 0, 'no block fields before a choice');
+  await panel.getByRole('button', { name: 'Add formula' }).click();
+  await panel.locator('input:not([type=file])').waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
 
   assert.deepEqual(failures, []);
 });

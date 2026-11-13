@@ -663,6 +663,11 @@
                   onpassages={passagesMoved}
                   onpresent={(names) => (present = names)}
                   onheadings={(seen) => (outline = seen)}
+                  oncomment={() => {
+                    isAtBlock = true;
+                    if (viewport.isLarge) document.querySelector<HTMLElement>('[data-page-comment-new] textarea')?.focus();
+                    else side = 'comments';
+                  }}
                   onblock={(seen) => {
                     block = seen;
                     // Words selected are a comment's passage, unless the person chooses the page.

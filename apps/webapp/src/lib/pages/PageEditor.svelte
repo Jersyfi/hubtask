@@ -17,9 +17,9 @@
   // A reader's editor is not connected: what they read is the body as last saved.
 
   import { mount, unmount, untrack } from 'svelte';
-  import { Button, Inline, Toolbar, UploadField } from '@hubtask/design-system/components';
+  import { BlockHandle, BoxPopover, Button, FloatingToolbar, IconButton, Inline, Menu, Toolbar, UploadField } from '@hubtask/design-system/components';
   import {
-    Doc, LiveDocument, createPageEditor, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
+    Doc, LiveDocument, actOnLine, createPageEditor, lineAt, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
     replaceFromMarkdown, revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
     type ReferenceAttrs, type ReferenceDrawing, type SelectedBlock, type TaskLine, type WikiBlock,
   } from '@hubtask/editor';
@@ -35,6 +35,7 @@
   import { unsentDocuments } from '../data/unsentdocs.ts';
   import { liveKeeper } from '../data/unsentkeeper.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { page as frame } from '../frame/page.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { isLiveUnreachable } from '../data/liveunreachable.ts';
@@ -72,9 +73,11 @@
     onpresent?: (names: string[]) => void;
     /** Called with the page's headings of levels 2 and 3 whenever they change: the outline (S-3). */
     onheadings?: (headings: { id: string; label: string; level: number }[]) => void;
+    /** *Comment* on the bar above selected words: the margin's writing field takes the words. */
+    oncomment?: () => void;
   }
 
-  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith, onpresent, onheadings }: Props = $props();
+  const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith, onpresent, onheadings, oncomment }: Props = $props();
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -250,10 +253,15 @@
     const enter = () => {
       release ??= frame.write();
     };
+    // Decided after the event: a focused control removed while it is drawn (a panel's choice) sends
+    // its focusout in the middle of the drawing, where no state may change.
     const leave = (event: FocusEvent) => {
       if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
-      release?.();
-      release = undefined;
+      queueMicrotask(() => {
+        if (element.contains(document.activeElement)) return;
+        release?.();
+        release = undefined;
+      });
     };
     element.addEventListener('focusin', enter);
     element.addEventListener('focusout', leave);
@@ -299,7 +307,9 @@
     const enter = () => (isWriting = true);
     const leave = (event: FocusEvent) => {
       if (event.relatedTarget instanceof Node && element.contains(event.relatedTarget)) return;
-      isWriting = false;
+      queueMicrotask(() => {
+        if (!element.contains(document.activeElement)) isWriting = false;
+      });
     };
     element.addEventListener('focusin', enter);
     element.addEventListener('focusout', leave);
@@ -316,12 +326,174 @@
       if (event.key !== '/' || !seen?.isEditable || !seen.state.selection.empty) return;
       if (seen.state.selection.$from.parent.textContent !== '') return;
       event.preventDefault();
-      isAddingBlock = true;
+      openInsert();
     };
     element.addEventListener('keydown', slash, true);
     return () => element.removeEventListener('keydown', slash, true);
   });
   const hasPanel = $derived(isAddingBlock || isLinkingPage || isEmbedding || isPickingEmoji || isMakingTask);
+
+  // --- The tools at the text (S-1): a bar above selected words, "+" and the handle at a line ------
+  // A phone keeps the one bar above the keyboard (§7); from a tablet on the tools stand at the text.
+
+  type Box = { top: number; left: number; width: number; height: number }; // design-system-lint-ignore: a viewport box, as the browser measures it
+  let selectionBox = $state<Box | undefined>(undefined);
+  let line = $state<{ start: number; box: Box } | undefined>(undefined);
+  /** The line the insert panel was opened at, and the panel's box under it. */
+  let insertBox = $state<Box | undefined>(undefined);
+  let blockForm = $state<'math' | 'status' | 'embed' | undefined>(undefined);
+  let isLinkingWeb = $state(false);
+  let linkAddress = $state('');
+  let marks = $state(0);
+  const atText = $derived(page.writable && isLive && !viewport.isCompact);
+
+  const boxOf = (element: Element): Box => {
+    const r = element.getBoundingClientRect();
+    return { top: r.top, left: r.left, width: r.width, height: r.height }; // design-system-lint-ignore: a viewport box, as the browser measures it
+  };
+
+  function measure() {
+    const seen = editor;
+    const body = host;
+    if (!seen || seen.isDestroyed || !body) return;
+    marks += 1;
+    const { selection } = seen.state;
+    // A chosen block (a node selection: a card, a picture) has no words to format.
+    if (selection.empty || 'node' in selection) {
+      selectionBox = undefined;
+      isLinkingWeb = false;
+    } else {
+      const a = seen.view.coordsAtPos(selection.from);
+      const b = seen.view.coordsAtPos(selection.to);
+      const frame = body.getBoundingClientRect();
+      const oneLine = Math.abs(a.top - b.top) < 1;
+      const left = oneLine ? Math.min(a.left, b.left) : frame.left;
+      const right = oneLine ? Math.max(a.right, b.right) : frame.right;
+      const top = Math.min(a.top, b.top);
+      selectionBox = { top, left, width: Math.max(1, right - left), height: Math.max(a.bottom, b.bottom) - top };
+    }
+    const at = lineAt(seen);
+    if (at) line = { start: at.start, box: boxOf(at.element) };
+  }
+
+  $effect(() => {
+    const seen = editor;
+    if (!seen || !atText) return;
+    return untrack(() => {
+      measure();
+      seen.on('selectionUpdate', measure);
+      seen.on('update', measure);
+      window.addEventListener('resize', measure);
+      return () => {
+        seen.off('selectionUpdate', measure);
+        seen.off('update', measure);
+        window.removeEventListener('resize', measure);
+      };
+    });
+  });
+
+  // The handle follows the pointer over the text, as it follows the caret.
+  function hover(event: PointerEvent) {
+    const seen = editor;
+    const body = host;
+    if (!seen || !body || !atText || !isWriting) return;
+    const frame = body.getBoundingClientRect();
+    if (event.clientY < frame.top || event.clientY > frame.bottom) return;
+    const at = lineAt(seen, { left: Math.min(Math.max(event.clientX, frame.left + 1), frame.right - 1), top: event.clientY }); // design-system-lint-ignore: a viewport box, as the browser measures it
+    if (at && at.start !== line?.start) line = { start: at.start, box: boxOf(at.element) };
+  }
+
+  // A field that appears after a choice takes the focus once it is drawn, never while it is drawn:
+  // focus moving during the drawing would change the state the drawing reads.
+  const focusSoon = (element: HTMLElement) => void queueMicrotask(() => element.focus());
+
+  function openInsert() {
+    blockForm = undefined;
+    isAddingBlock = true;
+    const at = editor ? lineAt(editor) : undefined;
+    insertBox = at ? boxOf(at.element) : line?.box;
+  }
+
+  function closeInsert() {
+    isAddingBlock = false;
+    blockForm = undefined;
+    insertBox = undefined;
+  }
+
+  /** The kinds of text a line can be turned into, from the bar's first choice or the handle. */
+  const STYLES = ['paragraph', 'heading2', 'heading3', 'list', 'numbered', 'checklist', 'quote', 'code'] as const;
+  type Style = (typeof STYLES)[number];
+  const styleLabel = (style: Style) => t(`app.pages.style_${style}`);
+  const currentStyle = $derived.by((): Style => {
+    void marks;
+    const seen = editor;
+    if (!seen) return 'paragraph';
+    if (seen.isActive('heading', { level: 2 })) return 'heading2';
+    if (seen.isActive('heading', { level: 3 })) return 'heading3';
+    if (seen.isActive('taskList')) return 'checklist';
+    if (seen.isActive('bulletList')) return 'list';
+    if (seen.isActive('orderedList')) return 'numbered';
+    if (seen.isActive('blockquote')) return 'quote';
+    if (seen.isActive('codeBlock')) return 'code';
+    return 'paragraph';
+  });
+  const active = $derived.by(() => {
+    void marks;
+    const seen = editor;
+    return { bold: seen?.isActive('bold') ?? false, italic: seen?.isActive('italic') ?? false, strike: seen?.isActive('strike') ?? false, code: seen?.isActive('code') ?? false };
+  });
+  const styleItems = $derived(STYLES.map((style) => ({ id: style, label: styleLabel(style) })));
+
+  function turnInto(style: string, start?: number) {
+    const seen = editor;
+    if (!seen) return;
+    let chain = seen.chain().focus();
+    if (start !== undefined) chain = chain.setTextSelection(start + 1);
+    if (style === 'paragraph') chain = chain.setParagraph();
+    else if (style === 'heading2') chain = chain.setHeading({ level: 2 });
+    else if (style === 'heading3') chain = chain.setHeading({ level: 3 });
+    else if (style === 'list') chain = chain.toggleBulletList();
+    else if (style === 'numbered') chain = chain.toggleOrderedList();
+    else if (style === 'checklist') chain = chain.toggleTaskList();
+    else if (style === 'quote') chain = chain.toggleBlockquote();
+    else if (style === 'code') chain = chain.toggleCodeBlock();
+    chain.run();
+  }
+
+  const lineItems = $derived([
+    ...STYLES.map((style) => ({ id: `style:${style}`, label: styleLabel(style) })),
+    { id: 'up', label: t('app.pages.line_up'), icon: 'arrow-up' as const, hasSeparatorBefore: true },
+    { id: 'down', label: t('app.pages.line_down'), icon: 'arrow-down' as const },
+    { id: 'remove', label: t('app.pages.line_remove'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true },
+  ]);
+
+  function lineAct(id: string) {
+    const seen = editor;
+    const at = line;
+    if (!seen || !at) return;
+    if (id.startsWith('style:')) turnInto(id.slice(6), at.start);
+    else if (id === 'up' || id === 'down' || id === 'remove') actOnLine(seen, at.start, id);
+    measure();
+  }
+
+  function addBelow() {
+    const seen = editor;
+    const at = line;
+    if (!seen || !at) return;
+    if (actOnLine(seen, at.start, 'below')) {
+      measure();
+      openInsert();
+    }
+  }
+
+  function applyLink() {
+    const address = linkAddress.trim();
+    isLinkingWeb = false;
+    linkAddress = '';
+    if (!editor) return;
+    if (address === '') editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    else editor.chain().focus().extendMarkRange('link').setLink({ href: address }).run();
+  }
   const isQuiet = $derived(status === 'connected' && unsent === 0 && saveRefusal === undefined);
 
   // --- The editor and its live document ------------------------------------------------------------
@@ -466,7 +638,7 @@
       toast.show({ text: t('app.pages.block_refused'), tone: 'danger' });
       return;
     }
-    isAddingBlock = false;
+    closeInsert();
     embedAddress = '';
     statusLabel = '';
     mathSource = '';
@@ -493,8 +665,10 @@
   );
 </script>
 
-<div class="writing" bind:this={zone}>
-{#if page.writable && isLive && (isWriting || hasPanel)}
+<!-- The handle follows the pointer; a hover only moves it, nothing is acted on. -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="writing" bind:this={zone} onpointermove={hover}>
+{#if page.writable && isLive && viewport.isCompact && (isWriting || hasPanel)}
   <div class="tools" data-page-tools>
   <Toolbar label={t('app.pages.toolbar')}>
     <Inline gap="050" isWrapping>
@@ -509,7 +683,7 @@
       <Button size="sm" tone="subtle" icon="link" onclick={() => (isMentioning = true)}>{t('app.pages.tool_mention')}</Button>
       <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
       <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
-      <Button size="sm" tone="subtle" icon="plus" onclick={() => (isAddingBlock = !isAddingBlock)}>{t('app.pages.tool_block')}</Button>
+      <Button size="sm" tone="subtle" icon="plus" onclick={() => (isAddingBlock ? closeInsert() : openInsert())}>{t('app.pages.tool_block')}</Button>
       <Button size="sm" tone="subtle" onclick={() => (isPickingEmoji = !isPickingEmoji)}>{t('app.pages.tool_emoji')}</Button>
       <UploadField
           variant="button"
@@ -527,6 +701,7 @@
   </div>
 {/if}
 
+{#snippet panelsHere()}
 {#if isLinkingPage}
   <ul class="choices" aria-label={t('app.pages.tool_page')}>
     {#each spacePages.filter((each) => each.id !== page.id) as each (each.id)}
@@ -538,32 +713,59 @@
 {/if}
 {#if isAddingBlock}
   <div class="blocks" data-page-blocks>
-    <ul class="choices" aria-label={t('app.pages.tool_block')}>
-      {#each ['info', 'warning', 'success', 'error'] as const as tone (tone)}
-        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'callout', tone })}>{t(`app.pages.block_callout_${tone}`)}</button></li>
-      {/each}
-      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'details', summary: '' })}>{t('app.pages.block_toggle')}</button></li>
-      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'toc' })}>{t('app.pages.block_toc')}</button></li>
-      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'children' })}>{t('app.pages.block_child_pages')}</button></li>
-      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'date', date: today() })}>{t('app.pages.block_date')}</button></li>
-      <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'diagram', source: 'graph TD\n  A --> B' })}>{t('app.pages.block_diagram_add')}</button></li>
-    </ul>
-    <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'math', latex: mathSource }); }}>
-      <input type="text" bind:value={mathSource} spellcheck="false" placeholder={t('app.pages.block_math_source')} aria-label={t('app.pages.block_math_source')} />
-      <Button size="sm" tone="subtle" type="submit" disabledReason={mathSource.trim() === '' ? t('app.pages.block_math_source') : undefined}>{t('app.pages.block_math_add')}</Button>
-    </form>
-    <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'status', label: statusLabel, tone: 'info' }); }}>
-      <input type="text" bind:value={statusLabel} maxlength="40" placeholder={t('app.pages.block_status_label')} aria-label={t('app.pages.block_status_label')} />
-      <Button size="sm" tone="subtle" type="submit" disabledReason={statusLabel.trim() === '' ? t('app.pages.block_status_label') : undefined}>{t('app.pages.block_status')}</Button>
-    </form>
-    <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'embed', src: embedAddress }); }}>
-      <input type="url" bind:value={embedAddress} placeholder="https://" aria-label={t('app.pages.block_embed_address')} />
-      <Button size="sm" tone="subtle" type="submit" disabledReason={embedAddress.trim() === '' ? t('app.pages.block_embed_address') : undefined}>{t('app.pages.block_embed_add')}</Button>
-    </form>
+    {#if blockForm === 'math'}
+      <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'math', latex: mathSource }); }}>
+        <input type="text" bind:value={mathSource} spellcheck="false" use:focusSoon placeholder={t('app.pages.block_math_source')} aria-label={t('app.pages.block_math_source')} />
+        <Button size="sm" tone="subtle" type="submit" disabledReason={mathSource.trim() === '' ? t('app.pages.block_math_source') : undefined}>{t('app.pages.block_math_add')}</Button>
+      </form>
+    {:else if blockForm === 'status'}
+      <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'status', label: statusLabel, tone: 'info' }); }}>
+        <input type="text" bind:value={statusLabel} maxlength="40" use:focusSoon placeholder={t('app.pages.block_status_label')} aria-label={t('app.pages.block_status_label')} />
+        <Button size="sm" tone="subtle" type="submit" disabledReason={statusLabel.trim() === '' ? t('app.pages.block_status_label') : undefined}>{t('app.pages.block_status')}</Button>
+      </form>
+    {:else if blockForm === 'embed'}
+      <form class="block-form" onsubmit={(event) => { event.preventDefault(); addBlock({ kind: 'embed', src: embedAddress }); }}>
+        <input type="url" bind:value={embedAddress} use:focusSoon placeholder="https://" aria-label={t('app.pages.block_embed_address')} />
+        <Button size="sm" tone="subtle" type="submit" disabledReason={embedAddress.trim() === '' ? t('app.pages.block_embed_address') : undefined}>{t('app.pages.block_embed_add')}</Button>
+      </form>
+    {:else}
+      <!-- What "/" and "+" offer: Hubtask's own first, then the blocks; a block's fields only after it is chosen. -->
+      <p class="group">{t('app.pages.insert_hubtask')}</p>
+      <ul class="menu" aria-label={t('app.pages.insert_hubtask')}>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isEmbedding = true; insertBox = line?.box; }}>{t('app.pages.tool_view')}</button></li>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isMentioning = true; }}>{t('app.pages.tool_mention')}</button></li>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isLinkingPage = true; insertBox = line?.box; }}>{t('app.pages.tool_page')}</button></li>
+        <li><button type="button" class="choice" onclick={() => { closeInsert(); isPickingEmoji = true; insertBox = line?.box; }}>{t('app.pages.tool_emoji')}</button></li>
+        <li>
+          <UploadField
+            variant="button"
+            size="sm"
+            label={t('app.pages.tool_file')}
+            chooseLabel={isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}
+            disabledReason={isUploading ? t('app.pages.uploading') : undefined}
+            onChoose={(file) => { closeInsert(); void putFile(file); }}
+          />
+        </li>
+      </ul>
+      <p class="group">{t('app.pages.insert_blocks')}</p>
+      <ul class="menu" aria-label={t('app.pages.tool_block')}>
+        {#each ['info', 'warning', 'success', 'error'] as const as tone (tone)}
+          <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'callout', tone })}>{t(`app.pages.block_callout_${tone}`)}</button></li>
+        {/each}
+        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'details', summary: '' })}>{t('app.pages.block_toggle')}</button></li>
+        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'toc' })}>{t('app.pages.block_toc')}</button></li>
+        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'children' })}>{t('app.pages.block_child_pages')}</button></li>
+        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'date', date: today() })}>{t('app.pages.block_date')}</button></li>
+        <li><button type="button" class="choice" onclick={() => addBlock({ kind: 'diagram', source: 'graph TD\n  A --> B' })}>{t('app.pages.block_diagram_add')}</button></li>
+        <li><button type="button" class="choice" onclick={() => (blockForm = 'math')}>{t('app.pages.block_math_add')}</button></li>
+        <li><button type="button" class="choice" onclick={() => (blockForm = 'status')}>{t('app.pages.block_status')}</button></li>
+        <li><button type="button" class="choice" onclick={() => (blockForm = 'embed')}>{t('app.pages.block_embed_add')}</button></li>
+      </ul>
+    {/if}
   </div>
 {/if}
 {#if isPickingEmoji}
-  <EmojiPicker onpick={(emoji) => { if (editor && insertWikiBlock(editor, { kind: 'emoji', emoji })) changed(markdownOf(editor)); }} />
+  <EmojiPicker onpick={(emoji) => { if (editor && insertWikiBlock(editor, { kind: 'emoji', emoji })) changed(markdownOf(editor)); isPickingEmoji = false; }} />
 {/if}
 {#if isMakingTask}
   <ul class="choices" aria-label={t('app.pages.task_in')}>
@@ -582,6 +784,51 @@
       <li class="quiet">{t('app.pages.no_views')}</li>
     {/each}
   </ul>
+{/if}
+
+{/snippet}
+
+{#if atText}
+  <FloatingToolbar label={t('app.pages.format_bar')} container={zone} box={isWriting && !isLinkingWeb ? selectionBox : undefined}>
+    <Menu label={t('app.pages.style')} items={styleItems} onselect={(id) => turnInto(id)}>
+      {#snippet trigger(props)}
+        <Button size="sm" tone="subtle" data-page-style {...props}>{styleLabel(currentStyle)}</Button>
+      {/snippet}
+    </Menu>
+    <IconButton icon="bold" size="sm" tone="subtle" label={t('app.pages.tool_bold')} aria-pressed={active.bold} onclick={() => run((c) => c.toggleBold())} />
+    <IconButton icon="italic" size="sm" tone="subtle" label={t('app.pages.tool_italic')} aria-pressed={active.italic} onclick={() => run((c) => c.toggleItalic())} />
+    <IconButton icon="strikethrough" size="sm" tone="subtle" label={t('app.pages.tool_strike')} aria-pressed={active.strike} onclick={() => run((c) => c.toggleStrike())} />
+    <IconButton icon="code" size="sm" tone="subtle" label={t('app.pages.tool_inline_code')} aria-pressed={active.code} onclick={() => run((c) => c.toggleCode())} />
+    <IconButton icon="link" size="sm" tone="subtle" label={t('app.pages.tool_link')} onclick={() => { linkAddress = String(editor?.getAttributes('link')['href'] ?? ''); isLinkingWeb = true; }} />
+    {#if oncomment}
+      <Button size="sm" tone="subtle" icon="message-square" data-page-comment-selection onclick={oncomment}>{t('app.pages.tool_comment')}</Button>
+    {/if}
+  </FloatingToolbar>
+  <FloatingToolbar label={t('app.pages.tool_link')} container={zone} box={isLinkingWeb ? selectionBox : undefined}>
+    <form class="block-form" onsubmit={(event) => { event.preventDefault(); applyLink(); }}>
+      <input type="url" bind:value={linkAddress} use:focusSoon placeholder="https://" aria-label={t('app.pages.link_address')} onkeydown={(event) => { if (event.key === 'Escape') { isLinkingWeb = false; editor?.commands.focus(); } }} />
+      <Button size="sm" tone="subtle" type="submit">{linkAddress.trim() === '' ? t('app.pages.link_remove') : t('app.pages.tool_link')}</Button>
+    </form>
+  </FloatingToolbar>
+  <BlockHandle
+    container={zone}
+    box={isWriting && !hasPanel ? line?.box : undefined}
+    addLabel={t('app.pages.line_add')}
+    handleLabel={t('app.pages.line_handle')}
+    onadd={addBelow}
+    items={lineItems}
+    onselect={lineAct}
+  />
+  <BoxPopover
+    label={t('app.pages.insert')}
+    container={zone}
+    box={hasPanel ? (insertBox ?? line?.box) : undefined}
+    onclose={() => { closeInsert(); isLinkingPage = false; isEmbedding = false; isPickingEmoji = false; isMakingTask = false; }}
+  >
+    {@render panelsHere()}
+  </BoxPopover>
+{:else}
+  {@render panelsHere()}
 {/if}
 
 {#if page.writable && (isWriting || !isQuiet)}<p class="status" aria-live="polite">{statusWords}</p>{/if}
@@ -633,6 +880,16 @@
   }
   .choice:hover { background: var(--bg-surface-hover); }
   .quiet { color: var(--text-secondary); }
+  .group {
+    margin: 0;
+    padding-block: var(--sp-050) var(--sp-025);
+    color: var(--text-subtle);
+    font-size: var(--fs-050);
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+  }
+  .menu { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
+  .menu .choice { inline-size: 100%; border-color: transparent; text-align: start; }
 
   /* Reading first (S-1): running text at the reading size and the loose line height, no box. */
   .editor :global(.page-body) {
