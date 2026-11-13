@@ -10,7 +10,7 @@
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import { Button, Dialog, Input, Spinner } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, ProductTile, Spinner } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardRead } from '@hubtask/sync-engine';
 
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -99,10 +99,10 @@
   </div>
 {:else}
   {#key current.id}
-    <BoardCanvas board={current} {collections} {onnavigate} {boardMenu}>
+    <BoardCanvas board={current} {collections} {onnavigate} {boardMenu} back={hub ? boardsOf(hub.id) : '/whiteboards'}>
       {#snippet heading()}
         <div class="trail">
-          {#if hub}<a class="hub" href={boardsOf(hub.id)}>{hub.name}</a><span class="sep" aria-hidden="true">/</span>{/if}
+          <ProductTile icon="layout-template" product="whiteboards" size="sm" />
           <h1 class="board-title" title={current.title}>{current.title}</h1>
           <StarToggle kind="WHITEBOARD" id={current.id} name={current.title} />
         </div>
@@ -124,12 +124,6 @@
 <style>
   .waiting { display: grid; gap: var(--sp-150); padding: var(--sp-300); }
   .title { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
-  .trail { display: flex; align-items: baseline; gap: var(--sp-050); min-inline-size: 0; }
-  .hub { flex: 0 1 auto; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
-  .sep { color: var(--text-subtle); font-size: var(--fs-075); }
-  .board-title { margin: 0; overflow: hidden; font-size: var(--fs-200); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) {
-    .hub, .sep { display: none; }
-  }
+  .trail { display: flex; align-items: center; gap: var(--sp-050); min-inline-size: 0; }
+  .board-title { margin: 0; overflow: hidden; font-size: var(--fs-100); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
 </style>

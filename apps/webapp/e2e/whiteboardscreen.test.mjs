@@ -56,7 +56,7 @@ const box = (locator) => locator.boundingBox();
 const inside = (inner, outer) =>
   inner.x >= outer.x - 1 && inner.y >= outer.y - 1 && inner.x + inner.width <= outer.x + outer.width + 1 && inner.y + inner.height <= outer.y + outer.height + 1;
 
-test('chromium: the board is full-bleed, its sheets closed until opened, and a sheet moves neither the canvas nor hides the tools', async (t) => {
+test('chromium: the board has no head; islands in the four corners and the dock at the foot cover under 8 % (W-1), and a sheet moves neither the canvas nor hides the dock', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, 1280, 860, `/whiteboards/${BOARD_ID}`);
@@ -65,10 +65,21 @@ test('chromium: the board is full-bleed, its sheets closed until opened, and a s
   await canvas.locator('g.object').first().waitFor({ timeout: 20_000 });
 
   const stage = await box(page.locator('.stage'));
+  const board = await box(page.locator('[data-board]'));
+  assert.equal(stage.y, board.y, 'something stands above the board');
   const tools = await box(page.locator('[data-board-tools]'));
-  assert.ok(inside(tools, stage), 'the tools lie over the canvas');
-  assert.ok(Math.abs(tools.x + tools.width / 2 - (stage.x + stage.width / 2)) < 2, 'the tools stand at the top centre');
-  assert.ok(tools.y - stage.y < 40, 'the tools stand at the top');
+  assert.ok(inside(tools, stage), 'the dock lies over the canvas');
+  assert.ok(Math.abs(tools.x + tools.width / 2 - (stage.x + stage.width / 2)) < 2, 'the dock stands at the foot centre');
+  assert.ok(stage.y + stage.height - (tools.y + tools.height) < 40, 'the dock stands at the foot');
+  const title = await box(page.locator('[data-board-island=title]'));
+  const people = await box(page.locator('[data-board-island=people]'));
+  const zoom = await box(page.locator('.zoombar'));
+  assert.ok(title.x - stage.x < 40 && title.y - stage.y < 40, 'menu and title are not top left');
+  assert.ok(stage.x + stage.width - (people.x + people.width) < 40 && people.y - stage.y < 40, 'people and moderation are not top right');
+  assert.ok(stage.x + stage.width - (zoom.x + zoom.width) < 40 && stage.y + stage.height - (zoom.y + zoom.height) < 40, 'the zoom is not bottom right');
+  const controls = [title, people, zoom, tools];
+  const cover = controls.reduce((sum, each) => sum + each.width * each.height, 0) / (stage.width * stage.height);
+  assert.ok(cover < 0.08, `the controls cover ${(cover * 100).toFixed(1)} % of the surface`);
   assert.equal(await page.locator('[data-board-side]').count(), 0, 'a sheet was open on arrival');
   // The board opens showing all it holds: the far note is on the screen.
   assert.ok(await canvas.locator('g.object').count() >= 2, 'the board did not open on everything it holds');
@@ -80,8 +91,8 @@ test('chromium: the board is full-bleed, its sheets closed until opened, and a s
   const after = await box(page.locator('.stage'));
   assert.deepEqual([after.width, after.height], [stage.width, stage.height], 'opening the sheet resized the canvas');
   const sheet = await box(side);
-  const moved = await box(page.locator('[data-board-tools]'));
-  assert.ok(moved.x + moved.width <= sheet.x, 'the sheet covers the tools');
+  const dock = await box(page.locator('[data-board-tools]'));
+  assert.ok(sheet.y + sheet.height <= dock.y || dock.x + dock.width <= sheet.x, 'the sheet covers the dock');
 
   await page.keyboard.press('Escape');
   await side.waitFor({ state: 'detached', timeout: 5_000 });

@@ -77,11 +77,15 @@ test('chromium: a reader sees who is there, follows them, and stops when they mo
   await canvas.locator('g.peer').getByText('Ada', { exact: true }).waitFor({ timeout: 15_000 });
   assert.ok(told.length > 0, 'the reader told the others nothing of where they are');
 
-  await page.locator('[data-board-sheet="session"]').click();
+  // The faces top right (W-5): a click on one follows, and a frame in their colour says so.
+  await page.locator('[data-board-here]').click();
   const follow = page.getByRole('button', { name: 'Follow', exact: true });
-  await page.getByRole('heading', { name: 'Here now' }).waitFor();
+  await page.locator('[data-board-people]').getByText('Here now · 2').waitFor();
   await follow.click();
-  await page.getByRole('button', { name: 'Stop following' }).waitFor();
+  await page.getByRole('button', { name: 'Following', exact: true }).waitFor();
+  await page.locator('[data-board-following]').getByText('You follow Ada').waitFor();
+  assert.notEqual(await page.locator('.stage').evaluate((stage) => getComputedStyle(stage).boxShadow), 'none', 'following draws no frame');
+  await page.keyboard.press('Escape');
   let centre = await centreOf(page);
   assert.ok(Math.abs(centre.x - 2000) < 2 && Math.abs(centre.y - 1500) < 2, `the follower looks at ${JSON.stringify(centre)}`);
 
@@ -98,7 +102,7 @@ test('chromium: a reader sees who is there, follows them, and stops when they mo
   await page.mouse.down();
   await page.mouse.move(area.x + area.width / 2 - 80, area.y + area.height / 2 - 40, { steps: 5 });
   await page.mouse.up();
-  await follow.waitFor();
+  await page.locator('[data-board-following]').waitFor({ state: 'detached' });
   centre = await centreOf(page);
   socket.send(awareness(3, { name: 'Ada', cursor: { x: 0, y: 0 }, view: { x: -3000, y: -3000, zoom: 1 } }));
   await page.waitForTimeout(300);

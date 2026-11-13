@@ -22,7 +22,7 @@
   import { tick as settled, untrack, type Snippet } from 'svelte';
   import { tokens } from '@hubtask/design-system';
   import {
-    AvatarGroup, Button, Checkbox, Dialog, IconButton, Inline, Input, Menu, Select, Stack, Textarea, UploadField, VisuallyHidden, type MenuItem,
+    Avatar, AvatarGroup, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, Menu, Popover, Select, Stack, VisuallyHidden, type MenuItem,
   } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
   import type {
@@ -38,11 +38,13 @@
 
   import { announcer } from '../announce.svelte.ts';
   import EntryPicker from '../entries/EntryPicker.svelte';
-  import { keyboardTool, sizeOf, tabTarget } from './keys.ts';
+  import { keyboardTool, tabTarget } from './keys.ts';
+  import { DOCK, PHONE_DOCK, afterUse, neighbourOf, toolOfKey, type DockTool } from './dock.ts';
   import { keepThenReplace } from './restore.ts';
   import { sceneKey } from './scene.ts';
   import { followedViewport, peersOf, stillFollowing, type Peer } from './peers.ts';
   import BoardComments from './BoardComments.svelte';
+  import BoardList from './BoardList.svelte';
   import BoardTemplates, { templateOf, type BoardStart, type RetroFormat } from './BoardTemplates.svelte';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -71,15 +73,17 @@
     /** The hub's collections, offered to hold a sticky note made an entry (UC-CNV-02). */
     collections: readonly { id: string; name: string; settings?: { entry_types?: Record<string, readonly string[]> } }[];
     onnavigate: (path: string) => void;
-    /** The board's name and where it lives, at the start of its head. */
+    /** The board's name and its star, in the top-left island beside the way back. */
     heading: Snippet;
+    /** Where the way back in the top-left island leads: the hub's boards. */
+    back?: string;
     /** The screen's own verbs on the board (rename, the trash), at the end of the board's menu. */
     boardMenu?: { items: readonly MenuItem[]; onselect: (id: string) => void };
   }
 
-  const { board, collections, onnavigate, heading, boardMenu }: Props = $props();
+  const { board, collections, onnavigate, heading, back, boardMenu }: Props = $props();
 
-  type Tool = 'select' | 'ERASER' | ElementKind;
+  type Tool = DockTool | 'LINK';
 
   // A pause in the drawing before the scene is saved beside the live document.
   const SAVE_AFTER = 1200;
@@ -105,7 +109,15 @@
   let isLive = $state(false);
   let tool = $state<Tool>('select');
   let shape = $state<Shape>('RECTANGLE');
-  let pen = $state<Pen>('PEN');
+  // A double click on a tool holds it; otherwise it springs back to select after one use (W-3).
+  let held = $state(false);
+  // The held space bar is the hand for as long as it is down.
+  let spaceHeld = $state(false);
+  const pen = $derived<Pen>(tool === 'HIGHLIGHTER' ? 'HIGHLIGHTER' : 'PEN');
+  /** The surface or the same board as a list, for the keyboard and screen readers (§3). */
+  let mode = $state<'surface' | 'list'>('surface');
+  /** Where the comment tool was pressed: the next thread stands there. */
+  let commentAt = $state<Point | undefined>(undefined);
   let selected = $state<string[]>([]);
   let editing = $state<string | undefined>(undefined);
   let draft = $state('');
@@ -120,12 +132,10 @@
   let entryKind = $state<string>('');
   let isLinking = $state(false);
   let linkDraft = $state('');
-  // An address typed in the side panel the server would refuse is kept off the board and said so.
-  let isLinkEditRefused = $state(false);
   let linkAt = $state<Point | undefined>(undefined);
   let isGridOn = $state(false);
-  // On a phone the map would cover a third of the board; it is there to be switched on.
-  let isMapShown = $state(untrack(() => !viewport.isCompact));
+  // The small map comes on request (W-1).
+  let isMapShown = $state(false);
   let guides = $state<Guide[]>([]);
   let isTemplating = $state(false);
   let templateStart = $state<BoardStart>('RETRO');
@@ -135,10 +145,6 @@
   const shown = $derived(culled(elements, view, 200));
   const frames = $derived(elements.filter((e) => e.kind === 'FRAME'));
   const chosen = $derived(selected.length === 1 ? byId.get(selected[0] ?? '') : undefined);
-  $effect(() => {
-    void chosen?.id;
-    untrack(() => (isLinkEditRefused = false));
-  });
   const viewBox = $derived(`${view.x} ${view.y} ${view.width / view.zoom} ${view.height / view.zoom}`);
 
   // A board opens showing all it holds, never larger than its own size, once the stage has been
@@ -149,6 +155,8 @@
     untrack(() => {
       isFitted = true;
       if (location.hash.length > 1) return;
+      const first = viewport.isCompact ? elements.find((e) => e.kind === 'FRAME') : undefined;
+      if (first) { view = fit(view, box(first)); return; }
       const all = bounds(elements);
       if (!all) return;
       const fitted = fit(view, all);
@@ -360,7 +368,7 @@
     | { kind: 'pan'; startX: number; startY: number; viewX: number; viewY: number }
     | { kind: 'move'; startX: number; startY: number; anchor: string; originX: number; originY: number }
     | { kind: 'resize'; id: string; originX: number; originY: number }
-    | { kind: 'connect'; from: string; endX: number; endY: number }
+    | { kind: 'connect'; from: string; endX: number; endY: number; byHandle?: boolean }
     | { kind: 'draw'; points: Point[] }
     | { kind: 'erase' };
   let gesture = $state<Gesture | undefined>(undefined);
@@ -375,17 +383,38 @@
     if (gone.length > 0) model.remove(gone);
   }
 
+  // Touches down at once: two that lift together without moving are a two-finger tap (undo).
+  const touches2 = new Map<number, { x: number; y: number; at: number }>();
+  let twoFinger = false;
+
+  /** The tool after one use (W-3), and the dock's word for it. */
+  function used() {
+    if (tool === 'LINK') { tool = 'select'; return; }
+    tool = afterUse(tool, held);
+    if (tool === 'select') held = false;
+  }
+
   function down(event: PointerEvent) {
     if (editing) commitEdit();
     if (following !== undefined) following = undefined;
+    if (event.pointerType === 'touch') {
+      touches2.set(event.pointerId, { x: event.clientX, y: event.clientY, at: performance.now() });
+      if (touches2.size === 2) { twoFinger = true; gesture = undefined; return; }
+    }
     const at = pointOf(event);
     const target = hit(elements, at);
     surface?.setPointerCapture(event.pointerId);
+    // On a tablet the pen draws whatever tool is chosen; the finger selects and pans (§7).
+    const penDraws = event.pointerType === 'pen' && (tool === 'select' || tool === 'HAND');
+    if (tool === 'HAND' && !penDraws || spaceHeld) {
+      gesture = { kind: 'pan', startX: event.clientX, startY: event.clientY, viewX: view.x, viewY: view.y };
+      return;
+    }
     if (writable && tool === 'CONNECTOR' && target) {
       gesture = { kind: 'connect', from: target.id, endX: at.x, endY: at.y };
       return;
     }
-    if (writable && tool === 'STROKE') {
+    if (writable && (tool === 'STROKE' || tool === 'HIGHLIGHTER' || penDraws)) {
       gesture = { kind: 'draw', points: [at] };
       return;
     }
@@ -394,16 +423,25 @@
       erase(at);
       return;
     }
+    if (tool === 'COMMENT') {
+      commentAt = target ? undefined : at;
+      if (target) choose([target.id]);
+      else selected = [];
+      openThread = undefined;
+      void openSheet('comments');
+      used();
+      return;
+    }
     if (writable && tool === 'LINK') {
       linkAt = at;
       linkDraft = '';
       isLinking = true;
-      tool = 'select';
+      used();
       return;
     }
-    if (writable && tool !== 'select' && tool !== 'CONNECTOR' && tool !== 'ERASER') {
+    if (writable && (tool === 'STICKY' || tool === 'SHAPE' || tool === 'TEXT' || tool === 'FRAME')) {
       const id = put(tool, at);
-      tool = 'select';
+      used();
       if (id && (model.get(id)?.kind ?? '') !== 'FRAME') edit(id);
       return;
     }
@@ -476,6 +514,16 @@
   }
 
   function up(event: PointerEvent) {
+    const touch = touches2.get(event.pointerId);
+    touches2.delete(event.pointerId);
+    if (twoFinger) {
+      const still = touch && Math.hypot(event.clientX - touch.x, event.clientY - touch.y) < 12 && performance.now() - touch.at < 400;
+      if (touches2.size === 0) {
+        twoFinger = false;
+        if (still && writable) undo();
+      }
+      return;
+    }
     const g = gesture;
     gesture = undefined;
     guides = [];
@@ -485,12 +533,31 @@
       if (!model.addAll(strokes)) toast.show({ text: t('whiteboards.too_many_elements', { maximum: '5000' }), tone: 'danger' });
       return;
     }
+    if (g?.kind === 'connect' && g.byHandle) {
+      const target = hit(elements, pointOf(event));
+      if (target && target.id !== g.from) connectTo(g.from, target.id);
+      return;
+    }
     if (g?.kind !== 'connect') return;
     const target = hit(elements, pointOf(event));
     if (target && target.id !== g.from) {
       model.add({ id: elementId(), kind: 'CONNECTOR', from: g.from, to: target.id, route: 'STRAIGHT', start: 'NONE', end: 'ARROW', x: 0, y: 0, width: 0, height: 0 });
     }
-    tool = 'select';
+    used();
+  }
+
+  /** Dragging one of the chosen object's edge handles draws an arrow to where it is let go (W-4). */
+  function handleStart(event: PointerEvent, e: Element) {
+    event.stopPropagation();
+    surface?.setPointerCapture(event.pointerId);
+    const at = pointOf(event);
+    gesture = { kind: 'connect', from: e.id, endX: at.x, endY: at.y, byHandle: true };
+  }
+
+  /** "+" beside a note, or Tab while writing in it: the next note, the same colour, and its words. */
+  function addNeighbour(of: Element) {
+    const id = put(of.kind === 'SHAPE' ? 'SHAPE' : 'STICKY', neighbourOf(of), { color_token: of.color_token, width: of.width, height: of.height });
+    if (id) edit(id);
   }
 
   function resizeStart(event: PointerEvent, e: Element) {
@@ -531,9 +598,14 @@
       return;
     }
     if (event.key === 'Escape') {
-      // A second Escape, with nothing chosen, takes focus out of the board to its tools.
+      // Esc always leads back (W-3): a tool to select, a choice to none, then out to the dock.
       if (selected.length === 0 && tool === 'select') (toolbar ?? zoombar)?.querySelector<HTMLElement>('button, select, input')?.focus();
-      selected = []; tool = 'select'; following = undefined; return;
+      selected = []; tool = 'select'; held = false; following = undefined; commentAt = undefined; return;
+    }
+    if (event.key === ' ' && !(writable && chosen?.kind === 'CARD')) {
+      event.preventDefault();
+      spaceHeld = true;
+      return;
     }
     const mod = event.ctrlKey || event.metaKey;
     if (mod && (event.key === 'a' || event.key === 'A') && order.length > 0) {
@@ -565,7 +637,13 @@
     if (event.key === 'Enter' && chosen) { event.preventDefault(); edit(chosen.id); return; }
     if (mod) return;
     if ((event.key === 'v' || event.key === 'V') && chosen && voting?.open) { event.preventDefault(); vote(chosen.id); return; }
-    if (event.key === 'n' || event.key === 'N') { event.preventDefault(); const id = put('STICKY', centre()); if (id) edit(id); }
+    if (event.key === 'n' || event.key === 'N') { event.preventDefault(); const id = put('STICKY', centre()); if (id) edit(id); return; }
+    const next = toolOfKey(event.key, event.altKey || event.shiftKey);
+    if (next) { event.preventDefault(); pickTool(next, false); }
+  }
+
+  function keyUp(event: KeyboardEvent) {
+    if (event.key === ' ') spaceHeld = false;
   }
 
   /** Opens a card's entry, which is what its ↗ does for a pointer. */
@@ -578,9 +656,17 @@
    * Chooses a tool. Pressed with a pointer it waits for the board to be pressed; pressed from the
    * keyboard (a click with no pointer behind it) it acts at once, at the centre of the view.
    */
-  function pickTool(next: Tool, byKeyboard: boolean) {
+  function pickTool(next: Tool, byKeyboard: boolean, hold = false) {
+    held = hold;
     tool = next;
+    if (next === 'select') held = false;
     if (!byKeyboard) return;
+    if (next === 'COMMENT') {
+      tool = 'select';
+      commentAt = undefined;
+      void openSheet('comments');
+      return;
+    }
     const action = keyboardTool(next);
     if (action === 'place') {
       const id = put(next as ElementKind, centre());
@@ -741,7 +827,10 @@
   };
   let entryCollection = $state<string>('');
   const kinds = $derived(entryCollection ? kindsIn(entryCollection) : []);
-  const notesToTurn = $derived(chosen?.kind === 'FRAME' ? notesInFrame(elements, chosen) : chosen?.kind === 'STICKY' || chosen?.kind === 'SHAPE' ? [chosen] : []);
+  const notesToTurn = $derived(
+    chosen?.kind === 'FRAME' ? notesInFrame(elements, chosen)
+    : selected.map((id) => byId.get(id)).filter((e): e is Element => !!e && (e.kind === 'STICKY' || e.kind === 'SHAPE') && !!(e.text ?? '').trim()),
+  );
 
   async function makeEntries() {
     isMakingEntry = false;
@@ -1061,7 +1150,7 @@
       const at = pinOf({ id: '', parent_id: null, element_id: chosen.id, x: 0, y: 0, resolved: false, deleted: false }, byId);
       return { element_id: chosen.id, x: Math.round(at.x), y: Math.round(at.y) };
     }
-    const at = centre();
+    const at = commentAt ?? centre();
     return { x: Math.round(at.x), y: Math.round(at.y) };
   }
 
@@ -1101,11 +1190,6 @@
     e.color_token && (BOARD_COLOURS as readonly string[]).includes(e.color_token)
       ? tokens.label[e.color_token as (typeof BOARD_COLOURS)[number]].fg
       : tokens.text.primary;
-  const tools: readonly { tool: Tool; icon: IconName }[] = [
-    { tool: 'select', icon: 'mouse-pointer-2' }, { tool: 'STICKY', icon: 'sticky-note' }, { tool: 'SHAPE', icon: 'shapes' },
-    { tool: 'TEXT', icon: 'type' }, { tool: 'CONNECTOR', icon: 'move-up-right' }, { tool: 'FRAME', icon: 'frame' },
-    { tool: 'STROKE', icon: 'pencil' }, { tool: 'ERASER', icon: 'eraser' }, { tool: 'LINK', icon: 'link' },
-  ];
 
   // --- The side sheet and the menus (user-experience.md §7.2) --------------------------------------
 
@@ -1113,10 +1197,9 @@
   type Sheet = 'session' | 'comments' | 'history' | 'links' | 'frames' | 'export';
   let sheet = $state<Sheet | undefined>(undefined);
   let sheetTitle = $state<HTMLHeadingElement | undefined>(undefined);
-  /** On a phone the chosen object's properties wait to be asked for; elsewhere they come first. */
-  let propsAsked = $state(false);
-  $effect(() => { if (selected.length === 0) untrack(() => (propsAsked = false)); });
-  const showsProps = $derived(selected.length > 0 && (!viewport.isCompact || propsAsked));
+  /** On a phone the selection bar waits to be asked for; elsewhere it stands above the selection. */
+  let barAsked = $state(false);
+  $effect(() => { if (selected.length === 0) untrack(() => { barAsked = false; isMakingEntry = false; }); });
   const openThreads = $derived(threadsOf(comments, false).length);
 
   async function toggleSheet(next: Sheet) {
@@ -1126,6 +1209,10 @@
     if (sheet === 'links' && !backlinks) void openBacklinks();
     await settled();
     sheetTitle?.focus();
+  }
+
+  async function openSheet(next: Sheet) {
+    if (sheet !== next) await toggleSheet(next);
   }
 
   function closeSheet() {
@@ -1140,86 +1227,202 @@
     ...(writable ? [{ id: 'template', label: t('app.whiteboards.template_put_menu'), icon: 'layout-template' as const }] : []),
     { id: 'frames', label: t('app.whiteboards.frames'), icon: 'frame' },
     { id: 'links', label: t('app.whiteboards.backlinks'), icon: 'link' },
-    { id: 'export', label: t('app.whiteboards.export'), icon: 'external-link' },
+    // No export on a phone (§7 Whiteboard).
+    ...(viewport.isCompact ? [] : [{ id: 'export', label: t('app.whiteboards.export'), icon: 'external-link' as const }]),
+    { id: 'grid', label: t(isGridOn ? 'app.whiteboards.grid_off' : 'app.whiteboards.grid_on'), icon: 'columns-3', hasSeparatorBefore: true },
     ...(boardMenu?.items ?? []).map((item, i) => (i === 0 ? { ...item, hasSeparatorBefore: true } : item)),
   ]);
 
   function menuChose(id: string) {
     if (id === 'template') isTemplating = true;
+    else if (id === 'grid') isGridOn = !isGridOn;
     else if (id === 'frames' || id === 'links' || id === 'export') void toggleSheet(id as Sheet);
     else boardMenu?.onselect(id);
   }
 
-  /** On a phone the bar holds the tools used most; the others join *Put on the board*. */
-  const PHONE_TOOLS: readonly Tool[] = ['select', 'STICKY', 'SHAPE', 'STROKE'];
-  const shownTools = $derived(viewport.isCompact ? tools.filter((each) => PHONE_TOOLS.includes(each.tool)) : tools);
-  const foldedTools = $derived(tools.filter((each) => !shownTools.includes(each)));
+  const ICONS: Record<Tool, IconName> = {
+    select: 'mouse-pointer-2', HAND: 'hand', STICKY: 'sticky-note', SHAPE: 'shapes', TEXT: 'type', CONNECTOR: 'move-up-right',
+    FRAME: 'frame', STROKE: 'pencil', HIGHLIGHTER: 'highlighter', ERASER: 'eraser', COMMENT: 'message-circle', LINK: 'link',
+  };
+  /** The dock as drawn here: a reader has the hand and the comment; a phone the four of §7, the rest under ⋯. */
+  const dockGroups = $derived(
+    DOCK.map((group) => ({
+      group: group.group,
+      tools: group.tools.filter((each) => (writable || each.tool === 'select' || each.tool === 'HAND' || each.tool === 'COMMENT') && (!viewport.isCompact || PHONE_DOCK.includes(each.tool))),
+    })).filter((group) => group.tools.length > 0),
+  );
+  const foldedTools = $derived(
+    viewport.isCompact && writable ? DOCK.flatMap((group) => group.tools).filter((each) => !PHONE_DOCK.includes(each.tool)) : [],
+  );
+  let fileInput = $state<HTMLInputElement | undefined>(undefined);
 
   const insertItems = $derived<MenuItem[]>([
-    ...foldedTools.map((each) => ({ id: `tool:${each.tool}`, label: t(`app.whiteboards.tool_${each.tool.toLowerCase()}`), icon: each.icon })),
+    ...foldedTools.map((each) => ({ id: `tool:${each.tool}`, label: t(`app.whiteboards.tool_${each.tool.toLowerCase()}`), icon: ICONS[each.tool] })),
     ...(viewport.isCompact
       ? [{ id: 'redo', label: t('app.whiteboards.redo'), icon: 'redo-2' as const, disabledReason: canRedo ? undefined : t('app.whiteboards.nothing_to_redo') }]
       : []),
-    { id: 'entry', hasSeparatorBefore: foldedTools.length > 0, label: t('app.whiteboards.put_entry'), icon: 'square-check' },
-    { id: 'template', label: t('app.whiteboards.template_put_menu'), icon: 'layout-template', hasSeparatorBefore: true },
+    { id: 'tool:LINK', hasSeparatorBefore: foldedTools.length > 0, label: t('app.whiteboards.tool_link'), icon: 'link' },
+    { id: 'file', label: isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file'), icon: 'paperclip', disabledReason: isUploading ? t('app.whiteboards.uploading') : undefined },
+    { id: 'entry', label: t('app.whiteboards.put_entry'), icon: 'square-check' },
+    // Templates wait for a larger screen (§7 Whiteboard).
+    ...(viewport.isCompact ? [] : [{ id: 'template', label: t('app.whiteboards.template_put_menu'), icon: 'layout-template' as const, hasSeparatorBefore: true }]),
   ]);
 
   function insertChose(id: string) {
     if (id.startsWith('tool:')) pickTool(id.slice(5) as Tool, false);
     else if (id === 'redo') redo();
+    else if (id === 'file') fileInput?.click();
     else if (id === 'entry') isPickingEntry = true;
     else if (id === 'template') isTemplating = true;
   }
+  // --- The selection bar (W-4, W-6) ---------------------------------------------------------------
+
+  const chosenAll = $derived(selected.map((id) => byId.get(id)).filter((e): e is Element => !!e));
+  const showsBar = $derived(
+    mode === 'surface' && chosenAll.length > 0 && !editing && gesture?.kind !== 'move' && gesture?.kind !== 'resize' && (!viewport.isCompact || barAsked),
+  );
+  /** Where the selection stands on the screen: the bar sits above it, centred. */
+  const selectionOnScreen = $derived.by(() => {
+    const area = bounds(chosenAll.filter((e) => e.kind !== 'CONNECTOR'));
+    if (!area) return undefined;
+    return {
+      x: ((area.left + area.right) / 2 - view.x) * view.zoom,
+      top: (area.top - view.y) * view.zoom,
+      bottom: (area.bottom - view.y) * view.zoom,
+    };
+  });
+  let barWidth = $state(0);
+  const colourable = $derived(chosenAll.length > 0 && chosenAll.every((e) => e.kind === 'STICKY' || e.kind === 'SHAPE' || e.kind === 'STROKE'));
+  const sizeable = $derived(chosen && (chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || chosen.kind === 'TEXT'));
+  const SIZES = { S: 0.75, M: 1, L: 1.5 } as const;
+  type Size = keyof typeof SIZES;
+  const sizeNow = $derived.by<Size>(() => {
+    if (!chosen) return 'M';
+    const base = DEFAULT_SIZE[chosen.kind].width || 1;
+    const ratio = chosen.width / base;
+    return ratio < 0.875 ? 'S' : ratio > 1.25 ? 'L' : 'M';
+  });
+  function sizeTo(size: Size) {
+    if (!chosen) return;
+    const base = DEFAULT_SIZE[chosen.kind];
+    model.update(chosen.id, { width: Math.round(base.width * SIZES[size]), height: Math.round(base.height * SIZES[size]) });
+  }
+  function colourAll(colour: (typeof BOARD_COLOURS)[number]) {
+    for (const e of chosenAll) if (!e.locked) model.update(e.id, { color_token: colour });
+  }
+  /** An arrow from the chosen object: the next press on another object ends it. */
+  function arrowFrom() {
+    if (!chosen) return;
+    pickTool('CONNECTOR', false);
+    announcer.say(t('app.whiteboards.connect_hint_pointer'));
+  }
+  function commentHere() {
+    commentAt = undefined;
+    openThread = undefined;
+    void openSheet('comments');
+  }
+  function lockAll() {
+    const locking = chosenAll.some((e) => !e.locked);
+    for (const e of chosenAll) model.update(e.id, { locked: locking });
+    announcer.say(t(locking ? 'app.whiteboards.locked' : 'app.whiteboards.unlocked'));
+  }
+  /** Lines the chosen objects up along the first one's top edge. */
+  function alignTop() {
+    const top = Math.min(...chosenAll.map((e) => e.y));
+    for (const e of chosenAll) if (!e.locked && e.y !== top) model.move([e.id], 0, top - e.y);
+  }
+  /** Lays the chosen notes out in rows, a gap between, from where the first stands. */
+  function arrangeGrid() {
+    const notes = chosenAll.filter((e) => e.kind !== 'CONNECTOR' && e.kind !== 'FRAME' && !e.locked);
+    if (notes.length < 2) return;
+    const columns = Math.ceil(Math.sqrt(notes.length));
+    const left = Math.min(...notes.map((e) => e.x));
+    const top = Math.min(...notes.map((e) => e.y));
+    const w = Math.max(...notes.map((e) => e.width)) + 20;
+    const h = Math.max(...notes.map((e) => e.height)) + 20;
+    notes.forEach((e, i) => model.move([e.id], left + (i % columns) * w - e.x, top + Math.floor(i / columns) * h - e.y));
+  }
+  const moreItems = $derived<MenuItem[]>([
+    ...(chosen && chosen.kind !== 'CARD' && chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE' && chosen.kind !== 'LINK' ? [{ id: 'edit', label: t('app.whiteboards.edit_words'), icon: 'pencil' as const }] : []),
+    ...(chosen?.kind === 'CARD' && cardOf(chosen)?.available ? [{ id: 'open', label: t('app.whiteboards.card_open_entry'), icon: 'arrow-right' as const }] : []),
+    ...(chosen?.kind === 'FILE' ? [{ id: 'file', label: t('app.whiteboards.file_open_button'), icon: 'file-text' as const }] : []),
+    ...(chosen?.kind === 'SHAPE' ? SHAPES.map((each) => ({ id: `shape:${each}`, label: t(`app.whiteboards.shape_${each.toLowerCase()}`), icon: 'shapes' as const })) : []),
+    ...(chosen?.kind === 'CONNECTOR' ? ROUTES.map((each) => ({ id: `route:${each}`, label: t(`app.whiteboards.route_${each.toLowerCase()}`), icon: 'move-up-right' as const })) : []),
+    ...(chosen?.kind === 'LINK' ? [{ id: 'address', label: t('app.whiteboards.link_address'), icon: 'link' as const }] : []),
+    { id: 'connect', label: t('app.whiteboards.connect_to'), icon: 'move-up-right', hasSeparatorBefore: true },
+    { id: 'add', label: t('app.whiteboards.add_to_selection'), icon: 'plus' },
+    ...(isGrouped ? [{ id: 'ungroup', label: t('app.whiteboards.ungroup'), icon: 'group' as const }] : selected.length > 1 ? [{ id: 'group', label: t('app.whiteboards.group'), icon: 'group' as const }] : []),
+    { id: 'duplicate', label: t('app.whiteboards.duplicate'), icon: 'copy' },
+    ...(chosen ? [{ id: 'front', label: t('app.whiteboards.front'), icon: 'layers' as const }, { id: 'back', label: t('app.whiteboards.back'), icon: 'layers' as const }] : []),
+    { id: 'remove', label: t('app.whiteboards.remove'), icon: 'trash', isDestructive: true, hasSeparatorBefore: true },
+  ]);
+  /** The ⋯ of the bar, and the keyboard's way to connect and to add to the choice (WCAG 2.5.7). */
+  let picking = $state<'connect' | 'add' | 'address' | undefined>(undefined);
+  let pickedId = $state('');
+  function moreChose(id: string) {
+    const one = chosen;
+    if (id === 'edit' && one) edit(one.id);
+    else if (id === 'open' && one) openCard(one);
+    else if (id === 'file' && one) void openFile(one.media_id);
+    else if (id.startsWith('shape:') && one) model.update(one.id, { shape: id.slice(6) as Shape });
+    else if (id.startsWith('route:') && one) model.update(one.id, { route: id.slice(6) as Element['route'] });
+    else if (id === 'connect' || id === 'add' || id === 'address') { picking = id; pickedId = id === 'address' ? one?.url ?? '' : ''; }
+    else if (id === 'group') group();
+    else if (id === 'ungroup') ungroup();
+    else if (id === 'duplicate') duplicate();
+    else if (id === 'front' && one) model.front(one.id);
+    else if (id === 'back' && one) model.back(one.id);
+    else if (id === 'remove') remove();
+  }
+  function picked2() {
+    const kind = picking;
+    picking = undefined;
+    if (kind === 'connect' && chosen) connectTo(chosen.id, pickedId);
+    else if (kind === 'add' && pickedId) choose([...selected, pickedId]);
+    else if (kind === 'address' && chosen) {
+      const url = linkAddress(pickedId);
+      if (url) model.update(chosen.id, { url });
+      else toast.show({ text: t('whiteboards.link_url_invalid'), tone: 'danger' });
+    }
+  }
+
+  // --- Following and the frames paged on a phone (W-5, §7) ----------------------------------------
+
+  let isPeopleOpen = $state(false);
+  const followed = $derived(following === undefined ? undefined : peers.find((peer) => peer.id === following));
+  let framePage = $state(0);
+  function showFrame(i: number) {
+    const frame = frames[i];
+    if (!frame) return;
+    framePage = i;
+    view = fit(view, box(frame));
+  }
+  function addMinute() {
+    session.extendTimer(60_000, Date.now());
+  }
+
   const editingElement = $derived(editing ? byId.get(editing) : undefined);
   const drafting = $derived(gesture?.kind === 'draw' ? gesture.points : undefined);
 </script>
 
-{#snippet addToSelection()}
-  <!-- Shift+click's keyboard way: what grouping and duplicating several objects start from. -->
-  {#if others(selected).length > 0}
-    <Select size="sm" label={t('app.whiteboards.add_to_selection')} placeholder={t('app.whiteboards.connect_to_choose')} value="" options={others(selected)} onchange={(event: Event) => { const select = event.currentTarget as HTMLSelectElement; if (select.value) choose([...selected, select.value]); select.value = ''; }} />
-  {/if}
-{/snippet}
-
-<svelte:window oncopy={(event) => copied(event, false)} oncut={(event) => copied(event, true)} onpaste={pasted} />
+<svelte:window onkeyup={keyUp} onblur={() => (spaceHeld = false)} oncopy={(event) => copied(event, false)} oncut={(event) => copied(event, true)} onpaste={pasted} />
 
 <div class="board" data-board data-page-kind="work">
-  <header class="head">
-    <div class="name">{@render heading()}</div>
-    <div class="aside">
-      {#if remaining}
-        <span class="clock" class:over={!remaining.running && remaining.left === 0} role="timer" aria-label={t('app.whiteboards.timer_left', { time: clockOf(remaining.left) })}>{clockOf(remaining.left)}</span>
-      {/if}
-      <span class="status" aria-live="polite" data-board-status>{statusText}</span>
-      {#if peers.length > 0}
-        <span class="here" data-board-here>
-          <AvatarGroup people={peers.map((peer) => ({ name: peer.name }))} max={3} size="sm" overflowLabel={t('app.whiteboards.here_more', { count: Math.max(0, peers.length - 3) })} />
-          <VisuallyHidden>{t('app.whiteboards.here_now')}: {peers.map((peer) => peer.name).join(', ')}</VisuallyHidden>
-        </span>
-      {/if}
-      {#if viewport.isCompact}
-        <IconButton size="sm" icon="message-square" tone={sheet === 'comments' ? 'primary' : 'subtle'} aria-pressed={sheet === 'comments'} label={openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')} data-board-sheet="comments" onclick={() => toggleSheet('comments')} />
-      {:else}
-        <Button size="sm" tone={sheet === 'comments' ? 'primary' : 'subtle'} icon="message-square" aria-pressed={sheet === 'comments'} data-board-sheet="comments" onclick={() => toggleSheet('comments')}>
-          {openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')}
-        </Button>
-      {/if}
-      <IconButton size="sm" icon="timer" tone={sheet === 'session' ? 'primary' : 'subtle'} aria-pressed={sheet === 'session'} label={t('app.whiteboards.session')} data-board-sheet="session" onclick={() => toggleSheet('session')} />
-      <IconButton size="sm" icon="rotate-ccw-clock" tone={sheet === 'history' ? 'primary' : 'subtle'} aria-pressed={sheet === 'history'} label={t('app.whiteboards.history')} data-board-sheet="history" onclick={() => toggleSheet('history')} />
-      <Menu label={t('app.whiteboards.board_menu')} items={menuItems} onselect={menuChose} placement={{ side: 'block-end', align: 'end' }}>
-        {#snippet trigger(props)}
-          <IconButton size="sm" icon="ellipsis" label={t('app.whiteboards.board_menu')} data-board-menu {...props} />
-        {/snippet}
-      </Menu>
-    </div>
-  </header>
-
-  <div class="stage" data-sheet={showsProps || sheet ? '' : undefined} bind:clientWidth={view.width} bind:clientHeight={view.height}>
+  <div
+    class="stage"
+    class:following={followed !== undefined}
+    style:--follow={followed ? tokens.label[peerColour(followed.id)].fg : undefined}
+    data-sheet={sheet ? '' : undefined}
+    data-mode={mode}
+    bind:clientWidth={view.width}
+    bind:clientHeight={view.height}
+  >
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
     <svg
       bind:this={surface}
       class="canvas"
-      class:drawing={tool !== 'select'}
+      class:drawing={tool !== 'select' && tool !== 'HAND' && !spaceHeld}
+      class:panning={tool === 'HAND' || spaceHeld}
       role="application"
       aria-label={t('app.whiteboards.canvas', { title: board.title, count: String(elements.length) })}
       aria-roledescription={t('app.whiteboards.canvas_role')}
@@ -1308,15 +1511,22 @@
           <g class="card" class:chosen={selected.includes(e.id)} class:done={target?.completed}>
             <path d={outlinePath(e)} />
             {#if target?.available}
-              <text x={e.x + 12} y={e.y + 22} class="key">{target.key ?? ''}</text>
-              {#each lines(target.title ?? '', e.width - 48, 14).slice(0, 3) as row, i (i)}
-                <text x={e.x + 12} y={e.y + 44 + i * 18} class="words">{row}</text>
+              {@const state = target.status_name ?? t(`app.whiteboards.card_state_${(target.status_category ?? (target.completed ? 'DONE' : 'TODO')).toLowerCase()}`)}
+              <!-- A note made a task is that task, live: key, status and tick (W-6). -->
+              <rect class="card-top" x={e.x} y={e.y} width={e.width} height="3" />
+              <text x={e.x + 12} y={e.y + 24} class="key">{target.key ?? ''}</text>
+              {#each lines(target.title ?? '', e.width - 36, 14).slice(0, Math.max(1, Math.floor((e.height - 76) / 18))) as row, i (i)}
+                <text x={e.x + 12} y={e.y + 48 + i * 18} class="words">{row}</text>
               {/each}
               <a
                 href={`/items/${target.id}`}
                 onclick={(event) => { event.preventDefault(); onnavigate(`/items/${target.id}`); }}
                 aria-label={t('app.whiteboards.card_open', { title: target.title ?? '' })}
-              ><text x={e.x + e.width - 12} y={e.y + 22} text-anchor="end" class="open">↗</text></a>
+              ><text x={e.x + e.width - 12} y={e.y + 24} text-anchor="end" class="open">↗</text></a>
+              <g class={`state ${(target.status_category ?? (target.completed ? 'DONE' : 'TODO')).toLowerCase()}`}>
+                <rect x={e.x + 42} y={e.y + e.height - 33} width={Math.min(e.width - 54, 16 + state.length * 7.5)} height="20" rx="4" />
+                <text x={e.x + 50} y={e.y + e.height - 19}>{state}</text>
+              </g>
               {#if writable}
                 <g
                   role="checkbox"
@@ -1328,8 +1538,8 @@
                   onpointerdown={(event) => { event.stopPropagation(); void tick(e); }}
                   onkeydown={(event) => { if (event.key === ' ') void tick(e); }}
                 >
-                  <rect x={e.x + e.width - 34} y={e.y + e.height - 34} width="22" height="22" rx="4" />
-                  {#if target.completed}<text x={e.x + e.width - 23} y={e.y + e.height - 17} text-anchor="middle">✓</text>{/if}
+                  <rect x={e.x + 12} y={e.y + e.height - 34} width="22" height="22" rx="4" />
+                  {#if target.completed}<text x={e.x + 23} y={e.y + e.height - 17} text-anchor="middle">✓</text>{/if}
                 </g>
               {/if}
             {:else}
@@ -1373,7 +1583,20 @@
         {#if from}<path class="drafting" d={`M ${from.x + from.width / 2} ${from.y + from.height / 2} L ${gesture.endX} ${gesture.endY}`} />{/if}
       {/if}
       {#if writable && chosen && chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE' && !chosen.locked}
-        <rect class="handle" x={chosen.x + chosen.width - 6} y={chosen.y + chosen.height - 6} width="12" height="12" onpointerdown={(event) => resizeStart(event, chosen)} role="presentation" />
+        {@const r = 5 / view.zoom}
+        <!-- Drag an edge's dot to draw an arrow, the corner to size it; "+" adds the neighbour (W-4). -->
+        {#if chosen.kind !== 'FRAME'}
+          {#each [[chosen.x + chosen.width / 2, chosen.y], [chosen.x + chosen.width, chosen.y + chosen.height / 2], [chosen.x + chosen.width / 2, chosen.y + chosen.height], [chosen.x, chosen.y + chosen.height / 2]] as [cx, cy], i (i)}
+            <circle class="dot-handle" {cx} {cy} {r} onpointerdown={(event) => handleStart(event, chosen)} role="presentation" data-board-handle />
+          {/each}
+        {/if}
+        <rect class="handle" x={chosen.x + chosen.width - r} y={chosen.y + chosen.height - r} width={2 * r} height={2 * r} onpointerdown={(event) => resizeStart(event, chosen)} role="presentation" />
+        {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE'}
+          <g class="plus" role="button" tabindex="-1" aria-label={t('app.whiteboards.add_neighbour')} transform={`translate(${chosen.x + chosen.width + 14 / view.zoom} ${chosen.y + chosen.height / 2}) scale(${1 / view.zoom})`}
+            onpointerdown={(event) => { event.stopPropagation(); addNeighbour(chosen); }} data-board-plus>
+            <circle r="10" /><path d="M -5 0 H 5 M 0 -5 V 5" />
+          </g>
+        {/if}
       {/if}
       {#each pins as pin (pin.thread.id)}
         <g
@@ -1400,6 +1623,83 @@
         {/if}
       {/each}
     </svg>
+    {#if showsBar && writable && selectionOnScreen}
+      <!-- The bar above the selection, in a fixed order (W-4): colour, size, arrow, comment, lock, task from it, ⋯. -->
+      <div
+        class="selbar"
+        class:below={selectionOnScreen.top < 120}
+        role="toolbar"
+        aria-label={selected.length > 1 ? t('app.whiteboards.several', { count: String(selected.length) }) : t(`app.whiteboards.kind_${chosen?.kind.toLowerCase() ?? 'sticky'}`)}
+        bind:clientWidth={barWidth}
+        style:inset-inline-start={`${Math.min(Math.max(selectionOnScreen.x, barWidth / 2 + 8), view.width - barWidth / 2 - 8)}px`}
+        style:inset-block-start={`${selectionOnScreen.top < 120 ? selectionOnScreen.bottom + 16 : selectionOnScreen.top - 16}px`}
+        data-board-bar
+      >
+        {#if selected.length > 1}
+          <span class="bar-words">{t('app.whiteboards.several', { count: String(selected.length) })}</span>
+          <span class="seam" aria-hidden="true"></span>
+        {/if}
+        {#if colourable}
+          <div class="swatches" role="radiogroup" aria-label={t('app.whiteboards.colour')}>
+            {#each BOARD_COLOURS as colour (colour)}
+              <button type="button" role="radio" aria-checked={chosen?.color_token === colour} aria-label={t(`app.colour.${colour}`)} class="swatch" style:background={tokens.label[colour].bg} onclick={() => colourAll(colour)}></button>
+            {/each}
+          </div>
+          <span class="seam" aria-hidden="true"></span>
+        {/if}
+        {#if sizeable}
+          <Menu label={t('app.whiteboards.size')} items={(['S', 'M', 'L'] as const).map((each) => ({ id: each, label: t(`app.whiteboards.size_${each.toLowerCase()}`) }))} onselect={(id: string) => sizeTo(id as 'S' | 'M' | 'L')} placement={{ side: 'block-start', align: 'center' }}>
+            {#snippet trigger(props)}
+              <Button size="sm" tone="subtle" icon="type" data-bar="size" {...props}>{sizeNow}</Button>
+            {/snippet}
+          </Menu>
+        {/if}
+        {#if chosen && chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE'}
+          <IconButton size="sm" icon="move-up-right" label={t('app.whiteboards.arrow_from')} data-bar="arrow" onclick={arrowFrom} />
+        {/if}
+        <IconButton size="sm" icon="message-circle" label={t('app.whiteboards.comment_here')} data-bar="comment" onclick={commentHere} />
+        <IconButton size="sm" icon="lock" tone={chosenAll.every((e) => e.locked) ? 'primary' : 'subtle'} aria-pressed={chosenAll.every((e) => e.locked)} label={t(chosenAll.every((e) => e.locked) ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')} data-bar="lock" onclick={lockAll} />
+        {#if selected.length > 1}
+          <IconButton size="sm" icon="align-start-vertical" label={t('app.whiteboards.align_top')} onclick={alignTop} />
+          <IconButton size="sm" icon="layout-grid" label={t('app.whiteboards.arrange')} onclick={arrangeGrid} />
+        {/if}
+        {#if notesToTurn.length > 0}
+          <span class="seam" aria-hidden="true"></span>
+          <Button size="sm" tone={isMakingEntry ? 'primary' : 'secondary'} icon="square-check" aria-expanded={isMakingEntry} data-bar="task"
+            onclick={() => { isMakingEntry = !isMakingEntry; entryCollection = entryCollection || collections[0]?.id || ''; entryKind = ''; }}>
+            {notesToTurn.length > 1 || chosen?.kind === 'FRAME' ? t('app.whiteboards.make_entries', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry')}
+          </Button>
+        {/if}
+        <Menu label={t('app.whiteboards.more')} items={moreItems} onselect={moreChose} placement={{ side: 'block-start', align: 'end' }}>
+          {#snippet trigger(props)}
+            <IconButton size="sm" icon="ellipsis" label={t('app.whiteboards.more')} data-bar="more" {...props} />
+          {/snippet}
+        </Menu>
+        {#if isMakingEntry}
+          <!-- Task from it asks collection and type (W-6): the words become the title, the note the card. -->
+          <div class="make" role="group" aria-labelledby="board-make-title" data-board-make>
+            <p class="make-title" id="board-make-title">{notesToTurn.length > 1 ? t('app.whiteboards.make_entries_title', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry_title')}</p>
+            <p class="quiet small">{t('app.whiteboards.make_entry_hint')}</p>
+            {#if collections.length === 0}
+              <p class="quiet">{t('app.whiteboards.no_collections')}</p>
+            {:else}
+              <Select size="sm" label={t('app.whiteboards.entry_in')} bind:value={entryCollection} options={collections.map((each) => ({ value: each.id, label: each.name }))} />
+              {#if kinds.length > 1}
+                <div class="kinds" role="radiogroup" aria-label={t('app.whiteboards.entry_type')}>
+                  {#each kinds as each, i (each.key)}
+                    <button type="button" role="radio" class="kind" aria-checked={entryKind ? entryKind === each.key : i === 0} onclick={() => (entryKind = each.key)}>{each.name ?? t('app.whiteboards.entry_type_task')}</button>
+                  {/each}
+                </div>
+              {/if}
+              <div class="make-foot">
+                <Button size="sm" tone="subtle" onclick={() => (isMakingEntry = false)}>{t('app.links.cancel')}</Button>
+                <Button size="sm" tone="primary" onclick={() => void makeEntries()}>{notesToTurn.length > 1 ? t('app.whiteboards.make_entries_confirm', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry_confirm')}</Button>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </div>
+    {/if}
     {#if editingElement}
       <textarea
         class="editor"
@@ -1410,7 +1710,15 @@
         style:block-size={`${editingElement.height * view.zoom}px`}
         bind:value={draft}
         onblur={commitEdit}
-        onkeydown={(event) => { if (event.key === 'Escape') { event.preventDefault(); commitEdit(); surface?.focus(); } }}
+        onkeydown={(event) => {
+          if (event.key === 'Escape') { event.preventDefault(); commitEdit(); surface?.focus(); }
+          else if (event.key === 'Tab' && !event.shiftKey && (editingElement.kind === 'STICKY' || editingElement.kind === 'SHAPE')) {
+            event.preventDefault();
+            const from = editingElement;
+            commitEdit();
+            addNeighbour(model.get(from.id) ?? from);
+          }
+        }}
         maxlength="2000"
       ></textarea>
     {/if}
@@ -1425,44 +1733,170 @@
       </div>
     {/if}
 
-    {#if writable}
-      <div class="tools" role="toolbar" aria-label={t('app.whiteboards.tools')} bind:this={toolbar} data-board-tools>
-        {#each shownTools as each (each.tool)}
-          <IconButton
-            icon={each.icon}
-            tone={tool === each.tool ? 'primary' : 'subtle'}
-            aria-pressed={tool === each.tool}
-            label={t(`app.whiteboards.tool_${each.tool.toLowerCase()}`)}
-            data-tool={each.tool}
-            onclick={(event: MouseEvent) => pickTool(each.tool, event.detail === 0)}
-          />
-        {/each}
-        <span class="seam" aria-hidden="true"></span>
-        <Menu label={t('app.whiteboards.insert')} items={insertItems} onselect={insertChose} placement={{ side: 'block-end', align: 'start' }}>
+    {#if mode === 'list'}
+      <BoardList {elements} {frames} cardOf={cardOf} votes={results.counts} {pins} {writable} {wordsOf}
+        onshow={(id) => { mode = 'surface'; const e = byId.get(id); if (e) { choose([id]); view = fit(view, box(e.kind === 'FRAME' ? e : { ...e, x: e.x - 200, y: e.y - 200, width: e.width + 400, height: e.height + 400 })); } }}
+        ontick={(e) => void tick(e)} />
+    {/if}
+
+    <!-- The four islands and the dock (W-1): no head above the board. -->
+    <div class="island top-left" data-board-island="title">
+      {#if back}<IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.back_to_boards')} onclick={() => onnavigate(back)} />{/if}
+      <div class="name">{@render heading()}</div>
+      <span class="status" class:live={isLive && unsent === 0 && status !== 'offline'} aria-live="polite" data-board-status>
+        {#if isLive && unsent === 0 && status !== 'offline' && status !== 'refused'}<Icon name="check" size="sm" /><VisuallyHidden>{statusText}</VisuallyHidden>{:else}{statusText}{/if}
+      </span>
+      {#if !viewport.isCompact}
+        <div class="modes" role="group" aria-label={t('app.whiteboards.mode')}>
+          <button type="button" class="mode" aria-pressed={mode === 'surface'} onclick={() => (mode = 'surface')} data-board-mode="surface"><Icon name="layout-template" size="sm" />{t('app.whiteboards.mode_surface')}</button>
+          <button type="button" class="mode" aria-pressed={mode === 'list'} onclick={() => (mode = 'list')} data-board-mode="list"><Icon name="list" size="sm" />{t('app.whiteboards.mode_list')}</button>
+        </div>
+      {/if}
+      <Menu label={t('app.whiteboards.board_menu')} items={menuItems} onselect={menuChose} placement={{ side: 'block-end', align: 'end' }}>
+        {#snippet trigger(props)}
+          <IconButton size="sm" icon="ellipsis" label={t('app.whiteboards.board_menu')} data-board-menu {...props} />
+        {/snippet}
+      </Menu>
+    </div>
+
+    <div class="island top-right" data-board-island="people">
+      {#if peers.length > 0}
+        <Popover label={t('app.whiteboards.here_now')} bind:isOpen={isPeopleOpen} placement={{ side: 'block-end', align: 'end' }}>
           {#snippet trigger(props)}
-            <IconButton icon="plus" label={t('app.whiteboards.insert')} data-board-insert {...props} />
+            <button type="button" class="faces" data-board-here {...props}>
+              <AvatarGroup people={peers.map((peer) => ({ name: peer.name }))} max={3} size="sm" overflowLabel={t('app.whiteboards.here_more', { count: Math.max(0, peers.length - 3) })} />
+              <VisuallyHidden>{t('app.whiteboards.here_now')}: {peers.map((peer) => peer.name).join(', ')}</VisuallyHidden>
+            </button>
           {/snippet}
-        </Menu>
-        <UploadField
-          variant="icon"
-          label={t('app.whiteboards.put_file')}
-          chooseLabel={isUploading ? t('app.whiteboards.uploading') : t('app.whiteboards.put_file')}
-          disabledReason={isUploading ? t('app.whiteboards.uploading') : undefined}
-          onChoose={(file) => void putFile(file)}
-        />
-        <IconButton icon="undo-2" label={t('app.whiteboards.undo')} aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo} />
-        {#if !viewport.isCompact}<IconButton icon="redo-2" label={t('app.whiteboards.redo')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabledReason={canRedo ? undefined : t('app.whiteboards.nothing_to_redo')} onclick={redo} />{/if}
-        {#if viewport.isCompact && selected.length > 0}
-          <IconButton icon="sliders-horizontal" tone={propsAsked ? 'primary' : 'subtle'} aria-pressed={propsAsked} label={t('app.whiteboards.properties')} onclick={() => (propsAsked = !propsAsked)} />
+          <div class="people" data-board-people>
+            <p class="people-title">{t('app.whiteboards.here_count', { count: String(peers.length + 1) })}</p>
+            {#each peers as peer (peer.id)}
+              <div class="person">
+                <Avatar name={peer.name} size="sm" />
+                <span class="person-name">{peer.name}</span>
+                {#if peer.view}
+                  <Button size="sm" tone={following === peer.id ? 'primary' : 'subtle'} aria-pressed={following === peer.id} onclick={() => { following = following === peer.id ? undefined : peer.id; peersChanged(); }}>
+                    {t(following === peer.id ? 'app.whiteboards.following_you' : 'app.whiteboards.follow')}
+                  </Button>
+                {/if}
+              </div>
+            {/each}
+            <div class="person"><Avatar name={actor.account?.display_name ?? ''} size="sm" /><span class="person-name">{t('app.whiteboards.you')}</span></div>
+            <p class="quiet small">{t('app.whiteboards.follow_ends')}</p>
+          </div>
+        </Popover>
+        <span class="seam" aria-hidden="true"></span>
+      {/if}
+      {#if !viewport.isCompact || voting || timerState}
+        <Button size="sm" tone={sheet === 'session' ? 'primary' : 'subtle'} icon="timer" aria-pressed={sheet === 'session'} data-board-sheet="session" onclick={() => toggleSheet('session')}>
+          {viewport.isCompact ? '' : t('app.whiteboards.moderate')}
+        </Button>
+      {/if}
+      <Button size="sm" tone={sheet === 'comments' ? 'primary' : 'subtle'} icon="message-square" aria-pressed={sheet === 'comments'} aria-label={openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')} data-board-sheet="comments" onclick={() => toggleSheet('comments')}>
+        {openThreads > 0 ? String(openThreads) : ''}
+      </Button>
+      {#if !viewport.isCompact}
+        <IconButton size="sm" icon="rotate-ccw-clock" tone={sheet === 'history' ? 'primary' : 'subtle'} aria-pressed={sheet === 'history'} label={t('app.whiteboards.history')} data-board-sheet="history" onclick={() => toggleSheet('history')} />
+      {/if}
+    </div>
+
+    {#if followed}
+      <p class="follow-note" data-board-following>{t('app.whiteboards.following_note', { name: followed.name })}</p>
+    {/if}
+
+    {#if viewport.isCompact && frames.length > 1 && mode === 'surface'}
+      <!-- On a phone the frames are paged at the top (§7). -->
+      <div class="island pager" role="group" aria-label={t('app.whiteboards.frames')} data-board-pager>
+        <IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.frame_previous')} disabledReason={framePage > 0 ? undefined : t('app.whiteboards.frame_first')} onclick={() => showFrame(framePage - 1)} />
+        <span class="pager-name">{frames[framePage]?.text || t('app.whiteboards.kind_frame')} · {framePage + 1}/{frames.length}</span>
+        <IconButton size="sm" icon="chevron-right" label={t('app.whiteboards.frame_next')} disabledReason={framePage < frames.length - 1 ? undefined : t('app.whiteboards.frame_last')} onclick={() => showFrame(framePage + 1)} />
+      </div>
+    {/if}
+
+    {#if remaining || voting}
+      <!-- The session bar: the running timer and vote, the same for everyone (W-5). -->
+      <div class="island session-bar" role="group" aria-label={t('app.whiteboards.session')} data-board-session>
+        {#if remaining}
+          <Icon name="timer" size="sm" />
+          <span class="clock" class:over={!remaining.running && remaining.left === 0} role="timer" aria-label={t('app.whiteboards.timer_left', { time: clockOf(remaining.left) })}>{clockOf(remaining.left)}</span>
+          {#if writable}
+            {#if remaining.running}
+              <IconButton size="sm" icon="pause" label={t('app.whiteboards.timer_pause')} onclick={() => session.pauseTimer(Date.now())} />
+            {:else if remaining.left > 0}
+              <IconButton size="sm" icon="play" label={t('app.whiteboards.timer_resume')} onclick={() => session.resumeTimer(Date.now())} />
+            {/if}
+            <Button size="sm" tone="subtle" icon="plus" onclick={() => addMinute()}>{t('app.whiteboards.timer_minute')}</Button>
+            <IconButton size="sm" icon="x" label={t('app.whiteboards.timer_stop')} onclick={() => session.stopTimer()} />
+          {/if}
+        {/if}
+        {#if remaining && voting}<span class="seam" aria-hidden="true"></span>{/if}
+        {#if voting}
+          <Icon name="vote" size="sm" />
+          <span class="vote-words">
+            <strong>{t(voting.anonymous ? 'app.whiteboards.vote_bar_anonymous' : 'app.whiteboards.vote_bar')}</strong>
+            <span class="quiet small">{voting.open ? t('app.whiteboards.vote_bar_left', { remaining: String(votesLeft), count: String(voting.perPerson), voters: String(results.voters) }) : t('app.whiteboards.vote_bar_closed', { voters: String(results.voters) })}</span>
+          </span>
+          {#if writable && voting.open}
+            <Button size="sm" tone="primary" onclick={() => session.endVoting()}>{t('app.whiteboards.vote_show')}</Button>
+          {:else if writable}
+            <Button size="sm" tone="subtle" onclick={() => session.clearVoting()}>{t('app.whiteboards.voting_clear')}</Button>
+          {/if}
         {/if}
       </div>
-      {#if tool === 'SHAPE' || tool === 'STROKE'}
-        <div class="variant">
-          {#if tool === 'SHAPE'}
-            <Select size="sm" label={t('app.whiteboards.shape')} bind:value={shape} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} />
-          {:else}
-            <Select size="sm" label={t('app.whiteboards.pen')} bind:value={pen} options={(['PEN', 'HIGHLIGHTER'] as const).map((each) => ({ value: each, label: t(`app.whiteboards.pen_${each.toLowerCase()}`) }))} />
-          {/if}
+    {/if}
+
+    <div class="island bottom-left" role="group" aria-label={t('app.whiteboards.history_steps')}>
+      {#if writable}
+        <IconButton size="sm" icon="undo-2" label={t('app.whiteboards.undo')} aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo} />
+        {#if !viewport.isCompact}<IconButton size="sm" icon="redo-2" label={t('app.whiteboards.redo')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabledReason={canRedo ? undefined : t('app.whiteboards.nothing_to_redo')} onclick={redo} />{/if}
+      {/if}
+    </div>
+
+    {#if mode === 'surface'}
+      <div class="dock" role="toolbar" aria-label={t('app.whiteboards.tools')} bind:this={toolbar} data-board-tools>
+        {#each dockGroups as group, g (group.group)}
+          {#if g > 0}<span class="seam" aria-hidden="true"></span>{/if}
+          <div class="dock-group" role="group" aria-label={t(`app.whiteboards.group_${group.group}`)} data-dock-group={group.group}>
+            {#each group.tools as each (each.tool)}
+              <span class="dock-tool">
+                <IconButton
+                  size="sm"
+                  icon={ICONS[each.tool]}
+                  tone={tool === each.tool ? 'primary' : 'subtle'}
+                  aria-pressed={tool === each.tool}
+                  aria-keyshortcuts={each.key}
+                  label={`${t(`app.whiteboards.tool_${each.tool.toLowerCase()}`)} (${each.key})`}
+                  data-tool={each.tool}
+                  onclick={(event: MouseEvent) => pickTool(each.tool, event.detail === 0, event.detail === 2)}
+                />
+                {#if !viewport.isCompact}<kbd class="key" aria-hidden="true">{each.key}</kbd>{/if}
+                {#if tool === each.tool && held}<span class="held" aria-hidden="true"></span>{/if}
+              </span>
+            {/each}
+          </div>
+        {/each}
+        {#if writable}
+          <Menu label={t('app.whiteboards.insert')} items={insertItems} onselect={insertChose} placement={{ side: 'block-start', align: 'center' }}>
+            {#snippet trigger(props)}
+              {#if viewport.isCompact}
+                <IconButton icon="ellipsis" label={t('app.whiteboards.insert')} data-board-insert {...props} />
+              {:else}
+                <Button size="sm" tone="secondary" icon="plus" data-board-insert {...props}>{t('app.whiteboards.insert_short')}</Button>
+              {/if}
+            {/snippet}
+          </Menu>
+          <input bind:this={fileInput} class="file" type="file" tabindex="-1" aria-hidden="true" onchange={(event) => { const input = event.currentTarget as HTMLInputElement; const file = input.files?.[0]; if (file) void putFile(file); input.value = ''; }} />
+        {/if}
+        {#if viewport.isCompact && selected.length > 0 && writable}
+          <IconButton icon="sliders-horizontal" label={t('app.whiteboards.properties')} onclick={() => (barAsked = !barAsked)} />
+        {/if}
+      </div>
+      {#if tool === 'SHAPE'}
+        <!-- The shapes in a fan at their tool (W-2). -->
+        <div class="fan" role="radiogroup" aria-label={t('app.whiteboards.shape')} data-board-fan>
+          {#each SHAPES as each (each)}
+            <button type="button" role="radio" class="fan-shape" aria-checked={shape === each} onclick={() => (shape = each)}>{t(`app.whiteboards.shape_${each.toLowerCase()}`)}</button>
+          {/each}
         </div>
       {/if}
     {/if}
@@ -1477,124 +1911,23 @@
           <rect class="mini-view" x={map.view.left} y={map.view.top} width={map.view.width} height={map.view.height} />
         </svg>
       {/if}
-      <div class="zoombar" role="group" aria-label={t('app.whiteboards.view_controls')} bind:this={zoombar}>
+      <div class="island zoombar" role="group" aria-label={t('app.whiteboards.view_controls')} bind:this={zoombar}>
+        {#if !viewport.isCompact && view.width >= 1100}
+          <Button size="sm" tone={sheet === 'frames' ? 'primary' : 'subtle'} icon="frame" aria-pressed={sheet === 'frames'} data-board-sheet="frames" onclick={() => toggleSheet('frames')}>{t('app.whiteboards.tool_frame')}</Button>
+        {:else if !viewport.isCompact}
+          <IconButton size="sm" icon="frame" tone={sheet === 'frames' ? 'primary' : 'subtle'} aria-pressed={sheet === 'frames'} label={t('app.whiteboards.frames')} data-board-sheet="frames" onclick={() => toggleSheet('frames')} />
+        {/if}
         <IconButton size="sm" icon="minus" label={t('app.whiteboards.zoom_out')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1 / 1.25))} />
-        <span class="zoom">{Math.round(view.zoom * 100)}%</span>
+        <span class="zoom">{Math.round(view.zoom * 100)} %</span>
         <IconButton size="sm" icon="plus" label={t('app.whiteboards.zoom_in')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1.25))} />
         <IconButton size="sm" icon="maximize-2" label={t('app.whiteboards.fit')} onclick={() => { const all = bounds(elements); if (all) view = fit(view, all); }} />
-        <IconButton size="sm" icon="columns-3" tone={isGridOn ? 'primary' : 'subtle'} aria-pressed={isGridOn} label={t('app.whiteboards.grid')} onclick={() => (isGridOn = !isGridOn)} />
         <IconButton size="sm" icon="map" tone={isMapShown ? 'primary' : 'subtle'} aria-pressed={isMapShown} label={t('app.whiteboards.minimap')} onclick={() => (isMapShown = !isMapShown)} />
       </div>
     </div>
 
-    {#if showsProps || sheet}
+    {#if sheet}
       <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
       <aside class="sheet" aria-label={t('app.whiteboards.side')} data-board-side onkeydown={(event) => { if (event.key === 'Escape' && sheet) { event.stopPropagation(); closeSheet(); } }}>
-        {#if showsProps}
-          <section class="part" aria-label={t('app.whiteboards.properties')} data-board-props>
-            {#if chosen}
-              <Stack gap="100">
-                <h2 class="part-title">{t(`app.whiteboards.kind_${chosen.kind.toLowerCase()}`)}</h2>
-                {#if chosen.kind === 'CARD' && cardOf(chosen)?.available}
-                  {@const card = cardOf(chosen)}
-                  <Inline gap="050">
-                    <Button size="sm" tone="secondary" icon="arrow-right" onclick={() => openCard(chosen)}>{t('app.whiteboards.card_open_entry')}</Button>
-                    {#if writable}
-                      <Button size="sm" tone="subtle" icon="square-check" aria-pressed={card?.completed ?? false} onclick={() => void tick(chosen)}>
-                        {t(card?.completed ? 'app.whiteboards.card_undone' : 'app.whiteboards.card_done')}
-                      </Button>
-                    {/if}
-                  </Inline>
-                {/if}
-                {#if chosen.kind === 'FILE' && chosen.media_id}
-                  <Button size="sm" tone="secondary" icon="file-text" onclick={() => void openFile(chosen.media_id)}>{t('app.whiteboards.file_open_button')}</Button>
-                {/if}
-                {#if writable && !chosen.locked}
-                  {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || chosen.kind === 'STROKE'}
-                    <div class="swatches" role="radiogroup" aria-label={t('app.whiteboards.colour')}>
-                      {#each BOARD_COLOURS as colour (colour)}
-                        <button
-                          type="button"
-                          role="radio"
-                          aria-checked={chosen.color_token === colour}
-                          aria-label={t(`app.colour.${colour}`)}
-                          class="swatch"
-                          style:background={tokens.label[colour].bg}
-                          onclick={() => model.update(chosen.id, { color_token: colour })}
-                        ></button>
-                      {/each}
-                    </div>
-                  {/if}
-                  {#if chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE'}
-                    <Inline gap="050">
-                      <Input size="sm" type="number" min="24" label={t('app.whiteboards.width')} value={String(chosen.width)} onchange={(event: Event) => { const width = sizeOf((event.currentTarget as HTMLInputElement).value); if (width) model.update(chosen.id, { width }); }} />
-                      <Input size="sm" type="number" min="24" label={t('app.whiteboards.height')} value={String(chosen.height)} onchange={(event: Event) => { const height = sizeOf((event.currentTarget as HTMLInputElement).value); if (height) model.update(chosen.id, { height }); }} />
-                    </Inline>
-                    {#if others([chosen.id]).length > 0}
-                      <Select size="sm" label={t('app.whiteboards.connect_to')} placeholder={t('app.whiteboards.connect_to_choose')} value="" options={others([chosen.id])} onchange={(event: Event) => { const select = event.currentTarget as HTMLSelectElement; connectTo(chosen.id, select.value); select.value = ''; }} />
-                    {/if}
-                  {/if}
-                  {#if chosen.kind === 'SHAPE'}
-                    <Select size="sm" label={t('app.whiteboards.shape')} value={chosen.shape ?? 'RECTANGLE'} options={SHAPES.map((each) => ({ value: each, label: t(`app.whiteboards.shape_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { shape: (event.currentTarget as HTMLSelectElement).value as Shape })} />
-                  {/if}
-                  {#if chosen.kind === 'CONNECTOR'}
-                    <Select size="sm" label={t('app.whiteboards.route')} value={chosen.route ?? 'STRAIGHT'} options={ROUTES.map((each) => ({ value: each, label: t(`app.whiteboards.route_${each.toLowerCase()}`) }))} onchange={(event: Event) => model.update(chosen.id, { route: (event.currentTarget as HTMLSelectElement).value as Element['route'] })} />
-                    <Textarea label={t('app.whiteboards.label')} rows={2} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
-                  {/if}
-                  {#if chosen.kind === 'FRAME'}
-                    <Textarea label={t('app.whiteboards.frame_title')} rows={1} value={chosen.text ?? ''} onchange={(event: Event) => model.update(chosen.id, { text: (event.currentTarget as HTMLTextAreaElement).value })} />
-                  {/if}
-                  {#if chosen.kind === 'LINK'}
-                    <Input size="sm" label={t('app.whiteboards.link_address')} value={chosen.url ?? ''} error={isLinkEditRefused ? t('whiteboards.link_url_invalid') : undefined} onchange={(event: Event) => { const url = linkAddress((event.currentTarget as HTMLInputElement).value); isLinkEditRefused = !url; if (url) model.update(chosen.id, { url }); }} />
-                  {/if}
-                  {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE' || (chosen.kind === 'FRAME' && notesToTurn.length > 0)}
-                    <Button size="sm" tone="secondary" icon="square-check" onclick={() => { isMakingEntry = !isMakingEntry; entryCollection = collections[0]?.id ?? ''; entryKind = ''; }}>
-                      {chosen.kind === 'FRAME' ? t('app.whiteboards.make_entries', { count: String(notesToTurn.length) }) : t('app.whiteboards.make_entry')}
-                    </Button>
-                    {#if isMakingEntry}
-                      {#if collections.length === 0}
-                        <p class="quiet">{t('app.whiteboards.no_collections')}</p>
-                      {:else}
-                        <Select size="sm" label={t('app.whiteboards.entry_in')} bind:value={entryCollection} options={collections.map((each) => ({ value: each.id, label: each.name }))} />
-                        {#if kinds.length > 1}
-                          <Select size="sm" label={t('app.whiteboards.entry_type')} bind:value={entryKind} options={kinds.map((each) => ({ value: each.key, label: each.name ?? t('app.whiteboards.entry_type_task') }))} />
-                        {/if}
-                        <Button size="sm" tone="primary" onclick={() => void makeEntries()}>{t('app.whiteboards.make_entry_confirm')}</Button>
-                      {/if}
-                    {/if}
-                  {/if}
-                  <Inline gap="050">
-                    <Button size="sm" tone="subtle" onclick={() => model.front(chosen.id)}>{t('app.whiteboards.front')}</Button>
-                    <Button size="sm" tone="subtle" onclick={() => model.back(chosen.id)}>{t('app.whiteboards.back')}</Button>
-                    <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
-                  </Inline>
-                {/if}
-                {@render addToSelection()}
-                {#if writable}
-                  <Button size="sm" tone="subtle" icon="lock" onclick={() => model.update(chosen.id, { locked: !chosen.locked })}>
-                    {t(chosen.locked ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')}
-                  </Button>
-                {/if}
-              </Stack>
-            {:else if selected.length > 1}
-              <Stack gap="100">
-                <h2 class="part-title">{t('app.whiteboards.several', { count: String(selected.length) })}</h2>
-                {@render addToSelection()}
-                {#if writable}
-                  <Inline gap="050">
-                    {#if isGrouped}
-                      <Button size="sm" tone="subtle" icon="folder-plus" onclick={ungroup}>{t('app.whiteboards.ungroup')}</Button>
-                    {:else}
-                      <Button size="sm" tone="subtle" icon="folder-plus" onclick={group}>{t('app.whiteboards.group')}</Button>
-                    {/if}
-                    <Button size="sm" tone="subtle" icon="copy" onclick={duplicate}>{t('app.whiteboards.duplicate')}</Button>
-                    <Button size="sm" tone="danger" icon="trash" onclick={remove}>{t('app.whiteboards.remove')}</Button>
-                  </Inline>
-                {/if}
-              </Stack>
-            {/if}
-          </section>
-        {/if}
         {#if sheet}
           <section class="part" aria-labelledby="board-sheet-title" data-board-part={sheet}>
             <div class="part-head">
@@ -1656,21 +1989,6 @@
                     {/if}
                   </Stack>
                 {/if}
-                <Stack gap="050">
-                  <h3 class="heading">{t('app.whiteboards.here_now')}</h3>
-                  {#each peers as peer (peer.id)}
-                    <Inline gap="050" align="center" justify="between">
-                      <span class="peer-name" style:color={tokens.label[peerColour(peer.id)].fg}>{peer.name}</span>
-                      {#if peer.view}
-                        <Button size="sm" tone={following === peer.id ? 'primary' : 'subtle'} icon="eye" aria-pressed={following === peer.id} onclick={() => { following = following === peer.id ? undefined : peer.id; peersChanged(); }}>
-                          {t(following === peer.id ? 'app.whiteboards.unfollow' : 'app.whiteboards.follow')}
-                        </Button>
-                      {/if}
-                    </Inline>
-                  {:else}
-                    <p class="quiet">{t('app.whiteboards.alone')}</p>
-                  {/each}
-                </Stack>
               </Stack>
             {:else if sheet === 'comments'}
               <BoardComments
@@ -1785,6 +2103,20 @@
   </Dialog>
 {/if}
 
+{#if picking}
+  <Dialog size="s" isOpen={true} title={t(picking === 'connect' ? 'app.whiteboards.connect_to' : picking === 'add' ? 'app.whiteboards.add_to_selection' : 'app.whiteboards.link_address')} dismissLabel={t('app.links.cancel')} onClose={() => (picking = undefined)}>
+    {#if picking === 'address'}
+      <Input label={t('app.whiteboards.link_address')} type="url" bind:value={pickedId} placeholder="https://" />
+    {:else}
+      <Select label={t(picking === 'connect' ? 'app.whiteboards.connect_to' : 'app.whiteboards.add_to_selection')} placeholder={t('app.whiteboards.connect_to_choose')} bind:value={pickedId} options={others(picking === 'connect' && chosen ? [chosen.id] : selected)} />
+    {/if}
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (picking = undefined)}>{t('app.links.cancel')}</Button>
+      <Button tone="primary" disabledReason={pickedId ? undefined : t('app.links.choose_first')} onclick={picked2}>{t('app.whiteboards.pick_confirm')}</Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
 {#if isLinking}
   <Dialog size="s" bind:isOpen={isLinking} title={t('app.whiteboards.link_put')} dismissLabel={t('app.links.cancel')}>
     <Input label={t('app.whiteboards.link_address')} type="url" bind:value={linkDraft} error={linkError} placeholder="https://" />
@@ -1796,76 +2128,128 @@
 {/if}
 
 <style>
-  /* The board is the screen (user-experience.md §7.2): a one-row head, and under it the canvas
-     edge to edge with its tools floating over it. Below `expanded` the frame gives the page no
-     height of its own, so the board takes the window's less the bars. */
-  .board {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-    block-size: 100%;
-    min-block-size: 0;
-  }
+  /* The board is the screen and belongs to its content (W-1): no head above it; the controls are
+     islands in the four corners and a dock at the foot. Below `expanded` the frame gives the page
+     no height of its own, so the board takes the window's less the bars. */
+  .board { position: relative; block-size: 100%; min-block-size: 0; }
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width < 905px) {
     .board { block-size: calc(100dvh - var(--layout-appbar-height) - var(--layout-bottombar-height)); }
   }
-  .head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--sp-100);
-    min-inline-size: 0;
-    padding: var(--sp-050) var(--sp-150);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
-    background: var(--bg-surface);
-  }
-  .name { min-inline-size: 0; flex: 1 1 auto; }
-  .aside { display: flex; align-items: center; gap: var(--sp-050); flex: 0 0 auto; }
-  .here { display: inline-flex; }
-  .status { color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
-  .clock { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text-primary); }
-  .clock.over { color: var(--text-danger); }
+  .stage { position: relative; block-size: 100%; min-block-size: 0; overflow: hidden; background: var(--bg-surface-sunken); }
+  /* Following someone: a frame in their colour round the board (W-5). */
+  .stage.following { box-shadow: inset 0 0 0 var(--bw-ring) var(--follow); }
 
-  .stage { position: relative; min-block-size: 0; overflow: hidden; background: var(--bg-surface-sunken); }
-
-  /* The tools float at the top centre, one row of icons; on a phone they are a sheet at the foot. */
-  .tools, .zoombar, .variant {
+  .island, .dock, .fan, .selbar {
+    position: absolute;
     display: flex;
     align-items: center;
     gap: var(--sp-025);
+    box-sizing: border-box;
     padding: var(--sp-050);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
   }
-  .tools {
+  .top-left { inset-block-start: var(--sp-200); inset-inline-start: var(--sp-200); max-inline-size: calc(50% - var(--sp-300)); }
+  .top-right { inset-block-start: var(--sp-200); inset-inline-end: var(--sp-200); }
+  .bottom-left { inset-block-end: var(--sp-200); inset-inline-start: var(--sp-200); }
+  .bottom-left:empty { display: none; }
+  .name { min-inline-size: 0; flex: 0 1 auto; padding-inline: var(--sp-050); }
+  .status { display: inline-flex; align-items: center; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
+  .status.live { color: var(--text-success); }
+  .modes { display: inline-flex; padding: var(--sp-025); border-radius: var(--r-md); background: var(--bg-surface-sunken); }
+  .mode {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    padding: var(--sp-025) var(--sp-100);
+    border-radius: var(--r-sm);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    cursor: pointer;
+  }
+  .mode[aria-pressed='true'] { background: var(--bg-raised); color: var(--text-primary); font-weight: var(--fw-semibold); box-shadow: var(--shadow-raised); }
+  .mode:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  .seam { align-self: stretch; inline-size: var(--bw-hairline); margin-inline: var(--sp-050); background: var(--border-subtle); }
+  .faces { all: unset; display: inline-flex; cursor: pointer; border-radius: var(--r-md); padding: var(--sp-025); }
+  .faces:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+  .people { display: grid; gap: var(--sp-100); min-inline-size: var(--layout-gallery-card); }
+  .people-title { margin: 0; font-weight: var(--fw-semibold); }
+  .person { display: flex; align-items: center; gap: var(--sp-100); }
+  .person-name { flex: 1 1 auto; }
+  .small { font-size: var(--fs-075); }
+  .follow-note {
     position: absolute;
-    inset-block-start: var(--sp-150);
+    inset-block-start: 0;
+    inset-inline: 0;
+    margin: 0 auto;
+    inline-size: fit-content;
+    padding: var(--sp-025) var(--sp-150);
+    border-radius: 0 0 var(--r-md) var(--r-md);
+    background: var(--follow);
+    color: var(--text-inverse);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+  }
+  .session-bar {
+    inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200));
     inset-inline: 0;
     margin-inline: auto;
     inline-size: fit-content;
-    max-inline-size: calc(100% - 2 * var(--sp-150));
-    box-sizing: border-box;
+    max-inline-size: calc(100% - 2 * var(--sp-200));
+    gap: var(--sp-100);
+    padding-inline: var(--sp-150);
+  }
+  .vote-words { display: grid; line-height: var(--lh-tight); }
+  .pager { inset-block-start: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-200)); inset-inline: 0; margin-inline: auto; inline-size: fit-content; }
+  .pager-name { font-size: var(--fs-075); padding-inline: var(--sp-050); }
+
+  /* The dock at the foot, grouped, each tool with its key (W-2). */
+  .dock {
+    inset-block-end: var(--sp-200);
+    inset-inline: 0;
+    margin-inline: auto;
+    inline-size: fit-content;
+    max-inline-size: calc(100% - 2 * var(--sp-200));
     overflow-x: auto;
   }
-  .seam { align-self: stretch; inline-size: var(--bw-hairline); margin-inline: var(--sp-025); background: var(--border-subtle); }
-  .variant {
+  .dock-group { display: flex; gap: var(--sp-025); }
+  .dock-tool { position: relative; display: inline-flex; }
+  .key {
     position: absolute;
-    inset-block-start: calc(var(--sp-150) + var(--density-control-md-min) + var(--sp-200));
+    inset-block-end: 0;
+    inset-inline-end: var(--sp-025);
+    color: var(--text-subtle);
+    font-family: inherit;
+    font-size: var(--fs-050);
+    line-height: 1;
+    pointer-events: none;
+  }
+  .held { position: absolute; inset-block-start: var(--sp-025); inset-inline-end: var(--sp-025); inline-size: var(--sp-050); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--accent-primary); }
+  .file { display: none; }
+  .fan {
+    inset-block-end: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-300));
     inset-inline: 0;
     margin-inline: auto;
     inline-size: fit-content;
   }
+  .fan-shape { all: unset; padding: var(--sp-050) var(--sp-100); border-radius: var(--r-sm); font-size: var(--fs-075); cursor: pointer; }
+  .fan-shape[aria-checked='true'] { background: var(--accent-primary-subtle); color: var(--text-brand); font-weight: var(--fw-semibold); }
+  .fan-shape:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+
   .corner {
     position: absolute;
-    inset-block-end: var(--sp-150);
-    inset-inline-end: var(--sp-150);
+    inset-block-end: var(--sp-200);
+    inset-inline-end: var(--sp-200);
     display: grid;
     justify-items: end;
     gap: var(--sp-100);
   }
-  .zoom { min-inline-size: var(--sp-500); text-align: center; color: var(--text-secondary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
+  .corner .island { position: static; }
+  .zoom { min-inline-size: var(--sp-500); text-align: center; color: var(--text-primary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
   .minimap {
     inline-size: var(--layout-gallery-card);
     block-size: var(--sp-1600);
@@ -1875,6 +2259,32 @@
     box-shadow: var(--shadow-raised);
     cursor: pointer;
   }
+
+  /* The bar above the selection (W-4), its foot on the selection's top edge. */
+  .selbar { translate: -50% -100%; z-index: 1; white-space: nowrap; }
+  .selbar.below { translate: -50% 0; }
+  .bar-words { padding-inline: var(--sp-050); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+  .make {
+    position: absolute;
+    inset-block-start: calc(100% + var(--sp-100));
+    inset-inline-end: 0;
+    inline-size: var(--layout-pane-width);
+    max-inline-size: 90vw;
+    display: grid;
+    gap: var(--sp-100);
+    padding: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+    white-space: normal;
+  }
+  .make-title { margin: 0; font-weight: var(--fw-semibold); }
+  .make-foot { display: flex; justify-content: end; gap: var(--sp-100); }
+  .kinds { display: flex; padding: var(--sp-025); border-radius: var(--r-md); background: var(--bg-surface-sunken); }
+  .kind { all: unset; flex: 1 1 0; text-align: center; padding: var(--sp-050); border-radius: var(--r-sm); font-size: var(--fs-075); cursor: pointer; }
+  .kind[aria-checked='true'] { background: var(--bg-raised); font-weight: var(--fw-semibold); box-shadow: var(--shadow-raised); }
+  .kind:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
 
   /* An empty board says what to do in its middle, where the eye is. */
   .blank {
@@ -1893,14 +2303,14 @@
   .blank :global(button) { pointer-events: auto; }
   .blank-title { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); color: var(--text-primary); }
 
-  /* The side sheet lies over the canvas rather than beside it, so opening it never moves the board. */
+  /* The sheet lies over the canvas below the top-right island, so opening it never moves the board. */
   .sheet {
     position: absolute;
-    inset-block-start: var(--sp-150);
-    inset-inline-end: var(--sp-150);
-    max-block-size: calc(100% - 2 * var(--sp-150));
+    inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200));
+    inset-inline-end: var(--sp-200);
+    max-block-size: calc(100% - 2 * var(--sp-200) - 2 * var(--density-control-md-min) - 3 * var(--sp-200));
     box-sizing: border-box;
-    inline-size: min(var(--layout-pane-width), calc(100% - 2 * var(--sp-150)));
+    inline-size: min(var(--layout-pane-width), calc(100% - 2 * var(--sp-200)));
     display: grid;
     align-content: start;
     gap: var(--sp-200);
@@ -1910,36 +2320,21 @@
     border-radius: var(--r-lg);
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
-  }
-  /* With the sheet open the tools, the corner and an empty board's words keep to the canvas left beside it. */
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width >= 600px) {
-    .stage[data-sheet] .tools,
-    .stage[data-sheet] .variant,
-    .stage[data-sheet] .blank { inset-inline-end: calc(var(--layout-pane-width) + 2 * var(--sp-150)); }
-    .stage[data-sheet] .corner { inset-inline-end: calc(var(--layout-pane-width) + 2 * var(--sp-150)); }
+    z-index: 2;
   }
   .part { display: grid; gap: var(--sp-100); }
-  .part + .part { padding-block-start: var(--sp-200); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .part-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .part-title { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .part-title:focus { outline: none; }
 
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
-    .head { padding-inline: var(--sp-100); }
+    .top-left { inset-block-start: var(--sp-100); inset-inline-start: var(--sp-100); max-inline-size: calc(100% - 2 * var(--sp-100) - var(--sp-1600)); }
+    .top-right { inset-block-start: var(--sp-100); inset-inline-end: var(--sp-100); }
     .status { display: none; }
-    .tools {
-      inset-block-start: auto;
-      inset-block-end: var(--sp-100);
-      inset-inline: var(--sp-100);
-      inline-size: auto;
-      max-inline-size: none;
-    }
-    .variant { inset-block-start: var(--sp-100); }
-    .corner { inset-block-end: var(--sp-100); inset-inline-end: var(--sp-100); }
-    /* Above the tool sheet where there is one; a reader has none. */
-    .tools ~ .corner { inset-block-end: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-300)); }
+    .dock { inset-block-end: var(--sp-100); }
+    .bottom-left { display: none; }
+    .corner { inset-block-end: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-300)); inset-inline-end: var(--sp-100); }
     .sheet {
       inset-block: auto 0;
       inset-inline: 0;
@@ -1952,6 +2347,7 @@
   .clock.over { color: var(--text-danger); }
   .canvas { display: block; inline-size: 100%; block-size: 100%; touch-action: none; cursor: grab; }
   .canvas.drawing { cursor: crosshair; }
+  .canvas.panning { cursor: grab; }
   .canvas:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--bw-ring)); }
   .dot { fill: var(--border-default); }
   .grid { pointer-events: none; }
@@ -1978,6 +2374,16 @@
   .drafting { fill: none; stroke: var(--accent-primary); stroke-dasharray: 4 4; stroke-width: 2; }
   .guide { stroke: var(--accent-primary); stroke-width: 1; stroke-dasharray: 4 3; pointer-events: none; }
   .handle { fill: var(--accent-primary); cursor: nwse-resize; }
+  .dot-handle { fill: var(--bg-raised); stroke: var(--accent-primary); stroke-width: 1.5; cursor: crosshair; }
+  .plus { cursor: pointer; }
+  .plus circle { fill: var(--accent-primary-subtle); stroke: var(--accent-primary); }
+  .plus path { stroke: var(--accent-primary); stroke-width: 1.5; }
+  .card-top { fill: var(--accent-primary); }
+  .state rect { fill: var(--bg-surface-sunken); stroke: var(--border-default); }
+  .state text { fill: var(--text-primary); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+  .state.in_progress rect { fill: var(--accent-primary-subtle); stroke: var(--accent-primary); }
+  .state.in_progress text { fill: var(--text-brand); }
+  .state.done rect { fill: var(--bg-surface); }
   .votes circle { fill: var(--accent-primary); }
   .votes text { fill: var(--text-inverse); font-weight: var(--fw-semibold); }
   .pin { cursor: pointer; }
@@ -2004,9 +2410,9 @@
   }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .quiet { margin: 0; color: var(--text-secondary); }
-  .swatches { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
-  .swatch { inline-size: var(--sp-300); block-size: var(--sp-300); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); cursor: pointer; }
-  .swatch[aria-checked='true'] { outline: var(--bw-ring) solid var(--focus-ring); }
+  .swatches { display: flex; gap: var(--sp-050); padding-inline: var(--sp-050); }
+  .swatch { inline-size: var(--sp-200); block-size: var(--sp-200); padding: 0; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); cursor: pointer; }
+  .swatch[aria-checked='true'] { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--bw-hairline); }
   .choices { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-025); }
   .version { display: grid; gap: var(--sp-025); }
   .choice { all: unset; cursor: pointer; padding: var(--sp-050); border-radius: var(--r-sm); color: var(--text-primary); }
