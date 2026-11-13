@@ -42,6 +42,10 @@ Jonas opens the queue *About to breach*: the incidents whose resolution is at ri
     (`STRUCTURE`) sees *Save as queue*; saving it under a name keeps a view of the hub marked as a
     queue (`queue: true`) with the queue's conditions and the new one, and the new queue opens and
     stands under the hub's *Queues*.
+12. A queue's table shows key, request, type, requester, priority, the SLA as a bar with its words
+    and the assignee, grouped by status with each group's count and *+ Request in <desk>*, what
+    breaks first on top; at 375×812 each request is its title with key, status and priority under
+    it and the SLA bar.
 
 ## Where it ends
 
