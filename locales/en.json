@@ -901,6 +901,7 @@
   "buckets.done_column_required": "A board needs exactly one done column.",
   "buckets.done_successor_required": "Choose which column means done instead.",
   "board.workflow_runs": "A workflow decides where the tasks here stand. Remove it first.",
+  "board.level_unknown": "Choose a list or a board.",
   "board.level_unchanged": "The tasks here already stand that way.",
   "buckets.status_mapped_twice": "The status {key} can stand in only one column.",
   "buckets.deleted": "That bucket has been deleted.",

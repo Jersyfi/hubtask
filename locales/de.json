@@ -1700,6 +1700,7 @@
   "buckets.done_column_required": "Ein Board braucht genau eine Erledigt-Spalte.",
   "buckets.done_successor_required": "Wähle, welche Spalte stattdessen Erledigt bedeutet.",
   "board.workflow_runs": "Ein Workflow bestimmt, wo die Aufgaben hier stehen. Entferne ihn zuerst.",
+  "board.level_unknown": "Wähle eine Liste oder ein Board.",
   "board.level_unchanged": "Die Aufgaben hier stehen schon so.",
   "buckets.status_mapped_twice": "Der Status {key} kann nur in einer Spalte stehen.",
   "buckets.deleted": "Diese Spalte wurde gelöscht.",
