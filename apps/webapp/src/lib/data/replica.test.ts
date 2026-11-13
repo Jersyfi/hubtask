@@ -536,14 +536,17 @@ test('a hub\'s releases are answered from the copy', async () => {
   await release('r-1', { name: '2.3', release_on: '2026-10-01', state: 'RELEASED' });
   await release('r-2', { name: '2.4', release_on: '2026-11-30', state: 'PLANNED' });
   await release('r-other', { name: 'Elsewhere', release_on: '2026-12-30', state: 'PLANNED', hub_id: 'h-other' });
-  await storage.put('items', 'e-1', record({ id: 'e-1', title: 'Pay by card', is_completed: true, collection_id: COLLECTION, entry_type: 'story' }));
+  await storage.put('items', 'e-1', record({ id: 'e-1', title: 'Pay by card', is_completed: true, collection_id: COLLECTION, entry_type: 'story', number: 7 }));
+  await storage.put('items', 'e-2', record({ id: 'e-2', title: 'Refund', is_completed: false, collection_id: COLLECTION, entry_type: 'story' }));
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', parent_id: HUB, key_prefix: 'WEB' }));
   await storage.put('entry_types', 'story', record({ key: 'story', name: 'Story', level: 'TASK' }));
   await storage.put('release_entries', 'e-1', record({ item_id: 'e-1', release_id: 'r-2', hub_id: HUB }));
+  await storage.put('release_entries', 'e-2', record({ item_id: 'e-2', release_id: 'r-2', hub_id: HUB }));
 
   const all = await storeFor({ path: `/hubs/${HUB}/releases` }, storage) as { data: Record<string, unknown>[] };
-  assert.deepEqual(all.data.map((row) => row.id), ['r-2', 'r-1']);
+  assert.deepEqual(all.data.map((row) => [row.id, row.done_count, row.open_count]), [['r-2', 1, 1], ['r-1', 0, 0]]);
   const one = await storeFor({ path: '/releases/r-2' }, storage) as { entries: Record<string, unknown>[]; done_count: number };
-  assert.deepEqual(one.entries.map((e) => [e.title, e.type_name, e.done]), [['Pay by card', 'Story', true]]);
+  assert.deepEqual(one.entries.map((e) => [e.title, e.key, e.type_name, e.done, e.status_name]), [['Pay by card', 'WEB-7', 'Story', true, null], ['Refund', null, 'Story', false, null]]);
   assert.equal(one.done_count, 1);
 });
 
