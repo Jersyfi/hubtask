@@ -132,6 +132,26 @@ test('chromium: L2 - the status chip lists the steps; the board names its status
   assert.equal(await page.locator(`[data-column-zone="${BUCKETS[2].id}"] [data-folded]`).count(), 1, 'the done column is not folded');
 });
 
+for (const width of [1280, 820]) {
+  test(`chromium: L2 - folded Ohne Spalte keeps its width beside the next column at ${width}`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context } = await at(browser, 'WORKFLOW', { width, view: 'Board' });
+    t.after(() => context.close());
+    const unmapped = page.locator('[data-column-zone="none"]');
+    await unmapped.locator('[data-folded]').waitFor({ timeout: 15_000 });
+    // Unfolding the done column widens the board past the screen, where a zone used to shrink.
+    await page.locator(`[data-column-zone="${BUCKETS[2].id}"] .unfold`).click();
+    const zone = await unmapped.boundingBox();
+    const column = await unmapped.locator('[data-folded]').boundingBox();
+    const next = await page.locator(`[data-column-zone="${BUCKETS[0].id}"]`).boundingBox();
+    assert.ok(zone && column && next, 'a column is not drawn');
+    assert.ok(zone.width >= column.width - 0.5, `the zone (${zone.width}) is narrower than its folded column (${column.width})`);
+    assert.ok(column.x + column.width <= next.x + 0.5, `Ohne Spalte ends at ${column.x + column.width}, the next column starts at ${next.x}`);
+    assert.equal(await unmapped.getByRole('button', { name: /Add an entry/ }).count(), 0, 'a folded column shows its add button');
+  });
+}
+
 test('chromium: L2 - a drop several steps reach asks which, and sends the one chosen', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

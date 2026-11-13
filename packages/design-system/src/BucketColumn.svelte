@@ -206,4 +206,7 @@
     min-block-size: var(--sp-600);
     overflow-y: auto;
   }
+
+  /* `display: flex` above would otherwise show a folded column's cards and its add button. */
+  .cards[hidden] { display: none; }
 </style>

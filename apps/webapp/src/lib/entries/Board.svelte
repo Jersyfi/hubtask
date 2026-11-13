@@ -1233,7 +1233,9 @@
     .card:not(:hover, :focus-within) .menu:not(:has([aria-expanded='true'])) { opacity: 0; }
   }
 
-  .zone { display: flex; }
+  /* A zone never shrinks below its column: a folded column, sized by its content, would be
+     overlapped by the next one on a board wider than the screen. */
+  .zone { display: flex; flex: none; }
 
   /* A count on the card's footer: its mark and its number, the number said in words to a reader. */
   .count { display: inline-flex; align-items: center; gap: var(--sp-025); font-variant-numeric: tabular-nums; }
