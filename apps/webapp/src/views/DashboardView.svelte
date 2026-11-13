@@ -37,7 +37,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    MAX_WIDGETS, conditionsOf, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
     seriesTable, widgetWrite, type FigureNaming, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
@@ -268,6 +268,10 @@
     editingIndex = index;
     isWidgetOpen = true;
   }
+  function closeWidget() {
+    isWidgetOpen = false;
+    preset = undefined;
+  }
   function saveWidget(write: DashboardWidgetWrite) {
     if (editingIndex < 0) {
       change([...layout, { ...write, ...nextBox(layout.map(boxOf), 6, 2) }]);
@@ -469,6 +473,14 @@
     if (filter === (at.filter ?? '')) return;
     await act(() => goals.updateDashboard(at, { name: at.name, sharing: at.sharing, group_ids: at.group_ids ?? [], filter, widgets: at.widgets.map(widgetWrite) }));
   }
+  /** The dashboard's conditions as the editor's chips: a field's own condition, by its line. */
+  const inheritedChips = $derived(conditionsOf(filterTree as Record<string, unknown> | undefined)
+    .filter((node) => typeof node['field'] === 'string')
+    .map((node) => ({ field: String(node['field']), piece: lineOf({ filter: node as never }, names) ?? String(node['field']) })));
+  const editedList = $derived.by(() => {
+    const widget = isWidgetOpen && editingIndex >= 0 ? layout[editingIndex] : undefined;
+    return widget && listHref(widget) ? widget : undefined;
+  });
   /** Widgets that do not take the whole filter: one fed by a saved view, or one that released a field. */
   const ownFilters = $derived(shown.filter((widget) => widget.source === 'VIEW' || (widget.released?.length ?? 0) > 0).length);
 
@@ -668,14 +680,15 @@
       <ProductEmpty product="GOALS" place={{ type: 'TENANT' }} kind={mayEdit ? 'unused' : 'settled'} icon="gauge" title={t('app.dashboards.no_widgets_title')}
         description={mayEdit ? t('app.dashboards.no_widgets') : undefined}
         create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
+      {#if isWidgetOpen}{@render editorPanel()}{/if}
     {:else}
-      <div class="board" class:with-side={isEditing && isLibraryOpen}>
+      <div class="board" class:with-side={isEditing && (isLibraryOpen || isWidgetOpen)}>
       <div bind:this={grid} class="grid" class:editing={isEditing} class:stacked={viewport.isCompact} class:half={!viewport.isCompact && viewport.isBelowExpanded}>
         {#each ordered as each (each.widget.id ?? `new-${each.index}`)}
           {@const figure = figureOf(each.widget.id)}
           {@const key = each.widget.id ?? `new-${each.index}`}
           {@const foot = sourceLine(each.widget)}
-          <article class="widget" style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} style:--half={Math.min(6, Math.max(1, Math.ceil(each.w / 2)))} aria-label={each.widget.title} data-widget={each.widget.chart}>
+          <article class="widget" class:dimmed={isWidgetOpen && each.index !== editingIndex} class:focused={isWidgetOpen && each.index === editingIndex} style:--x={each.x + 1} style:--y={each.y + 1} style:--w={each.w} style:--h={each.h} style:--half={Math.min(6, Math.max(1, Math.ceil(each.w / 2)))} aria-label={each.widget.title} data-widget={each.widget.chart}>
             <header class="widget-head">
               {#if isEditing}
                 <button type="button" class="handle" aria-label={t('app.dashboards.move_handle', { title: each.widget.title })} aria-describedby="dashboard-keys"
@@ -721,7 +734,9 @@
           </div>
         {/if}
       </div>
-      {#if isEditing && isLibraryOpen}
+      {#if isWidgetOpen}
+        {@render editorPanel()}
+      {:else if isEditing && isLibraryOpen}
         <aside class="side" aria-label={t('app.dashboards.library')} data-widget-library>
           <header class="side-head"><h2 class="heading">{t('app.dashboards.library')}</h2><IconButton icon="x" size="sm" tone="subtle" label={t('app.links.cancel')} onclick={() => (isLibraryOpen = false)} /></header>
           <Input label={t('app.dashboards.library_search')} isLabelHidden placeholder={t('app.dashboards.library_search')} bind:value={librarySearch} />
@@ -753,11 +768,17 @@
   {/if}
 </WorkPage>
 
-{#if isWidgetOpen}
-  <Dialog size="l" bind:isOpen={isWidgetOpen} title={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} dismissLabel={t('app.links.cancel')}>
-    <WidgetEditor widget={editingIndex < 0 ? preset : layout[editingIndex]} {summaryViews} goals={goalChoices} onsave={saveWidget} />
-  </Dialog>
-{/if}
+{#snippet editorPanel()}
+  <!-- The editor stands beside the grid (scene wedit): the widget it changes stays in view, the others dimmed. -->
+  <aside class="side" aria-label={editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })} data-widget-editor>
+    <header class="side-head">
+      <h2 class="heading">{editingIndex < 0 ? t('app.dashboards.add_widget') : t('app.dashboards.change_widget', { title: layout[editingIndex]?.title ?? '' })}</h2>
+      <IconButton icon="x" size="sm" tone="subtle" label={t('app.links.cancel')} onclick={closeWidget} />
+    </header>
+    <WidgetEditor widget={editingIndex < 0 ? preset : layout[editingIndex]} {summaryViews} goals={goalChoices} inherited={inheritedChips} onsave={saveWidget} oncancel={closeWidget}
+      onlist={editedList ? () => { const widget = editedList; closeWidget(); if (widget) openList(widget); } : undefined} />
+  </aside>
+{/snippet}
 
 {#if isDigestOpen}
   <Dialog size="m" bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}>
@@ -826,6 +847,8 @@
   .board.with-side { grid-template-columns: minmax(0, 1fr) var(--layout-pane-width); }
   .grid.editing { padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-lg); }
   .grid.editing .widget { position: relative; }
+  .widget.dimmed { opacity: 0.45; }
+  .widget.focused { outline: var(--bw-thick) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .handle { display: inline-grid; place-items: center; padding: 0; border: none; background: none; color: var(--text-subtle); cursor: grab; touch-action: none; }
   .handle:focus-visible, .corner:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
   .corner { position: absolute; inset-block-end: var(--sp-050); inset-inline-end: var(--sp-050); inline-size: var(--sp-200); block-size: var(--sp-200); padding: 0; border: none; border-block-end: var(--bw-thick) solid var(--text-subtle); border-inline-end: var(--bw-thick) solid var(--text-subtle); background: none; cursor: nwse-resize; touch-action: none; }

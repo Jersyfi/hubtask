@@ -284,7 +284,7 @@ test('chromium: a widget names its groups and periods, and every chart draws som
   const { page } = walk;
 
   await page.goto(`${served.origin}/dashboards/${board.id}`);
-  // Bars lie down with the value at the bar (UC-GOL-04 check 16): the names stay legible, words not keys.
+  // Bars lie down with the value at the bar (UC-GOL-04 check 19): the names stay legible, words not keys.
   const bars = page.locator('[data-chart="BAR"]');
   await bars.getByText('Change request', { exact: true }).waitFor({ timeout: 10_000 });
   assert.deepEqual(await bars.locator('.name').allTextContents(), ['Bug', 'Change request']);
@@ -484,7 +484,7 @@ test('chromium: 1280 px - a portfolio\'s project rows change the project, and no
   assert.ok(wide <= 0, `the page scrolls sideways: ${wide}`);
 });
 
-// UC-GOL-04 check 17: the layout is edited by handle and corner, with the keyboard as well (WCAG
+// UC-GOL-04 check 20: the layout is edited by handle and corner, with the keyboard as well (WCAG
 // 2.5.7), undone step by step, and the library offers the nine kinds previewed with one's own data.
 test('chromium: a dashboard is laid out by its handles and the keyboard, undone, and grows from a library of nine kinds', async (t) => {
   const browser = await chromium.launch();
@@ -525,15 +525,17 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
   await library.locator('[data-kind="BAR"] [data-chart="BAR"]').getByText('4', { exact: true }).waitFor({ timeout: 5_000 });
   await library.getByRole('button', { name: 'Lists' }).click();
   assert.equal(await library.locator('.card').count(), 2, 'a kind filter narrows the cards');
-  // The editor's three tabs (UC-GOL-04 check 18): a text is written under Display, a target set under Look.
+  // The editor's three tabs (UC-GOL-04 check 21): a text is written under Display, a target set under Look.
   await library.getByRole('button', { name: 'Text' }).click();
   await library.locator('[data-kind="TEXT"]').click();
-  const editor = page.getByRole('dialog');
+  // The editor stands beside the grid, the others dimmed (scene wedit).
+  const editor = page.locator('[data-widget-editor]');
   await editor.getByRole('tab', { name: 'Display' }).click();
   await editor.getByLabel('Text', { exact: true }).fill('This week **SA-7** first.');
   await editor.getByRole('button', { name: 'Apply' }).click();
   await editor.waitFor({ state: 'detached', timeout: 5_000 });
   await page.getByRole('button', { name: 'Change Open' }).click();
+  assert.equal(await page.locator('article.widget.dimmed').count(), 2, 'the widgets not edited are dimmed');
   await editor.getByRole('tab', { name: 'Look' }).click();
   await editor.getByLabel('Target').fill('30');
   await editor.getByLabel('Warning from').fill('40');
@@ -578,5 +580,38 @@ test('chromium: a widget opens its collection\'s list with its line, which stays
   await page.getByRole('button', { name: 'View · 1 changed' }).waitFor({ timeout: 5_000 });
   const asked = walk.written.filter((each) => each.path === '/items:query').map((each) => JSON.stringify(each.body));
   assert.ok(asked.some((body) => body.includes('is_completed') && body.includes('@today-P6W')), 'the list asks for the widget\'s line');
+  assert.deepEqual(walk.errors(), []);
+});
+
+// UC-GOL-04 check 21: the editor shows the dashboard's conditions as inherited chips, each released
+// by a press, and names its groupings by the words a person reads, never a field's key.
+test('chromium: the widget editor releases an inherited filter and names its fields in words', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = {
+    id: '01a0e2e0-0000-7000-8000-00000000a641', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null,
+    query: { scope: { workspace: true }, aggregate: { function: 'COUNT', group_by: 'status' } },
+    goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 6, h: 2,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a642', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: 'is: open', version: 1, widgets: [widget] };
+  const puts = [];
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board], puts, figures: { [widget.id]: [{ group: 'todo', period: null, count: 3, value: null }] } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await page.getByRole('button', { name: 'Change By status' }).click();
+  const editor = page.locator('[data-widget-editor]');
+  const chip = editor.locator('[data-inherited] button', { hasText: 'is: open' });
+  assert.equal(await chip.getAttribute('aria-pressed'), 'true', 'the dashboard\'s condition is inherited');
+  await chip.click();
+  assert.equal(await chip.getAttribute('aria-pressed'), 'false');
+  const grouping = await editor.getByLabel('Per', { exact: true }).locator('option').allTextContents();
+  assert.ok(grouping.includes('Column') && !grouping.some((each) => /_|bucket/u.test(each)), `the groupings are words: ${grouping.join(', ')}`);
+  await editor.getByRole('button', { name: 'Apply' }).click();
+  await page.locator('[data-edit-band]').getByRole('button', { name: 'Done' }).click();
+  await page.locator('[data-edit-band]').waitFor({ state: 'detached', timeout: 5_000 });
+  assert.deepEqual(puts[0].widgets[0].released, ['is_completed']);
   assert.deepEqual(walk.errors(), []);
 });

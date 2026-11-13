@@ -20,14 +20,15 @@
   // to it, and with both the server answers what is left between them, a burndown.
 
   import { untrack } from 'svelte';
-  import { Button, Checkbox, CheckboxGroup, Inline, Input, Select, Stack, Tabs, Textarea } from '@hubtask/design-system/components';
+  import { Button, Checkbox, CheckboxGroup, Icon, Inline, Input, Select, Stack, Tabs, Textarea } from '@hubtask/design-system/components';
+  import { READER_KEYS } from '@hubtask/query';
   import type { DashboardWidgetWrite, Goal, SavedView } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { groupableFields, queryFields } from '../data/query.ts';
   import { compile, parse, type Context } from '../data/searchquery.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
+  import { messages, t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     /** The widget changed, or none for a new one. */
@@ -36,10 +37,24 @@
     summaryViews: readonly SavedView[];
     /** The goals the reader may pick. */
     goals: readonly Goal[];
+    /** The dashboard's conditions, each a chip the widget inherits until it releases its field. */
+    inherited?: readonly { readonly field: string; readonly piece: string }[];
     onsave: (widget: DashboardWidgetWrite) => void;
+    oncancel?: () => void;
+    /** Opens the list the widget counts, where one can be opened. */
+    onlist?: (() => void) | undefined;
   }
 
-  const { widget, summaryViews, goals, onsave }: Props = $props();
+  const { widget, summaryViews, goals, inherited = [], onsave, oncancel, onlist }: Props = $props();
+
+  /** A field by the name a person reads (the query's key word), never its key. */
+  function fieldLabel(field: string): string {
+    const own = `app.dashboards.field_${field}`;
+    if (messages.has(own)) return t(own);
+    const key = Object.entries(READER_KEYS).find(([, name]) => name === field)?.[0];
+    const word = key ? `app.qkey.${key.replaceAll('.', '_')}` : '';
+    return word && messages.has(word) ? t(word) : field.replaceAll('_', ' ');
+  }
 
   type Chart = DashboardWidgetWrite['chart'];
   type Source = DashboardWidgetWrite['source'];
@@ -90,7 +105,11 @@
     target: typeof widget?.target === 'number' ? String(widget.target) : '',
     warnAt: typeof widget?.warn_at === 'number' ? String(widget.warn_at) : '',
     tab: 'data',
+    released: [...(widget?.released ?? [])] as string[],
   });
+  function toggleReleased(field: string) {
+    draft.released = draft.released.includes(field) ? draft.released.filter((each) => each !== field) : [...draft.released, field];
+  }
   /** A figure's target and warning line, where a number or a line draws them. */
   const aims = $derived(draft.chart === 'NUMBER' || draft.chart === 'LINE');
   const targetValue = $derived(draft.target.trim() === '' ? undefined : Number(draft.target.replace(',', '.')));
@@ -191,6 +210,7 @@
     if (draft.source === 'VIEW') write.view_id = draft.viewId;
     if (draft.source === 'GOALS') write.goal_ids = [...draft.goalIds];
     if (draft.source === 'TEXT') write.text = draft.text.trim();
+    if (draft.source === 'QUERY' && draft.released.length > 0) write.released = [...draft.released];
     if (aims && targetValue !== undefined) {
       write.target = targetValue;
       if (warnValue !== undefined) write.warn_at = warnValue;
@@ -282,6 +302,20 @@
       options={SOURCES.map((each) => ({ value: each, label: t(`app.dashboards.summary_source_${each}`) }))} />
     <Select label={t('app.dashboards.scope')} bind:value={draft.scope}
       options={[{ value: '', label: t('app.dashboards.scope_workspace') }, ...containers.hubs.map((each) => ({ value: each.id, label: each.name })), ...(draft.summarySource === 'pages' ? [] : everyCollection.map((each) => ({ value: each.id, label: each.name })))]} />
+    {#if inherited.length > 0}
+      <!-- The dashboard's conditions as chips (§6.5): locked while inherited, released to be ignored. -->
+      <div class="inherited" role="group" aria-label={t('app.dashboards.inherited')} data-inherited>
+        <span class="quiet">{t('app.dashboards.inherited')}</span>
+        <ul class="chips">
+          {#each inherited as chip (chip.field + chip.piece)}
+            {@const held = !draft.released.includes(chip.field)}
+            <li><button type="button" class="chip" aria-pressed={held} onclick={() => toggleReleased(chip.field)}
+              title={t(held ? 'app.dashboards.release' : 'app.dashboards.inherit')}>{#if held}<Icon name="lock" size="sm" />{/if}{chip.piece}</button></li>
+          {/each}
+        </ul>
+        <span class="quiet">{t('app.dashboards.inherited_hint')}</span>
+      </div>
+    {/if}
     {#if draft.summarySource !== 'pages'}
       <Input label={t('app.dashboards.line')} hint={kept !== undefined && draft.line.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.line_hint')} bind:value={draft.line} error={lineError} spellcheck={false} />
     {/if}
@@ -292,13 +326,13 @@
       {/if}
     </Inline>
     <Select label={t('app.dashboards.group_by')} bind:value={draft.groupBy}
-      options={[{ value: '', label: t('app.dashboards.no_grouping') }, ...groups.map((field) => ({ value: field, label: field }))]} />
+      options={[{ value: '', label: t('app.dashboards.no_grouping') }, ...groups.map((field) => ({ value: field, label: fieldLabel(field) }))]} />
     <Inline gap="100" isWrapping>
       <Select label={t('app.dashboards.period')} bind:value={draft.period}
         options={PERIODS.map((each) => ({ value: each, label: t(each === '' ? 'app.dashboards.no_period' : `app.dashboards.period_${each}`) }))} />
       {#if draft.period}
         <Select label={t('app.dashboards.period_field')} bind:value={draft.bucketField}
-          options={stamps.map((field) => ({ value: field, label: field }))} />
+          options={stamps.map((field) => ({ value: field, label: fieldLabel(field) }))} />
       {/if}
     </Inline>
   {/if}
@@ -312,7 +346,7 @@
           <Input label={t('app.dashboards.series_second_name')} bind:value={draft.secondTitle} maxlength={200} />
         </Inline>
         <Select label={t('app.dashboards.series_second_stamp')} bind:value={draft.secondStamp}
-          options={stamps.map((field) => ({ value: field, label: field }))} />
+          options={stamps.map((field) => ({ value: field, label: fieldLabel(field) }))} />
         {#if draft.summarySource !== 'pages'}
           <Input label={t('app.dashboards.series_second_line')} hint={comparedKept !== undefined && draft.secondLine.trim() === '' ? t('app.dashboards.line_kept') : t('app.dashboards.series_second_line_hint')} bind:value={draft.secondLine} error={secondLineError} spellcheck={false} />
         {/if}
@@ -323,9 +357,17 @@
   {/if}
   </Stack>
   </Tabs>
-  <Inline justify="end"><Button tone="primary" disabledReason={problem} onclick={save}>{t('app.dashboards.apply')}</Button></Inline>
+  <Inline justify="end">
+    {#if onlist}<Button tone="subtle" icon="list" onclick={onlist}>{t('app.dashboards.open_list')}</Button>{/if}
+    {#if oncancel}<Button onclick={oncancel}>{t('app.links.cancel')}</Button>{/if}
+    <Button tone="primary" disabledReason={problem} onclick={save}>{t('app.dashboards.apply')}</Button>
+  </Inline>
 </Stack>
 
 <style>
+  .inherited { display: flex; flex-direction: column; gap: var(--sp-050); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .chip { display: inline-flex; align-items: center; gap: var(--sp-050); padding: var(--sp-025) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: var(--fs-075); text-decoration: line-through; cursor: pointer; }
+  .chip[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); color: var(--text-brand); text-decoration: none; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
