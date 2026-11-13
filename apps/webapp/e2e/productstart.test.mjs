@@ -224,6 +224,71 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
   assert.deepEqual(failures, []);
 });
 
+// Scene homeplans 4 (work-surface §6.4): the plans' first use has a project file as its side way -
+// the plan's own import, opened from the home into the collection the create act leads to first.
+test('chromium: the plans\' first use brings a project file in from the home', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  forgetUnstubbed();
+  const HUB = '01a0e2e0-0000-7000-8000-000000000501';
+  const COLLECTION = '01a0e2e0-0000-7000-8000-000000000502';
+  const hub = { id: HUB, type: 'HUB', parent_id: null, name: 'Bau', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const collection = { id: COLLECTION, type: 'COLLECTION', parent_id: HUB, name: 'Halle', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
+  const on = ['WORKFLOWS', 'PLANNING'];
+  const imported = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: on } });
+    if (path === `/containers/${HUB}/modules` || path === `/containers/${COLLECTION}/modules`) return route.fulfill({ json: { modules_on: on } });
+    if (path === '/sync:snapshot') {
+      const records = [hub, collection].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
+    }
+    if (path === '/containers' && route.request().method() === 'GET') {
+      return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [collection] } });
+    }
+    if (path === `/hubs/${HUB}/releases`) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === `/collections/${COLLECTION}/sprints`) return route.fulfill({ json: { ...PAGE, data: [] } });
+    if (path === `/plans/${HUB}/schedule`) {
+      return route.fulfill({ json: { zone: 'UTC', finish: null, entries: [], dependencies: [], conflicts: [], unscheduled: [], undated: [], critical_path: [] } });
+    }
+    if (path === `/collections/${COLLECTION}/plan:import`) {
+      imported.push(route.request().postDataJSON());
+      return route.fulfill({ json: { dry_run: true, tasks: 1, work_packages: 0, activities: 0, milestones: 0, dependencies: 0, flattened: 0, created: [] } });
+    }
+    if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [SCRUM] } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/plans`);
+  const main = page.locator('#main');
+  const side = main.locator('[data-empty-side]');
+  await side.waitFor({ timeout: 15_000 });
+  assert.equal(await side.innerText(), 'Import a plan');
+  assert.equal(await main.getByRole('button', { name: 'Start empty', exact: true }).count(), 0, 'the plans\' side way is the import, not an empty hub');
+  await side.click();
+  const dialog = page.getByRole('dialog', { name: 'Bring in a project file' });
+  await dialog.getByText('Step 1 of 4: Where from').waitFor({ timeout: 5_000 });
+  // One collection to bring it into: nothing to choose.
+  assert.equal(await dialog.getByLabel('Into which collection').count(), 0);
+  await dialog.getByRole('button', { name: 'Choose A table (CSV)' }).click();
+  await dialog.locator('input[type="file"]').setInputFiles({ name: 'plan.csv', mimeType: 'text/csv', buffer: Buffer.from('Name\nFundament\n') });
+  await dialog.getByRole('button', { name: 'Next', exact: true }).click();
+  await dialog.getByText('Read as A table (CSV).').waitFor({ timeout: 5_000 });
+  assert.equal(imported.length, 1, 'the check was not asked of the collection the create act leads to');
+  assert.equal(imported[0].dry_run, true);
+  assert.deepEqual(failures, []);
+});
+
 // §5.2: a create dialog names where it makes the object as its *In:* chip, one press to change -
 // among the hubs where the product is on and the reader may write, never one where it is off.
 test('chromium: the create dialog makes the page in the hub its place chip names', async (t) => {

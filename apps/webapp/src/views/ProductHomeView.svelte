@@ -7,10 +7,11 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, EmptyState, Icon, ListRow, PageHeader, ProductBand, Skeleton, Stack, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, Dialog, EmptyState, Icon, ListRow, PageHeader, ProductBand, Select, Skeleton, Stack, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
+  import PlanImport from '../lib/planning/PlanImport.svelte';
   import { markOf } from '../lib/workspace/look.ts';
   import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../lib/data/capability.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -419,6 +420,16 @@
   });
   /** The first use's create act on the empty answer, where the head would otherwise carry it. */
   const firstCreate = $derived(primary ? { label: primary.label, onclick: primary.onclick } : undefined);
+  // The plans' side way is a project file brought into a collection (scene homeplans 4): the plan's
+  // own import (UC-PLN-09), offered where the create act leads, into the place it leads to first.
+  let isImportingPlan = $state(false);
+  let importInto = $state<string | undefined>(undefined);
+  const importPlan = $derived(
+    module === 'PLANNING' && firstCreate && createPlaces.length > 0
+      ? { label: t('app.product_home.import_plan'), onclick: () => { importInto = createPlaces[0]?.id; isImportingPlan = true; } }
+      : undefined,
+  );
+  const startEmpty = $derived(firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined);
   // The band of a product with its own colour (work-surface E-1): its tile and two or three figures,
   // each a word with its number, and none while the reads are out (P-11).
   const BANDS: Partial<Record<string, { product: 'plans' | 'assets'; icon: 'calendar' | 'shield' }>> = {
@@ -540,7 +551,7 @@
         templates={starts}
         isProductHome
         templateShape={module === 'PLANNING' || module === 'ASSETS' ? 'row' : 'stacked'}
-        side={firstCreate && starts.length > 0 ? { label: t('app.product_empty.start_empty'), onclick: () => { startingFrom = undefined; isCreatingHub = true; } } : undefined}
+        side={module === 'PLANNING' ? importPlan : startEmpty}
       />
     {/if}
     {#if assetHubs.length > 0 && Object.keys(healthAt).length > 0 && !isUnusedHere}
@@ -785,6 +796,18 @@
     {/if}
   {/if}
 </WorkPage>
+{/if}
+
+{#if isImportingPlan && importInto}
+  <Dialog bind:isOpen={isImportingPlan} title={t('app.planning.import')} dismissLabel={t('app.links.cancel')} size="m">
+    {#if createPlaces.length > 1}
+      <Select label={t('app.product_home.import_into')} value={importInto} options={createPlaces.map((place) => ({ value: place.id, label: place.label }))}
+        onchange={(event: Event) => (importInto = (event.currentTarget as HTMLSelectElement).value)} />
+    {/if}
+    {#key importInto}
+      <PlanImport collectionId={importInto} zone={actor.zone} ondone={() => { isImportingPlan = false; if (importInto) onnavigate(`/collections/${encodeURIComponent(importInto)}/timeline`); }} />
+    {/key}
+  </Dialog>
 {/if}
 
 {#if isCreatingHub && mayCreateHub}

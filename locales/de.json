@@ -7275,6 +7275,8 @@
   "app.product_home.none": "Noch kein Hub nutzt {product}",
   "app.product_home.new_in": "In einem anderen Hub",
   "app.product_home.plan_in": "In einer anderen Sammlung",
+  "app.product_home.import_plan": "Plan importieren",
+  "app.product_home.import_into": "In welche Sammlung",
   "app.product_home.none_body": "Sobald ein Hub, den du lesen darfst, es nutzt, steht er hier.",
   "app.product_home.none_body_create": "Lege einen Hub an, um damit zu beginnen: ein neuer Hub nutzt, was für den Arbeitsbereich eingeschaltet ist.",
   "app.product_home.tab_for_you": "Für dich",
