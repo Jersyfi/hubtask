@@ -7687,7 +7687,6 @@
   "app.rules.remove_condition": "Remove",
   "app.rules.entries": "For which entries",
   "app.rules.entries_hint": "The query line, as in search and views. Empty is every entry the trigger reaches; values are compared in the condition.",
-  "app.rules.entries_placeholder": "is: open type: ticket",
   "app.rules.entries_unknown": "Nothing here is named {names}.",
   "app.rules.actions_hint": "At least one. They run in order, and a branch's two arms are checked exactly as this list is.",
   "app.rules.action_kind": "Action",

@@ -9,6 +9,8 @@
   // they name, as the old form showed them.
 
   import { Button, Callout, Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
+  import type { QueryKey } from '@hubtask/query';
+  import QueryStrip from '../entries/QueryStrip.svelte';
   import FrequencyPicker from '../forms/FrequencyPicker.svelte';
   import ZonePicker from '../forms/ZonePicker.svelte';
 
@@ -52,6 +54,8 @@
     entriesLine?: string;
     entriesError?: string | undefined;
     onentries?: (line: string) => void;
+    /** The query line's keys, as every list offers them. */
+    entriesKeys?: readonly QueryKey[];
     /** The inbound address, the view's to mint. Starting a rule is the head's *Start now*. */
     inbound?: { rotatedAt?: string; onmint: () => void; isWorking: boolean };
     /** The workflows and their steps a STEP_TAKEN rule may name (UC-FLW-04 check 4). */
@@ -81,6 +85,7 @@
     entriesLine = '',
     entriesError,
     onentries,
+    entriesKeys = [],
     inbound,
     workflowChoices = [],
   }: Props = $props();
@@ -385,9 +390,12 @@
       <Callout>{t('app.flow.jumble_hint')}</Callout>
     {/if}
     {#if ENTRY_TRIGGERS.includes(draft.trigger.kind) && onentries}
-      <!-- One field (UC-AUT-01/12): the query line chooses the entries, formulas over values stay conditions. -->
-      <Input label={t('app.rules.entries')} hint={t('app.rules.entries_hint')} value={entriesLine} error={entriesError} spellcheck={false}
-        placeholder={t('app.rules.entries_placeholder')} oninput={(event) => onentries((event.currentTarget as HTMLInputElement).value)} />
+      <!-- One field (UC-AUT-01/12): the chips of every list's line (Q-1) choose the entries; formulas over values stay conditions. -->
+      <div class="entries" role="group" aria-label={t('app.rules.entries')} data-rule-entries>
+        <span class="label">{t('app.rules.entries')}</span>
+        <QueryStrip line={entriesLine} keys={entriesKeys} onchange={onentries} />
+        {#if entriesError}<p class="error" role="alert">{entriesError}</p>{:else}<p class="quiet">{t('app.rules.entries_hint')}</p>{/if}
+      </div>
     {/if}
     <Callout tone="info">{t('app.flow.trigger_all_six')}</Callout>
   {:else if selection.kind === 'scope'}
@@ -487,6 +495,10 @@
   .hint { font-size: var(--fs-075); color: var(--text-subtle); }
 
   .mono { font-family: var(--font-mono); }
+
+  .entries { display: flex; flex-direction: column; gap: var(--sp-050); }
+
+  .error { margin: 0; font-size: var(--fs-075); color: var(--text-danger); }
 
   /* One condition of the gate, in the panel: its place in the *and*, its composer, its trash. */
   .gcondition { display: flex; flex-direction: column; gap: var(--sp-100); padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface-sunken); }

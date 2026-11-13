@@ -171,6 +171,8 @@ never learns of it (ADR-0001).
 entries - the language of search, views and dashboards - that narrows the entries a rule acts on
 before its conditions are asked. Formulas over values stay CEL (§1.2); the line chooses entries.
 
+* **Typed as the chips of every list's line** (Q-1): the trigger's panel holds the same query line
+  as search, views and a dashboard's widgets, not a text field of its own.
 * **Read with the writer's names at save.** The editor resolves the names in the line - a person, a
   label, a collection - to identifiers as the writer sees them, before anything is sent
   (ADR-0102); the server holds the line to the query grammar, without an order, on a trigger that

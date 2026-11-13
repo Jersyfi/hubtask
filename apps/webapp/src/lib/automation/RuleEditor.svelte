@@ -95,7 +95,7 @@
   import { labels } from '../data/labels.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { lineOf, personNamed, readQuery, type Names as LineNames } from '../data/viewquery.ts';
-  import { formatQuery, parseQuery } from '@hubtask/query';
+  import { formatQuery, parseQuery, type QueryKey } from '@hubtask/query';
   import { rules, type InboundToken } from '../data/rules.svelte.ts';
   import { inboundAddressOf } from '../data/rules.ts';
   import { runs, type Run } from '../data/runs.svelte.ts';
@@ -467,6 +467,8 @@
     const parsed = parseQuery(draft.entries);
     return parsed.ok && parsed.query.filter ? (lineOf({ filter: parsed.query.filter as never }, lineNames) ?? draft.entries) : draft.entries;
   });
+  /** The keys of every list's line over entries, as the manifest serves them. */
+  const entriesKeys = $derived<readonly QueryKey[]>(((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')));
   function typeEntries(line: string): void {
     entriesTyped = line;
     const read = readQuery(line, lineNames);
@@ -1087,6 +1089,7 @@
             {entriesLine}
             entriesError={entriesError ?? errors.get('/entries')}
             onentries={typeEntries}
+            {entriesKeys}
           />
         {:else if tab === 'blocks'}
           <div class="panel">
@@ -1125,6 +1128,7 @@
             {entriesLine}
             entriesError={entriesError ?? errors.get('/entries')}
             onentries={typeEntries}
+            {entriesKeys}
             inbound={stored?.trigger.kind === 'INBOUND_WEBHOOK' ? { rotatedAt: stored.inbound_rotated_at ?? undefined, onmint: mint, isWorking } : undefined}
           />
         {:else if tab === 'probe' && resting}

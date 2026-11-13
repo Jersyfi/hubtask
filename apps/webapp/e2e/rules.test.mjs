@@ -1026,11 +1026,20 @@ test('chromium: the trigger chooses its entries with one query line, names resol
   const page = await open(browser, written, { width: 1400, height: 900 });
 
   await page.locator('[data-card="trigger"]').click();
-  const field = page.locator('aside.inspector').getByLabel('For which entries');
-  await field.fill('is: open in: Nowhere');
+  // The chips of every list's line (Q-1), not a text field of its own.
+  const entries = page.locator('aside.inspector').getByRole('group', { name: 'For which entries' });
+  assert.equal(await entries.locator('[data-query-strip]').count(), 1, 'the field is the query line of every list');
+  const line = entries.getByRole('combobox', { name: 'What is seen' });
+  await line.click();
+  await page.keyboard.type('is: open in: Nowhere ');
+  await line.press('Enter');
   await page.getByText('Nothing here is named Nowhere.').waitFor({ timeout: 5_000 });
-  await field.fill('is: open in: "Q4 campaign"');
-  assert.equal(await page.getByText('Nothing here is named Nowhere.').count(), 0, 'the refusal stays after the name is known');
+  await entries.getByRole('button', { name: 'Remove in: Nowhere' }).click();
+  await line.click();
+  await page.keyboard.type('in: "Q4 campaign" ');
+  await line.press('Enter');
+  for (let waited = 0; await page.getByText('Nothing here is named Nowhere.').count() > 0 && waited < 50; waited++) await page.waitForTimeout(100);
+  assert.equal(await page.getByText('Nothing here is named Nowhere.').count(), 0, 'the refusal goes once the name is known');
 
   await page.getByRole('button', { name: 'Save the rule' }).click();
   for (let waited = 0; !written.some((body) => body.entries !== undefined) && waited < 50; waited++) await page.waitForTimeout(100);

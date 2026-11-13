@@ -7687,7 +7687,6 @@
   "app.rules.remove_condition": "Entfernen",
   "app.rules.entries": "Für welche Einträge",
   "app.rules.entries_hint": "Die Abfragezeile wie in Suche und Ansichten. Leer heißt jeder Eintrag, den der Auslöser erreicht; Werte vergleicht die Bedingung.",
-  "app.rules.entries_placeholder": "is: open type: ticket",
   "app.rules.entries_unknown": "Hier heißt nichts {names}.",
   "app.rules.actions_hint": "Mindestens eine. Sie laufen der Reihe nach, und die beiden Arme einer Verzweigung werden genau wie diese Liste geprüft.",
   "app.rules.action_kind": "Aktion",
