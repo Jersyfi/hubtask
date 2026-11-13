@@ -101,7 +101,7 @@
   }
 </script>
 
-<div class="composer" data-mode={isNote ? 'note' : 'reply'} data-readonly={disabledReason !== undefined ? '' : undefined}>
+<div class="composer" data-mode={isNote ? 'note' : 'reply'} data-readonly={disabledReason !== undefined ? '' : undefined} data-empty={isEmpty ? '' : undefined}>
   {#if modes}
     <div class="modes">
       <div class="tabs" role="tablist" aria-label={modes.label}>
@@ -266,6 +266,12 @@
   }
 
   .editor { min-inline-size: 0; }
+
+  /* Empty and not in use, it is one line to start writing in (§6.9): the formatting and the send
+     come forward with the focus, so a quiet conversation does not open on an empty form. */
+  .composer[data-empty]:not(:focus-within) .format,
+  .composer[data-empty]:not(:focus-within) .bar { display: none; }
+  .composer[data-empty]:not(:focus-within) .field { min-block-size: 0; }
 
   .bar {
     display: flex;
