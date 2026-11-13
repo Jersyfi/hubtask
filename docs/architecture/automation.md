@@ -165,6 +165,24 @@ never learns of it (ADR-0001).
 | Cost | the evaluator's own budget | Bounded statically too: an expensive rule is refused when saved |
 | Timeout | 50 ms | **Per expression**, not per rule |
 
+### 1.2.1 For which entries
+
+*For which entries* (work-surface concept E-12) is a rule's `entries`: one Hubtask query line over
+entries - the language of search, views and dashboards - that narrows the entries a rule acts on
+before its conditions are asked. Formulas over values stay CEL (§1.2); the line chooses entries.
+
+* **Read with the writer's names at save.** The editor resolves the names in the line - a person, a
+  label, a collection - to identifiers as the writer sees them, before anything is sent
+  (ADR-0102); the server holds the line to the query grammar, without an order, on a trigger that
+  is about an entry (not a schedule, an inbound webhook or an intake entry).
+* **Judged as the run-as at each run.** Before the conditions, the run asks `POST /items:query`'s
+  use case, as `run_as` with `items:read` only, whether the run's entry is among those the line
+  lists. An entry it does not list, or that `run_as` may not read, skips the run with no condition
+  asked; a line the grammar no longer reads fails it with that code. The line never widens what
+  `run_as` may read.
+* Stored in `automation_rule.entries` (migration 0399), carried by the backup and the
+  configuration document as written - an empty line, every entry, is left out of the document.
+
 ### 1.3 Actions
 
 Every action is an adapter over a use case, and **every use case in the catalogue is an action**:
