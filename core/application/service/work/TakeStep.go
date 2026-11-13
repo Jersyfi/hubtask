@@ -145,6 +145,10 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 			wanted.UpdatedAt = now
 		}
 		wanted.Status = step.To
+		// Under a workflow the column follows the status on every step (domain-model.md §3.5a).
+		if wanted, err = w.Boards.couple(ctx, item, wanted, actor.AccountID, now); err != nil {
+			return err
+		}
 		before := item
 		before.Status = status
 
@@ -180,8 +184,11 @@ func (h TakeStep) Execute(ctx context.Context, actor appshared.ActorContext, cmd
 			if err := w.Changes.Record(ctx, changelog.Change{
 				TenantID: changed.TenantID, Entity: itemTarget, EntityID: changed.ID, Op: changelog.Upsert,
 				ContainerID: changed.CollectionID, ActorID: actor.AccountID, HLC: w.HLC.Next(),
-				Field:   domain.FieldStatus,
-				Payload: map[string]any{domain.FieldStatus: changed.Status, "version": changed.Version},
+				Field: domain.FieldStatus,
+				Payload: map[string]any{
+					domain.FieldStatus: changed.Status, domain.FieldBucketID: idOrNil(changed.BucketID),
+					"version": changed.Version,
+				},
 			}); err != nil {
 				return err
 			}

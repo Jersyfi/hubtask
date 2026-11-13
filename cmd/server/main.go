@@ -1003,8 +1003,12 @@ func run() error {
 	// the status control and a device's push take.
 	workflows := postgres.NewWorkflowRepository()
 	workflowGate := work.WorkflowGate{Workflows: workflows, Compiler: celexpression.New(), Roles: authorizer, Groups: groups}
+	// One reading of a board for every door that moves a column, a completion or a status
+	// (domain-model.md §3.5a).
+	boards := work.Boards{Buckets: buckets, Statuses: postgres.NewBucketStatusRepository()}
 	completion := work.CompletionWriter{
 		Workflow: workflowGate,
+		Boards:   boards,
 		Gate:     entryGate,
 		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
@@ -3310,8 +3314,11 @@ func run() error {
 			Text:         forms,
 			Structure:    structures,
 			Flow:         flowGate,
+			Boards:       boards,
 		}.Descriptor(),
 		work.UpdateWorkItem{
+			Boards:     boards,
+			Completion: completion,
 			Gate:       entryGate,
 			Flow:       flowGate,
 			Items:      items,

@@ -2876,9 +2876,12 @@ UPDATE work_item SET
   -- The status moves with the completion it decides in a workflow collection (UC-FLW-03 check 4), and stays
   -- what it was - null in every other collection - where a completion writes no step.
   status       = $4::text,
-  updated_at   = $5,
+  -- The column moves with completion on a board without a workflow, and with the status under
+  -- one (domain-model.md §3.5a); elsewhere it is written back as it was read.
+  bucket_id    = $5::uuid,
+  updated_at   = $6,
   version      = version + 1
-WHERE id = $6::uuid AND version = $7
+WHERE id = $7::uuid AND version = $8
 `
 
 type SetWorkItemCompletionParams struct {
@@ -2886,6 +2889,7 @@ type SetWorkItemCompletionParams struct {
 	CompletedAt     pgtype.Timestamptz
 	CompletedBy     pgtype.UUID
 	Status          *string
+	BucketID        pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
@@ -2908,6 +2912,7 @@ func (q *Queries) SetWorkItemCompletion(ctx context.Context, arg SetWorkItemComp
 		arg.CompletedAt,
 		arg.CompletedBy,
 		arg.Status,
+		arg.BucketID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,

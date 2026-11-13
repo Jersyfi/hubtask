@@ -441,6 +441,10 @@ func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, e
 	if err != nil {
 		return err
 	}
+	bucket, err := optionalUUID(item.BucketID)
+	if err != nil {
+		return err
+	}
 
 	var completedAt pgtype.Timestamptz
 	if item.Completion.CompletedAt != nil {
@@ -452,6 +456,7 @@ func (r ItemRepository) SetCompletion(ctx context.Context, item work.WorkItem, e
 		CompletedAt: completedAt,
 		CompletedBy: completedBy,
 		Status:      optionalText(item.Status),
+		BucketID:    bucket,
 		UpdatedAt:   timestampOf(item.UpdatedAt),
 		ID:          id,
 		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
