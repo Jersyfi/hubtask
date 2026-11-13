@@ -1202,8 +1202,7 @@
 {/if}
 
 {#if isSetting}
-  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')} size="m"
-    primary={tolerance && mayShape && !lockedAbove ? { label: t('app.planning.tolerance_set'), onclick: () => void saveTolerance(false) } : undefined}>
+  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')} size="m">
     <Stack gap="300">
       <section class="block" aria-labelledby="plan-tolerance" data-plan-tolerance>
         <h2 id="plan-tolerance" class="heading">{t('app.planning.tolerance')}</h2>
@@ -1250,6 +1249,7 @@
     {#snippet actions()}
       {#if tolerance && mayShape && !lockedAbove}<Button tone="subtle" onclick={() => void saveTolerance(true)}>{t('app.planning.tolerance_inherit')}</Button>{/if}
       <Button tone="secondary" onclick={() => (isSetting = false)}>{t('app.links.cancel')}</Button>
+      {#if tolerance && mayShape && !lockedAbove}<Button tone="primary" onclick={() => void saveTolerance(false)}>{t('app.planning.tolerance_set')}</Button>{/if}
     {/snippet}
   </Dialog>
 {/if}
