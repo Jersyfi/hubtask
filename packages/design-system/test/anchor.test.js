@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { positionArea, raiseToTopLayer } from '../src/anchor.ts';
+import { boxWithin, positionArea, raiseToTopLayer } from '../src/anchor.ts';
 
 test('a placement reads as the position-area the engine expects', () => {
   // `span-inline-end` runs from the anchor's inline start towards its end, which is what
@@ -80,4 +80,25 @@ test('a browser with no top layer is left alone', () => {
   const lower = raiseToTopLayer(overlay);
   assert.equal(typeof lower, 'function');
   lower();
+});
+
+// ---------------------------------------------------------------------------------------------
+// A box with no element (a text selection, an editor's line) read inside its container.
+// ---------------------------------------------------------------------------------------------
+
+const frame = { top: 100, left: 50, width: 400, height: 300, borderTop: 1, borderLeft: 1, scrollTop: 0, scrollLeft: 0, clientWidth: 398 };
+
+test('a selection box is placed inside its container, from its padding edge', () => {
+  const placed = boxWithin({ top: 141, left: 81, width: 120, height: 20 }, frame);
+  assert.deepEqual(placed, { blockStart: 40, inlineStart: 30, inlineSize: 120, blockSize: 20 });
+});
+
+test('a scrolled container moves the phantom with its content', () => {
+  const placed = boxWithin({ top: 141, left: 81, width: 120, height: 20 }, { ...frame, scrollTop: 200 });
+  assert.equal(placed.blockStart, 240, 'the box sits where the content is, not where the viewport shows it');
+});
+
+test('right to left, the inline start is measured from the right edge', () => {
+  const placed = boxWithin({ top: 141, left: 81, width: 120, height: 20 }, frame, 'rtl');
+  assert.equal(placed.inlineStart, 398 - 30 - 120);
 });

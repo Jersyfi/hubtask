@@ -508,7 +508,8 @@ otherwise.
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
-`DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline`
+`DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingToolbar` ·
+`BlockHandle`
 
 The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
 §5; its mockups are the look), built before any screen uses them so that one pattern looks the same
@@ -596,6 +597,12 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   (*verified until …* or *review due*, a button for a writer), the last change and the labels; beside
   the reading column (`layout.reading`, running text at `font.size.250` with the loose line height)
   the headings of levels 2 and 3, the one in view marked and followed while the page scrolls.
+
+* **`FloatingToolbar`**, **`BlockHandle`** — the tools of a page while writing (S-1): the bar above
+  selected words, and "+" with the handle at the start of a line, the handle's menu being the way
+  that needs no dragging. Neither is an element's overlay: both are anchored to a box (the
+  selection, the line) through a phantom element `rectAnchor` lays over it inside the container
+  (`anchor.ts`), so no call site measures where an overlay goes.
 
 **Fixes after review (2026-11-13).** A `work` row is one line at the density's height: no cell
 wraps, the title is cut with an ellipsis and shows its whole words on hover (`titleText`) and while
