@@ -14732,5 +14732,7 @@
   "app.desk.reply_audience": "sieht: {name}",
   "app.comments.insert": "Einfügen",
   "app.comments.format": "Formatieren",
-  "app.comments.send_hint": "Strg+↵ sendet"
+  "app.comments.send_hint": "Strg+↵ sendet",
+  "app.entry.created_meta": "erstellt {date} von {name}",
+  "app.entry.created_meta_alone": "erstellt {date}"
 }

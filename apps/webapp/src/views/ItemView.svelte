@@ -144,7 +144,7 @@
   import { entryGoalsPath } from '../lib/data/goals.svelte.ts';
   import { entryApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
-  import { formatDateTime, formatDue, formatDueShort } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDue, formatDueShort, formatShortDay } from '../lib/i18n/datetime.ts';
   import { textLanguages } from '../lib/data/query.ts';
   import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -859,6 +859,9 @@
   // have an account row — an automation and the system have none, and their sentences name what
   // they are, which is the whole of what there is to say about them.
   $effect(() => {
+    if (item?.created_by) accounts.resolve([item.created_by]);
+  });
+  $effect(() => {
     if (history.state.status !== 'ready') return;
     accounts.resolve(
       (history.state.data.data ?? [])
@@ -1136,9 +1139,15 @@
   }
 
   /** One quiet line after the type: where it stands in the collection (§6.9). */
-  const headMeta = $derived(
-    [hub?.name, collection?.name, ...[...ancestors].reverse().map((each) => each.title)].filter((part): part is string => Boolean(part)).join(' · ') || undefined,
-  );
+  // The breadcrumb above names where the entry is; the line beside the key says what it is (task.d):
+  // its column where no workflow names a status, then when and by whom it was made.
+  const headMeta = $derived.by(() => {
+    if (!item) return undefined;
+    const maker = item.created_by ? accounts.nameOf(item.created_by) : undefined;
+    const date = item.created_at ? formatShortDay(item.created_at.slice(0, 10), messages.locale) : undefined;
+    const made = !date ? undefined : maker ? t('app.entry.created_meta', { date, name: maker }) : t('app.entry.created_meta_alone', { date });
+    return [!hasWorkflow ? columnName : undefined, made].filter((part): part is string => Boolean(part)).join(' · ') || undefined;
+  });
   /** Jump marks with counts (ET-2). */
   const jumpMarks = $derived.by(() => {
     const marks = [
@@ -1430,6 +1439,7 @@
 
   {#snippet headTools()}
     {#if hasAi}<AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />{/if}
+    <IconButton icon="link" label={t('app.entry_menu.copy_link')} size="sm" tone="subtle" data-copy-link onclick={() => chooseFromMenu('copy-link')} />
     {#if ticketKey}
       {@const key = ticketKey}
       <IconButton icon="copy" label={t('app.entries.ticket_key', { key })} size="sm" tone="subtle" onclick={() => void copyTicketKey(key)} />
