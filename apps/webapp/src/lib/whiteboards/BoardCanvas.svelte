@@ -366,6 +366,7 @@
     return e.text ?? '';
   }
 
+  let editor = $state<HTMLTextAreaElement | undefined>(undefined);
   function edit(id: string) {
     const e = model.get(id);
     if (!writable || !e || e.kind === 'CARD' || e.kind === 'CONNECTOR' || e.kind === 'STROKE' || e.kind === 'LINK' || e.locked) return;
@@ -419,7 +420,8 @@
     }
     const at = pointOf(event);
     const target = hit(elements, at);
-    surface?.setPointerCapture(event.pointerId);
+    // A pointer that has already ended cannot be captured; the gesture goes on without it.
+    try { surface?.setPointerCapture(event.pointerId); } catch { /* ended already */ }
     // On a tablet the pen draws whatever tool is chosen; the finger selects and pans (§7).
     const penDraws = event.pointerType === 'pen' && (tool === 'select' || tool === 'HAND');
     if (tool === 'HAND' && !penDraws || spaceHeld) {
@@ -456,9 +458,15 @@
       return;
     }
     if (writable && (tool === 'STICKY' || tool === 'SHAPE' || tool === 'TEXT' || tool === 'FRAME')) {
+      // The press must not take the focus to the canvas: the words go into the note just placed,
+      // and a held tool's next note would otherwise close as the last one's editor loses focus.
+      event.preventDefault();
       const id = put(tool, at);
       used();
-      if (id && (model.get(id)?.kind ?? '') !== 'FRAME') edit(id);
+      if (id && (model.get(id)?.kind ?? '') !== 'FRAME') {
+        edit(id);
+        void settled().then(() => editor?.focus());
+      }
       return;
     }
     if (target && target.kind !== 'FRAME') {
@@ -543,7 +551,7 @@
     const g = gesture;
     gesture = undefined;
     guides = [];
-    surface?.releasePointerCapture(event.pointerId);
+    try { surface?.releasePointerCapture(event.pointerId); } catch { /* never captured */ }
     if (g?.kind === 'draw') {
       const strokes = strokesOf(g.points, pen, () => elementId(), pen === 'HIGHLIGHTER' ? 'amber' : undefined);
       if (!model.addAll(strokes)) toast.show({ text: t('whiteboards.too_many_elements', { maximum: '5000' }), tone: 'danger' });
@@ -1726,6 +1734,7 @@
     {#if editingElement}
       <textarea
         class="editor"
+        bind:this={editor}
         aria-label={t('app.whiteboards.words')}
         style:inset-inline-start={`${(editingElement.x - view.x) * view.zoom}px`}
         style:inset-block-start={`${(editingElement.y - view.y) * view.zoom}px`}
