@@ -9,7 +9,7 @@
 
   import { untrack } from 'svelte';
   import type { DeadlinesKept, HubQueueList, ResourceState } from '@hubtask/sync-engine';
-  import { Button, DataTable, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, ViewBar, WorkPage, type DataColumn, type ViewLink } from '@hubtask/design-system/components';
+  import { Button, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -96,12 +96,6 @@
     const group = groups.all.find((each) => each.id === row.groupId)?.name ?? t('app.desk_home.group_unknown');
     return t('app.desk_home.ola_goal', { group, goal });
   }
-  const keptColumns = $derived<DataColumn[]>([
-    { id: 'kind', label: t('app.desk_home.kept_col_kind'), priority: 1 },
-    { id: 'share', label: t('app.desk_home.kept_col_share'), align: 'end', priority: 1 },
-    { id: 'breached', label: t('app.desk_home.kept_col_breached'), align: 'end', priority: 2 },
-    { id: 'ended', label: t('app.desk_home.kept_col_ended'), align: 'end', priority: 3 },
-  ]);
 
   const primary = $derived.by(() => {
     const first = desks[0];
@@ -192,14 +186,16 @@
     </div>
     <Dialog bind:isOpen={isKeptOpen} title={t('app.desk_home.fig_kept')} dismissLabel={t('app.sheet_close')} size="m">
       <p class="kept-window">{t('app.desk_home.kept_window')}</p>
-      <DataTable label={t('app.desk_home.fig_kept')} columns={keptColumns} rows={keptAll} key={(row: KeptRow) => `${row.kind}|${row.goal}|${row.groupId ?? ''}`}>
-        {#snippet cell(row: KeptRow, column: DataColumn)}
-          {#if column.id === 'kind'}{keptLabel(row)}
-          {:else if column.id === 'share'}<span class="number">{t('app.desk_home.percent', { share: String(percentOf(row.share)) })}</span>
-          {:else if column.id === 'breached'}<span class="number">{row.breached}</span>
-          {:else}<span class="number">{row.ended}</span>{/if}
-        {/snippet}
-      </DataTable>
+      <ul class="kept-all" aria-label={t('app.desk_home.fig_kept')}>
+        {#each keptAll as row, index (index)}
+          <li data-kept-row>
+            <span class="kept-kind">{keptLabel(row)}</span>
+            <span class="number">{t('app.desk_home.percent', { share: String(percentOf(row.share)) })}</span>
+            <span class="kept-of">{t('app.desk_home.kept_of', { kept: String(row.kept), ended: String(row.ended) })}</span>
+            {#if row.breached > 0}<span class="kept-breached">{t('app.desk_home.kept_breached', { count: String(row.breached) })}</span>{/if}
+          </li>
+        {/each}
+      </ul>
     </Dialog>
     <DeskQueues desks={desksAt} withHub={hubs.length > 1} {onnavigate} ontotals={(next) => (totals = next)} />
   {/if}
@@ -212,6 +208,9 @@
   .kept-kind { color: var(--text-secondary); }
   .kept-share, .number { font-variant-numeric: tabular-nums; }
   .kept-breached { color: var(--text-danger); }
+  .kept-all { display: grid; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .kept-all li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: var(--sp-150); align-items: baseline; padding-block-end: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .kept-of { color: var(--text-secondary); font-size: var(--fs-075); }
   .kept-window { margin: 0 0 var(--sp-100); color: var(--text-secondary); }
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width < 905px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
