@@ -291,7 +291,10 @@
   </div>
 {/snippet}
 
-{#if viewport.isCompact}
+<!-- Drawn only while open: its line autofocuses, and a closed dialog's body still stands in the page. -->
+{#if !isOpen}
+  <!-- Closed: only a kind's own dialog below may stand. -->
+{:else if viewport.isCompact}
   <Sheet title={t('app.create.title')} closeLabel={t('app.create.close')} isOpen={isOpen} onClose={() => create.close()}>
     {@render body()}
   </Sheet>
