@@ -40,7 +40,9 @@
     Stack,
     TaskRow,
     type RankCommand,
+    PriorityMark,
   } from '@hubtask/design-system/components';
+  import { priorityLevel, priorityOf } from '../servicedesk/queues.ts';
   import FailureState from '../frame/FailureState.svelte';
   import type { BulkResult, EffectiveStructure, StateMode, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
@@ -197,6 +199,8 @@
     workflow?: WorkflowShape;
     /** A desk's collection with its module on: a phone's row carries the SLA bar (§7). */
     withSla?: boolean;
+    /** The custom fields' names by key, for their columns' heads. */
+    customNames?: Readonly<Record<string, string>>;
   }
 
   const {
@@ -228,6 +232,7 @@
     stateMode,
     workflow,
     withSla = false,
+    customNames,
   }: Props = $props();
 
   // A column chip reads the board's columns (an engine subscription, shared with the board's own).
@@ -294,10 +299,12 @@
   const keyedCollection = $derived(containers.find(collectionId));
   // A subtree is the parts' table (UC-WRK-03): type, due, person, progress beside each title.
   const fields = $derived<readonly ListField[]>(arrangement?.fields ?? (root ? ['type', 'due', 'people', 'progress'] : ['due', 'people', 'labels', 'progress']));
+  /** A column's head: the list's own word, a custom field by its definition's name. */
+  const columnName = (field: ListField) => (field.startsWith('cf.') ? (customNames?.[field.slice(3)] ?? field.slice(3)) : t(`app.list.col_${field}`));
   /** The sort key a field's column head orders by, where the installation can order by it. */
-  const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id' };
+  const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id', sla: 'sla_due' };
   const sortOf = (field: ListField | 'title') => {
-    const key = SORT_OF[field];
+    const key = field.startsWith('cf.') ? `custom_fields.${field.slice(3)}` : SORT_OF[field];
     return key && sortable.includes(key) ? key : undefined;
   };
 
@@ -1415,9 +1422,9 @@
             {#each fields as field (field)}
               {@const key = sortOf(field)}
               {#if key && onsort}
-                <button type="button" class="col-head cell" data-field={field} onclick={() => onsort(key)}>{t(`app.list.col_${field}`)}{#if sortField === key}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
+                <button type="button" class="col-head cell" data-field={field} onclick={() => onsort(key)}>{columnName(field)}{#if sortField === key}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
               {:else}
-                <span class="col-head cell" data-field={field}>{t(`app.list.col_${field}`)}</span>
+                <span class="col-head cell" data-field={field}>{columnName(field)}</span>
               {/if}
             {/each}
           </span>
@@ -1650,6 +1657,16 @@
                   {#if type}
                     <span class="type-mark" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" /><LabelChip name={typeName(type.key)} colorToken={type.color_token} /></span>
                   {/if}
+                {:else if field === 'requester'}
+                  <span class="who">{accounts.nameOf(row.item.created_by) ?? ''}</span>
+                {:else if field === 'priority'}
+                  {@const priority = priorityOf(row.item, [])}
+                  {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
+                {:else if field === 'sla'}
+                  {#if withSla}{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}{/if}
+                {:else if field.startsWith('cf.')}
+                  {@const value = row.item.custom_fields?.[field.slice(3)]}
+                  {#if value !== undefined && value !== null && value !== ''}<span class="custom">{String(value)}</span>{/if}
                 {:else if field === 'amount' && row.item.amount}
                   <span class="amount">{row.item.amount}</span>
                 {:else if field === 'column' && row.item.bucket_id}
