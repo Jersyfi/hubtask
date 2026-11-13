@@ -20065,7 +20065,7 @@ type KeyResultWrite struct {
 	Id   *openapi_types.UUID `json:"id,omitempty"`
 	Kind KeyResultWriteKind  `json:"kind"`
 
-	// Source VIEW takes the total of a saved summary view.
+	// Source VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists.
 	Source *KeyResultWriteSource `json:"source,omitempty"`
 	Start  *float32              `json:"start,omitempty"`
 	Target *float32              `json:"target,omitempty"`
@@ -20077,7 +20077,7 @@ type KeyResultWrite struct {
 // KeyResultWriteKind defines model for KeyResultWrite.Kind.
 type KeyResultWriteKind string
 
-// KeyResultWriteSource VIEW takes the total of a saved summary view.
+// KeyResultWriteSource VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists.
 type KeyResultWriteSource string
 
 // Kudos defines model for Kudos.

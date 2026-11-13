@@ -576,7 +576,7 @@ var goalInput = []usecase.Field{
 	{Name: "owner_id", Kind: usecase.KindID, Description: "Who owns it."},
 	{Name: "parent_id", Kind: usecase.KindID, Description: "The goal it contributes to; never itself or one of its own."},
 	{Name: "status", Kind: usecase.KindString, Enum: []string{"NONE", "ON_TRACK", "AT_RISK", "OFF_TRACK", "DONE", "DROPPED"}, Description: "How it stands; a check-in sets it too."},
-	{Name: "key_results", Kind: usecase.KindList, Description: "At most 20, in order: title, kind (NUMBER, PERCENT, BINARY, MILESTONE), start, target, current, unit, source (MANUAL or VIEW with view_id, a saved summary view whose total is the value), entry_id for a MILESTONE; id to keep one."},
+	{Name: "key_results", Kind: usecase.KindList, Description: "At most 20, in order: title, kind (NUMBER, PERCENT, BINARY, MILESTONE), start, target, current, unit, source (MANUAL or VIEW with view_id, any saved view: a summary view's total is the value, any other view's count of what it lists), entry_id for a MILESTONE; id to keep one."},
 }
 
 // CreateGoal sets a goal for a period at the workspace or in a hub, with WRITE_ITEMS there.

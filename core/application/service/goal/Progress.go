@@ -157,14 +157,14 @@ func (s Steward) readableEntries(ctx context.Context, actor appshared.ActorConte
 	return out, nil
 }
 
-// viewTotal answers a saved summary view's total for the reader: the sum of its rows' values, or
-// of their counts for a count. A view the reader cannot run answers nothing, and the key result
+// viewTotal answers a saved view's total for the reader: the sum of its rows' values, or of their
+// counts for a count - and for a view that stores no summary, the count of what it lists (§6.11). A view the reader cannot run answers nothing, and the key result
 // shows its stored value.
 func (s Steward) viewTotal(ctx context.Context, actor appshared.ActorContext, viewID shared.ID) (float64, bool) {
 	if s.ViewSummaries == nil {
 		return 0, false
 	}
-	out, err := s.ViewSummaries.Invoke(ctx, actor, usecase.Input{"view_id": viewID.String()})
+	out, err := s.ViewSummaries.Invoke(ctx, actor, usecase.Input{"view_id": viewID.String(), "as_count": true})
 	if err != nil {
 		return 0, false
 	}

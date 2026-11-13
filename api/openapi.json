@@ -45571,7 +45571,7 @@
               "MANUAL",
               "VIEW"
             ],
-            "description": "VIEW takes the total of a saved summary view."
+            "description": "VIEW takes a saved view's number: a summary view's total, any other view's count of what it lists."
           },
           "view_id": {
             "type": "string",

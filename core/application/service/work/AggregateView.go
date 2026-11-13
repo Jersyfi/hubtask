@@ -36,6 +36,14 @@ type AggregateView struct {
 func (h AggregateView) Execute(
 	ctx context.Context, actor appshared.ActorContext, viewID shared.ID,
 ) (view.Aggregation, repository.ItemAggregateResult, error) {
+	return h.execute(ctx, actor, viewID, false)
+}
+
+// execute answers the view's summary; asCount answers a view that stores no aggregate as the count
+// of what it lists - what a key result fed by any saved query asks (§6.11).
+func (h AggregateView) execute(
+	ctx context.Context, actor appshared.ActorContext, viewID shared.ID, asCount bool,
+) (view.Aggregation, repository.ItemAggregateResult, error) {
 	if err := actor.RequireScope(viewsRead); err != nil {
 		return view.Aggregation{}, repository.ItemAggregateResult{}, err
 	}
@@ -60,6 +68,20 @@ func (h AggregateView) Execute(
 	}
 	if !visible {
 		return view.Aggregation{}, repository.ItemAggregateResult{}, viewNotFound(saved.ID)
+	}
+	if !saved.IsSummary() && asCount {
+		spec, err := SpecOfView(saved)
+		if err != nil {
+			return view.Aggregation{}, repository.ItemAggregateResult{}, err
+		}
+		count, err := view.ParseAggregation(map[string]any{"function": string(view.AggregateCount)}, "/aggregate")
+		if err != nil {
+			return view.Aggregation{}, repository.ItemAggregateResult{}, err
+		}
+		result, err := h.Aggregate.Execute(ctx, actor, view.Spec{
+			Scope: spec.Scope, Filter: spec.Filter, IncludeArchived: spec.IncludeArchived, IncludeTrashed: spec.IncludeTrashed,
+		}, count)
+		return count, result, err
 	}
 	if !saved.IsSummary() {
 		return view.Aggregation{}, repository.ItemAggregateResult{}, shared.ErrValidation.
@@ -93,6 +115,11 @@ func (h AggregateView) Descriptor() usecase.Descriptor {
 				Description: "The saved view. One the caller may read - a view they cannot see " +
 					"answers not found, exactly as reading it would.",
 			},
+			{
+				Name: "as_count", Kind: usecase.KindBool,
+				Description: "Answer a view that stores no aggregate as the count of the entries it " +
+					"lists instead of refusing it - what a goal's key result fed by a saved query reads.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemReadAction, TargetType: itemTarget,
@@ -109,7 +136,7 @@ func (h AggregateView) invoke(
 	if err != nil {
 		return nil, err
 	}
-	aggregation, result, err := h.Execute(ctx, actor, viewID)
+	aggregation, result, err := h.execute(ctx, actor, viewID, in.Bool("as_count"))
 	if err != nil {
 		return nil, err
 	}
