@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
+import { MINE_QUERY, bandsOf, deskAnswerQuery, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf, todayRowCountOf, heldActRows } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -56,6 +56,16 @@ test('the bands keep the server\'s order and leave out the entries of a list', (
   assert.deepEqual(bands.earlier.map((each) => each.id), ['late', 'morning'], 'what is past is earlier, whenever it was due');
   assert.deepEqual(bands.today.map((each) => each.id), ['tonight']);
   assert.deepEqual(bands.later.map((each) => each.id), ['next']);
+});
+
+test('what is on the reader counts every open entry assigned to them, with a date or without', () => {
+  const nodes = JSON.stringify(MINE_QUERY.filter);
+  assert.ok(nodes.includes('"assignee_id"') && nodes.includes('"is_completed"'), 'mine and open');
+  assert.ok(!nodes.includes('due_at'), 'an undated entry is on the reader too ("0 on you", concept §10)');
+  const undated = item({ id: 'undated' });
+  const bands = bandsOf([item({ id: 'late', due_at: '2026-10-22T08:00:00Z' }), undated], BERLIN, NOW, () => false);
+  assert.deepEqual(bands.later.map((each) => each.id), ['undated'], 'an entry without a date waits under upcoming');
+  assert.equal(bands.earlier.length + bands.today.length + bands.later.length, 2);
 });
 
 test('a list counts what is open, a project its progress, and nothing else is either', () => {

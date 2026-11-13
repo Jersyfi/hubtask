@@ -5,8 +5,8 @@
  * The reads *Today* makes beyond what the frame holds (UC-WRK-34, ADR-0063 decision 1).
  *
  * **What is on the reader is one read, not three.** One wordless search: the entries assigned to
- * this reader that are open and carry a date, in the order the contract already sorts them,
- * `due_at` ascending. Where the reader's day divides them is drawn on the client (`lib/today.ts`),
+ * this reader that are open, in the order the contract already sorts them, `due_at` ascending
+ * and the undated last (`MINE_QUERY`). Where the reader's day divides them is drawn on the client (`lib/today.ts`),
  * because it depends on their time zone and on whether a date is a day or an instant, and a server
  * that answered three lists would have to ask it three times. It is askable at all because of
  * ADR-0064: a filter with no words is a question to `POST /search`, deliberately unanchored -
@@ -24,34 +24,8 @@
 
 import type { ItemQueryResult, ResourceState, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
-import { nextStepQuery } from '../today.ts';
+import { MINE_QUERY, nextStepQuery } from '../today.ts';
 import { engine } from './engine.ts';
-
-/**
- * How many of them to read.
- *
- * *Today* is what is on somebody, not their whole list: a panel is read in a glance and what does
- * not fit belongs in the search this screen links to. The page is asked larger than the bands
- * draw, because the split happens after the answer arrives.
- */
-const SIZE = 20;
-
-/** What the first panel draws from: mine, open, and carrying a date. */
-const MINE = {
-  filter: {
-    op: 'AND',
-    nodes: [
-      { op: 'EQ', field: 'assignee_id', value: '@me' },
-      { op: 'EQ', field: 'is_completed', value: false },
-      // `NOT IS_NULL` rather than a comparison: "has a date" is not "is due before something", and
-      // a bound would quietly drop whatever lies beyond it.
-      { op: 'NOT', nodes: [{ op: 'IS_NULL', field: 'due_at' }] },
-    ],
-  },
-  // No `sort`: the contract's own default for a search with no words is `due_at ASC NULLS LAST`,
-  // and naming it here would be a second copy of a decision that already has one (ADR-0064).
-  page: { size: SIZE },
-};
 
 class Today {
   #mine = $state<ResourceState<WorkItemPage>>({ status: 'idle' });
@@ -79,7 +53,7 @@ class Today {
 
   /** Starts the read of what is on the reader. **From `untrack`**, for the reason every store records. */
   open(): () => void {
-    return engine.subscribe<WorkItemPage>({ path: '/search', body: MINE }, (next) => {
+    return engine.subscribe<WorkItemPage>({ path: '/search', body: MINE_QUERY }, (next) => {
       this.#mine = next;
     });
   }

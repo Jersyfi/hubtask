@@ -27,9 +27,26 @@ export interface DayBands {
   readonly earlier: readonly WorkItem[];
   /** Due before the reader's day ends, and not yet past. */
   readonly today: readonly WorkItem[];
-  /** Due after today. UC-WRK-20's *next*. */
+  /** Due after today, or without a date. UC-WRK-20's *next*. */
   readonly later: readonly WorkItem[];
 }
+
+/**
+ * What the first panel draws from: the open entries assigned to the reader, with a date or without
+ * - an undated entry is on somebody as much as a dated one ("0 on you", concept §10), and waits
+ * under *upcoming*. No `sort`: the contract's default for a search with no words is
+ * `due_at ASC NULLS LAST` (ADR-0064), so the undated come last. `@me` is resolved on the server.
+ */
+export const MINE_QUERY = {
+  filter: {
+    op: 'AND',
+    nodes: [
+      { op: 'EQ', field: 'assignee_id', value: '@me' },
+      { op: 'EQ', field: 'is_completed', value: false },
+    ],
+  },
+  page: { size: 20 },
+} as const;
 
 /** Whether the entry falls due before the reader's next day begins. */
 export function isDueByTonight(item: WorkItem, readerZone: string, now: number): boolean {
