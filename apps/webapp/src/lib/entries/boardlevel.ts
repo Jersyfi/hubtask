@@ -8,7 +8,7 @@
  * server's own reason code, while the card is carried.
  */
 
-import type { EntrySteps, StateMode } from '@hubtask/sync-engine';
+import type { BoardPreview, EntrySteps, StateMode } from '@hubtask/sync-engine';
 
 /** A level switch a person asks for: L0 → L1, L1 → L0, L1 → L2. */
 export type LevelSwitch = 'board' | 'list' | 'workflow';
@@ -69,4 +69,23 @@ export function columnRefusals(
   for (const column of columns) judge(column.id, column.statuses ?? []);
   judge(NO_COLUMN, unmapped);
   return refusals;
+}
+
+/** A status standing in no column, in a scheme preview's mapping. */
+export const UNMAPPED = '';
+
+/** Where each status stands on a previewed board: its column, or `UNMAPPED`. */
+export function statusPlaces(board: Pick<BoardPreview, 'columns' | 'unmapped'>): Record<string, string> {
+  const places: Record<string, string> = {};
+  for (const column of board.columns) for (const status of column.statuses) places[status] = column.bucket_id;
+  for (const each of board.unmapped) places[each.status] = UNMAPPED;
+  return places;
+}
+
+/** The `columns` a scheme change sends for one board: each column with the statuses placed in it. */
+export function mappedColumns(board: Pick<BoardPreview, 'columns'>, places: Readonly<Record<string, string>>): { bucket_id: string; statuses: string[] }[] {
+  return board.columns.map((column) => ({
+    bucket_id: column.bucket_id,
+    statuses: Object.entries(places).filter(([, at]) => at === column.bucket_id).map(([status]) => status),
+  }));
 }

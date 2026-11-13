@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { columnRefusals, unmappedStatuses } from './boardlevel.ts';
+import { UNMAPPED, columnRefusals, mappedColumns, statusPlaces, unmappedStatuses } from './boardlevel.ts';
 
 const step = (to: string, allowed = true) => ({ key: `to_${to}`, name: null, to, requires: [], asks: [], allowed, missing: [], checks: [] }) as never;
 
@@ -42,4 +42,20 @@ test('L2 before the steps arrive: only the structural refusals', () => {
 
 test('unmapped statuses are the workflow statuses no column shows', () => {
   assert.deepEqual(unmappedStatuses([{ id: 'a', statuses: ['x', 'y'] }, { id: 'b' }], ['x', 'y', 'z']), ['z']);
+});
+
+test('a scheme preview\'s mapping: the proposal read, a status moved, sent per column', () => {
+  const board = {
+    columns: [
+      { bucket_id: 'a', name: 'Offen', is_done_bucket: false, statuses: ['open'], completes: false },
+      { bucket_id: 'b', name: 'Arbeit', is_done_bucket: false, statuses: ['doing'], completes: false },
+    ],
+    unmapped: [{ status: 'review', suggested_bucket_id: 'b' }],
+  };
+  const places = statusPlaces(board);
+  assert.deepEqual(places, { open: 'a', doing: 'b', review: UNMAPPED });
+  assert.deepEqual(mappedColumns(board, { ...places, review: 'b' }), [
+    { bucket_id: 'a', statuses: ['open'] },
+    { bucket_id: 'b', statuses: ['doing', 'review'] },
+  ]);
 });
