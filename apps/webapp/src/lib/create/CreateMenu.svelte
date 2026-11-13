@@ -209,6 +209,21 @@
   </button>
 {/snippet}
 
+{#snippet placeChip()}
+  {#if placeOptions.length > 0}
+    <!-- The place as a chip one changes (C-2): a native list, so a phone and a keyboard both pick. -->
+    <label class="place">
+      <Icon name="hub" size="sm" />
+      <span>{placeName ? t('app.create.in', { name: placeName }) : t('app.create.place_none')}</span>
+      <Icon name="chevron-down" size="sm" />
+      <select aria-label={t('app.create.place')} value={placeValue} onchange={(event) => choosePlace((event.currentTarget as HTMLSelectElement).value)}>
+        {#if placeValue === ''}<option value="" disabled>{t('app.create.place_none')}</option>{/if}
+        {#each placeOptions as option (option.value)}<option value={option.value}>{option.label}</option>{/each}
+      </select>
+    </label>
+  {/if}
+{/snippet}
+
 {#snippet body()}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <div class="create" role="group" aria-label={t('app.create.title')} onkeydown={keydown}>
@@ -217,19 +232,10 @@
         <Icon name="plus" />
         <!-- svelte-ignore a11y_autofocus -->
         <input class="field" type="text" bind:value={line} placeholder={t('app.create.line')} aria-label={t('app.create.line_label')} autocomplete="off" autofocus />
-        {#if placeOptions.length > 0}
-          <!-- The place as a chip one changes (C-2): a native list, so a phone and a keyboard both pick. -->
-          <label class="place">
-            <Icon name="hub" size="sm" />
-            <span>{placeName ? t('app.create.in', { name: placeName }) : t('app.create.place_none')}</span>
-            <Icon name="chevron-down" size="sm" />
-            <select aria-label={t('app.create.place')} value={placeValue} onchange={(event) => choosePlace((event.currentTarget as HTMLSelectElement).value)}>
-              {#if placeValue === ''}<option value="" disabled>{t('app.create.place_none')}</option>{/if}
-              {#each placeOptions as option (option.value)}<option value={option.value}>{option.label}</option>{/each}
-            </select>
-          </label>
-        {/if}
+        {#if !viewport.isCompact}{@render placeChip()}{/if}
       </form>
+      <!-- A phone keeps the line its width and the chip under it (create m 3). -->
+      {#if viewport.isCompact}{@render placeChip()}{/if}
     {/if}
     {#if failure}<FailureNote problem={failure} />{/if}
 
@@ -327,6 +333,7 @@
 
   .place {
     display: inline-flex;
+    align-self: flex-start;
     align-items: center;
     gap: var(--sp-050);
     flex: none;
