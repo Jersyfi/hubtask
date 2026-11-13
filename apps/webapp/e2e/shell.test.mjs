@@ -233,8 +233,10 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
   await page.waitForFunction(() => location.pathname === '/trash', null, { timeout: 5_000 });
 
   // The bar gives way while a field has focus - the keyboard has that part of the screen.
+  // The search's line, which a phone keeps in its filter sheet.
   await page.goto(`${served.origin}/search`);
-  const field = page.locator('main input, main textarea').first();
+  await page.getByRole('button', { name: 'Change filters' }).click();
+  const field = page.getByRole('dialog', { name: 'Filters' }).getByRole('combobox');
   await field.waitFor({ timeout: 10_000 });
   await field.focus();
   await page.waitForFunction(() => {
