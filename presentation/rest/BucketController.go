@@ -38,5 +38,10 @@ func bucketResponse(out usecase.Output) openapi.Bucket {
 	if token := out.String("color_token"); token != "" {
 		bucket.ColorToken = &token
 	}
+	// Only the list reads the mapping; a write's answer leaves the statuses out.
+	if _, listed := out["statuses"]; listed {
+		statuses := stringsOf(out["statuses"])
+		bucket.Statuses = &statuses
+	}
 	return bucket
 }

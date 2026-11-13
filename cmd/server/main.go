@@ -3437,6 +3437,7 @@ func run() error {
 		}.Descriptor(),
 		work.ListBuckets{
 			Buckets: buckets, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Statuses: boards.Statuses,
 		}.Descriptor(),
 		work.UpdateBucket{Writer: bucketWriter}.Descriptor(),
 		work.ReorderBucket{Writer: bucketWriter}.Descriptor(),

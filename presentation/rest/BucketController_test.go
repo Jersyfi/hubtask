@@ -138,6 +138,28 @@ func TestListingABoardAnswersAnArray(t *testing.T) {
 	}
 }
 
+// A listed column carries the statuses it shows, an empty list where none.
+func TestAListedColumnCarriesItsStatuses(t *testing.T) {
+	shown := storedBucket("Todo", "a0")
+	shown["statuses"] = []string{"open"}
+	none := storedBucket("Done", "a1")
+	none["statuses"] = []string{}
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{shown, none}}}
+
+	recorder := bucketRequest(t, registry, http.MethodGet, "/containers/"+boardCollection+"/buckets", "")
+
+	var board []map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &board); err != nil || len(board) != 2 {
+		t.Fatalf("the board is %s: %v", recorder.Body, err)
+	}
+	if got, _ := board[0]["statuses"].([]any); len(got) != 1 || got[0] != "open" {
+		t.Errorf("Todo shows %v", board[0]["statuses"])
+	}
+	if got, present := board[1]["statuses"].([]any); !present || len(got) != 0 {
+		t.Errorf("Done shows %v, want an empty list", board[1]["statuses"])
+	}
+}
+
 // An empty board is an empty array, not null: a client that iterates the answer should not have to
 // nil-check it.
 func TestAnEmptyBoardIsAnEmptyArray(t *testing.T) {
