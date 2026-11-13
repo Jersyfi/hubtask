@@ -63,6 +63,17 @@ func (p portalTypes) List(context.Context) ([]work.EntryType, error) {
 		Form: work.Form{Channels: []work.FormChannelRule{{Channel: work.ChannelPortal}}}}}, nil
 }
 
+// offering names the incident type on the desk and offers every type on the plain collection,
+// which names none and so is no desk.
+type offering struct{}
+
+func (offering) OfferedTaskTypes(_ context.Context, collection work.Container) ([]string, error) {
+	if collection.ID == queueDesk {
+		return []string{"incident"}, nil
+	}
+	return nil, nil
+}
+
 type queueViews struct {
 	viewrepo.SavedViews
 	queues []view.SavedView
@@ -103,7 +114,7 @@ func (k keptOut) Authorize(_ context.Context, _ appshared.ActorContext, request 
 func queueUseCase(views []view.SavedView, types portalTypes, counter *counting, authorizer workservice.Authorizer) ListHubQueues {
 	return ListHubQueues{
 		Desk:  Desk{Containers: queueTree{}, Authorizer: authorizer, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday)},
-		Views: queueViews{queues: views}, EntryTypes: types,
+		Views: queueViews{queues: views}, EntryTypes: types, Gate: offering{},
 		Query: workservice.QueryItems{
 			Containers: queueTree{}, Authorizer: authorizer, UnitOfWork: inline{}, Clock: at(monday), Counter: counter,
 		},
@@ -144,7 +155,8 @@ func TestAHubWithADeskAnswersTheStandardQueues(t *testing.T) {
 			t.Errorf("queue %s was not counted at the hub: %+v", queue.Key, search.Anchor)
 		}
 		desks := search.Spec.Filter.Nodes[0]
-		if desks.Field.Name != "collection_id" || len(desks.Values) != 2 {
+		// UC-SVC-03 check 10: the collection offering every type is no desk, as the client's actsAsDesk tells.
+		if desks.Field.Name != "collection_id" || len(desks.Values) != 1 || desks.Values[0].ID != queueDesk {
 			t.Errorf("queue %s was not narrowed to the desks: %+v", queue.Key, desks)
 		}
 		within := counter.within[i]
@@ -230,10 +242,11 @@ func TestTheHubsQueuesThroughTheDoor(t *testing.T) {
 // UC-WRK-18 check 9. A collection that names no type it offers - it offers every type - is no desk, as the client
 // tells a desk: the search does not call its entries tickets.
 func TestACollectionOfferingEveryTypeIsNoDesk(t *testing.T) {
-	acting, err := DeskCollections{EntryTypes: portalTypes{}}.Desks(context.Background(), reader(), []work.Container{
+	acting, err := DeskCollections{EntryTypes: portalTypes{}, Gate: offering{}}.Desks(context.Background(), reader(), []work.Container{
 		{ID: queueDesk, TenantID: tenantID, Type: work.ContainerCollection, ParentID: queueHub},
+		{ID: queuePlain, TenantID: tenantID, Type: work.ContainerCollection, ParentID: queueHub},
 	})
-	if err != nil || acting[queueDesk] {
+	if err != nil || !acting[queueDesk] || acting[queuePlain] {
 		t.Fatalf("answered %v, %v", acting, err)
 	}
 }

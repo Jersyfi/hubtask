@@ -47,7 +47,7 @@ type ListHubQueues struct {
 	Views      viewrepo.SavedViews
 	EntryTypes workrepo.EntryTypes
 	// Gate answers what each collection offers, which says whether it acts as a desk.
-	Gate work.EntryGate
+	Gate Offering
 	// Query counts each queue; its Counter is required.
 	Query work.QueryItems
 }
@@ -156,11 +156,11 @@ func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext
 			return nil, err
 		}
 		for _, collection := range page.Containers {
-			offered, err := h.Gate.OfferedTaskTypes(ctx, collection)
+			acting, err := actsAsDesk(ctx, h.Gate, types, collection, actor.Locale)
 			if err != nil {
 				return nil, err
 			}
-			if len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0 && len(desks) < view.MaxValues {
+			if acting && len(desks) < view.MaxValues {
 				desks = append(desks, collection.ID)
 			}
 		}
@@ -177,7 +177,27 @@ func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext
 // caller's transaction.
 type DeskCollections struct {
 	EntryTypes workrepo.EntryTypes
-	Gate       work.EntryGate
+	Gate       Offering
+}
+
+// Offering answers the type keys a collection offers its top-level entries; none offers every
+// type. work.EntryGate is the one the server wires.
+type Offering interface {
+	OfferedTaskTypes(ctx context.Context, collection workdomain.Container) ([]string, error)
+}
+
+// actsAsDesk is the client's actsAsDesk: a collection naming a type the portal takes. One that
+// names none offers every type and is no desk, for the queues as for the search; without a gate
+// nothing is named.
+func actsAsDesk(ctx context.Context, gate Offering, types workdomain.EntryTypes, collection workdomain.Container, locale string) (bool, error) {
+	if gate == nil {
+		return false, nil
+	}
+	offered, err := gate.OfferedTaskTypes(ctx, collection)
+	if err != nil {
+		return false, err
+	}
+	return len(offered) > 0 && len(domain.RequestCatalogue(types, offered, nil, locale)) > 0, nil
 }
 
 var _ search.Desks = DeskCollections{}
@@ -194,11 +214,10 @@ func (d DeskCollections) Desks(ctx context.Context, actor appshared.ActorContext
 	}
 	types := workdomain.NewEntryTypes(rows)
 	for _, collection := range collections {
-		offered, err := d.Gate.OfferedTaskTypes(ctx, collection)
+		acting[collection.ID], err = actsAsDesk(ctx, d.Gate, types, collection, actor.Locale)
 		if err != nil {
 			return nil, err
 		}
-		acting[collection.ID] = len(offered) > 0 && len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0
 	}
 	return acting, nil
 }
