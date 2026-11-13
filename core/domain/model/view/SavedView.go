@@ -68,9 +68,11 @@ const (
 	LayoutListExpanded  Layout = "LIST_EXPANDED"
 	LayoutKanban        Layout = "KANBAN"
 	LayoutTimeline      Layout = "TIMELINE"
+	// LayoutCalendar draws the entries on the days of the date its grouping names (E-21).
+	LayoutCalendar Layout = "CALENDAR"
 )
 
-var layouts = [...]Layout{LayoutListCollapsed, LayoutListExpanded, LayoutKanban, LayoutTimeline}
+var layouts = [...]Layout{LayoutListCollapsed, LayoutListExpanded, LayoutKanban, LayoutTimeline, LayoutCalendar}
 
 // Layouts returns the declared set, in a stable order. `/meta/capabilities` answers it verbatim.
 func Layouts() []Layout { return layouts[:] }
@@ -562,6 +564,22 @@ func viewGrouping(raw map[string]any) (map[string]any, error) {
 	if field, present := raw["field"]; present {
 		if _, err := ParseGroupBy(map[string]any{"field": field}, "/grouping"); err != nil {
 			return nil, err
+		}
+	}
+	// A board's lanes are a second grouping, held to the first's rule.
+	if lanes, present := raw["lanes_by"]; present {
+		if _, err := ParseGroupBy(map[string]any{"field": lanes}, "/grouping/lanes_by"); err != nil {
+			return nil, err
+		}
+	}
+	if date, present := raw["date_field"]; present {
+		name, _ := date.(string)
+		target, err := field(name, "/grouping/date_field")
+		if err != nil {
+			return nil, err
+		}
+		if target.Kind != KindTimestamp {
+			return nil, fieldError("/grouping/date_field", "views.date_field_not_a_date", map[string]string{"field": target.Name})
 		}
 	}
 	return raw, nil

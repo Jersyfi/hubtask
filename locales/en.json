@@ -2041,6 +2041,7 @@
   "query.placeholder_unresolved": "This installation is misconfigured and could not run that search.",
   "query.custom_fields_unwired": "This installation is misconfigured and could not run that search.",
   "query.custom_field_unshaped": "This installation is misconfigured and could not run that search.",
+  "views.date_field_not_a_date": "{field} is not a date the calendar can place entries on.",
   "views.name_empty": "A view needs a name.",
   "views.name_too_long": "The name may be at most {maximum} characters long.",
   "views.name_malformed": "The name has to fit on one line.",

@@ -301,17 +301,59 @@ func TestSharingIsDecidedNotStored(t *testing.T) {
 	}
 }
 
-func TestTheDeclaredLayoutsAreTheFour(t *testing.T) {
-	if len(Layouts()) != 4 {
-		t.Fatalf("%d layouts, want the four the milestone declares", len(Layouts()))
+func TestTheDeclaredLayoutsAreTheFive(t *testing.T) {
+	if len(Layouts()) != 5 {
+		t.Fatalf("%d layouts, want the four the milestone declares and the calendar (E-21)", len(Layouts()))
 	}
 	for _, layout := range Layouts() {
 		if !layout.Valid() {
 			t.Errorf("%s is declared and reports itself invalid", layout)
 		}
 	}
+	if !LayoutCalendar.Valid() {
+		t.Error("the calendar layout is not declared")
+	}
 	if Layout("GANTT").Valid() {
 		t.Error("an undeclared layout reports itself valid")
+	}
+}
+
+// A view's grouping names its board's lanes and its calendar's date (E-21): each a field of the
+// catalogue, lanes one a board can be grouped by, the date a timestamp.
+func TestAGroupingNamesLanesAndTheCalendarsDate(t *testing.T) {
+	cases := []struct {
+		name     string
+		grouping map[string]any
+		code     string
+	}{
+		{"columns, lanes and a date", map[string]any{"field": "status", "lanes_by": "assignee_id", "date_field": "due_at"}, ""},
+		{"lanes by a custom field", map[string]any{"lanes_by": "custom_fields.priority"}, ""},
+		{"the start as the calendar's date", map[string]any{"date_field": "start_at"}, ""},
+		{"lanes by an unknown field", map[string]any{"lanes_by": "nonsense"}, "query.field_unknown"},
+		{"lanes by a timestamp", map[string]any{"lanes_by": "due_at"}, "query.field_not_groupable"},
+		{"lanes not a name", map[string]any{"lanes_by": 7}, "query.field_required"},
+		{"a date that is no date", map[string]any{"date_field": "status"}, "views.date_field_not_a_date"},
+		{"a date unknown", map[string]any{"date_field": "nonsense"}, "query.field_unknown"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			in := viewInput()
+			in.Grouping = c.grouping
+			built, err := NewSavedView(in)
+			if c.code == "" {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				if built.Grouping["lanes_by"] != c.grouping["lanes_by"] || built.Grouping["date_field"] != c.grouping["date_field"] {
+					t.Errorf("stored %v, want %v whole", built.Grouping, c.grouping)
+				}
+				return
+			}
+			var refusal *shared.Error
+			if !errors.As(err, &refusal) || refusal.DetailCode != c.code {
+				t.Fatalf("answered %v, want %s", err, c.code)
+			}
+		})
 	}
 }
 

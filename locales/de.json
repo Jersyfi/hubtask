@@ -1052,6 +1052,7 @@
   "query.placeholder_unresolved": "Diese Installation ist falsch eingerichtet und konnte die Suche nicht ausführen.",
   "query.custom_fields_unwired": "Diese Installation ist falsch eingerichtet und konnte diese Suche nicht ausführen.",
   "query.custom_field_unshaped": "Diese Installation ist falsch eingerichtet und konnte diese Suche nicht ausführen.",
+  "views.date_field_not_a_date": "{field} ist kein Datum, nach dem der Kalender Einträge legen kann.",
   "views.name_empty": "Eine Ansicht braucht einen Namen.",
   "views.name_too_long": "Der Name darf höchstens {maximum} Zeichen lang sein.",
   "views.name_malformed": "Der Name muss in eine Zeile passen.",
