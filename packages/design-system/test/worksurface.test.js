@@ -251,3 +251,12 @@ test('a folded column unfolds by a button, and a refused one says why in words (
   assert.match(column, /data-refused=\{refusal \? '' : undefined\}/, 'the dimming follows the reason');
   assert.match(column, /\{#if foot\}<div class="foot">/, 'the foot is capture in place (C-4)');
 });
+
+// --- TaskRow in a calm table (WB-4) -------------------------------------------------------------
+
+test('a ruled task row is a line of one region, not a card, and keeps its whole title as a tooltip', () => {
+  const row = source('TaskRow.svelte');
+  assert.match(row, /data-ruled=\{isRuled \? '' : undefined\}/);
+  assert.match(row, /\.task-row\[data-ruled\] > :global\(\.row\) \{\s*border-radius: 0;\s*border-color: transparent transparent var\(--border-subtle\);/, 'ruled by a hairline, square');
+  assert.match(row, /title=\{isOneLine \|\| isRuled \? title : undefined\}/, 'a title cut to one line keeps its words on hover');
+});

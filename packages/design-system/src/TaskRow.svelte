@@ -73,6 +73,11 @@
     pendingLabel?: string;
     /** One line, its end lost: a list nested in a page, where every row keeps the scene's height. */
     isOneLine?: boolean;
+    /**
+     * A row of a calm table (WB-4): ruled from the next by a hairline inside one region rather
+     * than a card with a gap; the title on one line from `medium` up, its whole words on hover.
+     */
+    isRuled?: boolean;
   }
 
   const {
@@ -94,6 +99,7 @@
     state,
     pendingLabel,
     isOneLine = false,
+    isRuled = false,
   }: Props = $props();
 
   /**
@@ -111,7 +117,7 @@
   const mark = $derived(MARKS[type] ?? 'circle-check');
 </script>
 
-<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined} data-one-line={isOneLine ? '' : undefined}>
+<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined} data-one-line={isOneLine ? '' : undefined} data-ruled={isRuled ? '' : undefined}>
   <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
@@ -147,7 +153,7 @@
       {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
     {/snippet}
 
-    <span class="title" title={isOneLine ? title : undefined}>{title}</span>
+    <span class="title" title={isOneLine || isRuled ? title : undefined}>{title}</span>
     {#if pendingLabel !== undefined}
       <!-- The change is on its way: the mark turns with the `pending` role, the word says why. -->
       <span class="pending"><span class="pending-mark" aria-hidden="true"><Icon name="cloud-upload" size="sm" /></span>{pendingLabel}</span>
@@ -194,6 +200,17 @@
   }
   .task-row[data-one-line] > :global(.row:hover) { border-color: transparent transparent var(--border-subtle); background: var(--bg-surface-hover); }
 
+  /* A calm table's row (WB-4): square, ruled from the next by a hairline, tinted under the pointer;
+     the region around the rows is the caller's. */
+  .task-row[data-ruled] > :global(.row) {
+    border-radius: 0;
+    border-color: transparent transparent var(--border-subtle);
+  }
+  .task-row[data-ruled] > :global(.row:hover) { border-color: transparent transparent var(--border-subtle); background: var(--bg-surface-hover); }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size >= 600px) {
+    .task-row[data-ruled] .title { display: block; white-space: nowrap; text-overflow: ellipsis; min-inline-size: 0; }
+  }
   /* The entry open beside the list: outlined in the brand and tinted, as the concept marks it;
      the outline is what says it in greyscale (rule 3). */
   .task-row > :global(.row[data-selected]) {
