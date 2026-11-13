@@ -241,3 +241,13 @@ test('the head’s title is edited in place with Enter and Escape, and the edit 
   assert.match(head, /event\.key === 'Escape'/);
   assert.match(head, /label=\{editTitleLabel\}/, 'the keyboard’s way in is a named button');
 });
+
+// --- BucketColumn (board, build-plan §5) ------------------------------------------------------
+
+test('a folded column unfolds by a button, and a refused one says why in words (rule 3)', () => {
+  const column = source('BucketColumn.svelte');
+  assert.match(column, /<button type="button" class="unfold" aria-expanded="false"/, 'the folded head is a button');
+  assert.match(column, /\{#if refusal\}<p class="refusal"/, 'the reason is written, not only dimmed');
+  assert.match(column, /data-refused=\{refusal \? '' : undefined\}/, 'the dimming follows the reason');
+  assert.match(column, /\{#if foot\}<div class="foot">/, 'the foot is capture in place (C-4)');
+});
