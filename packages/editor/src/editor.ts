@@ -489,12 +489,13 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     extensions,
     // A live document brings its own content; seeding it is `seedFromMarkdown`'s.
     ...(options.live ? {} : { content: fromMarkdown(options.body) as JSONContent }),
-    // Only a text that can be written in is a textbox: read only, it is announced as the text it is. Asked on
+    // Only a text that can be written in is a textbox: read only, it is announced as the text it is. The
+    // role is written both ways because the editor adds `textbox` to whatever is left out. Asked on
     // every state, so `setEditable` changes the role too.
     editorProps: {
       attributes: (): Record<string, string> => (made?.options.editable ?? options.editable)
         ? { class: 'page-body', 'aria-multiline': 'true', role: 'textbox', ...(options.label ? { 'aria-label': options.label } : {}) }
-        : { class: 'page-body' },
+        : { class: 'page-body', role: 'document', ...(options.label ? { 'aria-label': options.label } : {}) },
     },
     onUpdate: ({ editor: current, transaction }) => {
       if (transaction.getMeta('y-sync$')?.isChangeOrigin) return;
