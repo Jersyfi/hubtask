@@ -19,11 +19,9 @@
     DetailPane,
     Dialog,
     DensitySwitch,
-    Drawer,
     EmptyState,
     Icon,
     IconButton,
-    Menu,
     PageHeader,
     ReadOnlyNotice,
     Skeleton,
@@ -49,18 +47,22 @@
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
-  import QueryPanel from '../lib/entries/QueryPanel.svelte';
+  import ViewPanel from '../lib/entries/ViewPanel.svelte';
+  import CalendarView from '../lib/entries/CalendarView.svelte';
+  import { changedParts, groupingOf, lineOf, readQuery, type Names, type ViewSetup } from '../lib/data/viewquery.ts';
+  import { labels as labelStore } from '../lib/data/labels.svelte.ts';
+  import { engine } from '../lib/data/engine.ts';
+  import { READER_KEYS, segments, valuesRequest, type CountedValue, type QueryKey } from '@hubtask/query';
+  import { VIEW_SCOPES, queryDocumentOf, scopeIdOf, type ViewScope } from '../lib/data/views.ts';
   import PlacePeople from '../lib/workspace/PlacePeople.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
   import {
-    defaultArrangement,
     offeredFields,
     offeredGroupings,
     openingArrangement,
     rememberArrangement,
-    toggleField,
     type DonePlacement,
     type ListArrangement,
     type ListField,
@@ -77,7 +79,7 @@
   import { actsAsDesk } from '../lib/portal/portal.ts';
   import { runsSprints } from '../lib/data/sprints.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
-  import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
+  import { bothOf, groupOf, groupableFields, offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
@@ -498,6 +500,8 @@
       carriesPeople: carriedHere('ASSIGNMENT') || carriedHere('MEMBERS'),
       carriesLabels: carriedHere('LABELS'),
       showsTypes: typesShown(placeManifest),
+      isDesk: isDesk && modulesOn.includes('SERVICE_DESK'),
+      customKeys: customFieldFilters.map((field) => field.field.slice('custom_fields.'.length)),
     };
   });
   /** The arrangement in force: what the device kept for this collection, else the template's. */
@@ -516,33 +520,6 @@
   function arrange(next: ListArrangement) {
     arrangement = next;
     rememberArrangement(deviceStore(), actor.account?.id, id, next);
-  }
-  /** *Fields* (L3): every field the collection offers, ticked where it stands as a column. */
-  const fieldsMenu = $derived<MenuItem[]>(
-    listOffer && arrangement
-      ? offeredFields(listOffer).map((field) => ({ id: field, label: t(`app.list.col_${field}`), icon: arrangement?.fields.includes(field) ? ('check' as const) : undefined }))
-      : [],
-  );
-  /** *Group* (L4, L5): by which value, and where what is done goes. */
-  const groupMenu = $derived<MenuItem[]>(
-    listOffer && arrangement
-      ? [
-          ...offeredGroupings(listOffer).map((grouping) => ({ id: `group:${grouping}`, label: t(`app.list.group_${grouping}`), icon: arrangement?.grouping === grouping ? ('check' as const) : undefined })),
-          ...(['inline', 'bottom', 'hidden'] as const).map((done, index) => ({
-            id: `done:${done}`,
-            label: t(`app.list.done_${done}`),
-            icon: arrangement?.done === done ? ('check' as const) : undefined,
-            hasSeparatorBefore: index === 0,
-          })),
-          { id: 'reset', label: t('app.list.reset'), hasSeparatorBefore: true },
-        ]
-      : [],
-  );
-  function choseGroup(chosen: string) {
-    if (!arrangement || !listOffer) return;
-    if (chosen === 'reset') arrange(defaultArrangement(listOffer));
-    else if (chosen.startsWith('group:')) arrange({ ...arrangement, grouping: chosen.slice('group:'.length) as ListGrouping });
-    else if (chosen.startsWith('done:')) arrange({ ...arrangement, done: chosen.slice('done:'.length) as DonePlacement });
   }
   /** A column head pressed: that order, and the other direction when it already is. */
   function sortByColumn(field: string) {
@@ -670,7 +647,6 @@
   /** Which act of the *Views* menu opened the views dialog: saving, or changing one. */
   let viewsIntent = $state<'save' | 'manage'>('manage');
   /** The question of the view opened last, which the filter's controls take over. */
-  let appliedView = $state<ItemsQuery | undefined>(undefined);
   /** The collection as it is filtered, being exported without a saved view. */
   let isExportingFiltered = $state(false);
   /**
@@ -872,14 +848,13 @@
   /** The list, for the head's primary action: the form is the list's, the button is the head's. */
   let list = $state<EntryList | undefined>(undefined);
 
-  /** The filter: open inline from `expanded`, in a drawer below it; the count is the panel's. */
+  /** The one panel *Ansicht* (E-21): open beside the list, a sheet on a phone. */
   let isFilterOpen = $state(false);
   /**
    * Comfortable or compact (WB-4, E-5), a matter of this device like the theme; the switch keeps
    * it. Only from `expanded`: below it the frame's own density (spacious on a phone) holds.
    */
   let listDensity = $state<ListDensity>('comfortable');
-  let filterCount = $state(0);
 
   /** Why an entry cannot be created here, or nothing. The gate is the list's; the words are shared. */
   const addDisabledReason = $derived(
@@ -992,7 +967,7 @@
     if (!view || viewOpened === view.id) return;
     untrack(() => {
       viewOpened = view.id;
-      applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
+      applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined, view.grouping as Record<string, unknown>);
     });
   });
   const barCurrent = $derived(viewAsked ? `view:${viewAsked}` : viewOfLayout(layout));
@@ -1000,7 +975,7 @@
   function choseView(id: string) {
     if (id.startsWith('open:')) {
       const view = heldViews.find((each) => `open:${each.id}` === id);
-      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
+      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined, view.grouping as Record<string, unknown>);
     } else if (id === 'save' || id === 'manage') {
       viewsIntent = id;
       isManagingViews = true;
@@ -1012,16 +987,33 @@
   }
 
   /** Opens a view: its query and its layout together - the half only a client knows what to do with is the layout. */
-  function applyView(asked: ItemsQuery, appliedLayout: string, name: string, visible?: readonly string[]) {
-    query = asked;
-    appliedView = asked;
+  function applyView(asked: ItemsQuery, appliedLayout: string, name: string, visible?: readonly string[], grouping?: Record<string, unknown>) {
+    const spelled = lineOf(asked, names);
+    kept = spelled === undefined ? asked.filter : undefined;
+    line = spelled ?? '';
+    sortField = asked.sort?.[0]?.field ?? '';
+    sortDir = asked.sort?.[0]?.dir ?? 'ASC';
+    if (asked.group?.field) columnsBy = asked.group.field;
+    lanesBy = typeof grouping?.['lanes_by'] === 'string' ? grouping['lanes_by'] : '';
+    if (typeof grouping?.['date_field'] === 'string') dateField = grouping['date_field'];
+    showsLimits = grouping?.['limits'] !== false;
     chooseLayout(appliedLayout);
+    if (arrangement && listOffer) {
+      const list = grouping?.['list'];
+      const done = grouping?.['done'];
+      arrange({
+        ...arrangement,
+        ...(typeof list === 'string' && offeredGroupings(listOffer).includes(list as ListGrouping) ? { grouping: list as ListGrouping } : {}),
+        ...(done === 'inline' || done === 'bottom' || done === 'hidden' ? { done } : {}),
+      });
+    }
     // The fields the view shows, as far as this collection offers them (concept round 2, §2).
     if (visible && visible.length > 0 && arrangement && listOffer) {
       const offered = offeredFields(listOffer);
       arrange({ ...arrangement, fields: offered.filter((field) => visible.includes(field)) });
     }
     announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
+    baseSetup = setup;
   }
 
   function choseFromMenu(id: string) {
@@ -1088,23 +1080,205 @@
   const sortFields = $derived(
     offeredByProfile(sortableFields(manifest.value, customFieldFilters), carriedHere).map((field) => field.field),
   );
-  const sortMenu = $derived<MenuItem[]>([
-    { id: 'field:', label: t('app.query.sort_manual'), icon: sortField === '' ? 'check' : undefined },
-    ...sortFields.map((field) => ({ id: `field:${field}`, label: field, icon: sortField === field ? ('check' as const) : undefined })),
-    ...(sortField === ''
-      ? []
-      : [
-          { id: 'dir:ASC', label: t('app.query.ascending'), icon: sortDir === 'ASC' ? ('check' as const) : undefined, hasSeparatorBefore: true },
-          { id: 'dir:DESC', label: t('app.query.descending'), icon: sortDir === 'DESC' ? ('check' as const) : undefined },
-        ]),
-  ]);
-  function choseSort(id: string) {
-    if (id.startsWith('field:')) sortField = id.slice('field:'.length);
-    else if (id === 'dir:ASC' || id === 'dir:DESC') sortDir = id.slice('dir:'.length) as 'ASC' | 'DESC';
+
+  // --- The one panel *Ansicht* (E-21, scene viewcfg) ------------------------------------------
+  /** What is seen, as the Hubtask query typed (§6.11); the tree is read from it. */
+  let line = $state('');
+  /** A saved view's filter no text spells, kept whole beside the line (ADR-0102: a view keeps its tree). */
+  let kept = $state<ItemsQuery['filter']>(undefined);
+  let columnsBy = $state('bucket_id');
+  let lanesBy = $state('');
+  let dateField = $state('due_at');
+  let showsLimits = $state(true);
+  let baseSetup = $state<ViewSetup | undefined>(undefined);
+
+  /** Names typed into the line, looked up among what this reader already holds (ADR-0102). */
+  const names: Names = {
+    person: (name) => {
+      const wanted = name.toLowerCase();
+      return people.candidates(containerPath).find((each) => accounts.nameOf(each)?.toLowerCase() === wanted);
+    },
+    label: (name) => labelStore.of(id).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    collection: (name) => (container?.parent_id ? containers.collectionsOf(container.parent_id) : []).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    nameOf: (field, value) =>
+      field === 'labels' ? labelStore.of(id).find((each) => each.id === value)?.name
+        : field === 'collection_id' ? containers.find(value)?.name
+          : accounts.nameOf(value),
+  };
+  $effect(() => {
+    const at = id;
+    if (container?.type !== 'COLLECTION') return;
+    return untrack(() => labelStore.open(at));
+  });
+
+  const lineRead = $derived(readQuery(line, names, sortField ? { field: sortField, dir: sortDir } : undefined));
+  // The read follows the line once it can be read; a line still being fixed leaves the list as it was.
+  $effect(() => {
+    const read = lineRead;
+    const grouped = layout === 'KANBAN' ? groupOf(manifest.value, columnsBy, customFieldFilters) : undefined;
+    const held = kept;
+    if (!read.ok) return;
+    untrack(() => {
+      const filter = bothOf(held, read.query.filter);
+      query = { ...(filter ? { filter } : {}), ...(read.query.sort ? { sort: read.query.sort } : {}), ...(grouped ? { group: grouped } : {}) };
+    });
+  });
+  /** The line's top-level pieces, drawn as chips over the list. */
+  const queryPieces = $derived(segments(`${line} `).pieces);
+
+  const setup = $derived<ViewSetup>({
+    layout,
+    line,
+    order: sortField ? { field: sortField, dir: sortDir } : undefined,
+    grouping: arrangement?.grouping ?? 'none',
+    done: arrangement?.done ?? 'inline',
+    fields: arrangement?.fields ?? [],
+    columnsBy,
+    lanesBy,
+    dateField,
+    limits: showsLimits,
+  });
+  function applySetup(next: ViewSetup) {
+    if (next.layout !== layout) chooseLayout(next.layout);
+    if (next.line !== line) {
+      line = next.line;
+      if (next.line.trim() === '') kept = undefined;
+    }
+    sortField = next.order?.field ?? '';
+    sortDir = next.order?.dir ?? 'ASC';
+    if (arrangement && (next.grouping !== arrangement.grouping || next.done !== arrangement.done || next.fields.join() !== arrangement.fields.join())) {
+      arrange({ fields: next.fields as readonly ListField[], grouping: next.grouping as ListGrouping, done: next.done as DonePlacement });
+    }
+    columnsBy = next.columnsBy;
+    lanesBy = next.lanesBy;
+    dateField = next.dateField;
+    showsLimits = next.limits;
+  }
+  // The tab's view is what the changes are counted against: taken when the tab changes.
+  $effect(() => {
+    void barCurrent;
+    if (!arrangement) return;
+    untrack(() => {
+      if (!barCurrent.startsWith('view:')) baseSetup = setup;
+    });
+  });
+  const viewChanged = $derived(baseSetup ? changedParts(setup, baseSetup) : 0);
+  const currentView = $derived(viewAsked ? heldViews.find((each) => each.id === viewAsked) : undefined);
+  const baseName = $derived(currentView?.name ?? t(`app.view.${baseSetup?.layout ?? layout}`));
+  const mayOverwrite = $derived(currentView !== undefined && (currentView.owner_id === actor.account?.id || holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'));
+
+  /** The layouts the panel offers: this collection's, and the calendar wherever a list is (E-21). */
+  const panelLayouts = $derived(
+    [...offeredLayouts.filter((each) => each !== 'CALENDAR'), ...(offeredLayouts.some(isListLayout) || offeredLayouts.includes('CALENDAR') ? ['CALENDAR'] : [])],
+  );
+  const fieldLabel = (field: string) => {
+    if (field.startsWith('custom_fields.')) return customNames[field.slice('custom_fields.'.length)] ?? field;
+    const key = Object.entries(READER_KEYS).find(([, name]) => name === field)?.[0];
+    return key && messages.has(`app.qkey.${key.replaceAll('.', '_')}`) ? t(`app.qkey.${key.replaceAll('.', '_')}`) : field;
+  };
+  const columnLabel = (field: string) => (field.startsWith('cf.') ? (customNames[field.slice(3)] ?? field.slice(3)) : t(`app.list.col_${field}`));
+  const customNames = $derived<Record<string, string>>(
+    container?.type === 'COLLECTION' ? Object.fromEntries(customFields.of(container.id).map((each) => [each.key, each.name ?? each.key])) : {},
+  );
+  const boardFields = $derived(
+    offeredByProfile(groupableFields(manifest.value, customFieldFilters), carriedHere).map((field) => ({ value: field.field, label: fieldLabel(field.field) })),
+  );
+  const dateFields = $derived(
+    (manifest.value?.query_fields ?? []).filter((field) => field.kind === 'timestamp' && field.field !== 'archived_at').map((field) => ({ value: field.field, label: fieldLabel(field.field) })),
+  );
+  const queryKeys = $derived<readonly QueryKey[]>(
+    ((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')),
+  );
+  /** A lane's value as it reads: a person, a label or a column by name. */
+  function laneName(field: string, value: string): string | undefined {
+    if (field === 'assignee_id' || field === 'created_by') return accounts.nameOf(value);
+    if (field === 'bucket_id') return buckets.of(id).find((each) => each.id === value)?.name;
+    return undefined;
+  }
+
+  /** The count while typing (Q-4), and a key's values with their counts (Q-3): summaries for the reader alone (Q-5). */
+  let lineCount = $state<number | undefined>(undefined);
+  $effect(() => {
+    const read = lineRead;
+    const at = id;
+    if (!isFilterOpen || !read.ok || container?.type !== 'COLLECTION') return;
+    const filter = bothOf(kept, read.query.filter);
+    return untrack(() => engine.subscribe<{ data: readonly { count: number }[] }>(
+      { path: '/items:aggregate', body: { scope: { container_id: at, include_descendants: false }, ...(filter ? { filter } : {}), aggregate: { function: 'COUNT' } } },
+      (next) => {
+        if (next.status === 'ready') lineCount = next.data.data[0]?.count ?? 0;
+      },
+    ));
+  });
+  let typingKey = $state<string | undefined>(undefined);
+  let valueCounts = $state<Record<string, readonly CountedValue[]>>({});
+  $effect(() => {
+    const key = queryKeys.find((each) => each.key === typingKey);
+    const at = id;
+    if (!key || !isFilterOpen) return;
+    const body = valuesRequest(key, '', { container_id: at });
+    if (!body) return;
+    return untrack(() => engine.subscribe<{ data: readonly { count: number; group: string | null }[] }>(
+      { path: '/items:aggregate', body: { ...body, scope: { container_id: at, include_descendants: false } } },
+      (next) => {
+        if (next.status !== 'ready') return;
+        const counted = next.data.data
+          .filter((row) => row.group !== null && !key.values.includes(String(row.group)))
+          .map((row) => ({ value: String(row.group), label: key.field && key.field in { assignee_id: 1, created_by: 1 } ? (accounts.nameOf(String(row.group)) ?? String(row.group)) : String(row.group), countLabel: t('app.viewcfg.value_count', { count: String(row.count) }) }));
+        valueCounts = { ...valueCounts, [key.key]: counted };
+      },
+    ));
+  });
+
+  /** Where a view may be saved: privately always, a container where the reader shapes it. */
+  const saveScopes = $derived(
+    VIEW_SCOPES.filter((scope) => {
+      if (scope === 'ACCOUNT') return true;
+      const at = scope === 'TENANT' ? {} : scope === 'HUB' ? { hubId: container?.parent_id ?? undefined } : containerPath;
+      const held = people.roleOf(at, actor.account?.id, roleOrder());
+      return held !== undefined && holds(held ?? undefined, 'STRUCTURE').status === 'permitted';
+    }).map((scope) => ({ value: scope, label: t(`app.views.scope_${scope}`) })),
+  );
+  let isSavingView = $state(false);
+  let saveFailure = $state<string | undefined>(undefined);
+  async function savingView(work: () => Promise<unknown>) {
+    isSavingView = true;
+    saveFailure = undefined;
+    try {
+      await work();
+      announcer.say(t('app.views.saved_announced'));
+      baseSetup = setup;
+    } catch (error) {
+      saveFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isSavingView = false;
+    }
+  }
+  function saveView(name: string, scope: string, sharing: 'PRIVATE' | 'SCOPE') {
+    if (!container) return;
+    const scopeId = scopeIdOf(scope as ViewScope, { collectionId: container.id, hubId: container.parent_id ?? undefined });
+    void savingView(() => savedViews.create(
+      {
+        scope_type: scope as never,
+        ...(scopeId ? { scope_id: scopeId } : {}),
+        name,
+        layout,
+        query: queryDocumentOf(query, container.id),
+        grouping: groupingOf(setup),
+        visible_fields: [...setup.fields],
+        ...(sharing === 'SCOPE' && scope !== 'ACCOUNT' ? { sharing } : {}),
+      } as never,
+      crypto.randomUUID(),
+    ));
+  }
+  function overwriteView() {
+    const view = currentView;
+    if (!view || !container) return;
+    void savingView(() => savedViews.update(view.id, { layout, query: queryDocumentOf(query, container.id), grouping: groupingOf(setup), visible_fields: [...setup.fields] } as never, view.version));
   }
 
   /** The filter's words: how many conditions hold, or the plain verb. */
-  const filterLabel = $derived(filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'));
+  const filterLabel = $derived(viewChanged > 0 ? t('app.viewcfg.button_changed', { count: String(viewChanged) }) : t('app.viewcfg.button'));
   /** Whether the toolbar offers the selection mode, where a screen's verbs are (ADR-0063 decision 8). */
   const maySelect = $derived(container?.type === 'COLLECTION' && mayChangeSome);
   /** Whether the head offers the ⚙ to the place's settings: to whom the shape belongs (UC-WRK-23 checks 1, 9). */
@@ -1114,7 +1288,7 @@
    * screen offers (UC-WRK-27 check 2), wherever on the screen it stands.
    */
   const toolActs = $derived<readonly Act[]>([
-    ...(container?.type === 'COLLECTION' ? [{ id: 'page:filter', label: filterLabel, icon: 'funnel' as const, run: () => (isFilterOpen = !isFilterOpen) }] : []),
+    ...(container?.type === 'COLLECTION' ? [{ id: 'page:filter', label: filterLabel, icon: 'sliders-horizontal' as const, run: () => (isFilterOpen = !isFilterOpen) }] : []),
     ...(maySelect ? [{ id: 'page:menu-select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, run: () => selection.start() }] : []),
     ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure() }] : []),
   ]);
@@ -1220,31 +1394,6 @@
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
   {#snippet entryTools()}
-    {#if layout !== 'KANBAN' && layout !== 'TIMELINE' && fieldsMenu.length > 0}
-      <!-- *Fields* and *Group* (concept round 2, §2): what stands beside each title, and how the
-           list is grouped - the arrangement, kept on this device for this collection. -->
-      <Menu label={t('app.list.fields_menu')} items={fieldsMenu} onselect={(field) => arrangement && arrange({ ...arrangement, fields: toggleField(arrangement.fields, field as ListField) })}>
-        {#snippet trigger(props)}
-          <Button size="sm" tone="secondary" icon="columns-3" data-opener="fields" {...props}>{t('app.list.fields')}</Button>
-        {/snippet}
-      </Menu>
-      <Menu label={t('app.list.group_menu')} items={groupMenu} onselect={choseGroup}>
-        {#snippet trigger(props)}
-          <Button size="sm" tone="secondary" icon="fold-vertical" data-opener="group" {...props}>{arrangement && arrangement.grouping !== 'none' ? t('app.list.group_named', { by: t(`app.list.group_${arrangement.grouping}`) }) : t('app.list.group')}</Button>
-        {/snippet}
-      </Menu>
-    {/if}
-    <Menu label={t('app.query.sort_menu')} items={sortMenu} onselect={choseSort}>
-      {#snippet trigger(props)}
-        <Button size="sm" tone="secondary" icon="chevrons-up-down" data-opener="sort" {...props}>{sortField === '' ? t('app.query.sort') : t('app.query.sort_named', { field: sortField })}</Button>
-      {/snippet}
-    </Menu>
-    <!-- The saved views, saving, the export and the calendar subscriptions (design-system.md §11.8). -->
-    <Menu label={t('app.views.menu')} items={viewsMenu} onselect={choseView}>
-      {#snippet trigger(props)}
-        <Button size="sm" tone="secondary" icon="saved-view" data-opener="views" {...props}>{t('app.views.menu')}</Button>
-      {/snippet}
-    </Menu>
     {#if isListLayout(layout) && !viewport.isBelowExpanded}
       <DensitySwitch label={t('app.list.density')} comfortableLabel={t('app.list.density_comfortable')} compactLabel={t('app.list.density_compact')} list="collection" bind:density={listDensity} />
     {/if}
@@ -1292,15 +1441,12 @@
     {#snippet barTools()}
       {@render insideToggle()}
       {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
-      <!-- Narrower than `expanded` the list's tools live in the filter's drawer; the button stays here. -->
-      {#if viewport.isBelowExpanded}{@render filterTool()}{/if}
     {/snippet}
     {#snippet filterTool()}
-      <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+      <Button size="sm" tone={viewChanged > 0 ? 'primary' : 'secondary'} icon="sliders-horizontal" data-opener="view" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
     {/snippet}
     {#snippet compactTools()}
       {@render insideToggle()}
-      <Button size="sm" isRound tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
     {/snippet}
   <WorkPage>
     {#snippet top()}
@@ -1308,6 +1454,7 @@
     <CollectionHead
       collectionId={container.id}
       current={barCurrent}
+      changed={viewChanged > 0 ? t('app.viewcfg.tab_changed', { count: String(viewChanged) }) : undefined}
       onnavigate={(path) => onnavigate(keepingOpen(path))}
       figure={container.figure || hasAi || hasMilestone ? collectionFigure : undefined}
       primary={newMenu}
@@ -1404,21 +1551,47 @@
            `query_fields` decides what can be asked, and nothing here is a list written down. The
            panel stays mounted while it is hidden, because the conditions are its state; inline from
            `expanded`, a drawer from the bottom below it. -->
-      {#if !viewport.isBelowExpanded}
-        <!-- The list's toolbar in words (work-surface concept §6.2, the queue's mockup): its own
-             line over the list, so no tool shrinks to a bare mark beside the views. -->
-        <div class="list-tools" role="group" aria-label={t('app.list.tools')}>{@render filterTool()}{@render entryTools()}</div>
-      {/if}
-      {#if viewport.isBelowExpanded}
-        <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
-          <div class="sheet-tools">{@render entryTools()}</div>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
-        </Drawer>
-      {:else}
-        <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
-        </div>
-      {/if}
+      <!-- The line over the list (scene viewcfg): what is seen as chips, each removable, and the
+           one panel *Ansicht* beside them, with what changed against the tab's view. -->
+      <div class="list-tools" role="group" aria-label={t('app.list.tools')}>
+        {#if queryPieces.length > 0}
+          <ul class="query-chips" aria-label={t('app.viewcfg.query')}>
+            {#each queryPieces as piece, index (index)}
+              <li><span>{piece}</span><IconButton icon="x" size="sm" label={t('app.viewcfg.remove_chip', { spelling: piece })} onclick={() => (line = queryPieces.filter((_, at) => at !== index).join(' '))} /></li>
+            {/each}
+          </ul>
+        {/if}
+        <span class="tools-end">{@render filterTool()}{@render entryTools()}</span>
+      </div>
+      <ViewPanel
+        bind:isOpen={isFilterOpen}
+        bind:setup={() => setup, applySetup}
+        base={baseSetup ?? setup}
+        baseName={baseName}
+        changed={viewChanged}
+        layouts={panelLayouts}
+        groupings={listOffer ? offeredGroupings(listOffer).map((each) => ({ value: each, label: t(`app.list.group_${each}`) })) : []}
+        sortFields={sortFields.map((field) => ({ value: field, label: fieldLabel(field) }))}
+        fields={listOffer ? offeredFields(listOffer).map((each) => ({ value: each, label: columnLabel(each), isNew: each === 'requester' || each === 'priority' || each === 'sla' || each.startsWith('cf.') })) : []}
+        boardFields={boardFields}
+        dateFields={dateFields}
+        keys={queryKeys}
+        total={lineCount}
+        values={(key) => valueCounts[key] ?? []}
+        ontyping={(key) => (typingKey = key)}
+        words={lineRead.ok ? lineRead.words : []}
+        unknown={lineRead.ok ? lineRead.unknown : []}
+        scopes={saveScopes}
+        mayShare={holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'}
+        overwritable={currentView && mayOverwrite ? currentView.name : undefined}
+        isSaving={isSavingView}
+        failure={saveFailure}
+        onsave={saveView}
+        onoverwrite={overwriteView}
+        onexport={() => { isFilterOpen = false; isExportingFiltered = true; }}
+        onfeeds={() => { isFilterOpen = false; subscribing = undefined; isManagingFeeds = true; }}
+        onmanage={heldViews.length > 0 ? () => { isFilterOpen = false; viewsIntent = 'manage'; isManagingViews = true; } : undefined}
+      />
 
       <!-- Above the entries, because it is about the ones below it. It draws itself only when
            something is picked, so a reader who never selects anything never sees it. -->
@@ -1435,7 +1608,9 @@
       <!-- design-system-lint-ignore: the panel's width is the person's drag, kept by the device. -->
       <div class="split" data-pane={openItemId ? '' : undefined} style:--panel-width={device.panelWidth ? `${device.panelWidth}px` : undefined}>
         <div class="entries">
-          {#if layout === 'TIMELINE'}
+          {#if layout === 'CALENDAR'}
+            <CalendarView collectionId={container.id} {query} dateField={dateField} onopen={(itemId) => (opensBeside ? openBeside(itemId) : onnavigate(`/items/${itemId}`))} />
+          {:else if layout === 'TIMELINE'}
             <TimelineView
               collectionId={container.id}
               {query}
@@ -1463,6 +1638,9 @@
               level={stateMode}
               workflow={boardShape}
               showsKey={arrangement?.fields.includes('key') ?? false}
+              lanesBy={lanesBy || undefined}
+              laneName={(value) => laneName(lanesBy, value)}
+              {showsLimits}
             />
           {:else}
             <!-- Read-only follows the container: an archived collection's entries are read-only with
@@ -1496,6 +1674,7 @@
               {stateMode}
               workflow={boardShape}
               withSla={isDesk && modulesOn.includes('SERVICE_DESK')}
+              {customNames}
             />
             </div>
           {/if}
@@ -1676,18 +1855,12 @@
   .entries { flex: 1; min-width: 0; }
 
 
-  .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 
-  .filter[hidden] { display: none; }
   .list-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-
-  .filter {
-    padding: var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-  }
+  .tools-end { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
+  .query-chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; min-inline-size: 0; }
+  .query-chips li { display: inline-flex; align-items: center; gap: var(--sp-025); padding-inline-start: var(--sp-100); font-size: var(--fs-075); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); max-inline-size: 100%; }
+  .query-chips span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .notice { margin: 0; color: var(--text-warning); font-size: var(--fs-075); max-width: 64ch; }
   /* Private is a fact about the hub, not a warning: said quietly, with the lock the tree shows. */

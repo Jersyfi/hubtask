@@ -29,13 +29,15 @@
     tool?: string;
     /** The view the screen is. */
     current: string;
+    /** The current view is changed and not saved: what its dot says (scene viewcfg 1). */
+    changed?: string;
     onnavigate: (path: string) => void;
     /** ＋ at the bar's end: a new view, where the screen can make one. */
     add?: { readonly label: string; readonly onselect: () => void };
     /** *Filter* and the like, at the bar's end. */
     tools?: Snippet;
   }
-  const { placeId, tool, current, onnavigate, add, tools }: Props = $props();
+  const { placeId, tool, current, changed, onnavigate, add, tools }: Props = $props();
 
   const place = $derived(containers.find(placeId));
   let placeModules = $state<readonly string[] | undefined>(undefined);
@@ -87,7 +89,7 @@
           })
         : toolViews(placeId, tool ?? '', { mayCost }),
   );
-  const views = $derived(entries.map((entry) => ({ id: entry.id, label: 'code' in entry && entry.code ? t(entry.code) : ('name' in entry ? (entry.name ?? '') : ''), href: entry.href, icon: entry.icon })));
+  const views = $derived(entries.map((entry) => ({ id: entry.id, label: 'code' in entry && entry.code ? t(entry.code) : ('name' in entry ? (entry.name ?? '') : ''), href: entry.href, icon: entry.icon, ...(changed && entry.id === current ? { changed } : {}) })));
 </script>
 
 {#if place && (views.length > 1 || add || tools)}

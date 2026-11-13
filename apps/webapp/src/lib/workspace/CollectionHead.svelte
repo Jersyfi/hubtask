@@ -24,6 +24,8 @@
     collectionId: string;
     /** The view the screen is, as the bar names it (`board`, `sprint`, `time`, `view:<id>`). */
     current: string;
+    /** The current view is changed and not saved: what the dot on its tab says. */
+    changed?: string;
     onnavigate: (path: string) => void;
     /** The view's own figure - a sprint's days left -, in the collection's figure's place. */
     figure?: Snippet;
@@ -45,7 +47,7 @@
     notices?: Snippet;
   }
 
-  const { collectionId, current, onnavigate, figure: viewFigure, primary, secondary, menu, place, add, tools, compactTools, notices }: Props = $props();
+  const { collectionId, current, changed, onnavigate, figure: viewFigure, primary, secondary, menu, place, add, tools, compactTools, notices }: Props = $props();
 
   const collection = $derived(containers.find(collectionId));
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
@@ -99,7 +101,7 @@
       {#if viewFigure}{@render viewFigure()}{:else if collection.figure}<CollectionFigure figure={collection.figure} name={collection.name} />{/if}
     {/snippet}
     {#snippet views()}
-      <PlaceViews placeId={collection.id} {current} {onnavigate} {add} tools={viewport.isCompact ? undefined : tools} />
+      <PlaceViews placeId={collection.id} {current} {changed} {onnavigate} {add} tools={viewport.isCompact ? undefined : tools} />
     {/snippet}
   </PlaceHead>
 {/if}
