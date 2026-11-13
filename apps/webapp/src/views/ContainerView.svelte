@@ -48,6 +48,7 @@
   import EntryList from '../lib/entries/EntryList.svelte';
   import CollectionMoveDialog from '../lib/workspace/CollectionMoveDialog.svelte';
   import ViewPanel from '../lib/entries/ViewPanel.svelte';
+  import QueryStrip from '../lib/entries/QueryStrip.svelte';
   import CalendarView from '../lib/entries/CalendarView.svelte';
   import { changedParts, groupingOf, lineOf, readQuery, type Names, type ViewSetup } from '../lib/data/viewquery.ts';
   import { labels as labelStore } from '../lib/data/labels.svelte.ts';
@@ -1210,7 +1211,8 @@
   $effect(() => {
     const read = lineRead;
     const at = id;
-    if (!isFilterOpen || !read.ok || container?.type !== 'COLLECTION') return;
+    // Counted while the panel is open, and on a phone for the strip's count (scene qline 5).
+    if (!(isFilterOpen || viewport.isCompact) || !read.ok || container?.type !== 'COLLECTION') return;
     const filter = bothOf(kept, read.query.filter);
     return untrack(() => engine.subscribe<{ data: readonly { count: number }[] }>(
       { path: '/items:aggregate', body: { scope: { container_id: at, include_descendants: false }, ...(filter ? { filter } : {}), aggregate: { function: 'COUNT' } } },
@@ -1224,7 +1226,7 @@
   $effect(() => {
     const key = queryKeys.find((each) => each.key === typingKey);
     const at = id;
-    if (!key || !isFilterOpen) return;
+    if (!key || !(isFilterOpen || viewport.isCompact)) return;
     const body = valuesRequest(key, '', { container_id: at });
     if (!body) return;
     return untrack(() => engine.subscribe<{ data: readonly { count: number; group: string | null }[] }>(
@@ -1563,7 +1565,10 @@
       <!-- The line over the list (scene viewcfg): what is seen as chips, each removable, and the
            one panel *Ansicht* beside them, with what changed against the tab's view. -->
       <div class="list-tools" role="group" aria-label={t('app.list.tools')}>
-        {#if queryPieces.length > 0}
+        {#if viewport.isCompact}
+          <!-- A phone: the strip with "+n" and the filter sheet (scene qline 5). -->
+          <QueryStrip {line} keys={queryKeys} total={lineCount} values={(key) => valueCounts[key] ?? []} ontyping={(key) => (typingKey = key)} onchange={(next) => { line = next; if (next.trim() === '') kept = undefined; }} />
+        {:else if queryPieces.length > 0}
           <ul class="query-chips" aria-label={t('app.viewcfg.query')}>
             {#each queryPieces as piece, index (index)}
               <li><span>{piece}</span><IconButton icon="x" size="sm" label={t('app.viewcfg.remove_chip', { spelling: piece })} onclick={() => (line = queryPieces.filter((_, at) => at !== index).join(' '))} /></li>

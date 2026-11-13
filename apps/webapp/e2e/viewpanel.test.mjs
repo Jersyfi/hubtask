@@ -243,3 +243,42 @@ test('chromium 390: the panel is a sheet whose sections are pages of their own (
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sheet scrolls sideways');
   assert.deepEqual(failures, []);
 });
+
+test('chromium 390: the query line over the list is a strip with "+n" and a filter sheet, Reset and Show n entries (scene qline 5)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await open(browser, 390, 844);
+  t.after(() => context.close());
+
+  const strip = page.locator('[data-query-strip]');
+  await strip.waitFor({ timeout: 15_000 });
+  const change = strip.getByRole('button', { name: 'Change filter' });
+  assert.ok(((await change.boundingBox())?.height ?? 0) >= 32, 'Change filter is too small to tap');
+  await change.click();
+  const sheet = page.locator('dialog[open]').filter({ hasText: 'Filter' }).last();
+  await sheet.waitFor({ timeout: 5_000 });
+  const typed = sheet.getByRole('combobox', { name: 'What is seen' });
+  await typed.click();
+  await page.keyboard.type('is: open ');
+  await page.keyboard.type('label: Tiles ');
+  await page.keyboard.type('due: overdue ');
+  await sheet.locator('.rows li').nth(2).waitFor({ timeout: 5_000 });
+  assert.equal(await sheet.locator('.rows li').count(), 3, 'a condition has no row of its own');
+  await sheet.getByRole('button', { name: /^Show / }).click();
+  await sheet.waitFor({ state: 'hidden', timeout: 5_000 });
+
+  // The strip: two chips and "+1", the count beside the act.
+  assert.equal(await strip.locator('.strip .chip:not(.more)').count(), 2);
+  assert.equal((await strip.locator('.strip .chip.more').innerText()).trim(), '+1');
+  await strip.locator('[data-view-count]').waitFor({ timeout: 5_000 });
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the strip scrolls the page sideways');
+
+  // Reset empties the line.
+  await change.click();
+  await sheet.waitFor({ timeout: 5_000 });
+  await sheet.getByRole('button', { name: 'Reset' }).click();
+  await sheet.getByRole('button', { name: /^Show / }).click();
+  await sheet.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(await strip.locator('.strip .chip').count(), 0);
+  assert.deepEqual(failures, []);
+});
