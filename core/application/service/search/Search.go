@@ -153,8 +153,8 @@ func Snippet(text string, terms []string) string {
 }
 
 func cut(text string, from, to int) string {
-	to = min(to, len(text))
-	for from > 0 && !utf8.RuneStart(text[from]) {
+	to, from = min(to, len(text)), min(from, len(text))
+	for from > 0 && from < len(text) && !utf8.RuneStart(text[from]) {
 		from--
 	}
 	for to < len(text) && !utf8.RuneStart(text[to]) {
@@ -431,3 +431,4 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 		}),
 	}
 }
+

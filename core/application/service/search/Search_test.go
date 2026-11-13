@@ -169,3 +169,10 @@ func TestAQueryTheKindsCannotAnswerIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// A word at the very end of a comment is marked, not a crash.
+func TestASnippetMarksAWordAtTheEnd(t *testing.T) {
+	if got := Snippet("see the travel budget", []string{"budget"}); got != "see the travel «budget»" {
+		t.Fatalf("snippet %q", got)
+	}
+}
