@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { compareBodies } from '../src/compare.ts';
+import { compareBlocks, compareBodies } from '../src/compare.ts';
 import { fromMarkdown, parseAddress, toMarkdown } from '../src/markdown.ts';
 
 const ENTRY = '00000000-0000-0000-0000-0000000000e1';
@@ -79,6 +79,17 @@ test('an empty body is one empty paragraph', () => {
 test('two versions compare line by line (UC-DOC-06 check 3)', () => {
   const lines = compareBodies('a\nb\nc\nd', 'a\nB\nc\nd\ne');
   assert.deepEqual(lines.map((each) => `${each.kind[0]}${each.text}`), ['sa', 'rb', 'aB', 'sc', 'sd', 'ae']);
+});
+
+test('two versions compare block by block, so each is drawn formatted with its changed blocks marked (UC-DOC-06 check 3)', () => {
+  const before = '## Bausteine\n\nDie App spricht mit der **API v2**.\n\n| Baustein | Team |\n| --- | --- |\n| App | Atlas |\n\n1. Passwort als Standard.';
+  const after = '## Bausteine\n\nDie App spricht mit der **API v3**.\n\n| Baustein | Team |\n| --- | --- |\n| App | Atlas |\n\n1. Passkeys vor Passwort.\n2. Offline gepuffert.\n\nNeu.';
+  const marks = compareBlocks(before, after);
+  assert.deepEqual(marks.before, ['same', 'removed', 'same', 'removed']);
+  assert.deepEqual(marks.after, ['same', 'added', 'same', 'added', 'added']);
+  assert.equal(marks.places, 2, 'the paragraph and the list with the new line after it');
+  assert.match(marks.blocks[1]?.text ?? '', /API v2/);
+  assert.deepEqual(compareBlocks(before, before).places, 0);
 });
 
 test('the wiki blocks survive the editor: callouts, toggles, contents, child pages, embeds, dates and statuses (UC-DOC-01 check 10)', () => {
