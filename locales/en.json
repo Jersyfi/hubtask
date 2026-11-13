@@ -5187,7 +5187,6 @@
   "app.workspace.hub_template_chosen": "Chosen",
   "app.workspace.hub_template_in_workspace": "The workspace uses it already",
   "app.workspace.create_private_hub": "Create private hub",
-  "app.workspace.card_sprint_progress": "Progress of {name}",
   "app.workspace.create_collection": "Create collection",
   "app.workspace.hub_name": "Hub name",
   "app.workspace.collection_name": "Collection name",
@@ -7254,7 +7253,7 @@
   "app.hub_overview.assets_none": "Nothing recorded yet. This hub's items appear here.",
   "app.hub_overview.unit_changed": "changed this week",
   "app.hub_overview.recent": "Recently changed",
-  "app.hub_overview.recent_where": "{place} · {when}",
+  "app.workspace.card_done_share": "{share} % done",
   "app.product_home.hubs": "In your hubs",
   "app.product_home.boards_recent": "Recently changed boards",
   "app.product_home.unused": "Nothing in {product} yet",
@@ -15156,5 +15155,6 @@
   "app.desk.requester.open_many": "{count} other open requests:",
   "app.desk.requester.other_named": "{key}: {title}",
   "app.comments.more": "More for this comment",
-  "app.flow.action.take_step": "Take a workflow step"
+  "app.flow.action.take_step": "Take a workflow step",
+  "app.hub_overview.recent_where": "{place} · {when}"
 }
