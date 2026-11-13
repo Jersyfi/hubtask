@@ -25,9 +25,10 @@ type ServiceDeskRepository struct{}
 func NewServiceDeskRepository() ServiceDeskRepository { return ServiceDeskRepository{} }
 
 var (
-	_ repository.Calendars = ServiceDeskCalendars{}
-	_ repository.Policies  = ServiceDeskPolicies{}
-	_ repository.Records   = ServiceDeskRecords{}
+	_ repository.Calendars     = ServiceDeskCalendars{}
+	_ repository.Policies      = ServiceDeskPolicies{}
+	_ repository.Records       = ServiceDeskRecords{}
+	_ repository.KeptDeadlines = ServiceDeskRecords{}
 )
 
 // ServiceDeskCalendars, ServiceDeskPolicies and ServiceDeskRecords are the three ports.
@@ -546,6 +547,41 @@ func (ServiceDeskRecords) Report(ctx context.Context, from, to time.Time) ([]ser
 		out = append(out, servicedesk.ReportRow{
 			OLA: true, PolicyKey: row.PolicyKey, Goal: servicedesk.GoalKind(row.Goal),
 			Standing: servicedesk.Standing(row.Standing), Entries: int(row.Entries),
+		})
+	}
+	return out, nil
+}
+
+// Kept counts the goals that ended on the account's own entries in [from, to) (repository.KeptDeadlines).
+func (ServiceDeskRecords) Kept(ctx context.Context, account shared.ID, from, to time.Time) ([]servicedesk.KeptRow, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	id, err := uuidOf(account)
+	if err != nil {
+		return nil, err
+	}
+	since, until := pgtype.Timestamptz{Time: from, Valid: true}, pgtype.Timestamptz{Time: to, Valid: true}
+	slas, err := queries.MyDeadlinesKeptSla(ctx, sqlc.MyDeadlinesKeptSlaParams{AccountID: id, From: since, To: until})
+	if err != nil {
+		return nil, queryFailed("counting the deadlines kept", err)
+	}
+	olas, err := queries.MyDeadlinesKeptOla(ctx, sqlc.MyDeadlinesKeptOlaParams{AccountID: id, From: since, To: until})
+	if err != nil {
+		return nil, queryFailed("counting the teams' deadlines kept", err)
+	}
+	out := make([]servicedesk.KeptRow, 0, len(slas)+len(olas))
+	for _, row := range slas {
+		out = append(out, servicedesk.KeptRow{Goal: servicedesk.GoalKind(row.Goal), Ended: int(row.Ended), Kept: int(row.Kept)})
+	}
+	for _, row := range olas {
+		group, err := idFrom(row.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, servicedesk.KeptRow{
+			OLA: true, Group: group, Goal: servicedesk.GoalKind(row.Goal), Ended: int(row.Ended), Kept: int(row.Kept),
 		})
 	}
 	return out, nil

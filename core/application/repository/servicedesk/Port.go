@@ -75,6 +75,14 @@ type Records interface {
 	Report(ctx context.Context, from, to time.Time) ([]servicedesk.ReportRow, error)
 }
 
+// KeptDeadlines counts the deadlines on one person's own entries (UC-SVC-02 check 15).
+type KeptDeadlines interface {
+	// Kept answers, over the entries assigned to the account, the goals - the requester's per goal,
+	// the teams' per group and goal - that were met or breached in [from, to), and how many were
+	// met without being breached; the requester's first.
+	Kept(ctx context.Context, account shared.ID, from, to time.Time) ([]servicedesk.KeptRow, error)
+}
+
 // OLARecords stores the goals of the OLAs on an entry (UC-SVC-02 check 10): one per entry, policy
 // and goal, apart from Records - an entry carries one requester's promise and any number of teams'.
 type OLARecords interface {
