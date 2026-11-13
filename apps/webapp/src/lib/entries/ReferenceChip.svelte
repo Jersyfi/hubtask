@@ -4,6 +4,7 @@
   // A reference as the reader sees it (UC-PLN-01 checks 4 and 7): a mention is the entry's key and
   // title, a card adds its state and due date. **What the reader may not see is "not available to
   // you" and nothing else** - the resolver answered no title for it, and none is invented here.
+  // In a list every strength is one row: what a card adds is the list's to draw.
 
   import { Icon } from '@hubtask/design-system/components';
   import type { ReferenceStrength, ReferenceTarget } from '@hubtask/sync-engine';
@@ -16,9 +17,11 @@
   interface Props {
     target: ReferenceTarget | undefined;
     strength?: ReferenceStrength;
+    /** One tight line of a list (§6.9 links): the key quiet, the title cut to the line, no underline at rest. */
+    row?: boolean;
   }
 
-  const { target, strength = 'MENTION' }: Props = $props();
+  const { target, strength = 'MENTION', row = false }: Props = $props();
 
   const label = $derived(targetLabel(target));
   const href = $derived(
@@ -43,6 +46,13 @@
     <Icon name="lock" size="sm" />
     <span>{t('app.links.unavailable')}</span>
   </span>
+{:else if row}
+  {@const title = target?.title ?? ''}
+  {#if href}
+    <a class="reference line" {href} data-strength={strength}>{#if target?.key}<span class="key">{target.key}</span>{/if}<span class="title">{title}</span></a>
+  {:else}
+    <span class="reference line" data-strength={strength}>{#if target?.key}<span class="key">{target.key}</span>{/if}<span class="title">{title}</span></span>
+  {/if}
 {:else if strength === 'MENTION'}
   {#if href}<a class="reference" {href} data-strength="MENTION">{label}</a>{:else}<span class="reference">{label}</span>{/if}
 {:else}
@@ -63,6 +73,27 @@
   }
 
   .reference[data-unavailable] { color: var(--text-subtle); }
+
+  .line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-100);
+    min-inline-size: 0;
+    color: var(--text-primary);
+    font-size: var(--fs-075);
+    text-decoration: none;
+  }
+  a.line:hover .title { text-decoration: underline; }
+  a.line:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
+
+  .key {
+    flex: none;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .title { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .card {
     display: flex;

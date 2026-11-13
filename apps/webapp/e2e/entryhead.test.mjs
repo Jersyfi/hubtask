@@ -313,3 +313,41 @@ test('chromium 375: a long title takes the head\'s width beside its key', { time
     await close();
   }
 });
+
+test('chromium 1280: links are tight rows by relation, each far end in its own status (§6.9 links)', { timeout: 60_000 }, async () => {
+  const far = (n, title, extra) => ({
+    kind: 'ENTRY', id: `01a0e2e0-0000-7000-8000-0000000001f${n}`, anchor: null, available: true, title, key: `TAMA-${n}`,
+    level: 'TASK', entry_type: 'task', completed: false, archived: false, collection_id: ENTRY.collection_id, ...extra,
+  });
+  const link = (n, type, outward, other) => ({
+    id: `01a0e2e0-0000-7000-8000-0000000002f${n}`, type, source_id: ENTRY.id, target_id: other.id, created_at: '2026-11-01T09:00:00Z', outward, other,
+  });
+  const answer = {
+    links: [
+      link(1, 'blocks', true, far(1, 'Passkey recovery through a second device with a long title that runs past the line', { status_name: 'In review', status_category: 'IN_PROGRESS' })),
+      link(2, 'depends_on', true, far(2, 'Rate limiting per API key', { completed: true })),
+      link(3, 'depends_on', true, far(3, 'Webhooks retried', { status_name: null, status_category: 'TODO' })),
+    ],
+    backlinks: [], page_backlinks: [], whiteboard_backlinks: [],
+  };
+  const { page, close } = await open(1280, { runs: false, extra: (read) => (read === `/items/${ENTRY.id}/links` ? answer : undefined) });
+  try {
+    const section = page.locator('[data-links]');
+    await section.locator('[data-link]').first().waitFor({ timeout: 10_000 });
+    const heads = await section.locator('.relation').allInnerTexts();
+    assert.equal(heads.length, 2, `one head per relation: ${heads}`);
+    assert.ok(heads.some((head) => /\b2$/.test(head.trim())), `the relation of two counts them: ${heads}`);
+    const states = await section.locator('[data-link] .state').allInnerTexts();
+    assert.deepEqual(states.map((each) => each.trim()), ['In review', 'Done', 'To do'], 'each far end in its own state');
+    assert.equal(await section.locator('[data-link-state="progress"]').count(), 1, 'a status in progress in its tone');
+    const look = await section.locator('[data-link] a').first().evaluate((anchor) => {
+      const style = getComputedStyle(anchor);
+      const row = anchor.closest('[data-link]').getBoundingClientRect();
+      return { underline: style.textDecorationLine, height: row.height };
+    });
+    assert.equal(look.underline, 'none', 'a link row is not underlined at rest');
+    assert.ok(look.height <= 36, `a long title stays on one line: ${look.height} px`);
+  } finally {
+    await close();
+  }
+});

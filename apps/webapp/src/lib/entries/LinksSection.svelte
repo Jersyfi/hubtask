@@ -18,7 +18,7 @@
   import EntryPicker from './EntryPicker.svelte';
   import ReferenceChip from './ReferenceChip.svelte';
   import {
-    drawableTypes, entryLinksPath, groupLinks, links, linkTypes, referencesIn, resolved, sideName, targetLabel,
+    drawableTypes, entryLinksPath, groupLinks, links, linkTypes, referenceState, referencesIn, resolved, sideName, targetLabel,
   } from '../data/links.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -124,10 +124,11 @@
         <ul class="rows">
           {#each cut(group.name, group.rows) as row (row.id)}
             <li class="row" data-link={row.id}>
-              <ReferenceChip target={row.other} />
-              <!-- An entry's state on its line (§6.9 links); a reference carries done or not, no workflow status. -->
+              <ReferenceChip target={row.other} row />
+              <!-- An entry's state on its line (§6.9 links), as its workflow names it. -->
               {#if row.other?.available && row.other.kind === 'ENTRY'}
-                <span class="state"><StateLozenge label={t(`workflows.category.${row.other.completed ? 'done' : 'todo'}`)} vocabulary="category" state={row.other.completed ? 'done' : 'todo'} size="sm" /></span>
+                {@const state = referenceState(row.other, t)}
+                <span class="state" data-link-state={state.state}><StateLozenge label={state.label} vocabulary="category" state={state.state} size="sm" /></span>
               {/if}
               {#if mayChange}
                 <IconButton
@@ -150,7 +151,7 @@
           {#each cut('backlinks', backlinks) as backlink (`${backlink.source_kind}:${backlink.source_id}:${backlink.anchor ?? ''}`)}
             <li class="row" data-backlink={backlink.entry.id}>
               <span class="backlink">
-                <ReferenceChip target={backlink.entry} strength={backlink.strength} />
+                <ReferenceChip target={backlink.entry} strength={backlink.strength} row />
                 {#if backlink.source_kind === 'COMMENT'}<span class="quiet">{t('app.links.backlink_comment')}</span>{/if}
               </span>
             </li>
@@ -165,7 +166,7 @@
         <ul class="rows">
           {#each cut('pages', pageBacklinks) as backlink (backlink.page.id)}
             <li class="row" data-page-backlink={backlink.page.id}>
-              <ReferenceChip target={backlink.page} strength={backlink.strength} />
+              <ReferenceChip target={backlink.page} strength={backlink.strength} row />
             </li>
           {/each}
         </ul>
@@ -178,7 +179,7 @@
         <ul class="rows mentions">
           {#each cut('mentions', mentioned) as found, index (`${found.reference.kind}/${found.reference.id}#${found.reference.anchor ?? ''}`)}
             <li class="row" data-mention={found.reference.id}>
-              <ReferenceChip target={mentions.targets[index]} strength={found.strength} />
+              <ReferenceChip target={mentions.targets[index]} strength={found.strength} row />
             </li>
           {/each}
         </ul>

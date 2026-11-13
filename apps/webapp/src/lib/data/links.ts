@@ -178,3 +178,16 @@ export function targetLabel(target: ReferenceTarget | undefined): string | undef
   const title = target.title ?? '';
   return target.key ? `${target.key} ${title}`.trim() : title;
 }
+
+/**
+ * A linked entry's state as its line draws it (§6.9 links): its status as the workflow in force
+ * names it, else its category's word, else done or to do where no workflow runs.
+ */
+export function referenceState(
+  target: Pick<ReferenceTarget, 'completed' | 'status_name' | 'status_category'>,
+  t: (code: string) => string,
+): { label: string; state: 'todo' | 'progress' | 'done' } {
+  const category = target.status_category ?? (target.completed ? 'DONE' : 'TODO');
+  const state = category === 'DONE' ? 'done' : category === 'IN_PROGRESS' ? 'progress' : 'todo';
+  return { label: target.status_name ?? t(`workflows.category.${category.toLowerCase()}`), state };
+}
