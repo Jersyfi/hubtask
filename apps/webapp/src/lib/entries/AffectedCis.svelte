@@ -27,9 +27,11 @@
     itemId: string;
     /** Whether the reader may change this entry, which naming and removing a CI need. */
     mayChange: boolean;
+    /** How many items are named once read: the heading's count and the jump mark's (ET-2). */
+    count?: number;
   }
 
-  const { itemId, mayChange }: Props = $props();
+  let { itemId, mayChange, count = $bindable(undefined) }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntryCis>(untrack(() => entryCisPath(itemId)));
@@ -40,6 +42,9 @@
     return { ...data, cis: data.cis ?? [], services: data.services ?? [], related: data.related ?? [], collisions: data.collisions ?? [] };
   }
   const failure = $derived(read.state.status === 'failed' ? renderProblem(read.state.error, messages).message : undefined);
+  $effect(() => {
+    count = answer?.cis.length;
+  });
   const services = $derived(answer ? reachedServices(answer) : []);
   const collisions = $derived(answer ? collisionsInOrder(answer) : []);
   const nameOf = (ciId: string) => answer?.cis.find((each) => each.ci_id === ciId)?.name ?? t('app.assets.unknown_ci');

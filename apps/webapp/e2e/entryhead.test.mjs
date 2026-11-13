@@ -408,7 +408,11 @@ test('chromium 1280: links are tight rows by relation, each far end in its own s
     });
     assert.equal(look.underline, 'none', 'a link row is not underlined at rest');
     assert.ok(look.height <= 36, `a long title stays on one line: ${look.height} px`);
+    // The section and its jump mark carry the same count (ET-2: *Links 7*).
+    assert.match(await section.locator('h2.section').innerText(), /^Links\s+3$/);
+    assert.match(await page.getByRole('navigation', { name: /Sections of/ }).getByRole('link', { name: /Links/ }).innerText(), /Links\s*3/);
   } finally {
     await close();
   }
 });
+

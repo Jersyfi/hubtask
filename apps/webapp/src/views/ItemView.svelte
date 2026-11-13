@@ -1191,13 +1191,16 @@
     const label = valueText(definition, held, fieldReading);
     return label ? { level: Number(level) as 1 | 2 | 3 | 4, label } : undefined;
   });
+  /** What the links and the affected items hold, as their sections read it: the marks' counts. */
+  let linkCount = $state<number | undefined>(undefined);
+  let affectedCount = $state<number | undefined>(undefined);
   /** Jump marks with counts (ET-2). */
   const jumpMarks = $derived.by(() => {
     const marks = [
     ...(!isTypeKnown || carries('NOTES') ? [{ id: 'entry-description', label: t('app.entry.mark_description') }] : []),
     ...(takesChildren ? [{ id: 'entry-parts', label: t('app.entry.mark_parts'), count: children.length > 0 ? `${children.filter((child) => child.completion?.is_completed).length}/${children.length}` : undefined }] : []),
-    { id: 'entry-links', label: t('app.entry.mark_links') },
-    ...(modulesOn.includes('ASSETS') ? [{ id: 'entry-affected', label: t('app.entry.mark_affected') }] : []),
+    { id: 'entry-links', label: t('app.entry.mark_links'), count: linkCount ? String(linkCount) : undefined },
+    ...(modulesOn.includes('ASSETS') ? [{ id: 'entry-affected', label: t('app.entry.mark_affected'), count: affectedCount ? String(affectedCount) : undefined }] : []),
     { id: 'entry-files', label: t('app.entry.mark_files'), count: attachmentCount ? String(attachmentCount) : undefined },
     { id: 'entry-conversation', label: t('app.entry.mark_conversation'), count: commentCount !== undefined ? String(commentCount) : undefined },
     ];
@@ -1422,10 +1425,10 @@
 
       <!-- Links from both sides, backlinks and what the notes mention (UC-PLN-01), grouped by
            relation. Keyed, so each entry reads its own. -->
-      <section id="entry-links" class="plain" tabindex="-1">{#key item.id}<LinksSection {item} mayChange={isWritable} />{/key}</section>
+      <section id="entry-links" class="plain" tabindex="-1">{#key item.id}<LinksSection {item} mayChange={isWritable} bind:count={linkCount} />{/key}</section>
       <!-- The configuration items it is about, where the assets module is on (UC-AST-09 check 6). -->
       {#if modulesOn.includes('ASSETS')}
-        <section id="entry-affected" class="plain" tabindex="-1">{#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} />{/key}</section>
+        <section id="entry-affected" class="plain" tabindex="-1">{#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} bind:count={affectedCount} />{/key}</section>
       {/if}
       <!-- One place for files (ET-4): uploaded and linked together - the store's files by address
            (UC-INT-14 checks 1, 2), the attachments readable by whoever reads the entry. -->

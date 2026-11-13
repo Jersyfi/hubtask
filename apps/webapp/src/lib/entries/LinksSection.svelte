@@ -29,9 +29,11 @@
     item: WorkItem;
     /** Whether the reader may change this entry, which is what drawing and removing a link need. */
     mayChange: boolean;
+    /** How many rows the section holds once read: its heading's count and the jump mark's (ET-2). */
+    count?: number;
   }
 
-  const { item, mayChange }: Props = $props();
+  let { item, mayChange, count = $bindable(undefined) }: Props = $props();
 
   // The section is keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntryLinks>(untrack(() => entryLinksPath(item.id)));
@@ -52,6 +54,13 @@
   // What the notes mention, resolved for the reader, in the order the text holds them.
   const mentioned = $derived(referencesIn(item.notes ?? ''));
   const mentions = resolved(() => mentioned.map((found) => found.reference));
+  /** Every row the section lists, once read: its heading's count and the jump mark's (ET-2). */
+  const total = $derived(
+    answer ? groups.reduce((sum, group) => sum + group.rows.length, 0) + backlinks.length + pageBacklinks.length + mentioned.length : undefined,
+  );
+  $effect(() => {
+    count = total;
+  });
 
   let refusal = $state<string | undefined>(undefined);
 
@@ -105,7 +114,7 @@
 
 <section class="links" aria-labelledby="links-heading-{item.id}" data-links>
   <div class="head">
-    <h2 class="section" id="links-heading-{item.id}">{t('app.links.title')}</h2>
+    <h2 class="section" id="links-heading-{item.id}">{t('app.links.title')}{#if total}{' '}<span class="count">{total}</span>{/if}</h2>
     <!-- Nothing linked: the section is one line (ET-3). -->
     {#if answer && !failure && groups.length === 0 && backlinks.length === 0 && pageBacklinks.length === 0 && mentioned.length === 0}<span class="quiet none">{t('app.links.none')}</span>{/if}
     {#if mayChange && typeOptions.length > 0}
