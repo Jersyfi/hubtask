@@ -1015,3 +1015,27 @@ test('chromium: every rule\'s editor has Start now, and only a rule somebody sta
   assert.deepEqual(written.filter((body) => body.triggered), [{ triggered: `/api/v1/automation/rules/${MANUAL.id}:trigger` }]);
   assert.deepEqual(failures, []);
 });
+
+// UC-AUT-01 check 12: *for which entries* is one field of the trigger, the query line of every
+// list; a name nobody bears is refused by name, and the write carries the line with its names as
+// identifiers.
+test('chromium: the trigger chooses its entries with one query line, names resolved before the write', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const page = await open(browser, written, { width: 1400, height: 900 });
+
+  await page.locator('[data-card="trigger"]').click();
+  const field = page.locator('aside.inspector').getByLabel('For which entries');
+  await field.fill('is: open in: Nowhere');
+  await page.getByText('Nothing here is named Nowhere.').waitFor({ timeout: 5_000 });
+  await field.fill('is: open in: "Q4 campaign"');
+  assert.equal(await page.getByText('Nothing here is named Nowhere.').count(), 0, 'the refusal stays after the name is known');
+
+  await page.getByRole('button', { name: 'Save the rule' }).click();
+  for (let waited = 0; !written.some((body) => body.entries !== undefined) && waited < 50; waited++) await page.waitForTimeout(100);
+  const patch = written.find((body) => body.entries !== undefined);
+  assert.ok(patch, 'the write carries for which entries');
+  assert.match(patch.entries, /is: open/u);
+  assert.ok(patch.entries.includes(COLLECTION.id) && !patch.entries.includes('Q4 campaign'), `the name went as its identifier: ${patch.entries}`);
+});
