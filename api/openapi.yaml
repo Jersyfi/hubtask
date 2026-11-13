@@ -1824,7 +1824,9 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "agent ls"
       summary: The workspace's agents
-      description: Whoever administers agents reads all of them; anybody else the agents acting for them.
+      description: >
+        Whoever administers agents reads all of them; anybody else the agents acting for them. Each
+        with what it spent this hour and today and when its latest job started.
       parameters:
         - { name: owner_id, in: query, schema: { type: string, format: uuid }, description: "Only the agents acting for this person." }
         - { name: model_id, in: query, schema: { type: string, format: uuid }, description: "Only the agents using this model." }
@@ -30762,10 +30764,14 @@ components:
         version: { type: integer }
         usage:
           type: object
-          description: What it spent; only on an agent read alone.
+          description: What it spent this hour and today, on a list and on an agent read alone.
           properties:
             actions_this_hour: { type: integer }
             tokens_today: { type: integer }
+        last_run_at:
+          type: [string, "null"]
+          format: date-time
+          description: When its latest job started; null before its first. On a list only.
     AgentList:
       type: object
       required: [data]

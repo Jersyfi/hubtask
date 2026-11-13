@@ -12942,13 +12942,16 @@ type AdminTenantPage struct {
 // Agent defines model for Agent.
 type Agent struct {
 	// AccountId The service account it acts as.
-	AccountId   *openapi_types.UUID `json:"account_id"`
-	ApprovedAt  *time.Time          `json:"approved_at"`
-	ApprovedBy  *openapi_types.UUID `json:"approved_by"`
-	Budget      AgentBudget         `json:"budget"`
-	CreatedAt   time.Time           `json:"created_at"`
-	Id          openapi_types.UUID  `json:"id"`
-	Kind        AgentKind           `json:"kind"`
+	AccountId  *openapi_types.UUID `json:"account_id"`
+	ApprovedAt *time.Time          `json:"approved_at"`
+	ApprovedBy *openapi_types.UUID `json:"approved_by"`
+	Budget     AgentBudget         `json:"budget"`
+	CreatedAt  time.Time           `json:"created_at"`
+	Id         openapi_types.UUID  `json:"id"`
+	Kind       AgentKind           `json:"kind"`
+
+	// LastRunAt When its latest job started; null before its first. On a list only.
+	LastRunAt   *time.Time          `json:"last_run_at,omitempty"`
 	MinAccuracy int                 `json:"min_accuracy"`
 	ModelId     *openapi_types.UUID `json:"model_id"`
 	Name        string              `json:"name"`
@@ -12966,7 +12969,7 @@ type Agent struct {
 	SuspendedAt *time.Time          `json:"suspended_at"`
 	SuspendedBy *openapi_types.UUID `json:"suspended_by"`
 
-	// Usage What it spent; only on an agent read alone.
+	// Usage What it spent this hour and today, on a list and on an agent read alone.
 	Usage *struct {
 		ActionsThisHour *int `json:"actions_this_hour,omitempty"`
 		TokensToday     *int `json:"tokens_today,omitempty"`
@@ -34518,7 +34521,7 @@ type ClientInterface interface {
 
 	// ListAgents The workspace's agents
 	//
-	// Whoever administers agents reads all of them; anybody else the agents acting for them.
+	// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 	//
 	// Corresponds with GET /agents (the `ListAgents` operationId).
 	ListAgents(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -47634,7 +47637,7 @@ func (c *Client) DecideAgentRequest(ctx context.Context, requestId openapi_types
 
 // ListAgents The workspace's agents
 //
-// Whoever administers agents reads all of them; anybody else the agents acting for them.
+// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 //
 // Corresponds with GET /agents (the `ListAgents` operationId).
 func (c *Client) ListAgents(ctx context.Context, params *ListAgentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -111155,7 +111158,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListAgentsWithResponse The workspace's agents
 	//
-	// Whoever administers agents reads all of them; anybody else the agents acting for them.
+	// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -166543,7 +166546,7 @@ func (c *ClientWithResponses) DecideAgentRequestWithResponse(ctx context.Context
 
 // ListAgentsWithResponse The workspace's agents
 //
-// Whoever administers agents reads all of them; anybody else the agents acting for them.
+// Whoever administers agents reads all of them; anybody else the agents acting for them. Each with what it spent this hour and today and when its latest job started.
 //
 // Returns a wrapper object for the known response body format(s).
 //

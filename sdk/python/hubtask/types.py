@@ -1878,6 +1878,7 @@ class Agent(TypedDict, total=False):
     created_at: Required[str]
     version: Required[int]
     usage: dict[str, Any]
+    last_run_at: str | None
 
 class AgentList(TypedDict, total=False):
     data: Required[list["Agent"]]
