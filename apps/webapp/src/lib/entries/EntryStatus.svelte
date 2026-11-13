@@ -8,7 +8,7 @@
   // done in a list, the board's columns on a board (UC-FLW-06 check 5); the next step is *Done*. A step that asks for fields opens a small
   // form first (UC-FLW-04 check 3). It replaces the row of step buttons (StepControl).
   import { tick, untrack } from 'svelte';
-  import { Banner, Button, Dialog, Input, Stack, StateLozenge, StatusButton } from '@hubtask/design-system/components';
+  import { Banner, Button, Dialog, Input, Stack, StatusButton } from '@hubtask/design-system/components';
   import type { WorkflowStep } from '@hubtask/design-system/components';
   import type { EntrySteps, StepVerdict, WorkItem } from '@hubtask/sync-engine';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -23,7 +23,8 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { roleLabel } from '../people/rolewords.ts';
   import { renderProblem } from '../problem.ts';
-  import { categoryOf, readSteps } from './entrysteps.ts';
+  import { readSteps } from './entrysteps.ts';
+  import WorkflowPicture from './WorkflowPicture.svelte';
 
   interface Props {
     item: WorkItem;
@@ -69,20 +70,23 @@
     return parts.length > 0 ? parts.join(' · ') : undefined;
   }
 
+  type BlockedStep = NonNullable<EntrySteps['blocked']>[number];
+  function blockedReason(step: BlockedStep): string {
+    if (step.reason !== 'workflows.step_who_unmet') return t('app.workflows.blocked_condition');
+    const who = [
+      ...step.roles.map((role: string) => roleLabel(role)),
+      ...step.people.map((id: string) => accounts.nameOf(id) ?? t('app.people.unnamed')),
+      ...step.groups.map((id: string) => groups.nameOf(id) ?? t('app.people.unnamed')),
+    ];
+    return who.length > 0 ? t('app.workflows.blocked_who', { who: who.join(', ') }) : t('app.workflows.blocked_permission');
+  }
+
   const model = $derived(
     answer
       ? readSteps(answer, item.completion?.is_completed ?? false, {
           status: (status) => statusLabel(status, t),
           asks: asksLine,
-          reason: (step) => {
-            if (step.reason !== 'workflows.step_who_unmet') return t('app.workflows.blocked_condition');
-            const who = [
-              ...step.roles.map((role: string) => roleLabel(role)),
-              ...step.people.map((id: string) => accounts.nameOf(id) ?? t('app.people.unnamed')),
-              ...step.groups.map((id: string) => groups.nameOf(id) ?? t('app.people.unnamed')),
-            ];
-            return who.length > 0 ? t('app.workflows.blocked_who', { who: who.join(', ') }) : t('app.workflows.blocked_permission');
-          },
+          reason: blockedReason,
           doneRoute: (names) => t('app.workflows.done_route', { steps: names.join(' → ') }),
         })
       : undefined,
@@ -198,12 +202,11 @@
     next = step ? { label: step.label, onclick: () => choose(step) } : undefined;
   });
 
-  const ORDER = ['BACKLOG', 'TODO', 'IN_PROGRESS', 'DONE'] as const;
-  const reachable = $derived(new Set((model?.steps ?? []).filter((step) => step.blockedReason === undefined).map((step) => step.to.id)));
-  const pictureName = (key: string) => {
-    const status = answer?.picture?.statuses.find((each) => each.key === key);
-    return status ? statusLabel(status, t) : key;
-  };
+  const allowedNow = $derived(new Map((answer?.steps ?? []).filter((step) => step.allowed !== false).map((step) => [step.key, asksLine(step)])));
+  const blockedNow = $derived(new Map((answer?.blocked ?? []).map((step) => [step.key, blockedReason(step)])));
+  // The workflow's name for the picture's title: read only while the picture is open.
+  $effect(() => (isPictureOpen ? workflows.open() : undefined));
+  const workflowName = $derived(answer?.workflow ? workflows.list?.data.find((each) => each.key === answer.workflow)?.name : undefined);
 </script>
 
 {#if model && answer}
@@ -257,31 +260,9 @@
 
 {#if isPictureOpen && answer?.picture && model}
   {@const picture = answer.picture}
-  <!-- The designer's picture, read only (E-23): one column per category, the entry's status
-       outlined, the targets it can reach now marked, each step with who may and what it waits for. -->
-  <Dialog size="l" isOpen={true} title={t('app.workflows.picture_title')} dismissLabel={t('app.workflows.close')} onClose={() => (isPictureOpen = false)}>
-    <div class="picture" data-workflow-picture>
-      {#each ORDER.filter((category) => picture.statuses.some((each) => each.category === category)) as category (category)}
-        <ol class="column" aria-label={t(`workflows.category.${category.toLowerCase()}`)}>
-          {#each picture.statuses.filter((each) => each.category === category) as status (status.key)}
-            <li class="node" data-current={status.key === model.current.id ? '' : undefined} data-reachable={reachable.has(status.key) ? '' : undefined}>
-              <StateLozenge label={statusLabel(status, t)} vocabulary="category" state={categoryOf(status.category)} size="sm" />
-              {#if status.key === model.current.id}<span class="here">{t('app.workflows.picture_here')}</span>{/if}
-            </li>
-          {/each}
-        </ol>
-      {/each}
-    </div>
-    <ul class="edges">
-      {#each picture.steps as step (step.key)}
-        <li data-reachable={reachable.has(step.to) && (step.from.length === 0 || step.from.includes(model.current.id)) ? '' : undefined}>
-          <span class="edge-name">{step.name ?? pictureName(step.to)}</span>
-          <span class="edge-way">{step.from.length === 0 ? t('app.workflows.picture_any') : step.from.map(pictureName).join(', ')} → {pictureName(step.to)}</span>
-          {#if step.limited}<span class="edge-mark">{t('app.workflows.picture_limited')}</span>{/if}
-          {#if step.approval}<span class="edge-mark">{t('app.workflows.needs_approval')}</span>{/if}
-        </li>
-      {/each}
-    </ul>
+  <Dialog size="l" isOpen={true} title={workflowName ? t('app.workflows.picture_named', { name: workflowName }) : t('app.workflows.picture_title')} dismissLabel={t('app.workflows.close')} onClose={() => (isPictureOpen = false)}>
+    <p class="counts">{t('app.workflows.picture_counts', { statuses: String(picture.statuses.length), steps: String(picture.steps.length) })}</p>
+    <WorkflowPicture {picture} current={model.current.id} allowed={allowedNow} blocked={blockedNow} />
     {#snippet actions()}
       {#if answer.may_design && answer.workflow}
         {@const key = answer.workflow}
@@ -297,17 +278,5 @@
   .refusal { margin: 0; color: var(--text-danger); flex-basis: 100%; }
   .refusal p, .refusal ul { margin: 0; }
   .rest { margin: 0; padding-inline-start: var(--sp-200); }
-  .picture { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--sp-200); }
-  .column { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: var(--sp-100); list-style: none; border-radius: var(--r-md); background: var(--bg-surface-sunken); }
-  .node { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-025); padding: var(--sp-050); border: var(--bw-hairline) dashed var(--border-subtle); border-radius: var(--r-sm); background: var(--bg-surface); }
-  .node[data-reachable] { border-style: solid; border-color: var(--accent-primary); }
-  .node[data-current] { border: var(--bw-thick) solid var(--text-primary); }
-  .here { font-size: var(--fs-075); color: var(--text-subtle); }
-  .edges { display: flex; flex-direction: column; gap: var(--sp-050); margin: var(--sp-200) 0 0; padding: 0; list-style: none; font-size: var(--fs-075); }
-  .edges li { display: flex; flex-wrap: wrap; gap: var(--sp-100); color: var(--text-subtle); }
-  .edges li[data-reachable] { color: var(--text-primary); }
-  .edge-name { font-weight: var(--fw-medium); color: var(--text-primary); }
-  .edge-mark { padding-inline: var(--sp-050); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-sm); }
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) { .picture { grid-auto-flow: row; } }
+  .counts { margin: 0 0 var(--sp-200); font-size: var(--fs-075); color: var(--text-secondary); }
 </style>

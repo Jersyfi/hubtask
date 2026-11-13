@@ -154,6 +154,44 @@ for (const width of [1280, 390]) {
   });
 }
 
+for (const width of [1280, 390]) {
+  test(`chromium ${width}: the workflow picture draws each step as an arrow, a legend and a card per step - who, what it asks, blocked or not (E-23)`, { timeout: 60_000 }, async () => {
+    const { page, close } = await open(width, { runs: true, requires: true });
+    try {
+      const status = page.locator('[data-steps]');
+      await status.waitFor({ timeout: 10_000 });
+      await status.getByRole('button', { name: /Change status/ }).click();
+      await page.getByRole('button', { name: 'View workflow' }).filter({ visible: true }).first().click();
+      const picture = page.locator('[data-workflow-picture]');
+      await picture.waitFor({ timeout: 5_000 });
+      assert.equal(await picture.locator('[data-picture-status="new"][data-current]').count(), 1, 'the entry\'s status is outlined');
+      // The step from New is an arrow, drawn in the accent: the reader can take it now.
+      const arrow = picture.locator('path[data-arrow="start:new"]');
+      await arrow.waitFor({ state: 'attached', timeout: 5_000 });
+      assert.equal(await arrow.getAttribute('data-kind'), 'now');
+      assert.match(await arrow.getAttribute('d') ?? '', /^M [\d.]+ [\d.]+ C /, 'the arrow is measured between the boxes');
+      assert.ok((await arrow.getAttribute('marker-end'))?.startsWith('url(#'), 'it ends in an arrowhead');
+      // A step from any status is written on its target.
+      assert.ok((await picture.locator('[data-picture-status="resolved"]').innerText()).includes('from any status'));
+      const legend = await picture.locator('[data-picture-legend]').innerText();
+      for (const words of ['the entry\'s status', 'steps you can take now', 'other steps', 'blocked for you']) assert.ok(legend.includes(words), `the legend: ${legend}`);
+      const start = await picture.locator('[data-step-card="start"]').innerText();
+      assert.ok(/you can/.test(start) && start.includes('New → In progress') && start.includes('Who: everyone who may change the entry'), `who may take it: ${start}`);
+      assert.ok(start.includes('asks: reviewer') && start.includes('needs Due date ✓, points'), `what it asks: ${start}`);
+      const resolve = picture.locator('[data-step-card="resolve"]');
+      assert.equal(await resolve.getAttribute('data-kind'), 'blocked');
+      const blocked = await resolve.innerText();
+      assert.ok(/blocked/.test(blocked) && /only /.test(blocked), `blocked for the reader, with the reason: ${blocked}`);
+      const scroll = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      assert.ok(scroll <= 0, `nothing scrolls sideways: ${scroll}`);
+      const box = await picture.boundingBox();
+      assert.ok(box && box.x >= 0 && box.x + box.width <= width + 1, `the picture fits the width: ${JSON.stringify(box)}`);
+    } finally {
+      await close();
+    }
+  });
+}
+
 test('chromium 1280x800: the head\'s menu of a workflow entry fits or scrolls to its last item, with no tick off', { timeout: 60_000 }, async () => {
   const { page, close } = await open(1280, { runs: true });
   try {
