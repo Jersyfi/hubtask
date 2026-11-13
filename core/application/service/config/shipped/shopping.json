@@ -1,6 +1,6 @@
 {
   "key": "shopping",
-  "version": 2,
+  "version": 3,
   "document": {
     "modules": {
       "workflows": {
@@ -44,7 +44,7 @@
         "name": "Item to buy",
         "icon": "shopping-cart",
         "color_token": "green",
-        "workflow": true,
+        "workflow": false,
         "form": {
           "sections": [
             {
@@ -146,11 +146,6 @@
     "modules": {
       "workflows": {
         "switch": "ON"
-      }
-    },
-    "scheme": {
-      "shopping_item": {
-        "workflow": "shopping_item"
       }
     }
   }
