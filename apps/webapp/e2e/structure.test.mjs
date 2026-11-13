@@ -155,10 +155,11 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   const kept = await page.locator(`[data-row="${SHAPE_ITEMS[0].id}"]`).first().textContent();
   assert.ok(!kept.includes('2026') && !kept.includes('JW'), `the row draws what a list does not carry: ${kept}`);
   // ...and its filter asks about nothing a list does not carry: no due date to order by.
-  await page.getByRole('button', { name: 'Sort' }).click();
-  const orderBy = page.getByRole('menu', { name: 'How the entries are ordered' });
+  // The order is chosen in the View panel (E-21), the one place a list's question is asked.
+  await page.locator('[data-opener="view"]').click();
+  const orderBy = page.locator('[data-view-panel]').getByLabel('Sort by');
   await orderBy.waitFor({ state: 'visible', timeout: 5_000 });
-  const orders = (await orderBy.getByRole('menuitem').allTextContents()).map((each) => each.trim());
+  const orders = await orderBy.locator('option').evaluateAll((all) => all.map((each) => each.value));
   assert.ok(orders.includes('title') && !orders.includes('due_at'), `the list is ordered by ${orders}`);
   await page.keyboard.press('Escape');
 
