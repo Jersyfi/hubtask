@@ -51,6 +51,7 @@
     ViewSwitcher,
     type ActivityStep,
     type DeadlineChip,
+    type IconName,
     type MenuItem,
     type RailSection,
     type ThreadEvent,
@@ -114,7 +115,7 @@
   import EntryGoals from '../lib/goals/EntryGoals.svelte';
   import EntryStatus from '../lib/entries/EntryStatus.svelte';
   import MentionDialog from '../lib/entries/MentionDialog.svelte';
-  import { inserted } from '../lib/data/links.ts';
+  import RichText, { type Format } from '../lib/entries/RichText.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
@@ -1094,29 +1095,13 @@
    * A mention or a card put into the notes where the caret was when the reader left them, and
    * saved as any other change of the notes is (UC-PLN-01 check 7).
    */
-  let notesSelection = { start: 0, end: 0 };
   let isMentionOpen = $state(false);
 
-  function rememberSelection(event: FocusEvent) {
-    const field = event.currentTarget as HTMLTextAreaElement;
-    notesSelection = { start: field.selectionStart, end: field.selectionEnd };
-  }
-
   function insertMention(text: string) {
-    const at = Math.min(notesSelection.start, inlineNotes.length);
-    const result = inserted(inlineNotes, at, Math.max(at, Math.min(notesSelection.end, inlineNotes.length)), text);
-    inlineNotes = result.text;
-    notesSelection = { start: result.caret, end: result.caret };
-    isInlineDirty = true;
+    notesText?.insert(text);
     void commitInline();
   }
 
-  function onNotesKey(event: KeyboardEvent) {
-    if (event.key !== 'Escape') return;
-    event.preventDefault();
-    revertInline();
-    (event.currentTarget as HTMLTextAreaElement).blur();
-  }
   /** One quiet line after the type: where it stands in the collection (§6.9). */
   const headMeta = $derived(
     [hub?.name, collection?.name, ...[...ancestors].reverse().map((each) => each.title)].filter((part): part is string => Boolean(part)).join(' · ') || undefined,
@@ -1155,11 +1140,12 @@
     return () => page.offer(undefined);
   });
 
-  /** A long description folds itself from twelve lines (ET-3) until it is opened or edited. */
-  const NOTES_FOLD = 12;
-  let isNotesOpen = $state(false);
-  const notesLines = $derived(inlineNotes.split('\n').length);
-  const notesRows = $derived(inlineNotes.trim() === '' ? 1 : isNotesOpen ? Math.max(3, notesLines + 1) : Math.min(NOTES_FOLD, Math.max(3, notesLines)));
+  /** The description's editor and the formatting bar it takes (E-3). */
+  let notesText = $state<RichText | undefined>(undefined);
+  const NOTE_FORMATS: readonly { id: Format; icon: IconName }[] = [
+    { id: 'bold', icon: 'bold' }, { id: 'italic', icon: 'italic' }, { id: 'strike', icon: 'strikethrough' }, { id: 'code', icon: 'code' },
+    { id: 'link', icon: 'link' }, { id: 'list', icon: 'list' }, { id: 'checklist', icon: 'list-checks' }, { id: 'quote', icon: 'quote' },
+  ];
 
   function rename(title: string) {
     inlineTitle = title;
@@ -1258,35 +1244,29 @@
     <div class="entry-main" data-show={mark}>
       <JumpMarks label={t('app.entry.marks', { key: ticketKey ?? item.title })} marks={jumpMarks} bind:current={mark} />
 
-      <FoldingSection id="entry-description" title={t('app.entry.mark_description')}>
+      <FoldingSection id="entry-description" title={t('app.entry.mark_description')} fold={{ kind: 'lines', lines: 12 }} showAllLabel={t('app.entry.show_more')} showLessLabel={t('app.entry.show_less')} actions={isTypeKnown && carries('NOTES') && isWritable ? notesActions : undefined}>
+        {#snippet children()}
         <!-- An activity carries no notes (`domain-model.md` §2), and a field whose every save is
-             refused is not a field. Before the manifest is read the field is pending. -->
+             refused is not a field. Before the manifest is read the field is pending. Read as
+             formatted text, written in place in the pages' editor, stored as Markdown (E-3). -->
         {#if !isTypeKnown}
           {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
         {:else if carries('NOTES') && (isWritable || inlineNotes.trim() !== '')}
-          <textarea
-            class="notes-field"
-            lang={entryLang}
-            aria-label={t('app.entries.notes')}
-            placeholder={t('app.item.notes_placeholder')}
-            rows={notesRows}
-            bind:value={inlineNotes}
-            onfocus={() => (isNotesOpen = true)}
-            readonly={!isWritable}
-            oninput={() => (isInlineDirty = true)}
-            onblur={(event) => { rememberSelection(event); void commitInline(); }}
-            onkeydown={onNotesKey}
-          ></textarea>
-          {#if notesLines > NOTES_FOLD}
-            <Button size="sm" tone="subtle" icon={isNotesOpen ? 'chevron-up' : 'chevron-down'} aria-expanded={isNotesOpen} onclick={() => (isNotesOpen = !isNotesOpen)}>
-              {isNotesOpen ? t('app.entry.show_less') : t('app.entry.show_all', { count: String(notesLines) })}
-            </Button>
-          {/if}
+          {#key item.id}
+            <RichText
+              bind:this={notesText}
+              value={inlineNotes}
+              label={t('app.entries.notes')}
+              placeholder={t('app.item.notes_placeholder')}
+              editable={isWritable}
+              lang={entryLang}
+              {onnavigate}
+              onchange={(markdown) => { inlineNotes = markdown; isInlineDirty = true; }}
+              oncommit={() => void commitInline()}
+              onescape={revertInline}
+            />
+          {/key}
           {#if isWritable}
-            <div class="notes-tools">
-              <Button size="sm" tone="subtle" icon="at-sign" data-mention-entry onclick={() => (isMentionOpen = true)}>{t('app.mentions.insert')}</Button>
-              {#if hasAi && isChangeable}<AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} />{/if}
-            </div>
             <MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={insertMention} />
           {/if}
         {:else}
@@ -1295,6 +1275,7 @@
         {#if hasAi && isTypeKnown && carries('NOTES')}
           <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
         {/if}
+        {/snippet}
       </FoldingSection>
 
       {#if !isTypeKnown}
@@ -1409,6 +1390,16 @@
       <span class="fact"><Icon name="columns-3" size="sm" />{columnName}</span>
     {/if}
     {#if item?.archived_at}<span class="fact"><Icon name="archive" size="sm" />{t('app.entries.archived_label')}</span>{/if}
+  {/snippet}
+
+  {#snippet notesActions()}
+    <span class="format" role="group" aria-label={t('app.entry.format')}>
+      {#each NOTE_FORMATS as each (each.id)}
+        <IconButton icon={each.icon} label={t(`app.entry.format_${each.id}`)} size="sm" tone="subtle" onclick={() => notesText?.format(each.id)} />
+      {/each}
+      <IconButton icon="at-sign" label={t('app.mentions.insert')} size="sm" tone="subtle" data-mention-entry onclick={() => (isMentionOpen = true)} />
+    </span>
+    {#if hasAi && isChangeable && item}<AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} />{/if}
   {/snippet}
 
   {#snippet partsActions()}
@@ -1622,35 +1613,7 @@
   /* A ✦ that has no field row of its own sits at the end of the line under its subject. */
   .field-ai { display: flex; justify-content: flex-end; }
 
-  .notes-field {
-    inline-size: 100%;
-    box-sizing: border-box;
-    margin: 0;
-    padding: var(--sp-100);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    font: inherit;
-    line-height: var(--lh-normal);
-    resize: vertical;
-    field-sizing: content;
-    min-block-size: var(--density-control-md-min);
-  }
-
-  .notes-tools { display: flex; justify-content: end; }
-
-  .notes-field:placeholder-shown { color: var(--text-subtle); }
-  .notes-field:hover:not(:read-only) { border-color: var(--border-default); }
-
-  .notes-field:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-    background: var(--bg-surface);
-    border-color: var(--border-subtle);
-    color: var(--text-primary);
-  }
-
+  .format { display: inline-flex; flex-wrap: wrap; gap: var(--sp-025); }
 
   .cover-image { inline-size: 100%; max-block-size: var(--sp-1600); object-fit: cover; border-radius: var(--r-lg); }
 
