@@ -179,6 +179,9 @@
     background: var(--bg-surface);
   }
 
+  /* A list the person made compact (WB-4, E-5): the row as high as the region's density says. */
+  :global([data-density='compact']) .task-row > :global(.row) { min-block-size: var(--density-row-height); padding-block: 0; }
+
   .task-row > :global(.row:hover) { border-color: var(--border-subtle); background: var(--bg-surface); }
 
   /* One line inside a page: the rows of a table, ruled apart instead of cards with a gap, so a
