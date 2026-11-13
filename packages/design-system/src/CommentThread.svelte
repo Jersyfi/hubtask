@@ -169,7 +169,7 @@
     </ol>
 
     {#if hasMore && loadMoreLabel}
-      <LoadMore label={loadMoreLabel} {hasMore} {arrivedLabel} failedLabel={loadMoreFailedLabel} {onLoadMore} />
+      <LoadMore isQuiet label={loadMoreLabel} {hasMore} {arrivedLabel} failedLabel={loadMoreFailedLabel} {onLoadMore} />
     {/if}
   {/if}
 </section>

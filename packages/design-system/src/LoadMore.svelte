@@ -41,6 +41,8 @@
      */
     failedLabel?: string;
     onLoadMore?: () => void;
+    /** A quiet text line rather than a block: a thread's older comments (the entry scene). */
+    isQuiet?: boolean;
   }
 
   const {
@@ -52,12 +54,13 @@
     endLabel,
     failedLabel,
     onLoadMore,
+    isQuiet = false,
   }: Props = $props();
 </script>
 
-<div class="load-more">
+<div class="load-more" data-quiet={isQuiet ? '' : undefined}>
   {#if hasMore}
-    <Button tone="secondary" {isBusy} {busyLabel} onclick={() => onLoadMore?.()}>{label}</Button>
+    <Button tone={isQuiet ? 'subtle' : 'secondary'} size={isQuiet ? 'sm' : undefined} {isBusy} {busyLabel} onclick={() => onLoadMore?.()}>{label}</Button>
   {:else if endLabel}
     <p class="end">{endLabel}</p>
   {/if}
@@ -81,6 +84,8 @@
     padding-block: var(--sp-200);
   }
 
+  .load-more[data-quiet] { align-items: flex-start; gap: 0; padding-block: 0; }
+  .load-more[data-quiet] .failed:empty { margin-block-start: 0; }
   .end {
     margin: 0;
     color: var(--text-subtle);
