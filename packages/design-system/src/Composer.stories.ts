@@ -24,7 +24,7 @@ export const note: Story = {
 
 export const comment: Story = {
   name: 'A comment (scene task)',
-  about: 'One kind of post: no tabs, the button *Comment*.',
+  about: 'One kind of post: no tabs, the button *Comment*. The formatting bar (`format`) stands inside the frame above the field (ET-5); the field grows with the text, no grip. On a phone or a coarse pointer the icons are 44 px targets.',
   args: { mode: 'comment' },
 };
 

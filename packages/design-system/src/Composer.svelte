@@ -17,6 +17,7 @@
   import Button from './Button.svelte';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
+  import type { IconName } from './icons/index.ts';
   import Menu from './Menu.svelte';
   import type { MenuItem } from './overlay.ts';
 
@@ -44,6 +45,11 @@
     snippets?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void };
     /** Macros: automations with the trigger *by hand*, each saying what it does. */
     macros?: { label: string; title?: string; items: readonly MenuItem[]; onselect: (id: string) => void };
+    /**
+     * The formatting bar inside the frame, above the field (ET-5): bold, italic, a list, a link,
+     * a mention. The caller's editor applies what is pressed; the plain field gets it as markup.
+     */
+    format?: { label: string; items: readonly { id: string; label: string; icon: IconName }[]; onformat: (id: string) => void };
     /** The pages' editor, in place of the plain field. */
     editor?: Snippet;
     /** Present: writing is not possible here, and this says why. */
@@ -67,6 +73,7 @@
     attach,
     snippets,
     macros,
+    format,
     editor,
     disabledReason,
     isBusy = false,
@@ -112,6 +119,13 @@
     {#if disabledReason !== undefined}
       <p class="refused"><Icon name="lock" size="sm" />{disabledReason}</p>
     {:else}
+      {#if format}
+        <div class="format" role="group" aria-label={format.label}>
+          {#each format.items as item (item.id)}
+            <IconButton icon={item.icon} label={item.label} tone="subtle" size="sm" onclick={() => format.onformat(item.id)} />
+          {/each}
+        </div>
+      {/if}
       {#if editor}
         <div class="editor">{@render editor()}</div>
       {:else}
@@ -225,7 +239,23 @@
     font: inherit;
     font-size: var(--fs-100);
     line-height: var(--lh-normal);
-    resize: vertical;
+    /* It grows with what is written instead of offering a grip. */
+    field-sizing: content;
+    resize: none;
+  }
+
+  .format {
+    display: flex;
+    gap: var(--sp-025);
+    padding: var(--sp-050) var(--sp-150);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  /* A thumb's target (§7): the bar's and the format's icons grow to layout.target. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .bar :global(.icon-button[data-size]),
+    .format :global(.icon-button[data-size]) { width: var(--layout-target); height: var(--layout-target); }
   }
 
   .field::placeholder { color: var(--text-subtle); }

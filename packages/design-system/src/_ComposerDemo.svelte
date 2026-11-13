@@ -30,7 +30,7 @@
 
 <div class="column">
   {#if mode === 'comment'}
-    <Composer label="Comment" placeholder="Comment … @ mentions, / inserts, drop files" sendLabel="Comment" hint="Ctrl+↵ sends" bind:value attach={{ label: 'Attach a file', onattach: () => {} }} onsend={(text) => { said = `Sent: ${text}`; value = ''; }} />
+    <Composer label="Comment" placeholder="Comment … @ mentions, / inserts, drop files" sendLabel="Comment" hint="Ctrl+↵ sends" bind:value attach={{ label: 'Attach a file', onattach: () => {} }} format={{ label: 'Formatting', items: [{ id: 'bold', label: 'Bold', icon: 'bold' }, { id: 'italic', label: 'Italic', icon: 'italic' }, { id: 'list', label: 'List', icon: 'list' }, { id: 'link', label: 'Link', icon: 'link' }, { id: 'mention', label: 'Mention someone', icon: 'at-sign' }], onformat: (id) => (said = `Format ${id}`) }} onsend={(text) => { said = `Sent: ${text}`; value = ''; }} />
   {:else if mode === 'readonly'}
     <Composer label="Comment" sendLabel="Comment" disabledReason="Comments are closed: this story is archived." />
   {:else}
