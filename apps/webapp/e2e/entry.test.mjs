@@ -897,3 +897,37 @@ test('chromium: 1280 px — the description does not flash empty while the entry
   assert.deepEqual(await page.evaluate(() => window.__emptySeen), [], 'the description stood empty while it had notes');
   assert.deepEqual(failures, []);
 });
+
+// The parts as the `task` scene draws them: a head over the columns, a bar beside each work
+// package's count, and every work package of the first eight shown - the fold counts work
+// packages, not the activities under the open ones.
+test('chromium: 1280 px — the parts show their first eight work packages under a column head, each with a bar', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  const id = (n) => `01a0e2e0-0000-7000-8000-0000000009${String(n).padStart(2, '0')}`;
+  const pack = (n) => ({ id: id(n), type: 'WORK_PACKAGE', title: `Package ${n}`, collection_id: ENTRY.collection_id, parent_id: ENTRY.id, depth: 1, order_key: `a${String(n).padStart(2, '0')}`, version: 1, number: 100 + n, completion: { is_completed: false }, labels: [], label_ids: [] });
+  const step = (p, n, done) => ({ ...pack(50 + p * 5 + n), type: 'ACTIVITY', title: `Step ${p}.${n}`, parent_id: id(p), depth: 2, completion: { is_completed: done } });
+  const packs = Array.from({ length: 10 }, (_, n) => pack(n + 1));
+  const steps = [1, 2, 3].flatMap((p) => [step(p, 1, true), step(p, 2, false), step(p, 3, false)]);
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith('/items:query') && request.postDataJSON()?.scope?.item_id === ENTRY.id) {
+      const data = [...packs, ...steps];
+      return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  const parts = page.locator('#entry-parts');
+  await parts.locator(`[data-row="${id(1)}"]`).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(300);
+  for (let n = 1; n <= 8; n += 1) assert.ok(await parts.locator(`[data-row="${id(n)}"]`).isVisible(), `work package ${n} is folded away`);
+  assert.equal(await parts.locator(`[data-row="${id(9)}"]`).count(), 0, 'the ninth work package is not folded');
+  assert.ok(await parts.locator(`[data-row="${steps[1].id}"]`).isVisible(), 'the first work package does not open on its activities');
+  assert.ok(await parts.locator('.fields-head').getByText('Title').isVisible(), 'no column head over the parts');
+  assert.ok(await parts.locator(`[data-row="${id(1)}"] progress`).isVisible(), 'no bar beside a work package\'s count');
+  assert.deepEqual(failures, []);
+});

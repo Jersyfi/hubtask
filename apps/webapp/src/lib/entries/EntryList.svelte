@@ -32,6 +32,7 @@
     LabelPicker,
     LoadMore,
     Popover,
+    ProgressBar,
     provideReasonGroup,
     rankIntent,
     rankTarget,
@@ -114,7 +115,10 @@
      * rows as they arrive rather than reading a subtree the reader has not asked for.
      */
     isExpanded?: boolean;
-    /** A subtree folded to its first rows (ET-3); *Show all* draws the rest. */
+    /**
+     * A subtree folded to its first top-level rows (ET-3) - every row under an open one with them,
+     * so a task shows its first work packages whole; *Show all* draws the rest.
+     */
     rowLimit?: number;
     /** The top level is added to by the capture line its caller draws in place under the list (C-4). */
     isAddedInPlace?: boolean;
@@ -209,6 +213,13 @@
     isAddedInPlace = false,
   }: Props = $props();
   let isAllRowsShown = $state(false);
+  /** Where `rowLimit` cuts the rows: before the first top-level row past the limit. */
+  const cutAt = $derived.by(() => {
+    if (!rowLimit) return rows.length;
+    let tops = 0;
+    const past = rows.findIndex((row) => row.depth === 0 && ++tops > rowLimit);
+    return past < 0 ? rows.length : past;
+  });
 
   /** The columns beside each title: the view's, or for a subtree what an entry carries. */
   // The collection the keys are read from (ticket.ts); a list is always one collection's.
@@ -1284,7 +1295,7 @@
       {/if}
       <!-- The column heads (L2): what each column beside the titles is, the sortable ones as
            buttons that order by it. From `expanded` up, where the fields stand in columns. -->
-      <div class="columns">
+      <div class="columns" data-subtree={root ? '' : undefined}>
       {#if (arrangement || root) && fields.length > 0}
         <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
           {#if sortOf('title') && onsort}
@@ -1383,13 +1394,13 @@
             {/if}
           {/if}
         {:else}
-          {#each rowLimit && !isAllRowsShown ? rows.slice(0, rowLimit) : rows as row (row.item.id)}
+          {#each rowLimit && !isAllRowsShown ? rows.slice(0, cutAt) : rows as row (row.item.id)}
             {@render entryRow(row)}
           {/each}
         {/if}
       </div>
       </div>
-      {#if rowLimit && rows.length > rowLimit}
+      {#if rowLimit && rows.length > cutAt}
         <button type="button" class="all-rows" aria-expanded={isAllRowsShown} onclick={() => (isAllRowsShown = !isAllRowsShown)}>
           <Icon name={isAllRowsShown ? 'chevron-up' : 'chevron-down'} size="sm" />{isAllRowsShown ? t('app.entry.show_less') : t('app.entry.show_all', { count: String(rows.length) })}
         </button>
@@ -1535,6 +1546,8 @@
                      server's count where the read carried one, else the level once it is read. -->
                 {@const progress = row.item.counts ? { done: row.item.counts.parts_done, total: row.item.counts.parts } : progressOf(row.item.id)}
                 {#if progress && progress.total > 0}
+                  <!-- In a subtree a bar beside the count, as the `task` scene's parts draw it. -->
+                  {#if root}<span class="progress-bar" aria-hidden="true"><ProgressBar size="sm" label="" value={Math.round((progress.done / progress.total) * 100)} /></span>{/if}
                   <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
                 {/if}
               {/if}
@@ -1740,6 +1753,7 @@
 
 
 
+  .progress-bar { flex: 1 1 auto; min-inline-size: var(--sp-400); }
   .progress,
   .hidden-below {
     font-size: var(--fs-075);
@@ -1854,6 +1868,14 @@
     :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-1000); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='labels'] { inline-size: calc(var(--sp-1000) * 2.25); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='progress'] { inline-size: var(--sp-600); }
+    /* A subtree's narrower columns, so its head and columns fit the main column beside the rail
+       (the `task` scene's parts: title, kind, due, who, progress with its bar). */
+    .columns[data-subtree] { gap: 0; }
+    .columns[data-subtree] .title-head { flex-basis: calc(var(--layout-list-title) * 0.625); }
+    .columns[data-subtree] :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) + var(--sp-400)); }
+    .columns[data-subtree] :is(.fields-head, .level[data-columns]) .cell[data-field='due'] { inline-size: calc(var(--sp-1000) + var(--sp-400)); }
+    .columns[data-subtree] :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-400); }
+    .columns[data-subtree] :is(.fields-head, .level[data-columns]) .cell[data-field='progress'] { inline-size: calc(var(--sp-1000) + var(--sp-100)); }
 
     /* The title's at the start, the fields' over their cells; the rows' own start and end padding,
        so a head stands over its column. */
