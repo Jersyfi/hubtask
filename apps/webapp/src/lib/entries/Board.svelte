@@ -975,7 +975,7 @@
             overLimitLabel={t('app.board.over_limit')}
             isDoneBucket={bucket?.is_done_bucket ?? false}
             doneBucketLabel={t('app.board.done_bucket')}
-            statusesLabel={isWorkflow && shown.length > 0 ? shown.map(statusName).join(' · ') : undefined}
+            statusesLabel={isWorkflow && shown.length > 0 && !(shown.length === 1 && statusName(shown[0] ?? "") === bucket?.name) ? shown.map(statusName).join(' · ') : undefined}
             isFolded={isFoldedColumn(key, bucket?.is_done_bucket ?? false) && drag.id === null}
             unfoldLabel={t('app.board.unfold', { name: bucket?.name ?? noColumnName })}
             onunfold={() => (unfolded = { ...unfolded, [key]: true })}

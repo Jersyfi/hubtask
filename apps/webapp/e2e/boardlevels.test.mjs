@@ -124,6 +124,8 @@ test('chromium: L2 - the status chip lists the steps; the board names its status
   const doing = page.locator(`[data-column-zone="${BUCKETS[1].id}"]`);
   await doing.waitFor({ timeout: 15_000 });
   assert.equal((await doing.locator('.statuses').textContent())?.trim(), 'Doing · Review');
+  assert.equal((await page.locator(`[data-column-zone="${BUCKETS[0].id}"] .statuses`).textContent())?.trim(), 'Open', 'a column names a status called otherwise');
+  assert.equal(await page.locator(`[data-column-zone="${BUCKETS[2].id}"] .statuses`).count(), 0, 'a column repeats the name of its one status');
   const unmapped = page.locator('[data-column-zone="none"]');
   assert.equal(await unmapped.locator('[data-folded]').count(), 1, 'Ohne Spalte is not folded');
   assert.match((await unmapped.textContent()) ?? '', /Without column/);
