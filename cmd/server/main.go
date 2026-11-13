@@ -2030,6 +2030,7 @@ func run() error {
 		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 		Roles: customRoles.Store, Groups: groups, Visibility: authorizer,
+		Boards: work.SchemeBoards{Columns: bucketWriter},
 	}
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
