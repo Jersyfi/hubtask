@@ -10,7 +10,9 @@
 
   import PageHeader, { type PageAction } from './PageHeader.svelte';
   import ProductTile, { type ProductId } from './ProductTile.svelte';
+  import StateLozenge from './StateLozenge.svelte';
   import type { IconName } from './icons/index.ts';
+  import type { LozengeVocabulary } from './lozenge.ts';
   import type { MenuItem } from './overlay.ts';
   import type { Crumb } from './structure.ts';
 
@@ -31,13 +33,15 @@
      * caller's drawing, at the actions' height, as `PageHeader` holds it.
      */
     aside?: Snippet;
+    /** The state of what the band shows, as a lozenge after its figures - Time's week (scene time). */
+    state?: { label: string; vocabulary: LozengeVocabulary; state: string };
   }
 
-  const { product, icon, name, figures = [], primary, menu, breadcrumb, views, aside }: Props = $props();
+  const { product, icon, name, figures = [], primary, menu, breadcrumb, views, aside, state }: Props = $props();
 </script>
 
 <div class="band" data-product={product}>
-  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} {aside} mark={tile} figure={figures.length > 0 ? line : undefined} isFigureBelow />
+  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} {aside} mark={tile} figure={figures.length > 0 || state ? line : undefined} isFigureBelow />
 </div>
 
 {#snippet tile()}
@@ -50,6 +54,7 @@
       {#if index > 0}<span class="dot" aria-hidden="true">·</span>{/if}
       <span class="figure" data-lead={index === 0 ? '' : undefined} data-rest={index > 1 ? '' : undefined}>{figure}</span>
     {/each}
+    {#if state}{#if figures.length > 0}<span class="dot" aria-hidden="true">·</span>{/if}<span class="state"><StateLozenge label={state.label} vocabulary={state.vocabulary} state={state.state} /></span>{/if}
   </span>
 {/snippet}
 
@@ -67,6 +72,7 @@
   .figures { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-090); }
   .figure[data-lead] { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .dot { color: var(--text-subtle); }
+  .state { display: inline-flex; align-self: center; }
 
   /* A phone: the band is compact - the smaller tile, two figures. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */

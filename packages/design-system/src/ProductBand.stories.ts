@@ -30,6 +30,6 @@ export const empty: Story = {
 
 export const timer: Story = {
   name: 'A control of its own (scene time)',
-  about: 'Time’s band holds the timer in `aside`, before *Log time*: the product’s own control at the actions’ height, the timer in the time colour where the caller draws it.',
+  about: 'Time’s band holds the timer in `aside`, before *Log time*, and the week’s state as a lozenge after the figures: the product’s own control at the actions’ height, the timer in the time colour where the caller draws it.',
   args: { mode: 'timer' },
 };

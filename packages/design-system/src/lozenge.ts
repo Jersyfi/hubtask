@@ -77,6 +77,14 @@ export const LOZENGE_VOCABULARIES = {
     late: { tone: 'warning', icon: 'triangle-alert' },
     archived: { tone: 'neutral', icon: 'archive' },
   },
+  /** A week of recorded time: open to record, handed in, approved, sent back (scene time). */
+  timesheet: {
+    open: { tone: 'neutral', icon: 'pencil' },
+    submitted: { tone: 'info', icon: 'send' },
+    approved: { tone: 'success', icon: 'check' },
+    rejected: { tone: 'warning', icon: 'rotate-ccw' },
+    locked: { tone: 'neutral', icon: 'lock' },
+  },
   /** The device's synchronisation, as `SyncStatus` says it in a row. */
   sync: {
     synced: { tone: 'success', icon: 'cloud-check' },

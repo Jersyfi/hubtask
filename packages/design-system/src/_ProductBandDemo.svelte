@@ -42,7 +42,7 @@
     {/each}
   </div>
 {:else if mode === 'timer'}
-  <ProductBand product="time" icon="clock" name="My week" figures={['6:00 of 40:00', '9–15 November', 'Open']} primary={{ label: 'Log time', icon: 'plus', onclick: () => {} }} {menu}>
+  <ProductBand product="time" icon="clock" name="My week" figures={['6:00 of 40:00', '9–15 November']} state={{ label: 'Open', vocabulary: 'timesheet', state: 'open' }} primary={{ label: 'Log time', icon: 'plus', onclick: () => {} }} {menu}>
     {#snippet aside()}<Button tone="subtle" icon="play" onclick={() => {}}>Start timer</Button>{/snippet}
   </ProductBand>
 {:else}
