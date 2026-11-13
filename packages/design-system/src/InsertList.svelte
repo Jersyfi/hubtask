@@ -20,12 +20,13 @@
 <script lang="ts">
   // What "/" or "+" offers at a line (S-1), as a listbox: the arrows move, Enter takes, a letter jumps
   // to the next choice starting with it, Escape closes - as every menu here. Opened by "/" the focus
-  // stays in the line, so the editor hands its keys to `keydown`; opened by a button the list itself
-  // has the focus and reads them.
+  // stays in the line, so the editor hands its keys to `keydown`, and the words typed after "/"
+  // (`query`) narrow the choices and are marked; opened by a button the list itself has the focus and
+  // reads them.
 
   import Icon from './Icon.svelte';
   import Kbd from './Kbd.svelte';
-  import { listKey } from './insert.ts';
+  import { listKey, markedParts, matchingGroups } from './insert.ts';
 
   interface Props {
     label: string;
@@ -36,13 +37,22 @@
     onclose: () => void;
     /** The list takes the focus when drawn (opened by a button), or leaves it in the line ("/"). */
     takesFocus?: boolean;
+    /** The words typed after "/": only the choices holding them stay, marked. */
+    query?: string;
+    /** Said when no choice holds the typed words. */
+    emptyText?: string;
   }
 
-  const { label, groups, keys, onchoose, onclose, takesFocus = false }: Props = $props();
+  const { label, groups, keys, onchoose, onclose, takesFocus = false, query = '', emptyText = '' }: Props = $props();
 
   const uid = $props.id();
-  const flat = $derived(groups.flatMap((group) => group.choices));
+  const shown = $derived(matchingGroups(groups, query));
+  const flat = $derived(shown.flatMap((group) => group.choices));
   let active = $state(0);
+  $effect.pre(() => {
+    void query;
+    active = 0;
+  });
   let list = $state<HTMLElement | null>(null);
 
   const optionId = (index: number) => `${uid}-choice-${index}`;
@@ -83,7 +93,10 @@
     bind:this={list}
     onkeydown={(event) => void keydown(event)}
   >
-    {#each groups as group (group.label)}
+    {#if flat.length === 0}
+      <div class="none" role="status" data-insert-none>{emptyText}</div>
+    {/if}
+    {#each shown as group (group.label)}
       <div role="group" aria-label={group.label}>
         <div class="heading" aria-hidden="true">{group.label}</div>
         {#each group.choices as choice (choice.id)}
@@ -103,8 +116,8 @@
           >
             {#if choice.icon}<span class="tile"><Icon name={choice.icon} size="sm" /></span>{/if}
             <span class="text">
-              <span class="label">{choice.label}</span>
-              {#if choice.detail}<span class="detail">{choice.detail}</span>{/if}
+              <span class="label">{#each markedParts(choice.label, query) as part, at (at)}{#if part.isMatch}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</span>
+              {#if choice.detail}<span class="detail">{#each markedParts(choice.detail, query) as part, at (at)}{#if part.isMatch}<mark>{part.text}</mark>{:else}{part.text}{/if}{/each}</span>{/if}
             </span>
           </div>
         {/each}
@@ -153,6 +166,14 @@
   .text { display: grid; min-inline-size: 0; }
   .label { font-weight: var(--fw-medium); }
   .detail { color: var(--text-subtle); font-size: var(--fs-075); }
+  mark {
+    background: none;
+    color: inherit;
+    font-weight: var(--fw-semibold);
+    text-decoration: underline;
+    text-underline-offset: var(--sp-025);
+  }
+  .none { padding: var(--sp-100); color: var(--text-subtle); font-size: var(--fs-075); }
   .keys {
     display: flex;
     flex-wrap: wrap;

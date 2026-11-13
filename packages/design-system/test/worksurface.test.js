@@ -268,7 +268,7 @@ test('a view switcher\'s targets reach layout.target on a phone or a coarse poin
 
 // --- InsertList ------------------------------------------------------------------------------
 
-import { listKey } from '../src/insert.ts';
+import { listKey, markedParts, matchingGroups } from '../src/insert.ts';
 
 test('the insert list moves with the arrows, wraps, jumps by letter, takes with Enter and closes with Escape', () => {
   const labels = ['Embed a view', 'Mention an entry', 'Callout', 'Collapsible'];
@@ -281,6 +281,21 @@ test('the insert list moves with the arrows, wraps, jumps by letter, takes with 
   assert.equal(listKey('Enter', 0, []), null);
   assert.equal(listKey('Escape', 1, labels), 'close');
   assert.equal(listKey('Tab', 1, labels), null);
+});
+
+test('the words typed after "/" narrow the insert list and are marked where they stand', () => {
+  const groups = [
+    { label: 'Hubtask', choices: [{ id: 'view', label: 'Ansicht einbetten', detail: 'Eine gespeicherte Ansicht' }, { id: 'emoji', label: 'Emoji' }] },
+    { label: 'Blöcke', choices: [{ id: 'toc', label: 'Inhalt' }, { id: 'details', label: 'Aufklappbereich', detail: 'Mit einer Zusammenfassung' }] },
+  ];
+  assert.deepEqual(matchingGroups(groups, '').map((group) => group.choices.length), [2, 2]);
+  assert.deepEqual(matchingGroups(groups, 'EIN').flatMap((group) => group.choices.map((choice) => choice.id)), ['view', 'details']);
+  assert.deepEqual(matchingGroups(groups, 'emo').map((group) => group.label), ['Hubtask'], 'a group without a match is left out');
+  assert.deepEqual(matchingGroups(groups, 'xyz'), []);
+  assert.deepEqual(markedParts('Ansicht einbetten', 'ein'), [
+    { text: 'Ansicht ', isMatch: false }, { text: 'ein', isMatch: true }, { text: 'betten', isMatch: false },
+  ]);
+  assert.deepEqual(markedParts('Emoji', ''), [{ text: 'Emoji', isMatch: false }]);
 });
 
 test('the insert list is a listbox of options read through aria-activedescendant, with its keys line', () => {

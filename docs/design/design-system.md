@@ -603,7 +603,8 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   that needs no dragging, and what "/" or "+" offers opened under that line. **`InsertList`** is
   that offer: a listbox in groups, each choice with its tile and one line of what it puts in; the
   arrows choose, Enter inserts, a letter jumps, Escape closes, and the keys' line says so. Opened
-  by "/" the focus stays in the line and the editor hands it the keys.
+  by "/" the focus stays in the line and the editor hands it the keys; the words typed after "/"
+  keep only the choices holding them in label or detail, marked, and with none left the list says so.
 * **`LiveBlock`** — work living in a page (S-4): the product's tile, what it is, *Live* in words
   beside a mark and the way to the original over the live content. Neither is an element's overlay: both are anchored to a box (the
   selection, the line) through a phantom element `rectAnchor` lays over it inside the container

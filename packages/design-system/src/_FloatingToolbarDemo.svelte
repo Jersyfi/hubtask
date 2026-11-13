@@ -10,9 +10,11 @@
 
   interface Props {
     mode?: 'selection' | 'line' | 'panel';
+    /** The words typed after "/" in the panel. */
+    query?: string;
   }
 
-  const { mode = 'selection' }: Props = $props();
+  const { mode = 'selection', query = '' }: Props = $props();
 
   let page = $state<HTMLElement | undefined>(undefined);
   let marked = $state<HTMLElement | undefined>(undefined);
@@ -45,6 +47,8 @@
     <InsertList
       label="Insert"
       takesFocus
+      {query}
+      emptyText="No block matches"
       keys={{ move: 'choose', take: 'insert', close: 'close' }}
       groups={[
         { label: 'Hubtask', choices: [{ id: 'view', label: 'Embed a view', detail: 'A saved view, live', icon: 'table' }, { id: 'mention', label: 'Mention an entry', detail: 'With its status', icon: 'square-check' }] },
