@@ -795,7 +795,25 @@ take into a status of the column, offers the choice among several, or is refused
 (`board.no_step`, `board.step_blocked`, `board.column_without_status`). A mapping is proposed by
 `work.DefaultMapping`: the same name first, then the done column takes the DONE statuses, the first
 column the initial one, the next empty column the first IN_PROGRESS; the rest stay unmapped with a
-suggestion. Switching levels always previews.
+suggestion. Switching levels always previews:
+
+* **A workflow comes or goes** (`PreviewWorkflowScheme`, `SetWorkflowScheme`): the preview answers
+  per board reached its level before and after, its columns with the statuses each would show, the
+  unmapped statuses with a suggested column, and how many entries change column, column-only moves
+  counted apart (`work.PlanBoardChange`). The set takes the columns chosen (`columns`), else the
+  proposal - a board whose statuses the new workflow keeps keeps its mapping -, writes the mapping
+  before the statuses move and places every entry by status after. When the workflow goes (L2 →
+  L1) the columns and completion stay, status and mapping are cleared, the done column is the one
+  marked, else the rightmost showing only done statuses, else the rightmost; completed entries go
+  into it, open ones out of it, and open ones in *Ohne Spalte* into the first column.
+* ***Workflow aus diesen Spalten*** (`MakeBoardWorkflow`, L1 → L2): a workflow of the hub with one
+  status per column - the first column's initial (to do), the done column's done, the rest in
+  progress, every step free -, run for the collection's tasks, each column showing its own status,
+  every entry taking its column's status; one transaction, a dry run as the preview.
+* **List ↔ board** (`SwitchBoard`, L0 ↔ L1): *Als Board anzeigen* creates an open and a done column
+  in the workspace's language, completed entries in the done one; back to a list soft-deletes the
+  columns, the done column last, and keeps completion. Both are refused while a workflow runs for
+  tasks (`board.workflow_runs`) and where the tasks already stand so (`board.level_unchanged`).
 
 An entry **arriving** on a board - moved from another collection, imported - takes the state of the
 column it is put in, and a completed one put in none goes into the done column (`Board.Arrived`); a
