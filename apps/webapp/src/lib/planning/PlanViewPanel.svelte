@@ -3,14 +3,16 @@
 <script lang="ts">
   // The plan's panel *Ansicht* (work-surface concept §6.3, E-20, scene planview): presentation,
   // what is seen, rows, bars, the baseline compared against and the outline columns, saved as a
-  // view as in every collection. A drawer from the end; a sheet on a phone. Tolerance and baselines
-  // stay under ⋯ › plan settings. It holds no plan of its own: `setup` is the caller's.
+  // view as in every collection - the collections' pane: beside the plan from `expanded`, a drawer
+  // below it, a sheet on a phone. Tolerance and baselines stay under ⋯ › plan settings.
+  // It holds no plan of its own: `setup` is the caller's.
   import { Button, Checkbox, Drawer, Input, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
   import { createCatalogue, type QueryKey } from '@hubtask/query';
 
   import { t } from '../i18n/i18n.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { language, wording } from '../entries/viewLanguage.ts';
+  import ViewSide from '../entries/ViewSide.svelte';
   import {
     PLAN_BARS, PLAN_COLOURS, PLAN_COLUMNS, PLAN_GROUPINGS, PLAN_SORTS, planViewDefault, type PlanViewSetup,
   } from '../data/planview.ts';
@@ -202,6 +204,8 @@
 
 {#if viewport.isCompact}
   <Sheet bind:isOpen title={t('app.planview.title', { name: baseName })} closeLabel={t('app.dismiss')} actions={resetAct}>{@render body()}</Sheet>
+{:else if !viewport.isBelowExpanded}
+  <ViewSide bind:isOpen title={t('app.planview.title', { name: baseName })} dismissLabel={t('app.dismiss')} actions={resetAct}>{@render body()}</ViewSide>
 {:else}
   <Drawer bind:isOpen edge="inline-end" title={t('app.planview.title', { name: baseName })} dismissLabel={t('app.dismiss')} actions={resetAct}>{@render body()}</Drawer>
 {/if}

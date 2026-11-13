@@ -445,3 +445,35 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
   });
   assert.equal(Math.round(scrolled.title), Math.round(scrolled.box), 'the title stays in view as the chart scrolls');
 });
+
+// §6.2 (scene planview): the plan's view panel is the collections' one - from 905 px a side pane
+// beside the plan, which stays usable; between 600 and 904 a drawer over it.
+test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is a drawer at 800 px', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const wide = await plan(browser);
+  t.after(wide.close);
+  const { page } = wide;
+  await page.locator('[data-plan-view-open]').first().click();
+  const side = page.locator('[data-view-side]');
+  await side.locator('[data-plan-view-panel]').waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('dialog[open]').count(), 0, 'the panel opened as a dialog');
+  assert.equal(await page.locator('[inert]').count(), 0, 'something behind the panel is inert');
+  const [chart, pane] = [await page.locator('.timeline').first().boundingBox(), await side.boundingBox()];
+  assert.ok(chart && pane && chart.x + chart.width <= pane.x + 1, `the chart lies under the panel: ${JSON.stringify({ chart, pane })}`);
+  // A change shows at once beside it.
+  await side.locator('[data-plan-presentation-panel="timeline"]').click();
+  assert.equal(await page.locator('.timeline').first().getAttribute('data-look'), 'light');
+  await side.locator('[data-plan-presentation-panel="timeline"]').focus();
+  await page.keyboard.press('Escape');
+  await side.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await page.locator('[data-plan-view-open]').first().evaluate((element) => element === document.activeElement), true, 'focus did not return to View');
+  assert.deepEqual(wide.failures, []);
+
+  const narrow = await plan(browser, 800);
+  t.after(narrow.close);
+  await narrow.page.locator('[data-plan-view-open]').first().click();
+  await narrow.page.locator('dialog[open] [data-plan-view-panel]').waitFor({ timeout: 5_000 });
+  assert.equal(await narrow.page.locator('[data-view-side]').count(), 0, 'a drawer was wanted at 800 px');
+  assert.deepEqual(narrow.failures, []);
+});

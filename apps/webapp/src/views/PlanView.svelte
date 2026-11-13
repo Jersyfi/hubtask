@@ -790,6 +790,8 @@
 </script>
 
 {#snippet headFigure()}<span data-head-figure>{#each head as part, index (part.code)}{#if index > 0}{' · '}{/if}<span class={part.isWarning ? 'warn' : undefined} data-head-part={part.code}>{t(part.code, part.params)}</span>{/each}</span>{/snippet}
+<!-- From `expanded` the panel *Ansicht* stands beside the plan, which narrows (scene planview). -->
+<div class="beside-pane">
 <WorkPage toolbar={schedule && !refusal && (rows.length > 0 || undated.length > 0) ? toolbar : undefined}>
   {#snippet top()}
   {#if place?.type === 'COLLECTION'}
@@ -935,6 +937,27 @@
     {/if}
   {/if}
 </WorkPage>
+<PlanViewPanel
+  bind:isOpen={isPanelOpen}
+  bind:setup
+  {base}
+  hasGantt={!isEntriesOnly}
+  baseName={currentView?.name ?? t('app.planview.default_name')}
+  {changed}
+  keys={queryKeys}
+  baselines={kept.map((each) => ({ value: each.id, label: t('app.planning.baseline_named', { name: each.name }) }))}
+  views={viewOptions}
+  {viewId}
+  onview={openView}
+  scopes={saveScopes}
+  mayShare={mayShape}
+  overwritable={currentView?.name}
+  isSaving={isSavingView}
+  failure={saveFailure}
+  onsave={saveView}
+  onoverwrite={overwriteView}
+/>
+</div>
 
 {#snippet acceptChosen()}
   {#if mayWrite && accepted.length > 0}
@@ -973,7 +996,7 @@
         </div>
         <Button size="sm" tone="subtle" icon="maximize-2" data-fit onclick={fit}>{t('app.planning.fit')}</Button>
         <span class="grow-bar"></span>
-        <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
+        <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open data-opener="view" onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
       </div>
       <div class="controls second" role="group" aria-label={t('app.planning.chart_options')}>
         {#if isGantt}
@@ -1017,7 +1040,7 @@
       {/if}
       <span class="grow-bar"></span>
       <Button size="sm" tone="subtle" icon="download" onclick={() => void exportAs('csv')}>{t('app.planning.export')}</Button>
-      <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
+      <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open data-opener="view" onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
       {@render acceptChosen()}
     </div>
   {:else if part === 'dependencies'}
@@ -1314,28 +1337,10 @@
 
 <EntryActions bind:this={entryActions} onopen={openEntry} {onnavigate} />
 
-<PlanViewPanel
-  bind:isOpen={isPanelOpen}
-  bind:setup
-  {base}
-  hasGantt={!isEntriesOnly}
-  baseName={currentView?.name ?? t('app.planview.default_name')}
-  {changed}
-  keys={queryKeys}
-  baselines={kept.map((each) => ({ value: each.id, label: t('app.planning.baseline_named', { name: each.name }) }))}
-  views={viewOptions}
-  {viewId}
-  onview={openView}
-  scopes={saveScopes}
-  mayShare={mayShape}
-  overwritable={currentView?.name}
-  isSaving={isSavingView}
-  failure={saveFailure}
-  onsave={saveView}
-  onoverwrite={overwriteView}
-/>
 
 <style>
+  .beside-pane { display: flex; align-items: flex-start; }
+  .beside-pane > :global(:first-child) { flex: 1; min-width: 0; }
   .bars { display: flex; flex-direction: column; gap: var(--sp-150); inline-size: 100%; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); }
   .grow-bar { flex: 1; }
