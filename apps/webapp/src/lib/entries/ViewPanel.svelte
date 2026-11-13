@@ -12,8 +12,7 @@
   // back to where the pane was opened from.
   //
   // It holds no query of its own: `setup` is the caller's, and the caller turns it into the read.
-  import { Button, Checkbox, Drawer, Icon, IconButton, Input, QueryLine, Select, Sheet, Switch, handleEscape, layers, lineText, type QueryToken } from '@hubtask/design-system/components';
-  import { tick } from 'svelte';
+  import { Button, Checkbox, Drawer, Icon, Input, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
   import { createCatalogue, type CountedValue, type QueryKey } from '@hubtask/query';
   import type { IconName } from '@hubtask/design-system/icons';
 
@@ -21,6 +20,7 @@
   import { viewport } from '../frame/viewport.svelte.ts';
   import type { ViewSetup } from '../data/viewquery.ts';
   import { language, wording } from './viewLanguage.ts';
+  import ViewSide from './ViewSide.svelte';
 
   type Option = { readonly value: string; readonly label: string; readonly isNew?: boolean };
 
@@ -163,30 +163,6 @@
   });
 
   const isSide = $derived(!viewport.isBelowExpanded);
-  let heading = $state<HTMLElement | undefined>(undefined);
-  /** Where focus was when the pane opened: the opener, as a rule. */
-  let cameFrom: HTMLElement | undefined;
-  function closeSide() {
-    isOpen = false;
-    const back = cameFrom?.isConnected ? cameFrom : document.querySelector<HTMLElement>('[data-opener="view"]');
-    back?.focus();
-  }
-  $effect(() => {
-    if (!isSide || !isOpen) return;
-    const active = document.activeElement;
-    cameFrom = active instanceof HTMLElement && active !== document.body ? active : undefined;
-    void tick().then(() => heading?.focus());
-    const handle = layers.open('overlay', closeSide);
-    // The same guard as every overlay's: the first handler to act marks the key, the rest stand down.
-    const onKeydown = (event: KeyboardEvent) => {
-      if (!event.defaultPrevented && handleEscape(event.key)) event.preventDefault();
-    };
-    document.addEventListener('keydown', onKeydown);
-    return () => {
-      document.removeEventListener('keydown', onKeydown);
-      handle.release();
-    };
-  });
 </script>
 
 {#snippet body()}
@@ -357,44 +333,12 @@
 {#if isPhone}
   <Sheet bind:isOpen title={t('app.viewcfg.title_short')} closeLabel={t('app.dismiss')} actions={resetAct}>{@render body()}</Sheet>
 {:else if isSide}
-  {#if isOpen}
-    <aside class="side" aria-labelledby="viewcfg-title" data-view-side>
-      <header class="side-head">
-        <h2 id="viewcfg-title" tabindex="-1" bind:this={heading}><Icon name="sliders-horizontal" size="sm" />{t('app.viewcfg.title', { name: baseName })}</h2>
-        {@render resetAct()}
-        <IconButton icon="x" size="sm" label={t('app.dismiss')} onclick={closeSide} />
-      </header>
-      <div class="side-body">{@render body()}</div>
-    </aside>
-  {/if}
+  <ViewSide bind:isOpen title={t('app.viewcfg.title', { name: baseName })} dismissLabel={t('app.dismiss')} actions={resetAct}>{@render body()}</ViewSide>
 {:else}
   <Drawer bind:isOpen edge="inline-end" title={t('app.viewcfg.title', { name: baseName })} dismissLabel={t('app.dismiss')} actions={resetAct}>{@render body()}</Drawer>
 {/if}
 
 <style>
-  /* Beside the page, from the bar down to the window's end, scrolling on its own. The negative
-     margins take back the main region's padding so its edge meets the window's, as the bar's does. */
-  .side {
-    box-sizing: border-box;
-    position: sticky;
-    inset-block-start: var(--layout-appbar-height);
-    align-self: flex-start;
-    flex: none;
-    inline-size: var(--layout-pane-width);
-    max-inline-size: 45%;
-    block-size: calc(100vh - var(--layout-appbar-height));
-    margin-block: calc(-1 * var(--sp-300));
-    margin-inline-end: calc(-1 * var(--sp-300));
-    margin-inline-start: var(--sp-300);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    background: var(--bg-surface);
-    border-inline-start: var(--bw-hairline) solid var(--border-subtle);
-  }
-  .side-head { position: sticky; inset-block-start: 0; display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-200) var(--sp-300); background: var(--bg-surface); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .side-head h2 { flex: 1; display: flex; align-items: center; gap: var(--sp-100); margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); color: var(--text-primary); }
-  .side-head h2:focus { outline: none; }
-  .side-body { padding: var(--sp-200) var(--sp-300) var(--sp-300); }
   .panel { display: flex; flex-direction: column; gap: var(--sp-300); }
   section { display: flex; flex-direction: column; gap: var(--sp-150); padding-block-end: var(--sp-300); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   section:last-child { border-block-end: none; }
