@@ -78,6 +78,11 @@
      * than a card with a gap; the title on one line from `medium` up, its whole words on hover.
      */
     isRuled?: boolean;
+    /**
+     * The entry's key before its title ("SA-7"), where a list mixes collections and the key is
+     * what a person quotes. Resolved text; absent where the collection gives no key.
+     */
+    entryKey?: string;
   }
 
   const {
@@ -100,6 +105,7 @@
     pendingLabel,
     isOneLine = false,
     isRuled = false,
+    entryKey,
   }: Props = $props();
 
   /**
@@ -153,6 +159,7 @@
       {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
     {/snippet}
 
+    {#if entryKey}<span class="key" data-entry-key>{entryKey}</span>{/if}
     <span class="title" title={isOneLine || isRuled ? title : undefined}>{title}</span>
     {#if pendingLabel !== undefined}
       <!-- The change is on its way: the mark turns with the `pending` role, the word says why. -->
@@ -165,6 +172,16 @@
   /* The indent mirrors itself: `padding-inline-start` and not `padding-left`, so a deep entry in
      Arabic is indented from the right. */
   .task-row { padding-inline-start: calc(var(--depth) * var(--sp-300)); }
+
+  .key {
+    flex: none;
+    margin-inline-end: var(--sp-050);
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
+  }
 
   /* In a narrow tree - a phone, a 400 px pane - the step is smaller and stops at the third level:
      deeper rows keep that indent and their type mark says the level (ADR-0061). A container query
