@@ -53,6 +53,20 @@ func collectionUnder() domain.Container {
 		Type: domain.ContainerCollection, ParentID: hubID}
 }
 
+// A board offered beside a list that is the default view starts as a list: no columns until
+// someone shows it as a board (domain-model.md §3.5a).
+func TestABoardThatIsNotTheDefaultViewStartsWithoutColumns(t *testing.T) {
+	h := newHarness()
+	store := &startedColumns{}
+	h.handler.Buckets, h.handler.Workspaces, h.handler.Renderer = store, workspaces{locale: "de"}, echoRenderer{}
+	if err := h.handler.startColumns(context.Background(), collectionUnder(), actor(), boardOn(domain.ViewListCollapsed), now); err != nil {
+		t.Fatalf("starting the columns failed: %v", err)
+	}
+	if len(store.inserted) != 0 {
+		t.Errorf("%d columns, want none", len(store.inserted))
+	}
+}
+
 func TestANewCollectionStartsWithItsColumnsInTheWorkspacesLanguage(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -60,7 +74,6 @@ func TestANewCollectionStartsWithItsColumnsInTheWorkspacesLanguage(t *testing.T)
 		wantLimit int
 	}{
 		{"the board as the default view limits the work in progress", boardOn(domain.ViewKanban), domain.StartingWipLimit},
-		{"the board offered beside the list limits nothing", boardOn(domain.ViewListCollapsed), 0},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

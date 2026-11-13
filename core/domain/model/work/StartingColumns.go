@@ -21,17 +21,14 @@ type StartingColumn struct {
 }
 
 // StartingColumns answers the columns a new collection starts with under the structure in force
-// (UC-WRK-31 check 1): where the board is offered, the states to do, in progress and done - the
-// last completing what enters it -, and where the board is the default view, as on *Flow*, a
-// limit on the work in progress. A collection whose structure offers no board starts with none.
+// (UC-WRK-31 check 1): where the board is the default view, as on *Flow*, the states to do, in
+// progress and done - the last completing what enters it - and a limit on the work in progress.
+// A board only offered beside a list starts as a list, without columns (L0, §3.5a).
 func StartingColumns(values StructureValues) []StartingColumn {
-	if values.Views == nil || !slices.Contains(values.Views.Offered, ViewKanban) {
+	if values.Views == nil || values.Views.Default != ViewKanban || !slices.Contains(values.Views.Offered, ViewKanban) {
 		return nil
 	}
-	limit := 0
-	if values.Views.Default == ViewKanban {
-		limit = StartingWipLimit
-	}
+	limit := StartingWipLimit
 	return []StartingColumn{
 		{NameCode: "seed.bucket.todo", ColorToken: "slate"},
 		{NameCode: "seed.bucket.doing", ColorToken: "blue", WipLimit: limit},

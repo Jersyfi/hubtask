@@ -19,7 +19,9 @@ func TestANewCollectionStartsWithTheColumnsItsBoardNeeds(t *testing.T) {
 		limit   int
 	}{
 		{"flow", presets[PresetFlow].Values, 3, StartingWipLimit},
-		{"project", presets[PresetProject].Values, 3, 0},
+		// The board is offered but not the default view: a list without columns (L0) until someone
+		// shows it as a board (domain-model.md §3.5a).
+		{"project", presets[PresetProject].Values, 0, 0},
 		{"tasks", presets[PresetTasks].Values, 0, 0},
 		{"list", presets[PresetList].Values, 0, 0},
 		{"nothing said", StructureValues{}, 0, 0},
