@@ -8,6 +8,7 @@
 
 import type { FieldCatalogue, QueryLanguage, QueryToken } from './query.ts';
 import type { StatusRef, WorkflowStep } from './steps.ts';
+import type { Deadline } from './DeadlineList.svelte';
 
 export const STORY_STATUSES: readonly StatusRef[] = [
   { id: 'backlog', label: 'Backlog', category: 'todo' },
@@ -127,3 +128,11 @@ export const STUB_LANGUAGE: QueryLanguage = {
 export function initialQuery(): QueryToken[] {
   return STUB_LANGUAGE.parse('type: incident, request desk.sla: at-risk who: me, none updated: -7d (label: vip OR desk.org: "Stadtwerke Nord") ').tokens.map((token) => token);
 }
+
+/** The deadlines of the ticket SA-12, as the concept's ticket rail draws them (ET-6). */
+export const TICKET_DEADLINES: readonly Deadline[] = [
+  { id: 'next-reply', name: 'Next reply', context: 'Hannah · SLA', words: '1 h 20 min', share: 45, due: 'until 10:30 · new after every reply' },
+  { id: 'res-1st', name: 'Resolution', context: 'Team 1st level · OLA', words: 'breached 40 min', share: 100, tone: 'danger', due: 'was due 12 Nov, 12:00' },
+  { id: 'res-sla', name: 'Resolution', context: 'Hannah · SLA', words: '3 h 10 min', share: 30, due: 'until 12 Nov, 16:00' },
+  { id: 'res-platform', name: 'Resolution', context: 'Team Platform · OLA', words: '1 h 05 min', share: 80, tone: 'warning', due: 'until 12 Nov, 16:00' },
+];

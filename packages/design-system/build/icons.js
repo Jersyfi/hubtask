@@ -226,6 +226,8 @@ export const DECLARED = {
     'italic',
     'list',
     'at-sign',
+    // *All deadlines as a table* (ET-6).
+    'table',
   ],
 };
 

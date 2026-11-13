@@ -506,7 +506,7 @@ otherwise.
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
-`DeadlineBar` · `DensitySwitch`
+`DeadlineBar` · `DeadlineList` · `DensitySwitch`
 
 The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
 §5; its mockups are the look), built before any screen uses them so that one pattern looks the same

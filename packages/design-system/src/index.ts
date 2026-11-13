@@ -275,6 +275,7 @@ export { default as QueryLine } from './QueryLine.svelte';
 export { default as WidgetStrip } from './WidgetStrip.svelte';
 export { default as PriorityMark } from './PriorityMark.svelte';
 export { default as DeadlineBar } from './DeadlineBar.svelte';
+export { default as DeadlineList, type Deadline } from './DeadlineList.svelte';
 export { default as DensitySwitch } from './DensitySwitch.svelte';
 export { LOZENGE_VOCABULARIES, lozengeLook, type LozengeLook, type LozengeTone, type LozengeVocabulary } from './lozenge.ts';
 export { defaultSteps, primaryStep, splitSteps, type StatusCategory, type StatusRef, type WorkflowStep } from './steps.ts';
