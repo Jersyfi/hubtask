@@ -66,7 +66,7 @@
     tools?: Snippet;
     /** Tools at the end of the action bar: star, copy link. */
     end?: Snippet;
-    menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void };
+    menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string };
     /** The head as a card's - in a pane, a preview, a list of objects: the smaller title, no divider. */
     isCompact?: boolean;
   }
@@ -130,7 +130,7 @@
       {#if menu}
         <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
           {#snippet trigger(props)}
-            <IconButton icon="ellipsis" label={menu.label} tone="secondary" size="sm" {...props} />
+            <IconButton icon="ellipsis" label={menu.label} tone="secondary" size="sm" data-opener={menu.opener} {...props} />
           {/snippet}
         </Menu>
       {/if}

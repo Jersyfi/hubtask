@@ -68,7 +68,7 @@
 
     .columns:not([data-pane]) .details {
       flex: none;
-      inline-size: var(--layout-pane-width);
+      inline-size: var(--layout-rail);
       position: sticky;
       inset-block-start: calc(var(--page-sticky-top, var(--layout-appbar-height)) + var(--sp-200));
     }
