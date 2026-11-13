@@ -2,17 +2,17 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // *Sprints* of a collection (M2, UC-PLN-06, UC-PLN-07): the chosen sprint as one bar - goal, days
-  // left, points, a small burndown, *close sprint* - over a board of what is still to do, in
-  // progress and done, each column with its points; the backlog is its own tab, never a column of
-  // the sprint (work-surface concept §6.2, E-22). The velocity stays below (user-experience.md §7.5).
+  // left, points, a small burndown, *close sprint* - over the board's columns, which carry the
+  // workflow's statuses, each with its points; on a phone one column under a strip. The backlog is
+  // its own tab, never a column of the sprint (work-surface concept §6.2, E-22). The velocity stays
+  // below (user-experience.md §7.5).
   //
   // **The server counts; this screen draws and writes.** Commitment, result, burndown and velocity
   // are the answers of `/sprints/{id}` and `/collections/{id}/velocity`; every start, close, move
   // or estimate is a write, and the sprint is read again after it.
   //
   // **The controls are the keyboard path** (UC-PLN-07 check 5): the burndown's picture has a table
-  // of the same days under it, and every card's estimate and move is a real control; a card
-  // carried by a mouse onto the other lane makes the same move.
+  // of the same days under it, and every card's estimate and move is a real control.
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the collection the
   // screen shows values, not controls.
@@ -21,21 +21,24 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     BucketColumn, Button, Dialog, Disclosure, Icon, IconButton, Inline, Input, Select, Skeleton, Stack, Textarea,
-    hasLeftTheHandle, DataTable, WorkPage, type DataColumn, type PageAction,
+    DataTable, ViewSwitcher, WorkPage, type DataColumn, type View,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
-  import type { Sprint, SprintBacklog, SprintDetail, SprintEntry, SprintList, Velocity } from '@hubtask/sync-engine';
+  import type { Sprint, SprintDetail, SprintEntry, SprintList, Velocity } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { buckets } from '../lib/data/buckets.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { items } from '../lib/data/items.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    backlogPath, burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintDays, sprintPath,
+    burndownLine, burndownTop, carryTargets, estimateOf, estimateText, sprintColumns, sprintDays, sprintPath,
     sprints, sprintShown, sprintsPath, valueOf, velocityPath,
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { formatPlainDay } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -51,11 +54,9 @@
     onnavigate: (path: string) => void;
     /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
     isCreateAsked?: boolean;
-    /** The bar's *Backlog*: the backlog alone, each card offering its way into the running sprint. */
-    isBacklog?: boolean;
   }
 
-  const { collectionId, onnavigate, isCreateAsked = false, isBacklog = false }: Props = $props();
+  const { collectionId, onnavigate, isCreateAsked = false }: Props = $props();
 
   const zone = $derived(actor.zone);
   const place = $derived(containers.find(collectionId));
@@ -78,19 +79,17 @@
   });
 
   let list = $state<Sprint[] | undefined>(undefined);
-  let backlog = $state<SprintBacklog['data']>([]);
   let velocity = $state<Velocity | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
   $effect(() => {
-    const paths = [sprintsPath(collectionId), backlogPath(collectionId), velocityPath(collectionId)] as const;
+    const paths = [sprintsPath(collectionId), velocityPath(collectionId)] as const;
     return untrack(() => {
       const stops = [
         engine.subscribe<SprintList>({ path: paths[0] }, (next) => {
           if (next.status === 'ready') { list = next.data.data; refusal = undefined; }
           if (next.status === 'failed') refusal = renderProblem(next.error, messages).message;
         }),
-        engine.subscribe<SprintBacklog>({ path: paths[1] }, (next) => { if (next.status === 'ready') backlog = next.data.data; }),
-        engine.subscribe<Velocity>({ path: paths[2] }, (next) => { if (next.status === 'ready') velocity = next.data; }),
+        engine.subscribe<Velocity>({ path: paths[1] }, (next) => { if (next.status === 'ready') velocity = next.data; }),
       ];
       return () => stops.forEach((stop) => stop());
     });
@@ -135,42 +134,11 @@
     void act(() => sprints.estimate(collectionId, zone, chosen?.id, itemId, input), t('app.sprints.estimated', { title })).then(() => delete drafts[itemId]);
   }
 
-  /** A card into the sprint from the backlog, or back. */
-  function moveCard(itemId: string, from: 'backlog' | 'sprint') {
+  /** A card back to the backlog. */
+  function toBacklog(itemId: string) {
     const sprint = chosen;
     if (!sprint) return;
-    void act(() => (from === 'backlog' ? sprints.add(collectionId, zone, sprint.id, [itemId]) : sprints.take(collectionId, zone, sprint.id, [itemId])));
-  }
-
-  // A card carried by a fine pointer onto the other lane. A finger scrolls the board; its way is
-  // the card's arrow, as the keyboard's is.
-  let dragging = $state<{ id: string; from: 'backlog' | 'sprint' } | undefined>(undefined);
-  let over = $state<string | undefined>(undefined);
-  function beginDrag(event: PointerEvent, id: string, from: 'backlog' | 'sprint') {
-    if (event.pointerType !== 'mouse' || event.button !== 0) return;
-    if ((event.target as HTMLElement | null)?.closest('a, button, input')) return;
-    const origin = { x: event.clientX, y: event.clientY };
-    const onMove = (move: PointerEvent) => {
-      if (!dragging) {
-        if (!hasLeftTheHandle(origin, { x: move.clientX, y: move.clientY })) return;
-        dragging = { id, from };
-      }
-      const lane = document.elementFromPoint(move.clientX, move.clientY)?.closest<HTMLElement>('[data-drop]');
-      over = lane?.dataset['drop'];
-    };
-    const finish = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', finish);
-      window.removeEventListener('pointercancel', finish);
-      const landed = over;
-      const carried = dragging;
-      dragging = undefined;
-      over = undefined;
-      if (carried && landed && landed !== carried.from) moveCard(carried.id, carried.from);
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', finish);
-    window.addEventListener('pointercancel', finish);
+    void act(() => sprints.take(collectionId, zone, sprint.id, [itemId]));
   }
 
   let isPlanning = $state(false);
@@ -226,6 +194,37 @@
   const toDo = $derived(open.filter((e) => !e.done && !(hasStartedLane && e.started)));
   const inProgress = $derived(hasStartedLane ? open.filter((e) => !e.done && e.started) : []);
   const done = $derived(open.filter((e) => e.done));
+  // The sprint's columns are the board's, which carry the workflow's statuses (§6.2): each entry in
+  // the column it stands in. Without a board, or for a closed sprint whose entries have moved on,
+  // to do, in progress and done.
+  $effect(() => {
+    const id = collectionId;
+    return untrack(() => {
+      const stops = [buckets.open(id), items.openCollection(id)];
+      return () => stops.forEach((stop) => stop());
+    });
+  });
+  const isPlaced = $derived(buckets.stateOf(collectionId)?.status === 'ready' && items.stateOf(`container:${collectionId}`)?.status === 'ready');
+  const columns = $derived(
+    hasStartedLane && isPlaced
+      ? sprintColumns(open, buckets.of(collectionId), (itemId) => items.find(itemId)?.bucket_id, t('app.board.unbucketed'))
+      : undefined,
+  );
+  type Lane = { key: string; name: string; isDone: boolean; entries: readonly SprintEntry[]; empty: string };
+  const lanes = $derived<Lane[]>(
+    columns
+      ? columns.map((column) => ({ key: column.id ?? 'none', name: column.name, isDone: column.isDone, entries: column.entries, empty: t('app.sprints.column_empty') }))
+      : [
+          { key: 'todo', name: t('app.sprints.todo_column'), isDone: false, entries: toDo, empty: chosen?.state === 'CLOSED' ? t('app.sprints.todo_none_closed') : t('app.sprints.todo_empty') },
+          ...(hasStartedLane ? [{ key: 'in-progress', name: t('app.sprints.in_progress_column'), isDone: false, entries: inProgress, empty: t('app.sprints.in_progress_empty') }] : []),
+          { key: 'done', name: t('app.sprints.done_column'), isDone: true, entries: done, empty: t('app.sprints.done_empty') },
+        ],
+  );
+  // On a phone one column at a time, the strip above saying which and how many (§7, scene sprint 4).
+  const isOneColumn = $derived(viewport.isCompact);
+  let shownLaneId = $state<string | undefined>(undefined);
+  const shownLane = $derived(lanes.some((lane) => lane.key === shownLaneId) ? (shownLaneId as string) : (lanes.find((lane) => !lane.isDone && lane.entries.length > 0) ?? lanes[0])?.key ?? '');
+  const stripViews = $derived<View[]>(lanes.map((lane) => ({ id: lane.key, label: t('app.board.column_with_count', { name: lane.name, count: String(lane.entries.length) }) })));
   const noteOf = (entry: SprintEntry) =>
     entry.outcome ? t(`app.sprints.outcome_${entry.outcome}`) : !entry.committed && chosen?.state !== 'PLANNED' ? t('app.sprints.added_later') : undefined;
   const days = $derived(chosen ? sprintDays(chosen) : 0);
@@ -263,15 +262,6 @@
     return parts.join(' · ');
   });
 
-  const headActs = $derived.by((): readonly [] | readonly [PageAction] => {
-    const sprint = chosen;
-    if (!mayWrite || !sprint || !isBacklog) return [];
-    if (sprint.state === 'PLANNED') {
-      return [{ label: t('app.sprints.start'), icon: 'play' as const, onclick: (): void => void act(() => sprints.start(collectionId, zone, sprint.id), t('app.sprints.started', { name: sprint.name })) }];
-    }
-    if (sprint.state === 'ACTIVE') return [{ label: t('app.sprints.close'), icon: 'circle-check' as const, onclick: () => { carryTo = targets[0]?.id ?? ''; isClosing = true; } }];
-    return [];
-  });
   const headMenu = $derived([
     ...(mayWrite && chosen && chosen.state !== 'CLOSED' ? [{ id: 'edit', label: t('app.sprints.edit'), icon: 'pencil' as const }] : []),
     ...(mayWrite && chosen?.state === 'PLANNED' ? [{ id: 'delete', label: t('app.sprints.delete'), icon: 'trash' as const, hasSeparatorBefore: true }] : []),
@@ -304,14 +294,9 @@
   {/if}
 {/snippet}
 
-{#snippet card(entry: { item_id: string; title: string; estimate: SprintEntry['estimate'] }, where: 'backlog' | 'sprint' | 'done', note?: string)}
+{#snippet card(entry: { item_id: string; title: string; estimate: SprintEntry['estimate'] }, where: 'sprint' | 'done', note?: string)}
   {@const isMovable = mayWrite && chosen !== undefined && chosen.state !== 'CLOSED'}
-  <li
-    class="card"
-    data-card={entry.item_id}
-    data-dragging={dragging?.id === entry.item_id ? '' : undefined}
-    onpointerdown={isMovable && where !== 'done' ? (event) => beginDrag(event, entry.item_id, where) : undefined}
-  >
+  <li class="card" data-card={entry.item_id}>
     <a class="card-title" href={`/items/${entry.item_id}`}>{entry.title}</a>
     {#if note}<span class="note">{note}</span>{/if}
     <span class="card-foot">
@@ -327,12 +312,7 @@
           onchange={() => saveEstimate(entry.item_id, entry.title)}
         />
         {#if where !== 'done'}
-        <IconButton
-          size="sm"
-          icon={where === 'backlog' ? 'arrow-right' : 'arrow-left'}
-          label={where === 'backlog' ? t('app.sprints.into_sprint_of', { title: entry.title }) : t('app.sprints.to_backlog_of', { title: entry.title })}
-          onclick={() => moveCard(entry.item_id, where)}
-        />
+        <IconButton size="sm" icon="arrow-left" label={t('app.sprints.to_backlog_of', { title: entry.title })} onclick={() => toBacklog(entry.item_id)} />
         {/if}
       {:else if entry.estimate}
         <span class="chip">{estimateText(entry.estimate)}</span>
@@ -345,7 +325,6 @@
   <!-- The sprint's own figure in the collection's figure's place: its days and how far it is; the
        burndown's picture is the bar's, on the sprint's tab. -->
   <span data-sprint-figure>{figure}</span>
-  {#if isBacklog}{@render burndownPicture()}{/if}
 {/snippet}
 
 {#snippet points(entries: readonly SprintEntry[])}
@@ -388,11 +367,10 @@
   {#snippet top()}
   <CollectionHead
     {collectionId}
-    current={isBacklog ? 'backlog' : 'sprint'}
+    current="sprint"
     {onnavigate}
     figure={figure ? sprintFigure : undefined}
     primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
-    secondary={headActs}
     menu={headMenu.length > 0 ? { label: t('app.sprints.more'), items: headMenu, onselect: onMenu } : undefined}
   />
   {/snippet}
@@ -407,80 +385,37 @@
     {#if list.length === 0}
       <ProductEmpty product="PLANNING" place={{ type: 'COLLECTION', id: collectionId }} kind="unused" title={t('app.sprints.none_title')} description={t('app.sprints.none_hint')} create={mayWrite ? { label: t('app.sprints.plan'), onclick: () => openPlan(undefined) } : undefined} />
     {:else if chosen}
-      {#if !isBacklog}{@render sprintBar(chosen)}{/if}
-      {#if isBacklog}
-      <div class="controls">
-        {#if list.length > 1}
-          <Select label={t('app.sprints.sprint')} size="sm" value={chosen.id} options={states}
-            onchange={(event: Event) => { chosenId = (event.currentTarget as HTMLSelectElement).value; }} />
-        {/if}
-        {#if chosen.goal}<p class="goal">{t('app.sprints.goal_is', { goal: chosen.goal })}</p>{/if}
-      </div>
+      {@render sprintBar(chosen)}
+
+      {#if isOneColumn && lanes.length > 1}
+        <div class="strip" data-sprint-strip>
+          <ViewSwitcher label={t('app.sprints.columns')} views={stripViews} selected={shownLane} onselect={(id) => (shownLaneId = id)} />
+        </div>
       {/if}
-
-      <div class="board" data-sprint-board data-backlog={isBacklog ? '' : undefined} data-closed={chosen.state === 'CLOSED' ? '' : undefined}>
-        {#if isBacklog && chosen.state !== 'CLOSED'}
-          <div class="lane" data-drop="backlog" data-over={over === 'backlog' ? '' : undefined}>
-            <BucketColumn name={t('app.sprints.backlog_column')} count={backlog.length}>
-              {#if backlog.length === 0}
-                <p class="quiet">{t('app.sprints.backlog_empty')}</p>
-              {:else}
-                <ul class="cards">
-                  {#each backlog as entry (entry.item_id)}{@render card(entry, 'backlog')}{/each}
-                </ul>
-              {/if}
-            </BucketColumn>
-          </div>
-        {/if}
-        {#if !isBacklog}
-        <div class="lane" data-drop="sprint" data-over={over === 'sprint' ? '' : undefined}>
-          <BucketColumn name={t('app.sprints.todo_column')} count={detail ? toDo.length : null}>
-            {#snippet actions()}{#if detail}{@render points(toDo)}{/if}{/snippet}
-            {#if !detail}
-              <Skeleton lines={3} />
-            {:else if toDo.length === 0}
-              <p class="quiet">{chosen.state === 'CLOSED' ? t('app.sprints.todo_none_closed') : t('app.sprints.todo_empty')}</p>
-            {:else}
-              <ul class="cards">
-                {#each toDo as entry (entry.item_id)}{@render card(entry, 'sprint', noteOf(entry))}{/each}
-              </ul>
-            {/if}
-          </BucketColumn>
-        </div>
-        {#if hasStartedLane}
-          <div class="lane" data-lane="in-progress">
-            <BucketColumn name={t('app.sprints.in_progress_column')} count={detail ? inProgress.length : null}>
-            {#snippet actions()}{#if detail}{@render points(inProgress)}{/if}{/snippet}
-              {#if !detail}
-                <Skeleton lines={2} />
-              {:else if inProgress.length === 0}
-                <p class="quiet">{t('app.sprints.in_progress_empty')}</p>
-              {:else}
-                <ul class="cards">
-                  {#each inProgress as entry (entry.item_id)}{@render card(entry, 'sprint', noteOf(entry))}{/each}
-                </ul>
-              {/if}
-            </BucketColumn>
-          </div>
-        {/if}
-        <div class="lane">
-          <BucketColumn name={t('app.sprints.done_column')} count={detail ? done.length : null} isDoneBucket doneBucketLabel={t('app.sprints.done_column_hint')}>
-            {#snippet actions()}{#if detail}{@render points(done)}{/if}{/snippet}
-            {#if detail && done.length === 0}
-              <p class="quiet">{t('app.sprints.done_empty')}</p>
-            {:else if detail}
-              <ul class="cards">
-                {#each done as entry (entry.item_id)}{@render card(entry, 'done', noteOf(entry))}{/each}
-              </ul>
-            {/if}
-          </BucketColumn>
-        </div>
-        {/if}
+      <div class="board" data-sprint-board data-by-columns={columns ? '' : undefined} data-closed={chosen.state === 'CLOSED' ? '' : undefined} data-one={isOneColumn ? '' : undefined}>
+        {#each lanes as lane (lane.key)}
+          {#if !isOneColumn || lane.key === shownLane}
+            <div class="lane" data-lane={lane.key}>
+              <BucketColumn name={lane.name} count={detail ? lane.entries.length : null} isDoneBucket={lane.isDone} doneBucketLabel={lane.isDone ? t('app.sprints.done_column_hint') : undefined}>
+                {#snippet actions()}{#if detail}{@render points(lane.entries)}{/if}{/snippet}
+                {#if !detail}
+                  <Skeleton lines={2} />
+                {:else if lane.entries.length === 0}
+                  <p class="quiet">{lane.empty}</p>
+                {:else}
+                  <ul class="cards">
+                    {#each lane.entries as entry (entry.item_id)}{@render card(entry, entry.done ? 'done' : 'sprint', noteOf(entry))}{/each}
+                  </ul>
+                {/if}
+              </BucketColumn>
+            </div>
+          {/if}
+        {/each}
       </div>
 
-      {#if !isBacklog && chosen.state !== 'CLOSED'}<p class="quiet hint"><Icon name="info" size="sm" />{t('app.sprints.from_backlog')}</p>{/if}
+      {#if chosen.state !== 'CLOSED'}<p class="quiet hint"><Icon name="info" size="sm" />{t('app.sprints.from_backlog')}</p>{/if}
 
-      {#if detail && detail.burndown.length > 0 && !isBacklog}
+      {#if detail && detail.burndown.length > 0}
         <Disclosure label={t('app.sprints.burndown')} description={t('app.sprints.burndown_hint')} tone="quiet">
           <DataTable label={t('app.sprints.burndown')} columns={burndownColumns} rows={detail.burndown} key={(point: Point) => point.day}>
             {#snippet cell(point: Point, column: DataColumn)}
@@ -492,7 +427,7 @@
       {/if}
     {/if}
 
-    {#if velocity && velocity.sprints.length > 0 && !isBacklog}
+    {#if velocity && velocity.sprints.length > 0}
       <section class="block" aria-labelledby="sprint-velocity">
         <h2 id="sprint-velocity" class="heading">{t('app.sprints.velocity', { value: String(velocity.average), unit: t(`app.sprints.unit_${velocity.unit}`) })}</h2>
         <DataTable label={t('app.sprints.velocity_table')} columns={velocityColumns} rows={velocity.sprints} key={(past: Past) => past.id}>
@@ -539,12 +474,10 @@
 {/if}
 
 <style>
-  .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100); }
+  .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
+  .board[data-one] { grid-template-columns: minmax(0, 1fr); }
   .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-board-column)), var(--layout-board-column))); gap: var(--sp-200); align-items: start; }
-  /* The backlog alone is a list across the page, not one lane of a board. */
-  .board[data-backlog] { grid-template-columns: minmax(0, 1fr); }
   .lane { min-width: 0; border-radius: var(--r-md); }
-  .lane[data-over] { outline: var(--bw-ring) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .cards { display: flex; flex-direction: column; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
   .card {
     display: flex;
@@ -555,12 +488,10 @@
     border-radius: var(--r-md);
     background: var(--bg-surface);
   }
-  .card[data-dragging] { opacity: 0.6; }
   .card-title { color: var(--text-primary); font-weight: var(--fw-medium); }
   .card-foot { display: flex; align-items: start; justify-content: space-between; gap: var(--sp-100); }
   .card-foot :global(input) { inline-size: var(--sp-1000); }
   .chip { padding: 0 var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); color: var(--text-secondary); font-size: var(--fs-075); }
-  .goal { margin: 0; }
   .sprint-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-200); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .sprint-name { font-weight: var(--fw-semibold); }
   .state { padding: 0 var(--sp-100); border-radius: var(--r-sm); font-size: var(--fs-075); color: var(--text-brand); background: var(--accent-primary-subtle); }

@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
+import { BUCKETS, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -139,15 +139,17 @@ test('chromium: 1280 px — the running sprint\'s bar, its columns with their po
   assert.equal(await days.count(), DETAIL.burndown.length);
   await page.getByRole('heading', { name: 'Velocity: 5 points a sprint' }).waitFor({ timeout: 5_000 });
 
-  // The sprint is a board (user-experience.md §7.5): what is to do, what is in progress - an
-  // entry the server says is started - and what is done, each with its points; the backlog is its
-  // own tab, no column of the sprint (E-22).
+  // The sprint's columns are the board's, which carry the workflow's statuses (§6.2): each entry in
+  // the column it stands in, a done one in the done column, each column with its points; the
+  // backlog is its own tab, no column of the sprint (E-22).
   const board = page.locator('[data-sprint-board]');
   await board.locator('[data-card]').first().waitFor({ timeout: 5_000 });
-  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), ['To do', 'In progress', 'Done']);
+  await page.locator('[data-sprint-board][data-by-columns]').waitFor({ timeout: 5_000 });
+  assert.deepEqual(await board.getByRole('region').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label'))), BUCKETS.map((bucket) => bucket.name));
   assert.deepEqual(await board.locator('[data-points]').allInnerTexts(), ['0 points', '3 points', '5 points']);
-  assert.equal(await board.locator(`[data-lane="in-progress"] [data-card="${ITEMS[1].id}"]`).count(), 1, 'the started entry is not in progress');
-  assert.equal(await board.locator(`[data-drop="sprint"] [data-card]`).count(), 0, 'a started entry is still to do');
+  assert.equal(await board.locator(`[data-lane="${BUCKETS[1].id}"] [data-card="${ITEMS[1].id}"]`).count(), 1, 'the entry is not in its column');
+  assert.equal(await board.locator(`[data-lane="${BUCKETS[2].id}"] [data-card="${ITEMS[0].id}"]`).count(), 1, 'the done entry is not in the done column');
+  assert.equal(await board.locator(`[data-lane="${BUCKETS[0].id}"] [data-card]`).count(), 0);
 
   // Closed from the bar, its unfinished entries carried into the next planned sprint the dialog offers first.
   await bar.getByRole('button', { name: 'Close sprint' }).click();
@@ -220,6 +222,35 @@ test('chromium: 1280 px — the backlog tab: the running sprint folded, the plan
   const made = written.find((each) => each.method === 'POST' && each.path === '/items');
   assert.equal(made?.body?.title, 'Order the handles');
   assert.equal(made?.body?.collection_id ?? made?.body?.container_id, COLLECTION.id);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: 390 px — the sprint as a card over a strip of its columns, one column shown; the backlog without sideways scroll', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprint`, 390);
+  t.after(close);
+
+  // Scene sprint 4 (§7): the bar a card, the columns a strip with their counts, one column drawn.
+  await page.locator('[data-sprint-bar]').waitFor({ timeout: 15_000 });
+  const strip = page.locator('[data-sprint-strip]');
+  await strip.waitFor({ timeout: 5_000 });
+  await page.locator('[data-sprint-board][data-by-columns]').waitFor({ timeout: 5_000 });
+  assert.deepEqual(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label') ?? each.textContent.trim())), ['To do · 0', 'Doing · 1', 'Done · 1']);
+  const lanes = page.locator('[data-sprint-board] [data-lane]');
+  assert.equal(await lanes.count(), 1);
+  assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[1].id, 'the strip does not open on the first column with work');
+  await strip.getByRole('radio', { name: 'Done · 1' }).click();
+  assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[2].id);
+  for (const target of await strip.getByRole('radio').all()) assert.ok(((await target.boundingBox())?.height ?? 0) >= 24, 'a strip target is under WCAG 2.5.8');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the sprint scrolls sideways');
+
+  await page.goto(page.url().replace(/\/sprint$/u, '/backlog'));
+  await page.locator('[data-backlog-row]').first().waitFor({ timeout: 15_000 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the backlog scrolls sideways');
+  for (const button of await page.locator('[data-backlog-row] button').all()) assert.ok(((await button.boundingBox())?.height ?? 0) >= 44, 'a row\'s control is under 44 px');
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
