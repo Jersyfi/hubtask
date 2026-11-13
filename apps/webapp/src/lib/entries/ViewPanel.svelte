@@ -10,12 +10,13 @@
   //
   // It holds no query of its own: `setup` is the caller's, and the caller turns it into the read.
   import { Button, Checkbox, Drawer, Icon, Input, QueryLine, Select, Sheet, Switch, lineText, type QueryToken } from '@hubtask/design-system/components';
-  import { createCatalogue, createLanguage, parseQuery, type CountedValue, type QueryKey } from '@hubtask/query';
+  import { createCatalogue, type CountedValue, type QueryKey } from '@hubtask/query';
   import type { IconName } from '@hubtask/design-system/icons';
 
-  import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { t } from '../i18n/i18n.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import type { ViewSetup } from '../data/viewquery.ts';
+  import { language, wording } from './viewLanguage.ts';
 
   type Option = { readonly value: string; readonly label: string; readonly isNew?: boolean };
 
@@ -87,39 +88,6 @@
 
   const LAYOUT_ICONS: Readonly<Record<string, IconName>> = {
     LIST_COLLAPSED: 'list', LIST_EXPANDED: 'chevrons-up-down', KANBAN: 'columns-3', TIMELINE: 'clock', CALENDAR: 'calendar',
-  };
-  const named = (code: string, fallback: string, params?: Record<string, string>) => (messages.has(code) ? t(code, params) : fallback);
-  const wording = {
-    key: (key: string) => named(`app.qkey.${key.replaceAll('.', '_')}`, key),
-    kind: (key: QueryKey) => [key.value, key.product ? named(`app.qproduct.${key.product}`, key.product) : ''].filter(Boolean).join(' · '),
-    problem: (error: { code: string; params: Readonly<Record<string, string>> }) => named(error.code, error.code, error.params as Record<string, string>),
-  };
-  const base_language = createLanguage(wording);
-  // A `word:` that names no field is searched as words, said at its chip with the field it may
-  // have meant as the fix (the orchestrator's decision; Q-2).
-  const language = {
-    format: base_language.format,
-    parse(text: string) {
-      const read = base_language.parse(text);
-      return {
-        rest: read.rest,
-        tokens: read.tokens.map((token) => {
-          if (!token.problem) return token;
-          const spelled = base_language.format(token);
-          const parsed = parseQuery(spelled);
-          if (parsed.ok || parsed.error.code !== 'query.field_unknown') return token;
-          const suggestion = parsed.error.params['suggestion'];
-          const rest = spelled.slice(spelled.indexOf(':') + 1).trim();
-          return {
-            ...token,
-            problem: {
-              message: t('app.viewcfg.as_words'),
-              ...(suggestion ? { fix: `${suggestion}: ${rest}`, fixLabel: t('app.viewcfg.meant', { key: suggestion }) } : {}),
-            },
-          };
-        }),
-      };
-    },
   };
   const catalogue = $derived(createCatalogue(keys, wording, values));
 
