@@ -32,7 +32,7 @@
 </script>
 
 <div class="band" data-product={product}>
-  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} mark={tile} figure={figures.length > 0 ? line : undefined} />
+  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} mark={tile} figure={figures.length > 0 ? line : undefined} isFigureBelow />
 </div>
 
 {#snippet tile()}
@@ -52,6 +52,13 @@
   .band { min-inline-size: 0; }
   .tile { display: inline-flex; }
 
+  /* The band as the product homes' mockup draws it: the tile beside a large name, the figures
+     under the name (not beside it), and the menu after the primary at the line's end. */
+  .band :global(.title) { font-size: var(--fs-600); font-weight: var(--fw-bold); }
+  .band :global(.title-line) { gap: var(--sp-050) var(--sp-150); }
+  .band :global(.head-figure[data-below]) { padding-inline-start: calc(var(--sp-500) + var(--sp-150)); margin-block-start: calc(-1 * var(--sp-100)); }
+  .band :global(.actions .menu) { order: 1; }
+
   .figures { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-090); }
   .figure[data-lead] { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .dot { color: var(--text-subtle); }
@@ -63,6 +70,8 @@
       inline-size: var(--sp-400);
       block-size: var(--sp-400);
     }
+    .band :global(.title) { font-size: var(--fs-450); }
+    .band :global(.head-figure[data-below]) { padding-inline-start: calc(var(--sp-400) + var(--sp-150)); }
     .figure[data-rest],
     .figure[data-rest] + .dot,
     .dot:has(+ .figure[data-rest]) { display: none; }

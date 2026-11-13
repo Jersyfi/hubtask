@@ -27,12 +27,12 @@
 </script>
 
 {#if mode === 'desk'}
-  <ProductBand product="desk" icon="inbox" name="Service desk" figures={['14 open', '1 close to breach', '6 unassigned']} primary={{ label: 'New request', icon: 'plus', onclick: () => {}, menu: { label: 'New …', items: createMenu, onselect: () => {} } }} {menu} />
+  <ProductBand product="desk" icon="inbox" name="Service desk" figures={['14 open', '1 close to breach', '6 unassigned']} primary={{ label: 'New request', icon: 'plus', onclick: () => {}, menu: { label: 'New …', items: createMenu, onselect: () => {} } }} {menu} breadcrumb={{ label: 'Where you are', expandLabel: 'Show the whole path', trail: [{ id: 'products', label: 'Products', href: '#' }, { id: 'desk', label: 'Service desk' }] }} />
   <div class="figures">
-    <SummaryCard title="My open" figure="3" line="1 close to breach" />
-    <SummaryCard title="Unassigned" figure="6" line="in your groups" />
-    <SummaryCard title="First reply kept" figure="50 %" line="last 30 days · 1 breached" />
-    <SummaryCard title="Resolution kept" figure="100 %" line="last 30 days" />
+    <SummaryCard lead="figure" title="My open" figure="3" line="1 close to breach" />
+    <SummaryCard lead="figure" title="Unassigned" figure="6" line="in your groups" />
+    <SummaryCard lead="figure" title="First reply kept" figure="50 %" line="last 30 days · 1 breached" />
+    <SummaryCard lead="figure" title="Resolution kept" figure="100 %" line="last 30 days" />
   </div>
 {:else if mode === 'all'}
   <div class="bands">
