@@ -401,8 +401,8 @@ test('chromium: by keyboard alone, the ways of making something are found — En
 
   const words = { en: 'create', de: 'anlegen' };
   const expected = {
-    en: ['Capture', 'Create collection in House', 'Create hub', 'Add an entry'],
-    de: ['Erfassen', 'Sammlung in House anlegen', 'Hub anlegen', 'Eintrag hinzufügen'],
+    en: ['Create …', 'Create collection in House', 'Create hub', 'Add an entry'],
+    de: ['Erstellen …', 'Sammlung in House anlegen', 'Hub anlegen', 'Eintrag hinzufügen'],
   };
   for (const locale of ['en', 'de']) {
     const { context, page, failures } = await as(browser, 'OWNER', { locale });
@@ -468,7 +468,7 @@ test('chromium: the empty palette offers the common actions and the places opene
   assert.ok(headings.includes('Quick'), `no quick group: ${headings.join(' | ')}`);
   assert.ok(headings.includes('Recently opened'), `no recent group: ${headings.join(' | ')}`);
   const names = await rowNames(page);
-  assert.ok(names.includes('Capture'), 'the empty palette does not offer capture');
+  assert.ok(names.includes('Create …'), 'the empty palette does not offer Create');
   assert.ok(names.includes('Kitchen'), 'the empty palette does not offer the collection opened last');
 
   // Standing on one of its entries, the collection's acts are offered without naming it.

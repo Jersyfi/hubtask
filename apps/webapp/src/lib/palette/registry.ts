@@ -48,7 +48,7 @@ export function frameActionOffers(doing: Doing, t: Translate): readonly Offer[] 
   const making = t('app.palette.words_create');
   const offers: Offer[] = [];
   if (doing.mayCapture) {
-    offers.push({ kind: 'action', id: 'frame:capture', label: t('app.nav.capture'), keywords: making, shortcut: 'capture', target: { kind: 'capture' } });
+    offers.push({ kind: 'action', id: 'frame:capture', label: t('app.palette.create_anything'), keywords: making, shortcut: 'capture', target: { kind: 'capture' } });
   }
   const { hub } = doing;
   if (hub && !doing.isOnHubPage && doing.mayShapeHub && archivalOf(hub) === 'active') {

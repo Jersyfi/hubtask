@@ -10033,6 +10033,7 @@
   "app.palette.title": "Suchen oder einen Befehl ausführen",
   "app.palette.placeholder": "Suchen oder einen Befehl ausführen",
   "app.palette.close": "Schließen",
+  "app.palette.create_anything": "Erstellen …",
   "app.palette.filter": "Filter",
   "app.palette.group": "{group, select, places {Orte} actions {Aktionen} settings {Einstellungen} entries {Einträge} recent {Zuletzt geöffnet} source {Vorschläge} other {}}",
   "app.palette.scopes": "Was durchsucht wird",

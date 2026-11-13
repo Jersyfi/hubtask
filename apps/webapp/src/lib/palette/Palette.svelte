@@ -39,6 +39,7 @@
   import type { AccountAction } from '../navigation.ts';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
+  import { create } from '../create/create.svelte.ts';
   import { mayCaptureHere } from '../capture/places.svelte.ts';
   import { recents } from '../recents.svelte.ts';
   import { GLANCE } from '../recents.ts';
@@ -474,7 +475,8 @@
     if (target.kind === 'route') return finish(() => onnavigate(target.path));
     if (target.kind === 'account') return finish(() => onaccount(target.action));
     if (target.kind === 'search') return goSearch(target.line, { handOver: false });
-    if (target.kind === 'capture') return finish(() => capture.summon());
+    // *Erstellen …* (C-1): the kinds first, the capture line on top, as C and Q open it.
+    if (target.kind === 'capture') return finish(() => create.summon());
     if (target.kind === 'create') {
       return finish(() => {
         creating = target;
