@@ -77,6 +77,20 @@
     readonly baseline?: { readonly start?: string; readonly due?: string };
     /** How deep the row sits under its parents, for the indent; 0 is the top. */
     readonly depth?: number;
+    /** Done: drawn in the success tone as well as said in `note`. */
+    readonly isDone?: boolean;
+    /** The last day the entry may end without moving the plan's end (its slack), `YYYY-MM-DD`. */
+    readonly slack?: string;
+    /** A few words after the bar: *done*, *critical · 3 d. late*, a milestone's date. Already worded. */
+    readonly note?: string;
+  }
+
+  /** One outline column left of the axis (a Gantt's start, end, duration): its id and its head. */
+  export interface TimelineColumn {
+    readonly id: string;
+    readonly label: string;
+    /** Narrow: a person's initials rather than a date or a number. */
+    readonly isNarrow?: boolean;
   }
 
   /** One mark on the axis: where it sits, and what it says. */
@@ -168,6 +182,16 @@
     criticalLabel?: string;
     /** What the grip between the titles and the axis is called. Without it no grip is drawn. */
     resizeLabel?: string;
+    /**
+     * How the bars are drawn: `gantt` filled, critical hatched, done in the success tone; `light`
+     * outlined and calm, for the timeline presentation (work-surface concept E-16).
+     */
+    look?: 'light' | 'gantt';
+    /** The head over the titles (*Entry*, *Task*); without it the titles have none. */
+    titleHead?: string;
+    /** Outline columns between the titles and the axis; their cells are `outlineCell`'s. */
+    outline?: readonly TimelineColumn[];
+    outlineCell?: Snippet<[string, string]>;
   }
 
   const {
@@ -195,7 +219,13 @@
     linkHandleLabel,
     criticalLabel,
     resizeLabel,
+    look = 'gantt',
+    titleHead,
+    outline = [],
+    outlineCell,
   }: Props = $props();
+  const wide = $derived(outline.filter((each) => !each.isNarrow).length);
+  const narrow = $derived(outline.length - wide);
 
   const uid = $props.id();
   /** The steps the title column takes, as `data-title` values the stylesheet maps to tokens. */
@@ -242,6 +272,13 @@
     return row.baseline ? placement({ id: row.id, title: row.title, ...row.baseline }) : undefined;
   }
 
+  /** The columns after the bar its slack covers, or nothing. */
+  function slackOf(row: TimelineRow, at: { first: number; last: number }): number | undefined {
+    if (!row.slack) return undefined;
+    const last = Math.min(days - 1, columnOf(row.slack));
+    return Number.isNaN(last) || last <= at.last ? undefined : last;
+  }
+
   /** The indent step a depth is drawn at; deeper than four is drawn as four. */
   const depthOf = (row: TimelineRow) => String(Math.min(4, Math.max(0, row.depth ?? 0)));
 
@@ -263,7 +300,7 @@
     rows
       .map((row) => ({ row, at: placement(row) }))
       .filter((entry): entry is { row: TimelineRow; at: { first: number; last: number } } => entry.at !== undefined)
-      .map((entry) => ({ row: entry.row, at: previewed(entry.row, entry.at), kept: kept(entry.row) })),
+      .map((entry) => ({ row: entry.row, at: previewed(entry.row, entry.at), kept: kept(entry.row), slack: slackOf(entry.row, entry.at) })),
   );
   const undated = $derived(rows.filter((row) => placement(row) === undefined));
 
@@ -599,7 +636,7 @@
   }
 </script>
 
-<section class="timeline" aria-label={label} data-scale={scale} data-title={String(titleStep)} bind:this={section} {@attach attach}>
+<section class="timeline" aria-label={label} data-scale={scale} data-title={String(titleStep)} data-look={look} data-wide={String(wide)} data-narrow={String(narrow)} bind:this={section} {@attach attach}>
   {#if placed.length === 0 && undated.length === 0}
     <p class="empty">{emptyLabel}</p>
   {:else}
@@ -650,6 +687,14 @@
           onpointerdown={beginResize}
         ></div>
       {/if}
+      {#if titleHead || outline.length > 0}
+        <!-- The heads of the titles and the outline columns, in the axis's margin: the axis keeps
+             its columns where the tracks have them. -->
+        <div class="heads" aria-hidden="true">
+          <span class="head-title">{titleHead ?? ''}</span>
+          {#each outline as column (column.id)}<span class="outline-cell" data-narrow={column.isNarrow ? '' : undefined}>{column.label}</span>{/each}
+        </div>
+      {/if}
       <div class="axis" bind:this={axis}>
         {#each columns as column (column)}
           <span
@@ -667,6 +712,7 @@
           <li
             class="row"
             data-row={entry.row.id}
+            data-kind={entry.row.kind}
             data-carrying={carry?.id === entry.row.id ? '' : undefined}
             data-locked={entry.row.isLocked ? '' : undefined}
             data-link-target={linking?.over === entry.row.id ? '' : undefined}
@@ -695,6 +741,11 @@
               </button>
               {#if rowAction}<span class="action" data-action>{@render rowAction(entry.row.id)}</span>{/if}
             </span>
+            {#if outline.length > 0}
+              <span class="outline" data-outline>
+                {#each outline as column (column.id)}<span class="outline-cell" data-narrow={column.isNarrow ? '' : undefined} data-column={column.id}>{@render outlineCell?.(entry.row.id, column.id)}</span>{/each}
+              </span>
+            {/if}
             <!-- The track is the drag surface and not a control: the row's control is its title,
                  which opens the entry and is where a keyboard reaches the dates. -->
             <div class="lanes">
@@ -714,7 +765,10 @@
                   data-milestone={isFilled && entry.row.kind === 'milestone' ? '' : undefined}
                   data-summary={isFilled && entry.row.kind === 'summary' ? '' : undefined}
                   data-critical={isFilled && entry.row.isCritical ? '' : undefined}
+                  data-done={isFilled && entry.row.isDone ? '' : undefined}
+                  data-slack={entry.slack !== undefined && column > entry.at.last && column <= entry.slack ? '' : undefined}
                 >
+                  {#if entry.row.note && column === entry.at.last}<span class="note" data-note>{entry.row.note}</span>{/if}
                   {#if !entry.row.isLocked && hasEnds(entry.at) && isFilled && entry.row.start && column === entry.at.first && startHandleLabel}
                     <!-- `tabindex="-1"`: the keyboard path to a date is the entry's own editor, not
                          a handle that would have to invent key bindings for a calendar. -->
@@ -1199,12 +1253,81 @@
 
   .empty { margin: 0; padding: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
 
+  /* Outline columns (a Gantt's start, end, duration, person) between the titles and the axis. The
+     count comes as data attributes, so the width is a sum of space steps, never a number (rule 15). */
+  .timeline { --wide-n: 0; --narrow-n: 0; --outline: calc(var(--wide-n) * var(--sp-800) + var(--narrow-n) * var(--sp-400)); }
+  .timeline:not([data-wide='0']) .axis,
+  .timeline:not([data-narrow='0']) .axis { margin-inline-start: calc(var(--title) + var(--sp-200) + var(--outline)); }
+  .timeline[data-wide='1'] { --wide-n: 1; }
+  .timeline[data-wide='2'] { --wide-n: 2; }
+  .timeline[data-wide='3'] { --wide-n: 3; }
+  .timeline[data-wide='4'] { --wide-n: 4; }
+  .timeline[data-wide='5'] { --wide-n: 5; }
+  .timeline[data-wide='6'] { --wide-n: 6; }
+  .timeline[data-narrow='1'] { --narrow-n: 1; }
+  .timeline[data-narrow='2'] { --narrow-n: 2; }
+  .heads {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    display: flex;
+    gap: var(--sp-100);
+    align-items: end;
+    padding-block: var(--sp-025);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+  }
+  .head-title { flex: none; inline-size: var(--title); }
+  .outline { display: flex; flex: none; inline-size: var(--outline); color: var(--text-secondary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
+  .outline-cell { flex: none; overflow: hidden; inline-size: var(--sp-800); white-space: nowrap; text-overflow: ellipsis; }
+  .outline-cell[data-narrow] { inline-size: var(--sp-400); }
+  .heads .outline-cell { overflow: visible; }
+
+  /* A phase (a summary) is a band across the row, so the outline reads in sections. */
+  .row[data-kind='summary'] { background: var(--bg-surface-sunken); font-weight: var(--fw-medium); }
+
+  /* A few words after the bar; they overflow into the free columns and take no pointer. */
+  .cell[data-filled]:has(.note) { position: relative; overflow: visible; }
+  .note {
+    position: absolute;
+    inset-inline-start: calc(100% + var(--sp-100));
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .cell[data-milestone] .note { inset-inline-start: calc(100% + var(--sp-050)); }
+
+  /* Done in the success tone, beside the word *done* after it (rule 3). */
+  .cell[data-filled][data-done]:not([data-milestone]) { background: var(--status-success-accent); }
+
+  /* Slack: a thin line after the bar up to the last day it may end. */
+  .cell[data-slack] { position: relative; }
+  .cell[data-slack]::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    inset-block-start: 50%;
+    block-size: var(--bw-hairline);
+    background: var(--text-secondary);
+  }
+
+  /* The light timeline: bars outlined and calm; the critical hatch is the Gantt's (E-16). */
+  .timeline[data-look='light'] .cell[data-filled]:not([data-summary]):not([data-milestone]) {
+    background: var(--accent-primary-subtle);
+    background-image: none;
+    box-shadow: inset 0 var(--bw-hairline) var(--accent-primary), inset 0 calc(-1 * var(--bw-hairline)) var(--accent-primary);
+  }
+  .timeline[data-look='light'] .cell[data-filled][data-summary] { background: var(--text-primary); }
+
   /* Narrow - a phone, a narrow pane - the chart comes first (user-experience.md §7.5): a column of
      titles would leave the bars a sliver, so each title stands on its own line above its bar, as
      wide as what is visible and kept in view while the chart scrolls within itself. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
   @container (inline-size < 600px) {
     .axis { margin-inline-start: 0; }
+    .heads, .outline { display: none; }
     .rows { inline-size: max-content; min-inline-size: 100%; }
     .row { flex-direction: column; align-items: flex-start; gap: 0; }
     .lead {
