@@ -115,7 +115,7 @@ async function open(browser, at, width = 1280) {
 const wrote = (written, method, path) => written.find((each) => each.method === method && each.path === path);
 const settle = (page) => page.waitForTimeout(300);
 
-test('chromium: 1280 px — the running sprint\'s bar, its columns with their points, a move and an estimate in the backlog, and a close', async (t) => {
+test('chromium: 1280 px — the running sprint\'s bar, the filter line, its columns with their points, cards with key and points chip, and a close', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprints`);
@@ -127,20 +127,26 @@ test('chromium: 1280 px — the running sprint\'s bar, its columns with their po
   const chooser = bar.getByLabel('Sprint', { exact: true });
   await chooser.waitFor({ timeout: 15_000 });
   assert.equal(await chooser.inputValue(), RUNNING.id);
+  // The chooser names the sprints alone; the state is the chip beside it, said once (scene sprint 2).
+  assert.deepEqual(await chooser.locator('option').allInnerTexts(), SPRINTS.map((each) => each.name));
+  assert.equal(await bar.locator('[data-state="ACTIVE"]').innerText(), 'running');
   await bar.getByText(RUNNING.goal).waitFor({ timeout: 5_000 });
-  await bar.getByText('11 days left').waitFor({ timeout: 5_000 });
-  assert.match(await bar.locator('[data-sprint-done]').innerText(), /5 of 8 points done/u);
+  await bar.getByText('11 days', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.match(await bar.locator('[data-sprint-done]').innerText(), /5 \/ 8 pt/u);
   assert.equal(await bar.getByRole('img', { name: /^Burndown/ }).count(), 1, 'the burndown is not in the bar');
   assert.equal(await bar.getByRole('button', { name: 'Close sprint' }).count(), 1, 'the bar does not close the sprint');
 
   // The burndown is a picture with a table of the same days (UC-PLN-07 check 5), and the velocity
   // is the server's average over the closed sprints.
   assert.equal(await page.getByRole('img', { name: /^Burndown: 3 points left/ }).count(), 1);
-  // The picture stands in the head; its table is folded under the board, opened by its name.
-  await page.getByRole('button', { name: /^Burndown/ }).click();
-  const days = page.getByRole('table', { name: 'Burndown' }).locator('tbody tr');
+  // The picture stands in the bar; its press unfolds it large, with its table and the velocity.
+  assert.equal(await page.locator('[data-burndown]').count(), 0, 'the burndown is unfolded before its press');
+  await bar.getByRole('button', { name: /Burndown/ }).click();
+  const large = page.locator('[data-burndown]');
+  assert.equal(await large.getByRole('img', { name: /^Burndown, large/ }).count(), 1);
+  const days = large.getByRole('table', { name: 'Burndown' }).locator('tbody tr');
   assert.equal(await days.count(), DETAIL.burndown.length);
-  await page.getByRole('heading', { name: 'Velocity: 5 points a sprint' }).waitFor({ timeout: 5_000 });
+  await large.getByRole('heading', { name: 'Velocity: 5 points a sprint' }).waitFor({ timeout: 5_000 });
 
   // The sprint's columns are the board's, which carry the workflow's statuses (§6.2): each entry in
   // the column it stands in, a done one in the done column, each column with its points; the
@@ -154,11 +160,32 @@ test('chromium: 1280 px — the running sprint\'s bar, its columns with their po
   assert.equal(await doneLane.getAttribute('data-folded'), '', 'the done column is not folded');
   await doneLane.getByTitle(`Show ${BUCKETS[2].name}`).click();
   await doneLane.locator('[data-card]').first().waitFor({ timeout: 5_000 });
-  assert.deepEqual(await board.locator('[data-points]').allInnerTexts(), ['0 points', '3 points', '5 points']);
+  assert.deepEqual(await board.locator('[data-points]').allInnerTexts(), ['0 pt', '3 pt', '5 pt']);
+  // One row of columns, never wrapped onto a second (scene sprint 3).
+  assert.equal(new Set(await board.locator('[data-lane]').evaluateAll((all) => all.map((each) => Math.round(each.getBoundingClientRect().top)))).size, 1, 'the columns wrap');
   assert.equal(await board.locator(`[data-lane="${BUCKETS[1].id}"] [data-card="${ITEMS[1].id}"]`).count(), 1, 'the entry is not in its column');
   assert.equal(await board.locator(`[data-lane="${BUCKETS[1].id}"] [data-card="${BEYOND.id}"]`).count(), 1, 'an entry beyond the first page is not in its column');
   assert.equal(await board.locator(`[data-lane="${BUCKETS[2].id}"] [data-card="${ITEMS[0].id}"]`).count(), 1, 'the done entry is not in the done column');
   assert.equal(await board.locator(`[data-lane="${BUCKETS[0].id}"] [data-card]`).count(), 0);
+
+  // The card as scene sprint 3 draws it: its key, its title and the points chip; no field on it.
+  const card = board.locator(`[data-card="${ITEMS[1].id}"]`);
+  assert.equal(await card.locator('[data-entry-key]').innerText(), 'KITCHEN-32');
+  assert.equal(await card.getByRole('textbox').count(), 0, 'the card carries an estimate field');
+  // The chip is the keyboard's way to the estimate: pressed, it is a field; Enter keeps it.
+  await card.getByRole('button', { name: `Estimate of ${ITEMS[1].title}: 3 pt, change` }).click();
+  const field = card.getByLabel(`Estimate of ${ITEMS[1].title}`);
+  await field.fill('5');
+  await field.press('Enter');
+  await settle(page);
+  assert.deepEqual(wrote(written, 'PUT', `/items/${ITEMS[1].id}/estimate`)?.body, { unit: 'POINTS', value: 5 });
+
+  // The filter line (scene sprint): words narrow the cards in their columns.
+  const filter = page.getByRole('search', { name: 'Filter the sprint' });
+  await filter.getByRole('searchbox').fill('grout');
+  await settle(page);
+  assert.deepEqual(await board.locator('[data-card]').evaluateAll((all) => all.map((each) => each.getAttribute('data-card'))), [BEYOND.id]);
+  await filter.getByRole('searchbox').fill('');
 
   // Closed from the bar, its unfinished entries carried into the next planned sprint the dialog offers first.
   await bar.getByRole('button', { name: 'Close sprint' }).click();
@@ -244,14 +271,19 @@ test('chromium: 390 px — the sprint as a card over a strip of its columns, one
 
   // Scene sprint 4 (§7): the bar a card, the columns a strip with their counts, one column drawn.
   await page.locator('[data-sprint-bar]').waitFor({ timeout: 15_000 });
+  // The bar a card: the state, the days and the points on one line, no chooser; the rest under ⋯.
+  const card = page.locator('[data-sprint-bar]');
+  await card.locator('[data-sprint-done]').getByText('11 days left · 5 / 8 pt').waitFor({ timeout: 5_000 });
+  assert.equal(await card.getByLabel('Sprint', { exact: true }).count(), 0, 'the phone\'s card carries the chooser');
+  assert.equal(await card.getByRole('button', { name: 'More for the sprint' }).count(), 1);
   const strip = page.locator('[data-sprint-strip]');
   await strip.waitFor({ timeout: 5_000 });
   await page.locator('[data-sprint-board][data-by-columns]').waitFor({ timeout: 5_000 });
-  assert.deepEqual(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label') ?? each.textContent.trim())), ['To do · 0', 'Doing · 2', 'Done · 1']);
+  assert.deepEqual(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label') ?? each.textContent.trim())), ['To do 0', 'Doing 2', 'Done 1']);
   const lanes = page.locator('[data-sprint-board] [data-lane]');
   assert.equal(await lanes.count(), 1);
   assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[1].id, 'the strip does not open on the first column with work');
-  await strip.getByRole('radio', { name: 'Done · 1' }).click();
+  await strip.getByRole('radio', { name: 'Done 1' }).click();
   assert.equal(await lanes.first().getAttribute('data-lane'), BUCKETS[2].id);
   for (const target of await strip.getByRole('radio').all()) assert.ok(((await target.boundingBox())?.height ?? 0) >= 44, 'a strip target is under 44 px (§7)');
   assert.equal(new Set(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => Math.round(each.getBoundingClientRect().top)))).size, 1, 'the strip wraps onto a second row');
@@ -272,7 +304,9 @@ test('chromium: 1280 px — a sprint planned with a goal and a time box', async 
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprints`);
   t.after(close);
 
-  await page.getByRole('button', { name: 'Plan a sprint' }).click();
+  // Planned from the bar's ⋯, where the sprint's own verbs are (scene sprint 2).
+  await page.getByRole('button', { name: 'More for the sprint' }).click();
+  await page.getByRole('menuitem', { name: 'Plan a sprint' }).click();
   const dialog = page.getByRole('dialog');
   // §5.2: the dialog names where the sprint is planned.
   await dialog.locator('[data-chip="place"]').filter({ hasText: `${HUB.name} › ${COLLECTION.name}` }).waitFor({ timeout: 5_000 });
