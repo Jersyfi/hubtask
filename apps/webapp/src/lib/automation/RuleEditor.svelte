@@ -447,7 +447,7 @@
     account: everyone,
   });
 
-  /* ---------- For which entries (E-12) ---------- */
+  /* ---------- For which entries (UC-AUT-01/12) ---------- */
 
   // The line is typed with names and stored with identifiers, read with the writer's names at
   // save (ADR-0102): a person among the workspace's, a place by its name. The run reads it again

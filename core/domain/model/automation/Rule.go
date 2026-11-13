@@ -262,7 +262,7 @@ type Rule struct {
 	RunAs      shared.ID
 	Trigger    Trigger
 	Conditions []Condition
-	// Entries is *for which entries* (E-12): a query line, its names already identifiers, that
+	// Entries is *for which entries* (UC-AUT-01/12): a query line, its names already identifiers, that
 	// narrows the entries the rule acts on before its conditions are asked. Empty is every entry
 	// the trigger reaches. It is read at each run as the run_as account, so it never widens what
 	// that account may read.
@@ -443,7 +443,7 @@ func NewRule(in NewRuleInput) (Rule, error) {
 // MaxEntriesLength bounds *for which entries*, as long as a dashboard's or a view's line may be.
 const MaxEntriesLength = 2000
 
-// ValidEntries checks *for which entries* (E-12): one query line over entries, without an order,
+// ValidEntries checks *for which entries* (UC-AUT-01/12): one query line over entries, without an order,
 // on a trigger that is about an entry. The names in it are identifiers by now (ADR-0102): the
 // writer's client resolved them before sending.
 func ValidEntries(raw string, kind TriggerKind) (string, error) {

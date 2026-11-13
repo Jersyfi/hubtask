@@ -112,7 +112,7 @@ type RunRule struct {
 	Scopes     Scopes
 	Conditions expression.Compiler
 	// EntryScope is POST /items:query's use case, asked as run_as whether a run's entry is among
-	// those a rule's *for which entries* lists (E-12). Nil fails a run whose rule names a line.
+	// those a rule's *for which entries* lists (UC-AUT-01/13). Nil fails a run whose rule names a line.
 	EntryScope usecase.Handler
 	Entries    Entries
 	Containers Containers

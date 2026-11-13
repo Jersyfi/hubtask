@@ -5233,7 +5233,7 @@ func run() error {
 			Dispatcher:   dispatchActions{catalogue: ruleCatalogue},
 			Scopes:       actionScopes{catalogue: ruleCatalogue},
 			Conditions:   celexpression.New(),
-			// *For which entries* (E-12) is POST /items:query's use case, asked as run_as.
+			// *For which entries* (UC-AUT-01/13) is POST /items:query's use case, asked as run_as.
 			EntryScope: goalSummaries.Query.Descriptor().Handler,
 			Entries:    items,
 			Containers: containers,

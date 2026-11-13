@@ -385,7 +385,7 @@
       <Callout>{t('app.flow.jumble_hint')}</Callout>
     {/if}
     {#if ENTRY_TRIGGERS.includes(draft.trigger.kind) && onentries}
-      <!-- One field (E-12): the query line chooses the entries, formulas over values stay conditions. -->
+      <!-- One field (UC-AUT-01/12): the query line chooses the entries, formulas over values stay conditions. -->
       <Input label={t('app.rules.entries')} hint={t('app.rules.entries_hint')} value={entriesLine} error={entriesError} spellcheck={false}
         placeholder={t('app.rules.entries_placeholder')} oninput={(event) => onentries((event.currentTarget as HTMLInputElement).value)} />
     {/if}

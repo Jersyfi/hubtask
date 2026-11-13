@@ -18,7 +18,7 @@ import (
 // acting without the line would widen the rule.
 const CodeEntriesUnwired = "automation.entries_unwired"
 
-// listed answers *for which entries* (E-12): whether the run's entry is among those the rule's
+// listed answers *for which entries* (UC-AUT-01/13): whether the run's entry is among those the rule's
 // line lists, asked of POST /items:query's use case as the run_as account reads - so the line
 // never reaches an entry that account may not read, and a name resolved at save keeps meaning the
 // same identifier. A rule without a line lists every entry; a run about no entry is about none of

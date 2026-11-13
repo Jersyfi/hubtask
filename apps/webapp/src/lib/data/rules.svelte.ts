@@ -63,7 +63,7 @@ export interface Rule {
   readonly run_as: string;
   readonly trigger: RuleTrigger;
   readonly conditions: readonly { readonly expr: string }[];
-  /** *For which entries* (E-12): a query line, names as identifiers; empty for every entry. */
+  /** *For which entries* (UC-AUT-01/12): a query line, names as identifiers; empty for every entry. */
   readonly entries?: string;
   readonly actions: readonly RuleAction[];
   readonly throttle?: { readonly max_runs_per_hour?: number; readonly dedupe_key_expr?: string };

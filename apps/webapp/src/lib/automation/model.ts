@@ -49,7 +49,7 @@ export interface Draft {
   runAs: string;
   trigger: TriggerDraft;
   conditions: string[];
-  /** *For which entries* (E-12): the query line as the writer reads it; the editor resolves its names at save. */
+  /** *For which entries* (UC-AUT-01/12): the query line as the writer reads it; the editor resolves its names at save. */
   entries: string;
   actions: Step[];
   throttle: { maxRunsPerHour?: number; dedupeKeyExpr?: string };

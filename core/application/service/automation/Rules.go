@@ -181,7 +181,7 @@ type CreateRuleCommand struct {
 	RunAs      shared.ID
 	Trigger    domain.Trigger
 	Conditions []domain.Condition
-	// Entries is *for which entries* (E-12), its names resolved by the writer's client.
+	// Entries is *for which entries* (UC-AUT-01/12), its names resolved by the writer's client.
 	Entries  string
 	Actions  []domain.Action
 	Throttle domain.Throttle
