@@ -90,6 +90,8 @@
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import PositionDialog from '../lib/workspace/PositionDialog.svelte';
+  import BoardLevelDialog from '../lib/entries/BoardLevelDialog.svelte';
+  import type { LevelSwitch } from '../lib/entries/boardlevel.ts';
   import { offerUndo } from '../lib/entries/undo.svelte.ts';
   import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import { collectionViews } from '../lib/workspace/placeViews.ts';
@@ -716,6 +718,29 @@
     return mayShape ? control : undefined;
   }
 
+  /**
+   * The level switches (build-plan §5), for whoever may shape the collection and where it is not
+   * archived: a list offers *Als Board anzeigen*; a board without a workflow *Zurück zur Liste* and,
+   * where workflows are on, *Workflow aus diesen Spalten*. Each opens its preview first.
+   */
+  let levelAsked = $state<LevelSwitch | undefined>(undefined);
+  const levelMenu = $derived<MenuItem[]>(
+    container?.type !== 'COLLECTION' || !mayShape || isReadOnly
+      ? []
+      : stateMode === 'NONE'
+        ? [{ id: 'level:board', label: t('app.board.level.menu_board'), hasSeparatorBefore: true }]
+        : stateMode === 'COLUMNS'
+          ? [
+              { id: 'level:list', label: t('app.board.level.menu_list'), hasSeparatorBefore: true },
+              ...(workflowsOn ? [{ id: 'level:workflow', label: t('app.board.level.menu_workflow') }] : []),
+            ]
+          : [],
+  );
+  function levelSwitched(asked: LevelSwitch) {
+    if (asked === 'board' && offeredLayouts.includes('KANBAN')) chooseLayout('KANBAN');
+    if (asked === 'list') chooseLayout(listLayout);
+  }
+
   let isTrashing = $state(false);
   let isTrashingNow = $state(false);
 
@@ -934,6 +959,7 @@
       ? []
       : [
           ...placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, offersPosition: container.type !== 'HUB' }, (code) => t(code)),
+          ...levelMenu,
         ],
   );
 
@@ -992,7 +1018,8 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'settings') openStructure();
+    if (id.startsWith('level:')) levelAsked = id.slice('level:'.length) as LevelSwitch;
+    else if (id === 'settings') openStructure();
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
@@ -1547,6 +1574,10 @@
 {#if container}
   <!-- The path is the container's own: a collection composes the workspace, its hub and itself,
        and a hub composes the workspace and itself. -->
+{/if}
+
+{#if levelAsked && container}
+  <BoardLevelDialog collectionId={container.id} asked={levelAsked} onclose={() => (levelAsked = undefined)} ondone={levelSwitched} />
 {/if}
 
 {#if isTrashing && container}

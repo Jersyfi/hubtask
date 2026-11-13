@@ -10,6 +10,9 @@
 
 import type { EntrySteps, StateMode } from '@hubtask/sync-engine';
 
+/** A level switch a person asks for: L0 → L1, L1 → L0, L1 → L2. */
+export type LevelSwitch = 'board' | 'list' | 'workflow';
+
 /** The key a board uses for the column of entries no column shows. */
 export const NO_COLUMN = 'none';
 
