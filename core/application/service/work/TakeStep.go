@@ -339,18 +339,27 @@ func (h TakeStep) Descriptor() usecase.Descriptor {
 }
 
 // ListEntrySteps answers where an entry stands in its workflow and the steps the person may take
-// from there, with what each asks and requires (UC-FLW-03 check 1).
+// from there, with what each asks and requires (UC-FLW-03 check 1); beside them the steps they may
+// not take with the reason, the fewest steps into done, and the workflow's picture (UC-FLW-06).
 type ListEntrySteps struct {
 	Completion CompletionWriter
 }
 
-// EntrySteps is the answer: the workflow, the status and the offered steps; empty where no
-// workflow runs.
+// EntrySteps is the answer: the workflow, the status, the offered and the blocked steps, the route
+// to done and the picture; where no workflow runs, the default picture and nothing else.
 type EntrySteps struct {
-	Workflow domain.Workflow
-	InForce  bool
-	Status   string
-	Offered  []StepVerdict
+	Workflow  domain.Workflow
+	InForce   bool
+	Status    string
+	Offered   []StepVerdict
+	Blocked   []StepVerdict
+	DoneRoute []domain.WorkflowStep
+	Picture   domain.WorkflowShape
+	// ByDefault is true where no workflow runs: the picture is the system workflow's, every status
+	// reachable, and completing the entry reaches done.
+	ByDefault bool
+	// MayDesign reports whether the person may open the workflow in the designer.
+	MayDesign bool
 }
 
 // Execute reads the steps.
@@ -374,18 +383,26 @@ func (h ListEntrySteps) Execute(ctx context.Context, actor appshared.ActorContex
 		Action: ItemStepsReadAction, TokenScope: itemsWrite, TargetType: itemTarget,
 		TargetID: itemID, On: changing(subject),
 	}) == nil
-	var out EntrySteps
+	out := EntrySteps{
+		Picture: domain.SystemWorkflow().Published, ByDefault: true, DoneRoute: []domain.WorkflowStep{},
+		MayDesign: w.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.PermissionStructure, Path: containerPath(collection),
+			Action: ItemStepsReadAction, TargetType: itemTarget, TargetID: itemID, On: reading(subject),
+		}) == nil,
+	}
 	err = w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		workflow, found, err := w.Workflow.InForce(ctx, collection, domain.EntryTypeKeyOf(subject))
 		if err != nil || !found {
 			return err
 		}
-		out.Workflow, out.InForce = workflow, true
+		out.Workflow, out.InForce, out.ByDefault = workflow, true, false
+		out.Picture = workflow.Published
 		out.Status = StatusOf(workflow.Published, subject)
+		out.DoneRoute = workflow.Published.RouteToDone(out.Status)
 		if !mayChange {
 			return nil
 		}
-		out.Offered, err = w.Workflow.Offered(ctx, actor, collection, subject, workflow.Key, workflow.Published)
+		out.Offered, out.Blocked, err = w.Workflow.Standing(ctx, actor, collection, subject, workflow.Key, workflow.Published)
 		return err
 	})
 	return out, err
@@ -409,8 +426,49 @@ func StepOutput(verdict StepVerdict) usecase.Output {
 		"key": step.Key, "name": stringOrNil(step.Name), "to": step.To,
 		"requires": nonNilStrings(step.Requires), "asks": nonNilStrings(step.Asks),
 		"allowed": verdict.Allowed, "missing": nonNilStrings(verdict.Missing), "checks": checks,
-		"holds": verdict.Holds(),
+		"holds": verdict.Holds(), "approval_levels": approvalLevels(step),
 	}
+}
+
+func approvalLevels(step domain.WorkflowStep) int {
+	if step.Approval == nil {
+		return 0
+	}
+	return len(step.Approval.Levels)
+}
+
+// BlockedOutput is a step the person may not take as the contract spells it: the reason and who
+// may (UC-FLW-06 check 1).
+func BlockedOutput(workflowKey string, verdict StepVerdict) usecase.Output {
+	step := verdict.Step
+	people := make([]string, 0, len(verdict.People))
+	for _, person := range verdict.People {
+		people = append(people, person.String())
+	}
+	return usecase.Output{
+		"key": step.Key, "name": stringOrNil(step.Name), "to": step.To, "reason": verdict.Reason,
+		"roles": nonNilStrings(step.Who.Roles), "people": people, "groups": nonNilStrings(step.Who.Groups),
+		"permission": string(service.TakeStep(workflowKey, step.Key)),
+	}
+}
+
+// PictureOutput is a workflow drawn read-only: its statuses and steps without who may take them.
+func PictureOutput(shape domain.WorkflowShape) usecase.Output {
+	statuses := make([]usecase.Output, 0, len(shape.Statuses))
+	for _, status := range shape.Statuses {
+		statuses = append(statuses, usecase.Output{
+			"key": status.Key, "name": stringOrNil(status.Name), "category": string(status.Category),
+			"color_token": status.ColorToken,
+		})
+	}
+	steps := make([]usecase.Output, 0, len(shape.Steps))
+	for _, step := range shape.Steps {
+		steps = append(steps, usecase.Output{
+			"key": step.Key, "name": stringOrNil(step.Name), "from": nonNilStrings(step.From), "to": step.To,
+			"limited": !step.Who.IsOpen(), "approval": step.Approval != nil,
+		})
+	}
+	return usecase.Output{"statuses": statuses, "initial": shape.Initial, "steps": steps}
 }
 
 func nonNilStrings(values []string) []string {
@@ -427,7 +485,9 @@ func (h ListEntrySteps) Descriptor() usecase.Descriptor {
 		Name:       ListEntryStepsName,
 		Summary: "Answers the workflow an entry's collection runs for its type, the entry's status, " +
 			"and the steps the person may take from it - each with what it asks for, what it still " +
-			"needs and whether its checks hold. Empty where no workflow runs.",
+			"needs and whether its checks hold - beside the steps they may not take with the reason " +
+			"and who may, the fewest steps into done, and the workflow's read-only picture. Where " +
+			"no workflow runs, the default picture.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  itemsRead,
 		ReadOnly:    true,
@@ -452,7 +512,18 @@ func (h ListEntrySteps) Descriptor() usecase.Descriptor {
 			for _, verdict := range steps.Offered {
 				offered = append(offered, StepOutput(verdict))
 			}
-			out := usecase.Output{"workflow": nil, "status": nil, "steps": offered}
+			blocked := make([]usecase.Output, 0, len(steps.Blocked))
+			for _, verdict := range steps.Blocked {
+				blocked = append(blocked, BlockedOutput(steps.Workflow.Key, verdict))
+			}
+			route := make([]usecase.Output, 0, len(steps.DoneRoute))
+			for _, step := range steps.DoneRoute {
+				route = append(route, usecase.Output{"key": step.Key, "name": stringOrNil(step.Name), "to": step.To})
+			}
+			out := usecase.Output{
+				"workflow": nil, "status": nil, "steps": offered, "blocked": blocked, "done_route": route,
+				"picture": PictureOutput(steps.Picture), "by_default": steps.ByDefault, "may_design": steps.MayDesign,
+			}
 			if steps.InForce {
 				out["workflow"] = steps.Workflow.Key
 				out["status"] = steps.Status

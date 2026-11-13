@@ -77,9 +77,19 @@ func StatusOf(shape domain.WorkflowShape, item domain.WorkItem) string {
 type StepVerdict struct {
 	Step    domain.WorkflowStep
 	Allowed bool
+	// Reason says why a step not allowed is not (UC-FLW-06 check 1): a StepReason code.
+	Reason string
+	// People are whom the step's person fields name on the entry: who may take it by them.
+	People  []shared.ID
 	Missing []string
 	Checks  map[string]bool
 }
+
+// The reasons a step is not allowed, codes a client words (rule 8).
+const (
+	StepReasonWhoUnmet       = "workflows.step_who_unmet"
+	StepReasonConditionUnmet = "workflows.step_condition_unmet"
+)
 
 // Holds reports whether the step may be taken now.
 func (v StepVerdict) Holds() bool {
@@ -119,10 +129,11 @@ func (g WorkflowGate) Judge(
 	if err != nil {
 		return StepVerdict{}, err
 	}
-	verdict.Allowed, err = g.allowed(ctx, actor, collection, item, workflowKey, step, activation)
+	verdict.Allowed, verdict.Reason, err = g.allowed(ctx, actor, collection, item, workflowKey, step, activation)
 	if err != nil {
 		return StepVerdict{}, err
 	}
+	verdict.People = peopleNamed(item, step.Who.PersonFields)
 	verdict.Missing = domain.StepRequirementsMissing(step, item)
 	for _, check := range step.Checks {
 		held, err := g.holds(ctx, check.Holds, activation)
@@ -137,22 +148,22 @@ func (g WorkflowGate) Judge(
 func (g WorkflowGate) allowed(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
 	workflowKey string, step domain.WorkflowStep, activation formActivation,
-) (bool, error) {
+) (bool, string, error) {
 	who := step.Who
 	if who.IsOpen() {
-		return true, nil
+		return true, "", nil
 	}
 	held := access.Held{}
 	if g.Roles != nil {
 		var err error
 		if held, err = g.Roles.HeldAlong(ctx, actor, containerPath(collection)); err != nil {
-			return false, err
+			return false, "", err
 		}
 	}
 	// A step permission from the catalogue opens the step whatever its who names (UC-FLW-04); the
 	// owner and the administrators hold every one, as a family.
 	if workflowKey != "" && carriedBy(held)(service.TakeStep(workflowKey, step.Key)) {
-		return true, nil
+		return true, "", nil
 	}
 	if len(who.Roles) > 0 || len(who.PersonFields) > 0 || len(who.Groups) > 0 {
 		met := false
@@ -169,18 +180,61 @@ func (g WorkflowGate) allowed(
 		if !met {
 			inGroup, err := g.inGroup(ctx, actor, who.Groups)
 			if err != nil {
-				return false, err
+				return false, "", err
 			}
 			met = inGroup
 		}
 		if !met {
-			return false, nil
+			return false, StepReasonWhoUnmet, nil
 		}
 	}
 	if who.Condition == "" {
-		return true, nil
+		return true, "", nil
 	}
-	return g.holds(ctx, who.Condition, activation)
+	holds, err := g.holds(ctx, who.Condition, activation)
+	if err != nil || !holds {
+		return false, StepReasonConditionUnmet, err
+	}
+	return true, "", nil
+}
+
+// peopleNamed answers the accounts the person fields name on the entry, each once.
+func peopleNamed(item domain.WorkItem, fields []string) []shared.ID {
+	var people []shared.ID
+	add := func(id shared.ID) {
+		if !id.IsZero() && !slices.Contains(people, id) {
+			people = append(people, id)
+		}
+	}
+	for _, field := range fields {
+		switch field {
+		case "assignee":
+			add(item.AssigneeID)
+		case "created_by":
+			add(item.CreatedBy)
+		default:
+			key, _ := strings.CutPrefix(field, domain.FormCustomPrefix)
+			var values []string
+			switch value := item.CustomFields[key].(type) {
+			case string:
+				values = []string{value}
+			case []string:
+				values = value
+			case []any:
+				for _, one := range value {
+					if text, ok := one.(string); ok {
+						values = append(values, text)
+					}
+				}
+			}
+			for _, value := range values {
+				if id, err := shared.ParseID(value); err == nil {
+					add(id)
+				}
+			}
+		}
+	}
+	return people
 }
 
 // inGroup reports whether the actor is in any of the groups a step names.
@@ -293,18 +347,29 @@ func (g WorkflowGate) Offered(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
 	workflowKey string, shape domain.WorkflowShape,
 ) ([]StepVerdict, error) {
+	offered, _, err := g.Standing(ctx, actor, collection, item, workflowKey, shape)
+	return offered, err
+}
+
+// Standing answers the steps from where the entry stands, split into those the actor may take
+// and those they may not, each in the workflow's order (UC-FLW-06 check 1).
+func (g WorkflowGate) Standing(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, item domain.WorkItem,
+	workflowKey string, shape domain.WorkflowShape,
+) (offered, blocked []StepVerdict, err error) {
 	status := StatusOf(shape, item)
-	var offered []StepVerdict
 	for _, step := range shape.StepsFrom(status) {
 		verdict, err := g.Judge(ctx, actor, collection, item, workflowKey, status, step)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if verdict.Allowed {
 			offered = append(offered, verdict)
+		} else {
+			blocked = append(blocked, verdict)
 		}
 	}
-	return offered, nil
+	return offered, blocked, nil
 }
 
 // completionStep answers the step a completion or a reopening takes in a workflow collection

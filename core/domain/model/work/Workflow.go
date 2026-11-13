@@ -202,6 +202,42 @@ func (s WorkflowShape) Entering(status string, completed bool) string {
 	return s.Initial
 }
 
+// RouteToDone answers the fewest steps from a status into a done one, whoever may take them; the
+// workflow's order breaks a tie. Empty from a done status or where no step leads to done.
+func (s WorkflowShape) RouteToDone(from string) []WorkflowStep {
+	route := []WorkflowStep{}
+	if s.Completes(from) {
+		return route
+	}
+	type arrival struct {
+		step WorkflowStep
+		from string
+	}
+	reached := map[string]arrival{}
+	seen := map[string]bool{from: true}
+	queue := []string{from}
+	for len(queue) > 0 {
+		at := queue[0]
+		queue = queue[1:]
+		for _, step := range s.StepsFrom(at) {
+			if seen[step.To] {
+				continue
+			}
+			seen[step.To] = true
+			reached[step.To] = arrival{step: step, from: at}
+			if !s.Completes(step.To) {
+				queue = append(queue, step.To)
+				continue
+			}
+			for status := step.To; status != from; status = reached[status].from {
+				route = append([]WorkflowStep{reached[status].step}, route...)
+			}
+			return route
+		}
+	}
+	return route
+}
+
 // Columns answers the status keys in order: a board's columns in a workflow collection.
 func (s WorkflowShape) Columns() []string {
 	keys := make([]string, 0, len(s.Statuses))

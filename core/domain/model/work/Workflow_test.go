@@ -311,3 +311,48 @@ func TestAnApprovalStepIsHeldToItsShape(t *testing.T) {
 		t.Errorf("a good approval: %+v %v", shape, err)
 	}
 }
+
+// How done is reached (UC-FLW-06 check 3): the fewest steps from a status into one of the DONE
+// category, in the workflow's order where two routes are as short; none from a done status or
+// where no step leads there.
+func TestRouteToDone(t *testing.T) {
+	shape := work.WorkflowShape{
+		Statuses: []work.WorkflowStatus{
+			{Key: "todo", Category: work.CategoryTodo},
+			{Key: "doing", Category: work.CategoryInProgress},
+			{Key: "review", Category: work.CategoryInProgress},
+			{Key: "done", Category: work.CategoryDone},
+			{Key: "stuck", Category: work.CategoryTodo},
+		},
+		Initial: "todo",
+		Steps: []work.WorkflowStep{
+			{Key: "start", From: []string{"todo"}, To: "doing"},
+			{Key: "submit", From: []string{"doing"}, To: "review"},
+			{Key: "approve", From: []string{"review"}, To: "done"},
+			{Key: "park", From: []string{"todo", "doing"}, To: "stuck"},
+		},
+	}
+	keys := func(steps []work.WorkflowStep) []string {
+		out := []string{}
+		for _, step := range steps {
+			out = append(out, step.Key)
+		}
+		return out
+	}
+	for _, tc := range []struct {
+		from string
+		want []string
+	}{
+		{"todo", []string{"start", "submit", "approve"}},
+		{"review", []string{"approve"}},
+		{"done", []string{}},
+		{"stuck", []string{}},
+	} {
+		if got := keys(shape.RouteToDone(tc.from)); !slices.Equal(got, tc.want) {
+			t.Errorf("from %s: %v, want %v", tc.from, got, tc.want)
+		}
+	}
+	if got := keys(work.SystemWorkflow().Published.RouteToDone("todo")); !slices.Equal(got, []string{"finish"}) {
+		t.Errorf("the system workflow reaches done in one step: %v", got)
+	}
+}
