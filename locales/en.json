@@ -14810,5 +14810,6 @@
   "app.desk.requester.open_one": "1 other open request:",
   "app.desk.requester.open_many": "{count} other open requests:",
   "app.desk.requester.other_named": "{key}: {title}",
-  "app.comments.more": "More for this comment"
+  "app.comments.more": "More for this comment",
+  "app.flow.action.take_step": "Take a workflow step"
 }
