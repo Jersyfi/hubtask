@@ -408,3 +408,44 @@ test('chromium: a goal\'s and a portfolio\'s head draw their status in the statu
   await headStatusIsTheButtonShape(page, 'On track');
   assert.deepEqual(walk.errors(), []);
 });
+
+// A project's row act says what it does for that project, and at 1280 nothing of the row is cut
+// off - the act and its ⋯ included (finding of the family 3.1 review).
+test('chromium: 1280 px - a portfolio\'s project rows change the project, and nothing of a row is clipped', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const project = (name, status, progress) => ({ container_id: COLLECTION.id, kind: 'COLLECTION', name, archived: false, start_on: '2026-08-15', end_on: '2027-01-12', status, entries: 44, done: 9, progress });
+  const folio = {
+    id: '01a0e2e0-0000-7000-8000-00000000a50a', parent_id: null, name: 'Strategic projects 2026', description: '', owner_id: ACCOUNT.id, status: 'AT_RISK', progress: null, version: 1,
+    items: [project('Product development', 'ON_TRACK', 0.2), { ...project('New logistics centre Hamburg-Billbrook', 'OFF_TRACK', 0.18), container_id: '01a0e2e0-0000-7000-8000-00000000c0f1' }],
+  };
+  const backend = goalsBackend({ seed: { portfolios: [folio] } });
+  // In German, whose words run longest.
+  const walk = await productWalk(browser, {
+    modules: ['GOALS'], width: 1280, height: 900,
+    answer: (method, path, ...rest) => (path === '/accounts/me' && method === 'GET' ? { json: { ...ACCOUNT, locale: 'de' } } : backend(method, path, ...rest)),
+  });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/portfolios/${folio.id}`);
+  const verb = page.getByRole('button', { name: 'Product development ändern' });
+  await verb.waitFor({ timeout: 10_000 });
+  assert.equal((await verb.innerText()).trim(), 'Ändern');
+  assert.equal(await page.getByRole('button', { name: 'Portfolio ändern' }).count(), 0, 'a project\'s row offers to change the portfolio');
+  const clipped = await page.evaluate(() => {
+    const out = [];
+    for (const button of document.querySelectorAll('main table button')) {
+      const box = button.getBoundingClientRect();
+      if (box.width === 0) continue;
+      for (let node = button.parentElement; node && node !== document.body; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.overflowX === 'visible') continue;
+        const frame = node.getBoundingClientRect();
+        if (box.right > frame.right + 1 || box.left < frame.left - 1) out.push(button.getAttribute('aria-label') ?? button.textContent?.trim());
+        break;
+      }
+    }
+    return out;
+  });
+  assert.deepEqual(clipped, [], 'a row\'s act is clipped');
+});

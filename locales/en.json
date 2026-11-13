@@ -14806,5 +14806,6 @@
   "app.entry.all_properties_title": "All properties",
   "app.entry.rail_more": "More fields",
   "app.goals.goal_subtitle_workspace": "A goal of the workspace",
-  "app.goals.goal_subtitle_unread": "A goal of a hub you do not read"
+  "app.goals.goal_subtitle_unread": "A goal of a hub you do not read",
+  "app.portfolios.project_verb": "Change"
 }

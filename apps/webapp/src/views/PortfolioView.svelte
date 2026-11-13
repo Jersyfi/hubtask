@@ -294,7 +294,8 @@
             {:else}<span class="number" class:over={item.budget?.over_time || item.budget?.over_money}>{item.budget ? burnText(item.budget) : ''}</span>{/if}
           {/snippet}
           {#snippet verb(item: Project)}
-            {#if mayWrite}<Button size="sm" tone="subtle" icon="pencil" onclick={() => openProject(item)}>{t('app.portfolios.change')}</Button>{/if}
+            <!-- The row's act changes this project's dates and state, not the portfolio: short, named by its project. -->
+            {#if mayWrite}<Button size="sm" tone="subtle" icon="pencil" aria-label={t('app.portfolios.change_project', { name: item.name })} onclick={() => openProject(item)}>{t('app.portfolios.project_verb')}</Button>{/if}
           {/snippet}
         </DataTable>
       {/if}

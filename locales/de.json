@@ -14806,5 +14806,6 @@
   "app.entry.all_properties_title": "Alle Eigenschaften",
   "app.entry.rail_more": "Weitere Felder",
   "app.goals.goal_subtitle_workspace": "Ein Ziel des Arbeitsbereichs",
-  "app.goals.goal_subtitle_unread": "Ein Ziel eines Hubs, den du nicht liest"
+  "app.goals.goal_subtitle_unread": "Ein Ziel eines Hubs, den du nicht liest",
+  "app.portfolios.project_verb": "Ändern"
 }
