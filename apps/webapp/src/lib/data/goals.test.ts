@@ -228,6 +228,7 @@ test('a number over periods is the last period, its change and eight periods as 
   assert.equal(figure.change, -6);
   assert.equal(figure.spark.split(' ').length, 3);
   assert.deepEqual(numberFigure(figureRows([{ count: 4 }, { count: 5 }])), { value: 9, text: '9', spark: '' });
+  assert.equal(numberFigure(figureRows([{ period: '2026-01-12', count: 3 }, { period: null, count: 19 }])).text, '3', 'the undated count in no period');
 });
 
 test('a target with a warning line above it means lower is better, below it higher', () => {

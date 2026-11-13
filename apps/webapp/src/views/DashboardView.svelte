@@ -213,14 +213,17 @@
   $effect(() => {
     if (!isLibraryOpen) return;
     const filter = filterTree;
+    const hub = placeHub ?? undefined;
+    // The previews count where the dashboard lives: its hub, or the whole workspace; a list needs a place.
+    const scope = hub ? { container_id: hub, include_descendants: true } : { workspace: true };
     return untrack(() => {
       const closers = [
-        engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:aggregate', body: { ...(filter ? { filter } : {}), aggregate: { function: 'COUNT', group_by: 'status' } } }, (next) => {
+        engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:aggregate', body: { scope, ...(filter ? { filter } : {}), aggregate: { function: 'COUNT', group_by: 'status' } } }, (next) => {
           if (next.status === 'ready') previewRows = figureRows(next.data.data, { group: (value) => groupName('status', value), period: (day) => day });
         }),
-        engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:query', body: { ...(filter ? { filter } : {}), size: 3 } }, (next) => {
+        ...(hub ? [engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:query', body: { scope, ...(filter ? { filter } : {}), page: { size: 3 } } }, (next) => {
           if (next.status === 'ready') previewEntries = next.data.data.map((row) => ({ id: String(row['id']), key: ticketKeyOf(typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined, row['number'] as number) ?? '', title: String(row['title'] ?? ''), href: `/items/${String(row['id'])}`, column: '' }));
-        }),
+        })] : []),
       ];
       return () => closers.forEach((close) => close());
     });
@@ -890,7 +893,7 @@
   .grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    grid-auto-rows: minmax(var(--sp-1000), auto);
+    grid-auto-rows: var(--sp-1000);
     gap: var(--sp-200);
   }
   .widget {
@@ -906,7 +909,7 @@
     background: var(--bg-surface);
   }
   /* A tablet halves the columns and places the widgets in reading order; a phone stacks them. */
-  .grid.half { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-flow: row dense; }
+  .grid.half { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: minmax(var(--sp-1000), auto); grid-auto-flow: row dense; }
   .grid.half .widget { grid-column: span var(--half); grid-row: auto; }
   .grid.stacked { display: flex; flex-direction: column; }
   .stage { display: flex; flex-direction: column; gap: var(--sp-200); min-width: 0; }
@@ -933,8 +936,11 @@
   .preview { overflow: hidden; block-size: var(--sp-800); padding: var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); pointer-events: none; font-size: var(--fs-050); }
   .card-text { display: flex; flex-direction: column; gap: var(--sp-025); font-size: var(--fs-075); }
   .widget-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); min-block-size: var(--sp-300); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .content { flex: 1 1 auto; min-width: 0; }
+  .heading { flex: 1 1 auto; min-width: 0; margin: 0; overflow: hidden; font-size: var(--fs-100); font-weight: var(--fw-semibold); text-overflow: ellipsis; white-space: nowrap; }
+  /* A widget is as tall as its cells (wcat): what is longer scrolls inside it. */
+  .content { flex: 1 1 auto; min-width: 0; min-block-size: 0; overflow: auto; }
+  .grid .widget { overflow: hidden; }
+  .grid.half .widget, .grid.stacked .widget { overflow: visible; }
   .foot { margin: 0; overflow: hidden; color: var(--text-subtle); font-family: var(--font-mono); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .filterbar :global([data-query-strip]) { flex: 1 1 0; }

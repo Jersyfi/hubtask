@@ -510,8 +510,9 @@ export interface NumberFigure {
 }
 
 export function numberFigure(rows: readonly FigureRow[]): NumberFigure {
+  // Entries without the stamp (one not resolved yet) belong to no period, and so to no figure of one.
   const periods = rows.filter((row) => row.period !== undefined && row.column === undefined);
-  if (periods.length === 0 || periods.length !== rows.length) {
+  if (periods.length === 0 || rows.some((row) => row.column !== undefined)) {
     const total = totalOf(rows);
     const texts = rows.length === 1 ? rows[0]!.text : String(round(total));
     return { value: total, text: texts, spark: '' };

@@ -529,6 +529,7 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
   await library.waitFor({ timeout: 5_000 });
   assert.equal(await library.locator('.card').count(), 9, 'the library offers the nine kinds');
   await library.locator('[data-kind="BAR"] [data-chart="BAR"]').getByText('4', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.ok(walk.written.some((each) => each.path === '/items:aggregate' && each.body?.scope?.workspace === true), 'the previews count where the dashboard lives');
   await library.getByRole('button', { name: 'Lists' }).click();
   assert.equal(await library.locator('.card').count(), 2, 'a kind filter narrows the cards');
   // The editor's three tabs (UC-GOL-04 check 21): a text is written under Display, a target set under Look.

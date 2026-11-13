@@ -266,7 +266,9 @@
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .cell, .figure { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: end; }
   .swatch { display: inline-block; inline-size: var(--sp-100); block-size: var(--sp-100); margin-inline-end: var(--sp-050); border-radius: var(--r-full); background: var(--series); }
-  .key { font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-secondary); }
+  .key { flex: none; font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-secondary); white-space: nowrap; }
+  .goal a { color: var(--text-primary); text-decoration: none; }
+  .goal a:hover { text-decoration: underline; }
 
   .number { display: flex; flex-direction: column; gap: var(--sp-050); }
   .big { margin: 0; font-size: var(--fs-700); font-weight: var(--fw-semibold); line-height: 1; font-variant-numeric: tabular-nums; }
