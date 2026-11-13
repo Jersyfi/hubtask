@@ -47,6 +47,8 @@
   import BoardList from './BoardList.svelte';
   import BoardTemplates, { templateOf, type BoardStart, type RetroFormat } from './BoardTemplates.svelte';
   import { actor } from '../data/account.svelte.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
+  import { initialsOf } from '../data/grants.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { entryTypes, entryTypesOffered, offeredTypes, typesShown } from '../data/entrytypes.svelte.ts';
@@ -286,6 +288,7 @@
     const state = await engine.refresh<{ data: ReferenceTarget[] }>(resolveRequest(ids.map((id) => ({ kind: 'ENTRY' as const, id }))));
     if (mine !== resolving || state.status !== 'ready') return;
     cards = new Map(state.data.data.map((target) => [target.id.toLowerCase(), target]));
+    accounts.resolve(state.data.data.map((target) => target.assignee_id));
   }
 
   const cardOf = (e: Element) => (e.target ? cards.get(e.target.id.toLowerCase()) : undefined);
@@ -1512,17 +1515,24 @@
             <path d={outlinePath(e)} />
             {#if target?.available}
               {@const state = target.status_name ?? t(`app.whiteboards.card_state_${(target.status_category ?? (target.completed ? 'DONE' : 'TODO')).toLowerCase()}`)}
-              <!-- A note made a task is that task, live: key, status and tick (W-6). -->
+              {@const person = target.assignee_id ? (accounts.nameOf(target.assignee_id) ?? '') : ''}
+              <!-- A note made a task is that task, live: key, person, status and tick (W-6). The key opens it. -->
               <rect class="card-top" x={e.x} y={e.y} width={e.width} height="3" />
-              <text x={e.x + 12} y={e.y + 24} class="key">{target.key ?? ''}</text>
-              {#each lines(target.title ?? '', e.width - 36, 14).slice(0, Math.max(1, Math.floor((e.height - 76) / 18))) as row, i (i)}
-                <text x={e.x + 12} y={e.y + 48 + i * 18} class="words">{row}</text>
-              {/each}
               <a
                 href={`/items/${target.id}`}
                 onclick={(event) => { event.preventDefault(); onnavigate(`/items/${target.id}`); }}
                 aria-label={t('app.whiteboards.card_open', { title: target.title ?? '' })}
-              ><text x={e.x + e.width - 12} y={e.y + 24} text-anchor="end" class="open">↗</text></a>
+              ><text x={e.x + 12} y={e.y + 24} class="key open-key">{target.key ?? '↗'}</text></a>
+              {#each lines(target.title ?? '', e.width - 36, 14).slice(0, Math.max(1, Math.floor((e.height - 76) / 18))) as row, i (i)}
+                <text x={e.x + 12} y={e.y + 48 + i * 18} class="words">{row}</text>
+              {/each}
+              {#if target.assignee_id}
+                <g class="person" data-card-person={target.assignee_id}>
+                  <title>{person}</title>
+                  <circle cx={e.x + e.width - 22} cy={e.y + 19} r="10" />
+                  <text x={e.x + e.width - 22} y={e.y + 22.5} text-anchor="middle">{initialsOf(person)}</text>
+                </g>
+              {/if}
               <g class={`state ${(target.status_category ?? (target.completed ? 'DONE' : 'TODO')).toLowerCase()}`}>
                 <rect x={e.x + 42} y={e.y + e.height - 33} width={Math.min(e.width - 54, 16 + state.length * 7.5)} height="20" rx="4" />
                 <text x={e.x + 50} y={e.y + e.height - 19}>{state}</text>
@@ -2367,6 +2377,9 @@
   .card.done .words { text-decoration: line-through; fill: var(--text-subtle); }
   .card .key { fill: var(--text-subtle); font-size: var(--fs-075); }
   .card .open { fill: var(--text-brand); font-size: var(--fs-100); }
+  .card .open-key { cursor: pointer; }
+  .card .person circle { fill: var(--accent-primary-subtle); stroke: var(--bg-raised); }
+  .card .person text { fill: var(--text-brand); font-size: var(--fs-065); font-weight: var(--fw-semibold); }
   .tick rect { fill: var(--bg-surface); stroke: var(--border-strong); }
   .tick.done rect { stroke: var(--text-primary); }
   .tick text { fill: var(--text-primary); font-size: var(--fs-100); }
