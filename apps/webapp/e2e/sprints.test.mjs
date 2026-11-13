@@ -344,12 +344,17 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   t.after(close);
 
   // It opens on the next planned release, with what is done and open counted by the server.
-  const chooser = page.getByLabel('Release', { exact: true });
-  await chooser.waitFor({ timeout: 15_000 });
-  assert.equal(await chooser.inputValue(), COMING.id);
-  await page.locator('[data-release-done]').getByText('1 of 1 done').waitFor({ timeout: 5_000 });
-  // The head says what is coming and what went out (user-experience.md §5.1).
-  await page.getByText(/^2 planned · next: 1\.1 on .+ · 1 released$/).waitFor({ timeout: 5_000 });
+  const chosen = page.locator(`[data-release-chosen="${COMING.id}"]`);
+  await chosen.waitFor({ timeout: 15_000 });
+  await page.locator('[data-release-done]').getByText('1 done, 0 open').waitFor({ timeout: 5_000 });
+  // The head says what is coming, the next one and what went out (scene planrel 1).
+  await page.getByText(/^2 planned · next: 1\.1 on .+ · 1 released( · .+)?$/).waitFor({ timeout: 5_000 });
+
+  // The releases stand on an axis, each a mark that chooses it (scene planrel 2), and as cards.
+  const axis = page.locator('[data-release-axis]');
+  assert.equal(await axis.locator('[data-release-mark]').count(), 3);
+  assert.equal(await axis.locator(`[data-release-mark="${COMING.id}"]`).getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-release-card]').count(), 3);
 
   // A release has no trash: deleting it asks, naming it, and keeping it sends nothing (§5.9).
   await page.getByRole('button', { name: 'More for this release' }).click();
@@ -360,17 +365,20 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   await asked.waitFor({ state: 'detached', timeout: 5_000 });
   assert.equal(wrote(written, 'DELETE', `/releases/${COMING.id}`), undefined, 'a release was deleted without being asked');
 
-  // The collection's entries not in the release yet are offered; one is taken in.
-  const offered = page.getByRole('table', { name: 'Entries to add' });
+  // *Add entries* offers the entries of every collection not in the release yet (scene planrel 4).
+  await page.locator('[data-release-add]').click();
+  const adding = page.getByRole('dialog', { name: 'Add entries' });
+  const offered = adding.getByRole('list', { name: 'Entries to add' });
   await offered.waitFor({ timeout: 5_000 });
-  assert.equal(await offered.getByRole('link', { name: ITEMS[0].title }).count(), 0, 'an entry already in the release is offered again');
-  await page.getByLabel(`Pick ${ITEMS[1].title}`).check();
-  await page.getByRole('button', { name: 'Add 1 to the release' }).click();
+  assert.equal(await offered.getByText(ITEMS[0].title, { exact: true }).count(), 0, 'an entry already in the release is offered again');
+  await adding.getByLabel(ITEMS[1].title, { exact: true }).check();
+  await adding.getByRole('button', { name: 'Add 1 to the release' }).click();
   await settle(page);
   assert.deepEqual(wrote(written, 'POST', `/releases/${COMING.id}/entries`)?.body, { item_ids: [ITEMS[1].id] });
 
-  // Released, its open entries carried into the next planned one, the notes written as a page.
-  await page.getByRole('button', { name: 'Release', exact: true }).click();
+  // *Publish* stands on the chosen release (scene planrel 3): its open entries carried into the
+  // next planned one, the notes written as a page.
+  await chosen.getByRole('button', { name: 'Release', exact: true }).click();
   const dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel('Open entries go to').inputValue(), LATER.id);
   assert.deepEqual((await dialog.locator('footer.actions').getByRole('button').allInnerTexts()).map((each) => each.trim()), ['Cancel', 'Release'], 'the primary in the foot, Cancel beside it');
@@ -379,23 +387,12 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   await settle(page);
   assert.deepEqual(wrote(written, 'POST', `/releases/${COMING.id}:publish`)?.body, { write_notes: true, carry_to: LATER.id });
 
-  // A shipped release's state sits in the head in the status button's shape (§6.9): its height, its glyph.
-  await chooser.selectOption(SHIPPED.id);
-  const state = page.locator('header.object-head .action-bar .lozenge').first();
-  await state.getByText('Released', { exact: true }).waitFor({ timeout: 5_000 });
-  assert.equal(await state.getAttribute('data-size'), 'md', 'the release\'s state is the small lozenge');
-  assert.equal(await state.locator('.icon').count(), 1, 'the released state carries no glyph');
-  // A released one has no next step to stand beside: the head's control height is the measure.
-  const control = await page.evaluate(() => {
-    const probe = document.createElement('div');
-    probe.style.blockSize = 'var(--density-control-sm-min)';
-    document.body.append(probe);
-    const high = probe.getBoundingClientRect().height;
-    probe.remove();
-    return high;
-  });
-  const own = await state.boundingBox();
-  assert.ok(control > 0 && own.height >= control - 1, `the state is ${own.height} px high, a head control ${control} px`);
+  // A shipped release, chosen from its card, says so and offers no publishing.
+  await page.locator(`[data-release-card="${SHIPPED.id}"]`).click();
+  const shipped = page.locator(`[data-release-chosen="${SHIPPED.id}"]`);
+  await shipped.locator('.lozenge').getByText('Released', { exact: true }).waitFor({ timeout: 5_000 });
+  assert.equal(await shipped.locator('[data-release-publish]').count(), 0, 'a released one offers publishing');
+  await shipped.getByRole('link', { name: 'Read the release notes' }).waitFor({ timeout: 5_000 });
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
