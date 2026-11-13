@@ -95,6 +95,16 @@ const DESK_FLOW = {
 const LEVELLED_DESK = { ...DESK, structure: { settings: { ...DESK.structure.settings, levels: [{ type: 'TASK', name: null }, { type: 'WORK_PACKAGE', name: null }] } } };
 const STATUS_OF = { '01': 'working', '02': 'new', '03': 'new' };
 
+/** What `/search:all` finds, each hit with the words that find it. */
+const found = (kind, id, title, words, more = {}) => ({ kind, id, title, words, hub_id: HUB.id, collection_id: null, tile: null, snippet: null, state: null, key: null, updated_at: '2026-11-01T00:00:00Z', created_at: '2026-10-01T00:00:00Z', author_id: null, on: null, ...more });
+const FOUND = [
+  found('PAGE', PAGES[0].id, PAGES[0].title, ['release'], { snippet: 'Your first «release» week' }),
+  found('WHITEBOARD', BOARDS[0].id, BOARDS[0].title, ['release']),
+  found('WHITEBOARD', BOARDS[1].id, BOARDS[1].title, ['kick-off']),
+  found('GOAL', GOAL_ROWS[0].id, GOAL_ROWS[0].title, ['kundinnen'], { hub_id: null }),
+  found('ASSET', CIS[0].id, CIS[0].name, ['fortigate']),
+  found('DASHBOARD', DASHBOARDS[0].id, DASHBOARDS[0].name, ['morgen'], { hub_id: null }),
+];
 /** The API at the network edge, with the workspace's modules and the hub's own. */
 function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = false }) {
   return async (route) => {
@@ -121,10 +131,16 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
     if (path.endsWith('/api/v1/dashboards')) return route.fulfill({ json: { data: DASHBOARDS } });
     if (path.endsWith(`/api/v1/collections/${SCRUM.id}/sprints`)) return route.fulfill({ json: { data: SPRINTS, runs_sprints: true } });
     if (/\/api\/v1\/collections\/[^/]+\/sprints$/.test(path)) return route.fulfill({ json: { data: [], runs_sprints: false } });
-    if (path.endsWith(`/api/v1/hubs/${HUB.id}/cis`)) { ciLimits.push(url.searchParams.get('limit')); return route.fulfill({ json: { data: CIS, next_after: null } }); }
+    if (path.endsWith(`/api/v1/hubs/${HUB.id}/cis`)) return route.fulfill({ json: { data: CIS, next_after: null } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/pages`) && !url.searchParams.has('templates')) return route.fulfill({ json: { data: PAGES } });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/cmdb-health`)) return route.fulfill({ json: HEALTH });
     if (path.endsWith(`/api/v1/hubs/${HUB.id}/releases`)) return route.fulfill({ json: { data: RELEASES } });
+    if (path.endsWith('/api/v1/search:all')) {
+      const { q, kinds } = route.request().postDataJSON();
+      const data = FOUND.filter((hit) => kinds.includes(hit.kind) && hit.words.some((word) => q.toLowerCase().includes(word))).map(({ words, ...hit }) => hit);
+      const facets = kinds.map((kind) => ({ kind, count: data.filter((hit) => hit.kind === kind).length, more: false }));
+      return route.fulfill({ json: { data, facets } });
+    }
     if (path.endsWith('/api/v1/pages:search')) return route.fulfill({ json: { data: [{ id: PAGES[0].id, hub_id: HUB.id, parent_id: null, title: 'Onboarding guide', icon: null, excerpt: 'Your first «release» week', rank: 1, updated_at: PAGES[0].updated_at }] } });
     if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { data: [], page: { next_cursor: null, has_more: false } } });
     if (path.endsWith('/api/v1/entry-types')) return route.fulfill({ json: { data: deskless ? TYPES.map(({ form, ...type }) => type) : TYPES } });
@@ -154,7 +170,7 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
   };
 }
 
-const ciLimits = [];
+const LINE = 'main [data-head="search"] input[role="combobox"]';
 const served = await serve(DIST);
 test.after(() => served.close());
 
@@ -675,33 +691,35 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   assert.deepEqual(failures, []);
 });
 
-// §5.3: one search for every kind: entries, pages, boards and places, grouped and filtered by kind;
-// with no entry matching, the screen does not say nothing matches while other kinds do.
+// §6.11: one search for every kind: pages and boards beside entries, each in its own hit row, the
+// kinds as facets with counts; with no entry matching, the screen does not say nothing matches.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
-  test(`chromium ${width} px, ${scheme}: the search finds pages, boards and places beside entries`, async (t) => {
+  test(`chromium ${width} px, ${scheme}: the search finds pages and boards beside entries, a facet per kind`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, failures, close } = await open(browser, { width, scheme, path: '/search', modulesOn: ['KNOWLEDGE', 'WHITEBOARD'] });
     t.after(close);
-    await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('release');
-    const pagesFound = page.getByRole('region', { name: 'Pages' });
-    await pagesFound.waitFor({ timeout: 10_000 });
-    assert.equal(await pagesFound.getByRole('link', { name: 'Onboarding guide' }).getAttribute('href'), `/pages/${PAGES[0].id}`);
-    const boardsFound = page.getByRole('region', { name: 'Boards' });
-    await boardsFound.waitFor({ timeout: 10_000 });
-    assert.deepEqual(await boardsFound.locator('.name').allTextContents(), [BOARDS[0].title]);
+    // A phone's line waits in its filter sheet; wider, it stands over the hits.
+    if (width < 600) {
+      await page.getByRole('button', { name: 'Change filters' }).click();
+      const sheet = page.getByRole('dialog', { name: 'Filters' });
+      await sheet.getByRole('combobox').fill('release');
+      await sheet.getByRole('button', { name: /^Show \d+ hits?$/u }).click();
+    } else {
+      await page.locator(LINE).fill('release');
+    }
+    const pageHit = page.locator('main a.hit[data-kind="PAGE"]');
+    await pageHit.waitFor({ timeout: 10_000 });
+    assert.equal(await pageHit.getAttribute('href'), `/pages/${PAGES[0].id}`);
+    const boardHit = page.locator('main a.hit[data-kind="WHITEBOARD"]');
+    assert.equal(await boardHit.getAttribute('href'), `/whiteboards/${BOARDS[0].id}`);
     assert.equal(await page.getByText('Nothing matches those words.').count(), 0);
-    const kinds = page.getByRole('group', { name: 'What to show' });
-    assert.deepEqual(await kinds.getByRole('button').allTextContents(), ['All', 'Entries', 'Pages', 'Boards', 'Hubs and collections']);
-    await kinds.getByRole('button', { name: 'Boards' }).click();
-    await pagesFound.waitFor({ state: 'detached', timeout: 5_000 });
-    assert.equal(await boardsFound.count(), 1);
-    await kinds.getByRole('button', { name: 'Hubs and collections' }).click();
-    await page.getByText('Nothing of this kind matches those words.').waitFor({ timeout: 5_000 });
-    await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('product development');
-    const places = page.getByRole('region', { name: 'Hubs and collections' });
-    await places.waitFor({ timeout: 5_000 });
-    assert.equal(await places.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}`);
+    // A kind that found nothing is no facet; *all* counts what the kinds found.
+    const facets = page.locator('main [data-facet]:visible');
+    assert.deepEqual(await facets.evaluateAll((all) => all.map((facet) => facet.dataset.facet)), ['ALL', 'PAGE', 'WHITEBOARD']);
+    await page.locator('main [data-facet="WHITEBOARD"]:visible').click();
+    await pageHit.waitFor({ state: 'detached', timeout: 5_000 });
+    assert.equal(await boardHit.count(), 1);
     await noSidewaysScroll(page, `search ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
@@ -751,61 +769,32 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
   }
 });
 
-// §5.3: goals and configuration items are found by the search, and the palette finds boards and
-// goals beside pages - "FortiGate" and a goal's title found nothing before.
-test('chromium 1280 px: the search finds goals and configuration items, the palette boards and goals', async (t) => {
+// §6.11: goals, configuration items and dashboards are found by the search page, boards and the
+// inventory by the header search too, from the one search over every kind, each hit opening where it lives.
+test('chromium 1280 px: the search and the palette find goals, configuration items and dashboards', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['WHITEBOARD', 'GOALS', 'ASSETS'] });
   t.after(close);
-  const field = page.getByRole('searchbox', { name: 'Search everything you can see' });
-  await field.fill('kundinnen');
-  const goals = page.getByRole('region', { name: 'Goals' });
-  await goals.waitFor({ timeout: 10_000 });
-  assert.equal(await goals.getByRole('link').first().getAttribute('href'), `/goals/${GOAL_ROWS[0].id}`);
-  await field.fill('fortigate');
-  const assets = page.getByRole('region', { name: 'Assets' });
-  await assets.waitFor({ timeout: 10_000 });
-  assert.equal(await assets.getByRole('link').first().getAttribute('href'), `/cis/${CIS[0].id}`);
+  for (const [words, kind, href] of [
+    ['kundinnen', 'GOAL', `/goals/${GOAL_ROWS[0].id}`],
+    ['fortigate', 'ASSET', `/cis/${CIS[0].id}`],
+    ['morgen', 'DASHBOARD', `/dashboards/${DASHBOARDS[0].id}`],
+  ]) {
+    await page.locator(LINE).fill(words);
+    const hit = page.locator(`main a.hit[data-kind="${kind}"]`);
+    await hit.waitFor({ timeout: 10_000 });
+    assert.equal(await hit.getAttribute('href'), href, kind);
+    assert.equal(await page.locator(`main [data-facet="${kind}"]`).count(), 1, `no facet for ${kind}`);
+  }
 
-  const palette = page.getByRole('combobox', { name: 'Search everything' });
+  const palette = page.getByRole('combobox', { name: 'Search everything', exact: true });
   await palette.click();
   await palette.fill('kick-off');
   await page.locator('#search-menu').getByRole('option', { name: /Kick-off/u }).waitFor({ timeout: 10_000 });
-  await palette.fill('kundinnen');
-  await page.locator('#search-menu').getByRole('option', { name: /Mehr Kundinnen gewinnen/u }).waitFor({ timeout: 10_000 });
-  assert.deepEqual(failures, []);
-});
-
-// §5.3: portfolios, dashboards, releases and sprints are found too, by the search and the palette,
-// from the same sources; a hub's inventory is read in its largest page, not the first hundred.
-test('chromium 1280 px: the search and the palette find portfolios, dashboards, releases and sprints', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
-  ciLimits.length = 0;
-  const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['GOALS', 'ASSETS', 'PLANNING'] });
-  t.after(close);
-  const field = page.getByRole('searchbox', { name: 'Search everything you can see' });
-  for (const [words, region, href] of [
-    ['wachstum', 'Portfolios', `/portfolios/${PORTFOLIOS[0].id}`],
-    ['morgen', 'Dashboards', `/dashboards/${DASHBOARDS[0].id}`],
-    ['autumn', 'Releases', `/hubs/${HUB.id}/releases`],
-    ['kranich', 'Sprints', `/collections/${SCRUM.id}/sprints`],
-    ['fortigate', 'Assets', `/cis/${CIS[0].id}`],
-  ]) {
-    await field.fill(words);
-    const found = page.getByRole('region', { name: region });
-    await found.waitFor({ timeout: 10_000 });
-    assert.equal(await found.getByRole('link').first().getAttribute('href'), href, region);
-  }
-  assert.ok(ciLimits.length > 0 && ciLimits.every((limit) => limit === '500'), `the inventory was read in pages of ${ciLimits.join(', ')}`);
-
-  const palette = page.getByRole('combobox', { name: 'Search everything' });
-  await palette.click();
-  await palette.fill('wachstum');
-  await page.locator('#search-menu').getByRole('option', { name: /Wachstum im Norden/u }).waitFor({ timeout: 10_000 });
-  await palette.fill('kranich');
-  await page.locator('#search-menu').getByRole('option', { name: /Sprint Kranich/u }).waitFor({ timeout: 10_000 });
+  // The bar's scopes are the concept's (§6.11): inventory, not goals.
+  await palette.fill('fortigate');
+  await page.locator('#search-menu').getByRole('option', { name: /FortiGate 60F/u }).waitFor({ timeout: 10_000 });
   assert.deepEqual(failures, []);
 });
 
