@@ -13,19 +13,50 @@ import (
 
 const searchCiNames = `-- name: SearchCiNames :many
 SELECT c.id, c.hub_id, c.class_key, c.name, c.stage, c.updated_at,
-       (strpos(lower(c.name), ($1::text[])[1]) = 1) AS leads
+       coalesce(strpos(lower(c.name), ($1::text[])[1]) = 1, false) AS leads
 FROM cmdb_ci c
+LEFT JOIN cmdb_asset a ON a.tenant_id = c.tenant_id AND a.ci_id = c.id
 WHERE c.tenant_id = current_tenant_id() AND c.merged_into IS NULL
   AND ($2::uuid IS NULL OR c.hub_id = $2::uuid)
+  AND ($3::boolean IS NULL
+       OR coalesce(lower(c.class_key) = ANY($4::text[]), false) <> $3::boolean)
+  AND ($5::boolean IS NULL
+       OR coalesce(c.stage = ANY($6::text[]), false) <> $5::boolean)
+  AND ($7::boolean IS NULL
+       OR (coalesce(c.owner_account_id = ANY($8::uuid[])
+                    OR c.owner_group_id = ANY($8::uuid[]), false)
+           OR ($9::boolean AND c.owner_account_id IS NULL AND c.owner_group_id IS NULL))
+          <> $7::boolean)
+  AND ($10::boolean IS NULL
+       OR (coalesce(c.location_ci_id = ANY($11::uuid[]), false)
+           OR ($12::boolean AND c.location_ci_id IS NULL))
+          <> $10::boolean)
+  AND ($13::boolean IS NULL
+       OR (coalesce(lower(nullif(a.asset_tag, '')) = ANY($14::text[]), false)
+           OR ($15::boolean AND nullif(a.asset_tag, '') IS NULL))
+          <> $13::boolean)
   AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(c.name), t) = 0)
 ORDER BY leads DESC, c.updated_at DESC, c.id
-LIMIT $3
+LIMIT $16
 `
 
 type SearchCiNamesParams struct {
-	Terms []string
-	HubID pgtype.UUID
-	Batch int32
+	Terms           []string
+	HubID           pgtype.UUID
+	ClassNegated    *bool
+	ClassValues     []string
+	StageNegated    *bool
+	StageValues     []string
+	OwnerNegated    *bool
+	OwnerValues     []pgtype.UUID
+	OwnerNone       bool
+	LocationNegated *bool
+	LocationValues  []pgtype.UUID
+	LocationNone    bool
+	TagNegated      *bool
+	TagValues       []string
+	TagNone         bool
+	Batch           int32
 }
 
 type SearchCiNamesRow struct {
@@ -35,12 +66,30 @@ type SearchCiNamesRow struct {
 	Name      string
 	Stage     string
 	UpdatedAt pgtype.Timestamptz
-	Leads     bool
+	Leads     interface{}
 }
 
-// A merged item lives on in the one it was merged into.
+// A merged item lives on in the one it was merged into. Its owner is a person or a group; its
+// tag is the asset record's, empty where none was written.
 func (q *Queries) SearchCiNames(ctx context.Context, arg SearchCiNamesParams) ([]SearchCiNamesRow, error) {
-	rows, err := q.db.Query(ctx, searchCiNames, arg.Terms, arg.HubID, arg.Batch)
+	rows, err := q.db.Query(ctx, searchCiNames,
+		arg.Terms,
+		arg.HubID,
+		arg.ClassNegated,
+		arg.ClassValues,
+		arg.StageNegated,
+		arg.StageValues,
+		arg.OwnerNegated,
+		arg.OwnerValues,
+		arg.OwnerNone,
+		arg.LocationNegated,
+		arg.LocationValues,
+		arg.LocationNone,
+		arg.TagNegated,
+		arg.TagValues,
+		arg.TagNone,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +118,7 @@ func (q *Queries) SearchCiNames(ctx context.Context, arg SearchCiNamesParams) ([
 
 const searchDashboardNames = `-- name: SearchDashboardNames :many
 SELECT d.id, d.hub_id, d.owner_id, d.name, d.sharing, d.group_ids, d.updated_at,
-       (strpos(lower(d.name), ($1::text[])[1]) = 1) AS leads
+       coalesce(strpos(lower(d.name), ($1::text[])[1]) = 1, false) AS leads
 FROM dashboard d
 WHERE d.tenant_id = current_tenant_id()
   AND ($2::uuid IS NULL OR d.hub_id = $2::uuid)
@@ -92,7 +141,7 @@ type SearchDashboardNamesRow struct {
 	Sharing   string
 	GroupIds  []pgtype.UUID
 	UpdatedAt pgtype.Timestamptz
-	Leads     bool
+	Leads     interface{}
 }
 
 func (q *Queries) SearchDashboardNames(ctx context.Context, arg SearchDashboardNamesParams) ([]SearchDashboardNamesRow, error) {
@@ -186,7 +235,7 @@ func (q *Queries) SearchEntryComments(ctx context.Context, arg SearchEntryCommen
 const searchEntryFileNames = `-- name: SearchEntryFileNames :many
 SELECT m.id, m.file_name::text AS file_name, m.mime_type, m.created_at, i.id AS item_id,
        i.collection_id, c.parent_id AS hub_id,
-       (strpos(lower(m.file_name), ($1::text[])[1]) = 1) AS leads
+       coalesce(strpos(lower(m.file_name), ($1::text[])[1]) = 1, false) AS leads
 FROM item_attachment a
 JOIN media_object m ON m.tenant_id = a.tenant_id AND m.id = a.media_id
 JOIN work_item i ON i.tenant_id = a.tenant_id AND i.id = a.item_id
@@ -213,7 +262,7 @@ type SearchEntryFileNamesRow struct {
 	ItemID       pgtype.UUID
 	CollectionID pgtype.UUID
 	HubID        pgtype.UUID
-	Leads        bool
+	Leads        interface{}
 }
 
 // The files on living entries by their names; a file's contents are not searched.
@@ -248,19 +297,23 @@ func (q *Queries) SearchEntryFileNames(ctx context.Context, arg SearchEntryFileN
 
 const searchGoalNames = `-- name: SearchGoalNames :many
 SELECT g.id, g.hub_id, g.title, g.status, g.updated_at,
-       (strpos(lower(g.title), ($1::text[])[1]) = 1) AS leads
+       coalesce(strpos(lower(g.title), ($1::text[])[1]) = 1, false) AS leads
 FROM goal g
 WHERE g.tenant_id = current_tenant_id()
   AND ($2::uuid IS NULL OR g.hub_id = $2::uuid)
+  AND ($3::boolean IS NULL
+       OR coalesce(g.status = ANY($4::text[]), false) <> $3::boolean)
   AND NOT EXISTS (SELECT 1 FROM unnest($1::text[]) t WHERE strpos(lower(g.title), t) = 0)
 ORDER BY leads DESC, g.updated_at DESC, g.id
-LIMIT $3
+LIMIT $5
 `
 
 type SearchGoalNamesParams struct {
-	Terms []string
-	HubID pgtype.UUID
-	Batch int32
+	Terms        []string
+	HubID        pgtype.UUID
+	StateNegated *bool
+	StateValues  []string
+	Batch        int32
 }
 
 type SearchGoalNamesRow struct {
@@ -269,11 +322,17 @@ type SearchGoalNamesRow struct {
 	Title     string
 	Status    string
 	UpdatedAt pgtype.Timestamptz
-	Leads     bool
+	Leads     interface{}
 }
 
 func (q *Queries) SearchGoalNames(ctx context.Context, arg SearchGoalNamesParams) ([]SearchGoalNamesRow, error) {
-	rows, err := q.db.Query(ctx, searchGoalNames, arg.Terms, arg.HubID, arg.Batch)
+	rows, err := q.db.Query(ctx, searchGoalNames,
+		arg.Terms,
+		arg.HubID,
+		arg.StateNegated,
+		arg.StateValues,
+		arg.Batch,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +360,7 @@ func (q *Queries) SearchGoalNames(ctx context.Context, arg SearchGoalNamesParams
 
 const searchPeopleNames = `-- name: SearchPeopleNames :many
 SELECT a.id, a.display_name, a.kind::text AS kind, a.status::text AS status, a.updated_at,
-       (strpos(lower(a.display_name), ($1::text[])[1]) = 1) AS leads
+       coalesce(strpos(lower(a.display_name), ($1::text[])[1]) = 1, false) AS leads
 FROM account a
 WHERE a.tenant_id = current_tenant_id() AND a.deleted_at IS NULL AND a.kind = 'USER'
   AND a.status <> 'ANONYMIZED'
@@ -321,7 +380,7 @@ type SearchPeopleNamesRow struct {
 	Kind        string
 	Status      string
 	UpdatedAt   pgtype.Timestamptz
-	Leads       bool
+	Leads       interface{}
 }
 
 // People by their display name alone - never their address, which another member does not see
@@ -356,7 +415,7 @@ func (q *Queries) SearchPeopleNames(ctx context.Context, arg SearchPeopleNamesPa
 const searchWhiteboardNames = `-- name: SearchWhiteboardNames :many
 
 SELECT w.id, w.hub_id, w.title, w.updated_at,
-       (strpos(lower(w.title), ($1::text[])[1]) = 1) AS leads
+       coalesce(strpos(lower(w.title), ($1::text[])[1]) = 1, false) AS leads
 FROM whiteboard w
 WHERE w.tenant_id = current_tenant_id() AND w.deleted_at IS NULL
   AND ($2::uuid IS NULL OR w.hub_id = $2::uuid)
@@ -376,7 +435,7 @@ type SearchWhiteboardNamesRow struct {
 	HubID     pgtype.UUID
 	Title     string
 	UpdatedAt pgtype.Timestamptz
-	Leads     bool
+	Leads     interface{}
 }
 
 // The search over every kind besides entries and pages (UC-WRK-18 check 9): each query
@@ -384,7 +443,11 @@ type SearchWhiteboardNamesRow struct {
 // that begins with the first word, then the last changed), at most `batch` of them. Which of them
 // the reader may read is the use case's question (rule 2), so every row names its place. The
 // words are bound as an array and compared with strpos, so no byte of them becomes SQL text or a
-// pattern (rule 9).
+// pattern (rule 9); no words is every name.
+//
+// A key of one kind (asset.class, goal.state, ...) is three bound parameters: `<key>_negated`
+// (null where the key is not asked), `<key>_values` (the column is one of them) and `<key>_none`
+// (or the column is empty); the match is turned round where negated.
 func (q *Queries) SearchWhiteboardNames(ctx context.Context, arg SearchWhiteboardNamesParams) ([]SearchWhiteboardNamesRow, error) {
 	rows, err := q.db.Query(ctx, searchWhiteboardNames, arg.Terms, arg.HubID, arg.Batch)
 	if err != nil {

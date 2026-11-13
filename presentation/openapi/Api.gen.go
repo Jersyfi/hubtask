@@ -24453,7 +24453,7 @@ type SearchAllRequest struct {
 	// Kinds The kinds to search, in the order the answer groups them; omitted is every kind.
 	Kinds *[]SearchKind `json:"kinds,omitempty"`
 
-	// Q The words; every word must occur.
+	// Q The search as one Hubtask query: every free word must occur, every key narrows. A key of one kind (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`, `page.verified`, `page.owner`, `goal.state`) keeps the search to that kind and a key of entries to entries, the other kinds counting none; `type:` chooses kinds; keys alone need no words. Keys of two kinds, or keys of one kind bracketed together, are refused (`query.kinds_mixed`, `query.kind_filter_grouped`).
 	Q string `json:"q"`
 
 	// Size At most this many hits per kind.

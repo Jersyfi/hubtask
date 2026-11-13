@@ -17,6 +17,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
@@ -346,8 +347,17 @@ func (PageRepository) Search(ctx context.Context, query repository.PageQuery) ([
 	if query.Label != "" {
 		label = &query.Label
 	}
+	owner := bound{values: []string{}}
+	if query.Owner != nil {
+		owner = boundOf([]view.KindCondition{*query.Owner}, query.Owner.Field)
+	}
+	owners, err := owner.ids()
+	if err != nil {
+		return nil, err
+	}
 	rows, err := queries.SearchPages(ctx, sqlc.SearchPagesParams{
-		Text: query.Text, HubIds: hubs, Label: label, AuthorID: author,
+		Text: query.Text, HubIds: hubs, Label: label, AuthorID: author, Verified: query.Verified,
+		OwnerNegated: owner.negated, OwnerValues: owners, OwnerNone: owner.none,
 		UpdatedFrom: optionalTimestamp(query.UpdatedFrom), UpdatedTo: optionalTimestamp(query.UpdatedTo),
 		Batch: int32(query.Limit), //nolint:gosec // bounded by the use case
 		At:    timestamp(query.At),

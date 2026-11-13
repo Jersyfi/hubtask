@@ -1896,20 +1896,30 @@ WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY($2::uuid[])
   AND ($4::uuid IS NULL OR p.created_by = $4::uuid)
   AND ($5::timestamptz IS NULL OR p.updated_at >= $5::timestamptz)
   AND ($6::timestamptz IS NULL OR p.updated_at < $6::timestamptz)
-ORDER BY rank DESC, (p.verified_until IS NOT NULL AND p.verified_until > $7::timestamptz) DESC,
+  AND ($7::boolean IS NULL
+       OR (p.verified_until IS NOT NULL AND p.verified_until > $8::timestamptz) = $7::boolean)
+  AND ($9::boolean IS NULL
+       OR (coalesce(p.owner_id = ANY($10::uuid[]), false)
+           OR ($11::boolean AND p.owner_id IS NULL))
+          <> $9::boolean)
+ORDER BY rank DESC, (p.verified_until IS NOT NULL AND p.verified_until > $8::timestamptz) DESC,
          p.updated_at DESC, p.id
-LIMIT $8
+LIMIT $12
 `
 
 type SearchPagesParams struct {
-	Text        string
-	HubIds      []pgtype.UUID
-	Label       *string
-	AuthorID    pgtype.UUID
-	UpdatedFrom pgtype.Timestamptz
-	UpdatedTo   pgtype.Timestamptz
-	At          pgtype.Timestamptz
-	Batch       int32
+	Text         string
+	HubIds       []pgtype.UUID
+	Label        *string
+	AuthorID     pgtype.UUID
+	UpdatedFrom  pgtype.Timestamptz
+	UpdatedTo    pgtype.Timestamptz
+	Verified     *bool
+	At           pgtype.Timestamptz
+	OwnerNegated *bool
+	OwnerValues  []pgtype.UUID
+	OwnerNone    bool
+	Batch        int32
 }
 
 type SearchPagesRow struct {
@@ -1928,6 +1938,7 @@ type SearchPagesRow struct {
 // page first and a window of its last change; without a text, the pages the label or the author
 // names, newest first, with no passage. Archived and trashed pages stay out. Among equally good
 // hits a page verified at the moment comes first: the order changes, not what is found (E-8).
+// page.verified and page.owner narrow as the keys of one kind do (SearchKinds.sql).
 func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]SearchPagesRow, error) {
 	rows, err := q.db.Query(ctx, searchPages,
 		arg.Text,
@@ -1936,7 +1947,11 @@ func (q *Queries) SearchPages(ctx context.Context, arg SearchPagesParams) ([]Sea
 		arg.AuthorID,
 		arg.UpdatedFrom,
 		arg.UpdatedTo,
+		arg.Verified,
 		arg.At,
+		arg.OwnerNegated,
+		arg.OwnerValues,
+		arg.OwnerNone,
 		arg.Batch,
 	)
 	if err != nil {

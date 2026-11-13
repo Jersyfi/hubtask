@@ -6,6 +6,7 @@ package search
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
@@ -14,7 +15,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
-	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
@@ -37,7 +37,16 @@ type Entries struct {
 
 // Find asks one page.
 func (e Entries) Find(ctx context.Context, actor appshared.ActorContext, q Question) (Found, error) {
-	in := usecase.Input{"q": q.Words, "size": maxEntryScan}
+	in := usecase.Input{"size": maxEntryScan, "include_archived": q.IncludeArchived, "include_trashed": q.IncludeTrashed}
+	if strings.TrimSpace(q.Words) != "" {
+		in["q"] = q.Words
+	}
+	if q.Filter != nil {
+		in["filter"] = q.Filter
+	}
+	if q.Sort != nil {
+		in["sort"] = q.Sort
+	}
 	if !q.HubID.IsZero() {
 		in["container_id"] = q.HubID.String()
 	}
@@ -104,47 +113,4 @@ func momentOf(v any) *time.Time {
 		}
 	}
 	return nil
-}
-
-// Pages finds pages through the page search as the reader (SearchPages), verified ones first
-// among equals (E-8).
-type Pages struct {
-	Invoker Invoker
-	Clock   clock.Clock
-}
-
-// maxPageScan is the page search's own largest answer.
-const maxPageScan = 50
-
-// Find asks once.
-func (p Pages) Find(ctx context.Context, actor appshared.ActorContext, q Question) (Found, error) {
-	in := usecase.Input{"text": q.Words, "limit": maxPageScan}
-	if !q.HubID.IsZero() {
-		in["hub_id"] = q.HubID.String()
-	}
-	out, err := p.Invoker.Invoke(ctx, "SearchPages", actor, in)
-	if err != nil {
-		if errors.Is(err, shared.ErrForbidden) {
-			return Found{}, nil
-		}
-		return Found{}, err
-	}
-	rows, _ := out["data"].([]usecase.Output)
-	found := Found{Count: len(rows), More: len(rows) >= maxPageScan}
-	for _, row := range rows[:min(len(rows), q.Size)] {
-		id, _ := row["id"].(string)
-		hub, _ := row["hub_id"].(string)
-		title, _ := row["title"].(string)
-		icon, _ := row["icon"].(string)
-		excerpt, _ := row["excerpt"].(string)
-		hit := Hit{ID: shared.ID(id), HubID: shared.ID(hub), Title: title, Tile: icon, Snippet: excerpt, UpdatedAt: momentOf(row["updated_at"])}
-		if until := momentOf(row["verified_until"]); until != nil {
-			hit.State = "REVIEW_DUE"
-			if p.Clock != nil && until.After(p.Clock.Now()) {
-				hit.State = "VERIFIED"
-			}
-		}
-		found.Hits = append(found.Hits, hit)
-	}
-	return found, nil
 }

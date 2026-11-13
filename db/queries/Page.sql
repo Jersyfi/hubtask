@@ -133,6 +133,7 @@ WHERE t.tenant_id = current_tenant_id() AND t.id IN (SELECT id FROM down)
 -- page first and a window of its last change; without a text, the pages the label or the author
 -- names, newest first, with no passage. Archived and trashed pages stay out. Among equally good
 -- hits a page verified at the moment comes first: the order changes, not what is found (E-8).
+-- page.verified and page.owner narrow as the keys of one kind do (SearchKinds.sql).
 SELECT p.id, p.hub_id, p.parent_id, p.title, p.icon, p.updated_at, p.verified_until,
        (CASE WHEN sqlc.arg('text')::text = '' THEN 0
              ELSE ts_rank_cd(p.search_document, q.query) END)::float8 AS rank,
@@ -151,6 +152,12 @@ WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY(sqlc.arg('hub_ids')::
   AND (sqlc.narg('author_id')::uuid IS NULL OR p.created_by = sqlc.narg('author_id')::uuid)
   AND (sqlc.narg('updated_from')::timestamptz IS NULL OR p.updated_at >= sqlc.narg('updated_from')::timestamptz)
   AND (sqlc.narg('updated_to')::timestamptz IS NULL OR p.updated_at < sqlc.narg('updated_to')::timestamptz)
+  AND (sqlc.narg('verified')::boolean IS NULL
+       OR (p.verified_until IS NOT NULL AND p.verified_until > sqlc.arg('at')::timestamptz) = sqlc.narg('verified')::boolean)
+  AND (sqlc.narg('owner_negated')::boolean IS NULL
+       OR (coalesce(p.owner_id = ANY(sqlc.arg('owner_values')::uuid[]), false)
+           OR (sqlc.arg('owner_none')::boolean AND p.owner_id IS NULL))
+          <> sqlc.narg('owner_negated')::boolean)
 ORDER BY rank DESC, (p.verified_until IS NOT NULL AND p.verified_until > sqlc.arg('at')::timestamptz) DESC,
          p.updated_at DESC, p.id
 LIMIT sqlc.arg('batch');

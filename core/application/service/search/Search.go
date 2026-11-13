@@ -19,6 +19,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -57,17 +58,31 @@ const (
 
 // Question is what every finder is asked.
 type Question struct {
-	// Words is what was typed; Terms the words lowered, every one of which a name must hold.
+	// Words are the query's free words; Terms the words lowered, every one of which a name must
+	// hold. Either may be empty where the query narrows by keys alone.
 	Words string
 	Terms []string
 	HubID shared.ID
 	Size  int
+	// Conditions are the keys of the one kind the query asks about (asset., page., goal.), `@me`
+	// already the reader's identifier.
+	Conditions []view.KindCondition
+	// Filter and Sort are the entry filter and order where the query's keys are entries'; the two
+	// flags widen the entries read.
+	Filter          any
+	Sort            []any
+	IncludeArchived bool
+	IncludeTrashed  bool
 }
 
 // Ask is the store's question for the candidates of a kind.
 func (q Question) Ask() searchrepo.Ask {
-	return searchrepo.Ask{Terms: q.Terms, HubID: q.HubID, Batch: Scan}
+	return searchrepo.Ask{Terms: q.Terms, HubID: q.HubID, Conditions: q.Conditions, Batch: Scan}
 }
+
+// Narrows reports whether the question asks anything of a kind found by its names: a word, or a
+// key of the kind.
+func (q Question) Narrows() bool { return len(q.Terms) > 0 || len(q.Conditions) > 0 }
 
 // Hit is one object as a hit row draws it.
 type Hit struct {
@@ -196,13 +211,76 @@ func Terms(words string) ([]string, error) {
 	return terms, nil
 }
 
-// Execute asks every kind asked for, in order.
-func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, query SearchAllQuery) (Answer, error) {
-	words := strings.TrimSpace(query.Words)
-	if words == "" || utf8.RuneCountInString(words) > maxWords {
-		return Answer{}, invalid("/q", "search.words_required")
+// objectKinds are the kinds `type:` names that a search reads, by the query's word.
+var objectKinds = map[string]string{
+	"task": KindEntry, "workpackage": KindEntry, "activity": KindEntry, "ticket": KindEntry,
+	"page": KindPage, "whiteboard": KindWhiteboard, "goal": KindGoal, "dashboard": KindDashboard,
+	"asset": KindAsset, "person": KindPerson, "file": KindFile, "comment": KindComment,
+}
+
+// filterKinds are the kinds whose keys a query may narrow by.
+var filterKinds = map[string]string{
+	view.ObjectEntry: KindEntry, view.ObjectAsset: KindAsset, view.ObjectPage: KindPage, view.ObjectGoal: KindGoal,
+}
+
+// read is the query `q` as the search asks it: the question every finder gets and the one kind
+// its keys keep the search to ("" for every kind); `type:` chooses kinds as well.
+func read(actor appshared.ActorContext, text string) (Question, string, map[string]bool, error) {
+	text = strings.TrimSpace(text)
+	if text == "" || utf8.RuneCountInString(text) > maxWords {
+		return Question{}, "", nil, invalid("/q", "search.words_required")
 	}
-	terms, err := Terms(words)
+	query, err := view.ParseQuery(text, "/q")
+	if err != nil {
+		return Question{}, "", nil, err
+	}
+	if strings.TrimSpace(query.Words) == "" && query.Filter == nil {
+		return Question{}, "", nil, invalid("/q", "search.words_required")
+	}
+	terms, err := Terms(query.Words)
+	if err != nil {
+		return Question{}, "", nil, err
+	}
+	keys, err := query.KindFilter("/q")
+	if err != nil {
+		return Question{}, "", nil, err
+	}
+	q := Question{Words: query.Words, Terms: terms, IncludeArchived: query.IncludeArchived, IncludeTrashed: query.IncludeTrashed}
+	if keys.Kind == view.ObjectEntry {
+		q.Filter, q.Sort = query.Filter, query.Sort
+	}
+	for _, condition := range keys.Conditions {
+		values := make([]string, 0, len(condition.Values))
+		for _, value := range condition.Values {
+			if value == "@me" {
+				if actor.AccountID.IsZero() {
+					return Question{}, "", nil, shared.ErrValidation.WithDetail("query.placeholder_needs_actor").
+						WithParams(map[string]string{"placeholder": "@me"}).
+						WithFields(shared.FieldError{Path: "/q", Code: "query.placeholder_needs_actor"})
+				}
+				value = actor.AccountID.String()
+			}
+			values = append(values, value)
+		}
+		condition.Values = values
+		q.Conditions = append(q.Conditions, condition)
+	}
+	var typed map[string]bool
+	if len(query.Kinds) > 0 {
+		typed = map[string]bool{}
+		for _, kind := range query.Kinds {
+			if k, ok := objectKinds[kind]; ok {
+				typed[k] = true
+			}
+		}
+	}
+	return q, filterKinds[keys.Kind], typed, nil
+}
+
+// Execute asks every kind asked for, in order. A key of one kind keeps the search to that kind:
+// the other kinds are counted as none.
+func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, query SearchAllQuery) (Answer, error) {
+	question, only, typed, err := read(actor, query.Words)
 	if err != nil {
 		return Answer{}, err
 	}
@@ -217,6 +295,7 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 	if size > maxSize {
 		return Answer{}, invalid("/size", "search.size_out_of_range")
 	}
+	question.HubID, question.Size = query.HubID, size
 	answer := Answer{Hits: []Hit{}, Facets: []Facet{}}
 	asked := map[string]bool{}
 	for i, kind := range kinds {
@@ -230,8 +309,8 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 		asked[kind] = true
 		found := Found{}
 		// A kind without a finder is a module not running here: it finds nothing.
-		if known && (kind != KindPerson || query.HubID.IsZero()) && (len(terms) > 0 || kind == KindEntry || kind == KindPage) {
-			if found, err = finder.Find(ctx, actor, Question{Words: words, Terms: terms, HubID: query.HubID, Size: size}); err != nil {
+		if known && h.asks(kind, question, only, typed) {
+			if found, err = finder.Find(ctx, actor, question); err != nil {
 				return Answer{}, err
 			}
 		}
@@ -242,6 +321,20 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 		answer.Facets = append(answer.Facets, Facet{Kind: kind, Count: found.Count, More: found.More})
 	}
 	return answer, nil
+}
+
+// asks reports whether a kind is searched: kept by the query's keys and its `type:`, a person
+// only outside a hub, and asked something - entries and pages read words a name does not.
+func (h SearchAll) asks(kind string, q Question, only string, typed map[string]bool) bool {
+	switch {
+	case only != "" && kind != only, typed != nil && !typed[kind], kind == KindPerson && !q.HubID.IsZero():
+		return false
+	case kind == KindEntry:
+		return strings.TrimSpace(q.Words) != "" || q.Filter != nil
+	case kind == KindPage:
+		return strings.TrimSpace(q.Words) != "" || len(q.Conditions) > 0
+	}
+	return q.Narrows()
 }
 
 func isKind(kind string) bool {
@@ -292,12 +385,16 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 			"one and its state, grouped by kind and best first within a kind, at most size per " +
 			"kind; facets counts each kind's hits the caller may read, a count with more being a " +
 			"lower bound. People are found by their display name only, files by their name only. " +
-			"Among equally good pages a verified one comes first.",
+			"Among equally good pages a verified one comes first. q is a Hubtask query: its free " +
+			"words are searched, its keys narrow - a key of one kind (asset.class, asset.stage, " +
+			"asset.owner, asset.location, asset.tag, page.verified, page.owner, goal.state) keeps the " +
+			"search to that kind, a key of entries to entries, type: chooses kinds; keys alone " +
+			"need no words. GET /query/keys lists the keys.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  "items:read",
 		ReadOnly:    true,
 		Input: []usecase.Field{
-			{Name: "q", Kind: usecase.KindString, Required: true, Description: "The words, at most 200 characters; every word must occur."},
+			{Name: "q", Kind: usecase.KindString, Required: true, Description: "The words and keys as one Hubtask query, at most 200 characters; every free word must occur, every key narrows."},
 			{Name: "kinds", Kind: usecase.KindList, Description: "The kinds to search, in the order the answer groups them: ENTRY, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT. Omitted is every kind."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "Only this hub's objects; people stand in no hub and are then left out."},
 			{Name: "size", Kind: usecase.KindInt, Description: "At most this many hits per kind, 1 to 25; 5 when omitted."},

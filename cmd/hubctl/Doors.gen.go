@@ -1412,7 +1412,7 @@ var generatedCommands = []door{
 		Body: []doorParam{
 			{Name: "hub_id", Kind: "uuid", Help: "Only this hub's objects; people are not narrowed", Required: false},
 			{Name: "kinds", Kind: "strings", Help: "The kinds to search, in the order the answer groups them; omitted is every kind", Required: false},
-			{Name: "q", Kind: "string", Help: "The words; every word must occur", Required: true},
+			{Name: "q", Kind: "string", Help: "The search as one Hubtask query: every free word must occur, every key narrows", Required: true},
 			{Name: "size", Kind: "integer", Help: "At most this many hits per kind", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "key", "title", "kind", "state"}},

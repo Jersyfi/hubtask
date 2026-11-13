@@ -11,6 +11,7 @@ import (
 	st "github.com/Jersyfi/hubtask/core/application/service/search/searchtest"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
 func searchSteward(reader st.HubReader) Steward {
@@ -53,5 +54,17 @@ func TestASearchFindsTheDashboardsTheReaderSees(t *testing.T) {
 	}
 	if found.Count != 2 || found.Hits[0].ID != own || found.Hits[1].ID != shared1 {
 		t.Fatalf("found %+v, want one's own and the shared one", found)
+	}
+}
+
+// The query language spells exactly the states a goal may be in.
+func TestTheQueryKnowsEveryGoalState(t *testing.T) {
+	for _, state := range view.GoalStates {
+		if !domain.Status(state).Valid() {
+			t.Errorf("the query spells %s, which no goal is in", state)
+		}
+	}
+	if len(view.GoalStates) != 6 {
+		t.Errorf("the query spells %d states", len(view.GoalStates))
 	}
 }

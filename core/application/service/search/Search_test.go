@@ -6,13 +6,11 @@ package search
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
-	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
-	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	"github.com/Jersyfi/hubtask/core/port/clock"
 )
 
 type fixedFinder struct {
@@ -83,25 +81,91 @@ func TestASearchWithoutWordsOrWithAnUnknownKindIsRefused(t *testing.T) {
 	}
 }
 
-type invoker struct{ out usecase.Output }
-
-func (i invoker) Invoke(context.Context, string, appshared.ActorContext, usecase.Input) (usecase.Output, error) {
-	return i.out, nil
+func everyFinder(asked *[]Question, kinds *[]string) map[string]Finder {
+	finders := map[string]Finder{}
+	for _, k := range Kinds {
+		finders[k] = kindFinder{kind: k, asked: asked, kinds: kinds}
+	}
+	return finders
 }
 
-// A page hit says whether the page is verified or due for review, for its lozenge (E-8).
-func TestAPageHitSaysVerifiedOrDueForReview(t *testing.T) {
-	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
-	out := usecase.Output{"data": []usecase.Output{
-		{"id": "0193a0c0-0000-7000-8000-000000000201", "title": "A", "verified_until": now.Add(time.Hour)},
-		{"id": "0193a0c0-0000-7000-8000-000000000202", "title": "B", "verified_until": now.Add(-time.Hour)},
-		{"id": "0193a0c0-0000-7000-8000-000000000203", "title": "C", "verified_until": nil},
-	}}
-	found, err := Pages{Invoker: invoker{out}, Clock: clock.Fixed(now)}.Find(t.Context(), reader, Question{Words: "a", Size: 5})
-	if err != nil {
-		t.Fatal(err)
+type kindFinder struct {
+	kind  string
+	asked *[]Question
+	kinds *[]string
+}
+
+func (f kindFinder) Find(_ context.Context, _ appshared.ActorContext, q Question) (Found, error) {
+	*f.asked = append(*f.asked, q)
+	*f.kinds = append(*f.kinds, f.kind)
+	return Found{Count: 1}, nil
+}
+
+// UC-WRK-18 check 9, UC-WRK-43: a key of one kind keeps the search to that kind and is answered
+// without words, `me` the reader; a key of entries keeps it to entries; type: chooses kinds; the
+// other kinds are counted as none.
+func TestAKeyKeepsTheSearchToItsKind(t *testing.T) {
+	me := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: reader.TenantID, AccountID: "0193a0c0-0000-7000-8000-0000000000a1"}
+	cases := []struct {
+		q     string
+		kinds []string
+		check func(t *testing.T, q Question)
+	}{
+		{"asset.class: server", []string{KindAsset}, func(t *testing.T, q Question) {
+			if len(q.Terms) != 0 || len(q.Conditions) != 1 || q.Conditions[0].Values[0] != "server" {
+				t.Errorf("asked %+v", q)
+			}
+		}},
+		{"handbook page.owner: me", []string{KindPage}, func(t *testing.T, q Question) {
+			if q.Words != "handbook" || q.Conditions[0].Values[0] != me.AccountID.String() {
+				t.Errorf("asked %+v", q)
+			}
+		}},
+		{"goal.state: at_risk", []string{KindGoal}, nil},
+		{"passkey who: me", []string{KindEntry}, func(t *testing.T, q Question) {
+			if q.Words != "passkey" || q.Filter == nil || len(q.Conditions) != 0 {
+				t.Errorf("asked %+v", q)
+			}
+		}},
+		{"type: page, whiteboard budget", []string{KindPage, KindWhiteboard}, nil},
+		{"budget", []string{KindEntry, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment}, nil},
 	}
-	if found.Count != 3 || found.Hits[0].State != "VERIFIED" || found.Hits[1].State != "REVIEW_DUE" || found.Hits[2].State != "" {
-		t.Fatalf("found %+v", found)
+	for _, c := range cases {
+		t.Run(c.q, func(t *testing.T) {
+			var asked []Question
+			var kinds []string
+			answer, err := SearchAll{Finders: everyFinder(&asked, &kinds)}.Execute(t.Context(), me, SearchAllQuery{Words: c.q})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(kinds, c.kinds) || len(answer.Facets) != len(Kinds) {
+				t.Fatalf("searched %v with facets %+v, want %v", kinds, answer.Facets, c.kinds)
+			}
+			for _, f := range answer.Facets {
+				if (f.Count == 1) != slices.Contains(c.kinds, f.Kind) {
+					t.Errorf("facet %+v", f)
+				}
+			}
+			if c.check != nil {
+				c.check(t, asked[0])
+			}
+		})
+	}
+}
+
+func TestAQueryTheKindsCannotAnswerIsRefused(t *testing.T) {
+	for _, c := range []struct {
+		actor appshared.ActorContext
+		q     string
+	}{
+		{reader, "asset.class: server who: me"},
+		{reader, "(asset.class: server OR asset.stage: in_use)"},
+		{reader, "asset.owner: me"},
+		{reader, "type: page"},
+		{reader, "whom: me"},
+	} {
+		if _, err := (SearchAll{}).Execute(t.Context(), c.actor, SearchAllQuery{Words: c.q}); !errors.Is(err, shared.ErrValidation) {
+			t.Errorf("%q answered %v, want a validation error", c.q, err)
+		}
 	}
 }

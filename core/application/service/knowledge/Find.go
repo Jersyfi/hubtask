@@ -20,6 +20,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/reference"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -74,6 +75,10 @@ type SearchPagesQuery struct {
 	UpdatedFrom *time.Time
 	UpdatedTo   *time.Time
 	Limit       int
+	// Verified and Owner are the page.verified and page.owner keys of the search over every kind;
+	// nil does not narrow.
+	Verified *bool
+	Owner    *view.KindCondition
 }
 
 // SearchPages finds pages by their words, labels, first author and last change in the spaces the
@@ -169,7 +174,7 @@ func searchQuery(q SearchPagesQuery, form text.Normalizer) (repository.PageQuery
 				WithFields(shared.FieldError{Path: "/label", Code: "pages.label_malformed"})
 		}
 	}
-	if text == "" && label == "" && q.AuthorID.IsZero() {
+	if text == "" && label == "" && q.AuthorID.IsZero() && q.Verified == nil && q.Owner == nil {
 		return repository.PageQuery{}, shared.ErrValidation.WithDetail("pages.search_empty").
 			WithFields(shared.FieldError{Path: "/text", Code: "pages.search_empty"})
 	}
@@ -183,6 +188,7 @@ func searchQuery(q SearchPagesQuery, form text.Normalizer) (repository.PageQuery
 	}
 	return repository.PageQuery{
 		Text: text, Label: label, AuthorID: q.AuthorID, UpdatedFrom: q.UpdatedFrom, UpdatedTo: q.UpdatedTo, Limit: limit,
+		Verified: q.Verified, Owner: q.Owner,
 	}, nil
 }
 

@@ -11,14 +11,17 @@ import (
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
-// Ask is one question to the store: the words, lowered, every one of which must occur; an
-// optional hub; and how many candidates at most.
+// Ask is one question to the store: the words, lowered, every one of which must occur (none is
+// every name); an optional hub; the keys of the kind asked, `@me` already the reader; and how
+// many candidates at most.
 type Ask struct {
-	Terms []string
-	HubID shared.ID
-	Batch int
+	Terms      []string
+	HubID      shared.ID
+	Conditions []view.KindCondition
+	Batch      int
 }
 
 // Row is one candidate.

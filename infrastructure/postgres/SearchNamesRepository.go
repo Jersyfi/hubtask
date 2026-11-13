@@ -6,11 +6,13 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/search"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
 
@@ -37,6 +39,58 @@ func searchArgs(ctx context.Context, ask repository.Ask) (*sqlc.Queries, pgtype.
 	return queries, hub, batch, err
 }
 
+// bound is one key of a kind as its three parameters (SearchKinds.sql); negated is nil where the
+// key is not asked.
+type bound struct {
+	negated *bool
+	values  []string
+	none    bool
+}
+
+func boundOf(conditions []view.KindCondition, field string) bound {
+	for _, c := range conditions {
+		if c.Field == field {
+			negated := c.Negated
+			values := c.Values
+			if values == nil {
+				values = []string{}
+			}
+			return bound{negated: &negated, values: values, none: c.None}
+		}
+	}
+	return bound{values: []string{}}
+}
+
+// lowered is the values compared with a lowered column.
+func (b bound) lowered() []string {
+	out := make([]string, len(b.values))
+	for i, v := range b.values {
+		out[i] = strings.ToLower(v)
+	}
+	return out
+}
+
+// ids is the values as identifiers; the domain read each as one.
+func (b bound) ids() ([]pgtype.UUID, error) {
+	out := make([]pgtype.UUID, len(b.values))
+	for i, v := range b.values {
+		key, err := optionalUUID(shared.ID(v))
+		if err != nil {
+			return nil, err
+		}
+		out[i] = key
+	}
+	return out, nil
+}
+
+// terms is never null: no words is every name.
+func terms(words []string) []string {
+	if words == nil {
+		return []string{}
+	}
+	return words
+}
+
 // hitIDs reads the identifiers of a row; an absent optional one is zero.
 func hitIDs(required pgtype.UUID, optional ...pgtype.UUID) (shared.ID, []shared.ID, error) {
 	id, err := idFrom(required)
@@ -58,7 +112,7 @@ func (SearchNamesRepository) Whiteboards(ctx context.Context, ask repository.Ask
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchWhiteboardNames(ctx, sqlc.SearchWhiteboardNamesParams{HubID: hub, Terms: ask.Terms, Batch: batch})
+	rows, err := queries.SearchWhiteboardNames(ctx, sqlc.SearchWhiteboardNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
 	if err != nil {
 		return nil, searchFailed("whiteboards", err)
 	}
@@ -77,7 +131,10 @@ func (SearchNamesRepository) Goals(ctx context.Context, ask repository.Ask) ([]r
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchGoalNames(ctx, sqlc.SearchGoalNamesParams{HubID: hub, Terms: ask.Terms, Batch: batch})
+	state := boundOf(ask.Conditions, view.FieldGoalState)
+	rows, err := queries.SearchGoalNames(ctx, sqlc.SearchGoalNamesParams{
+		HubID: hub, Terms: terms(ask.Terms), Batch: batch, StateNegated: state.negated, StateValues: state.values,
+	})
 	if err != nil {
 		return nil, searchFailed("goals", err)
 	}
@@ -96,7 +153,7 @@ func (SearchNamesRepository) Dashboards(ctx context.Context, ask repository.Ask)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchDashboardNames(ctx, sqlc.SearchDashboardNamesParams{HubID: hub, Terms: ask.Terms, Batch: batch})
+	rows, err := queries.SearchDashboardNames(ctx, sqlc.SearchDashboardNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
 	if err != nil {
 		return nil, searchFailed("dashboards", err)
 	}
@@ -118,7 +175,23 @@ func (SearchNamesRepository) Cis(ctx context.Context, ask repository.Ask) ([]rep
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchCiNames(ctx, sqlc.SearchCiNamesParams{HubID: hub, Terms: ask.Terms, Batch: batch})
+	class, stage, owner := boundOf(ask.Conditions, view.FieldAssetClass), boundOf(ask.Conditions, view.FieldAssetStage), boundOf(ask.Conditions, view.FieldAssetOwner)
+	location, tag := boundOf(ask.Conditions, view.FieldAssetLocation), boundOf(ask.Conditions, view.FieldAssetTag)
+	owners, err := owner.ids()
+	if err != nil {
+		return nil, err
+	}
+	locations, err := location.ids()
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchCiNames(ctx, sqlc.SearchCiNamesParams{
+		HubID: hub, Terms: terms(ask.Terms), Batch: batch,
+		ClassNegated: class.negated, ClassValues: class.lowered(), StageNegated: stage.negated, StageValues: stage.values,
+		OwnerNegated: owner.negated, OwnerValues: owners, OwnerNone: owner.none,
+		LocationNegated: location.negated, LocationValues: locations, LocationNone: location.none,
+		TagNegated: tag.negated, TagValues: tag.lowered(), TagNone: tag.none,
+	})
 	if err != nil {
 		return nil, searchFailed("inventory items", err)
 	}
@@ -139,7 +212,7 @@ func (SearchNamesRepository) People(ctx context.Context, ask repository.Ask) ([]
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchPeopleNames(ctx, sqlc.SearchPeopleNamesParams{Terms: ask.Terms, Batch: batch})
+	rows, err := queries.SearchPeopleNames(ctx, sqlc.SearchPeopleNamesParams{Terms: terms(ask.Terms), Batch: batch})
 	if err != nil {
 		return nil, searchFailed("people", err)
 	}
@@ -157,7 +230,7 @@ func (SearchNamesRepository) EntryFiles(ctx context.Context, ask repository.Ask)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchEntryFileNames(ctx, sqlc.SearchEntryFileNamesParams{HubID: hub, Terms: ask.Terms, Batch: batch})
+	rows, err := queries.SearchEntryFileNames(ctx, sqlc.SearchEntryFileNamesParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
 	if err != nil {
 		return nil, searchFailed("files", err)
 	}
@@ -179,7 +252,7 @@ func (SearchNamesRepository) EntryComments(ctx context.Context, ask repository.A
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.SearchEntryComments(ctx, sqlc.SearchEntryCommentsParams{HubID: hub, Terms: ask.Terms, Batch: batch})
+	rows, err := queries.SearchEntryComments(ctx, sqlc.SearchEntryCommentsParams{HubID: hub, Terms: terms(ask.Terms), Batch: batch})
 	if err != nil {
 		return nil, searchFailed("comments", err)
 	}

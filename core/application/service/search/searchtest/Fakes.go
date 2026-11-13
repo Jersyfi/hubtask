@@ -16,10 +16,18 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
 
-// Names answers the same candidates for every kind.
-type Names struct{ Rows []searchrepo.Row }
+// Names answers the same candidates for every kind; Asks, where set, keeps every question.
+type Names struct {
+	Rows []searchrepo.Row
+	Asks *[]searchrepo.Ask
+}
 
-func (n Names) all(context.Context, searchrepo.Ask) ([]searchrepo.Row, error) { return n.Rows, nil }
+func (n Names) all(_ context.Context, ask searchrepo.Ask) ([]searchrepo.Row, error) {
+	if n.Asks != nil {
+		*n.Asks = append(*n.Asks, ask)
+	}
+	return n.Rows, nil
+}
 
 // Whiteboards answers the candidates.
 func (n Names) Whiteboards(ctx context.Context, a searchrepo.Ask) ([]searchrepo.Row, error) {

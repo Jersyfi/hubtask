@@ -2732,7 +2732,7 @@ func run() error {
 		// reader, the other kinds by their names, each narrowed by its own permission question.
 		searchservice.SearchAll{Finders: map[string]searchservice.Finder{
 			searchservice.KindEntry:      searchservice.Entries{Invoker: glanceSearches, Containers: containers, UnitOfWork: unitOfWork},
-			searchservice.KindPage:       searchservice.Pages{Invoker: glanceSearches, Clock: clockadapter.System{}},
+			searchservice.KindPage:       knowledgeservice.PageFinder{Pages: knowledgeservice.SearchPages{Space: pageSpace, Searcher: pageSpace.Pages}},
 			searchservice.KindWhiteboard: whiteboardservice.Finder{Studio: boardStudio, Names: searchNames},
 			searchservice.KindGoal:       goalservice.GoalFinder{Steward: steward, Names: searchNames},
 			searchservice.KindDashboard:  goalservice.DashboardFinder{Steward: steward, Names: searchNames},

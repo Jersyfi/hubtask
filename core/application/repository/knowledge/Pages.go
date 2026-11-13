@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/view"
 )
 
 // Ancestor is a page above another, as a breadcrumb names it.
@@ -92,6 +93,11 @@ type PageQuery struct {
 	Limit       int
 	// At is the moment a verification is judged at (E-8).
 	At time.Time
+	// Verified keeps the pages verified at At, or with false those that are not; nil does not
+	// narrow.
+	Verified *bool
+	// Owner is the page.owner key, `@me` already the reader; nil does not narrow.
+	Owner *view.KindCondition
 }
 
 // PageLabel is one label one page carries.
