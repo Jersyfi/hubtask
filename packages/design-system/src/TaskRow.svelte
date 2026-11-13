@@ -66,6 +66,8 @@
      * "Waiting to be sent" - and absent for an entry the server has.
      */
     pendingLabel?: string;
+    /** One line, its end lost: a list nested in a page, where every row keeps the scene's height. */
+    isOneLine?: boolean;
   }
 
   const {
@@ -85,6 +87,7 @@
     onToggleExpand,
     trailing,
     pendingLabel,
+    isOneLine = false,
   }: Props = $props();
 
   /**
@@ -102,7 +105,7 @@
   const mark = $derived(MARKS[type] ?? 'circle-check');
 </script>
 
-<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
+<div class="task-row" style:--depth={depth} data-type={type} data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined} data-one-line={isOneLine ? '' : undefined}>
   <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
@@ -134,7 +137,7 @@
       {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
     {/snippet}
 
-    <span class="title">{title}</span>
+    <span class="title" title={isOneLine ? title : undefined}>{title}</span>
     {#if pendingLabel !== undefined}
       <!-- The change is on its way: the mark turns with the `pending` role, the word says why. -->
       <span class="pending"><span class="pending-mark" aria-hidden="true"><Icon name="cloud-upload" size="sm" /></span>{pendingLabel}</span>
@@ -168,6 +171,16 @@
 
   .task-row > :global(.row:hover) { border-color: var(--border-subtle); background: var(--bg-surface); }
 
+  /* One line inside a page: the rows of a table, ruled apart instead of cards with a gap, so a
+     part is as high as the scene draws it. */
+  .task-row[data-one-line] > :global(.row) {
+    min-block-size: var(--sp-400);
+    padding-block: 0;
+    border-radius: 0;
+    border-color: transparent transparent var(--border-subtle);
+  }
+  .task-row[data-one-line] > :global(.row:hover) { border-color: transparent transparent var(--border-subtle); background: var(--bg-surface-hover); }
+
   /* The entry open beside the list: outlined in the brand and tinted, as the concept marks it;
      the outline is what says it in greyscale (rule 3). */
   .task-row > :global(.row[data-selected]) {
@@ -192,6 +205,8 @@
     overflow: hidden;
     overflow-wrap: anywhere;
   }
+
+  .task-row[data-one-line] .title { display: block; white-space: nowrap; text-overflow: ellipsis; min-inline-size: 0; }
 
   /* A change waiting to be sent: the `pending` role on the mark - a continuous indicator with
      no end - and the word beside it, because a pulse alone is a colour argument (rule 3) and is

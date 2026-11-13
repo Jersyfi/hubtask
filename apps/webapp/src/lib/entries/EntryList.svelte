@@ -1301,7 +1301,7 @@
           </span>
         </div>
       {/if}
-      <div class="level" bind:this={level} data-simple={isSimple ? '' : undefined} data-columns={hasColumns && fieldsHead ? '' : undefined}>
+      <div class="level" bind:this={level} data-simple={isSimple ? '' : undefined} data-ruled={root ? '' : undefined} data-columns={hasColumns && fieldsHead ? '' : undefined}>
         {#if moment && moment.tier === 3}
           <!-- The rare one takes the level: a slot no taller than the token, at its foot. -->
           <CelebrationSlot current={moment} />
@@ -1627,6 +1627,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={rowEnd}
+        isOneLine={root !== undefined}
       />
 
     </div>
@@ -1715,6 +1716,8 @@
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
   /* The concept's rhythm: one row-card under the next with a small gap (design-system.md §11.8). */
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
+  /* Under an entry the rows are one line each and ruled apart (TaskRow \`isOneLine\`). */
+  .level[data-ruled] { gap: 0; }
 
   /* The level is what a row's indent is measured against (`TaskRow` caps it below `medium` by a
      container query), so it is a container: the width of the tree, not of the screen, decides. */
