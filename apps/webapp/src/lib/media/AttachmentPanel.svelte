@@ -16,7 +16,7 @@
   // count is what decides, and the reconciliation job removes an object once nothing points at it.
   // Promising the file is gone would be promising something this call did not do.
 
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
   import {
     Icon,
@@ -50,9 +50,12 @@
     view?: 'grid' | 'list';
     /** How many rows to draw: the entry's section folds its files (ET-3); absent, all of them. */
     shownRows?: number;
+    /** The linked files' cells, drawn first in the same grid or list (ET-4), and how many they are. */
+    lead?: Snippet;
+    leadCount?: number;
   }
 
-  const { item, isChangeable, view = 'list', shownRows }: Props = $props();
+  const { item, isChangeable, view = 'list', shownRows, lead, leadCount = 0 }: Props = $props();
 
   /**
    * A card's picture is its kind - a mark and the name's ending - never the file's content: an
@@ -226,10 +229,11 @@
   <Stack gap="150">
     {#if readFailure}<p class="failure" role="alert">{readFailure.message}</p>{/if}
 
-    {#if rows.length === 0}
+    {#if rows.length === 0 && leadCount === 0}
       {#if !isChangeable}<p class="quiet">{t('app.media.attachments_none')}</p>{/if}
     {:else}
       <ul class="files" data-view={view}>
+        {@render lead?.()}
         {#each rows.slice(0, shownRows ?? rows.length) as object (object.id)}
           <li data-attachment={object.id}>
             {#if view === 'grid'}
@@ -280,7 +284,7 @@
     {/if}
 
     <!-- In a grid the drop area is the last card (the scene's dashed tile); otherwise a button. -->
-    {#if isChangeable && (view !== 'grid' || rows.length === 0)}{@render upload('button')}{/if}
+    {#if isChangeable && (view !== 'grid' || (rows.length === 0 && leadCount === 0))}{@render upload('button')}{/if}
 
     {#if notice}<p class="quiet">{notice}</p>{/if}
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}

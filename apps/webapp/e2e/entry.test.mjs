@@ -607,6 +607,12 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
         { id: '01a0e2e0-0000-7000-8000-000000000902', file_name: 'Wallet-Integration.md', content_type: 'text/markdown', size: 600, status: 'READY', created_at: '2026-10-01T08:00:00Z' },
       ], page: { next_cursor: null, has_more: false } } });
     }
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/file-links`) && request.method() === 'GET') {
+      return route.fulfill({ json: { data: [{
+        id: '01a0e2e0-0000-7000-8000-000000000911', item_id: ENTRY.id, collection_id: ENTRY.collection_id, provider: 'NEXTCLOUD',
+        address: 'https://cloud.example.org/s/spec', name: 'Checkout spec', added_by: ACCOUNT.id, added_at: '2026-10-01T08:00:00Z',
+      }] } });
+    }
     if (request.method() === 'POST' && url.pathname.includes('/media')) {
       uploads.push(url.pathname);
       return route.fulfill({ status: 503, json: { type: 'about:blank', title: 'Unavailable', status: 503, code: 'common.unavailable' } });
@@ -621,6 +627,11 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
   assert.equal((await page.locator('[data-attachment] .ending').first().textContent()).trim(), 'PDF');
   // A card says what kind of file it is and how big in the reader's words - never its media type.
   assert.deepEqual((await files.locator('[data-attachment] .detail').allInnerTexts()).map((each) => each.trim()), ['PDF · 2 kB', 'Text · 600 B']);
+  // Uploaded and linked files are one grid (ET-4): the linked file is a cell beside the uploaded ones, not a row of its own.
+  assert.equal(await page.locator('[data-file-link]').count(), 1);
+  assert.equal(await files.locator('[data-file-link]').count(), 1, 'the linked file stands outside the files\' grid');
+  const tops = await files.evaluate((list) => [...list.children].slice(0, 2).map((cell) => Math.round(cell.getBoundingClientRect().top)));
+  assert.equal(tops[0], tops[1], `the linked file is alone in its row: ${tops}`);
   // The grid's last cell is the dashed tile to add one; a list has the button under it instead.
   const tile = files.locator('li.add:last-child');
   assert.equal(await tile.getByRole('button', { name: 'Choose a file' }).count(), 1, 'no add tile as the grid\'s last cell');

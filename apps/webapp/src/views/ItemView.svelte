@@ -26,7 +26,7 @@
   // resolve is named by its kind.
 
   import LazyView from '../lib/frame/LazyView.svelte';
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
   import {
     ActivityFeed,
@@ -1404,10 +1404,10 @@
         fold={isFilesFolding ? { kind: 'rows', total: attachmentCount ?? 0, limit: FILES_FOLD_AT } : undefined}
         showAllLabel={t('app.entry.show_all', { count: String(attachmentCount ?? 0) })} showLessLabel={t('app.entry.show_less')}>
         {#snippet children(shown)}
-          {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} view={filesShown} />{/key}
-          {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
-            <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} isChangeable={isWritable} view={filesShown} shownRows={shown.hidden > 0 ? shown.end : undefined} /></div>
-          {/if}
+          {#snippet attached(linked: Snippet, linkedCount: number)}
+            <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} isChangeable={isWritable} view={filesShown} shownRows={shown.hidden > 0 ? shown.end : undefined} lead={linked} leadCount={linkedCount} /></div>
+          {/snippet}
+          {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} view={filesShown} attachments={carries('ATTACHMENTS') && (isWritable || attachmentCount) ? attached : undefined} />{/key}
         {/snippet}
       </FoldingSection>
 
