@@ -13920,6 +13920,9 @@ type AutomationRule struct {
 	// Enabled Switched off when the rule is written. `:enable` and `:disable` are what move it, so that the trail says which of the two somebody did.
 	Enabled bool `json:"enabled"`
 
+	// Entries For which entries: a query line, every name in it an identifier, that narrows the entries the rule acts on before its conditions are asked. It is read at each run as `run_as` reads, so it never reaches an entry that account may not read. Empty is every entry the trigger reaches.
+	Entries *string `json:"entries,omitempty"`
+
 	// FailureCount Consecutive failed runs. A run of them disables the rule by itself, and enabling it by hand clears the count.
 	FailureCount int `json:"failure_count"`
 
@@ -13969,6 +13972,9 @@ type AutomationRuleCreate struct {
 	Actions    []RuleAction     `json:"actions"`
 	Conditions *[]RuleCondition `json:"conditions,omitempty"`
 
+	// Entries For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.
+	Entries *string `json:"entries,omitempty"`
+
 	// Key The rule's stable key in its scope. Omitted draws one from the name; one the scope already holds is refused.
 	Key     *string                      `json:"key,omitempty"`
 	Name    string                       `json:"name"`
@@ -13998,6 +14004,9 @@ type AutomationRulePage struct {
 type AutomationRuleUpdate struct {
 	Actions    *[]RuleAction    `json:"actions,omitempty"`
 	Conditions *[]RuleCondition `json:"conditions,omitempty"`
+
+	// Entries For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.
+	Entries *string `json:"entries,omitempty"`
 
 	// ExpectedVersion The version last read. A mismatch is a conflict rather than an overwrite.
 	ExpectedVersion *int                         `json:"expected_version,omitempty"`

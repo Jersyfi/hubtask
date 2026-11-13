@@ -4102,7 +4102,8 @@ INSERT INTO automation_rule (
   -- nothing by itself: a restore seeds no poller, because nothing enumerates tenants, and
   -- backup-restore.md §8.4 is unambiguous that no rule acts because of a restore.
   next_run_at,
-  key
+  key,
+  entries
 )
 SELECT
   r.id,
@@ -4130,7 +4131,9 @@ SELECT
   r.version,
   r.next_run_at,
   -- The key travels with the row (migration 0293); an archive written before carries none.
-  r.key
+  r.key,
+  -- *For which entries* (migration 0399); an archive written before means every entry.
+  coalesce(r.entries, '')
 FROM jsonb_populate_record(
   NULL::automation_rule,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -4159,7 +4162,8 @@ ON CONFLICT (id) DO UPDATE SET
   deleted_at = EXCLUDED.deleted_at,
   version = EXCLUDED.version,
   next_run_at = EXCLUDED.next_run_at,
-  key = coalesce(EXCLUDED.key, automation_rule.key)
+  key = coalesce(EXCLUDED.key, automation_rule.key),
+  entries = EXCLUDED.entries
 WHERE $2::boolean
 `
 

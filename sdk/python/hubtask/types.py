@@ -4267,6 +4267,7 @@ class AutomationRule(TypedDict, total=False):
     enabled: Required[bool]
     run_as: Required[str]
     trigger: Required["RuleTrigger"]
+    entries: str
     conditions: Required[list["RuleCondition"]]
     actions: Required[list["RuleAction"]]
     throttle: "RuleThrottle"
@@ -4298,6 +4299,7 @@ class AutomationRuleCreate(TypedDict, total=False):
     scope: Required["RuleScope"]
     run_as: Required[str]
     trigger: Required["RuleTrigger"]
+    entries: str
     conditions: list["RuleCondition"]
     actions: Required[list["RuleAction"]]
     throttle: "RuleThrottle"
@@ -4559,6 +4561,7 @@ class AutomationRuleUpdate(TypedDict, total=False):
     scope: "RuleScope"
     run_as: str
     trigger: "RuleTrigger"
+    entries: str
     conditions: list["RuleCondition"]
     actions: list["RuleAction"]
     throttle: "RuleThrottle"

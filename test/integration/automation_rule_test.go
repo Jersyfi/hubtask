@@ -755,3 +755,63 @@ func TestAPersonsOwnRulesGoWithThemAlone(t *testing.T) {
 		}
 	}
 }
+
+// UC-AUT-01 check 12: *for which entries* is kept in its column (migration 0399) by a write and an
+// edit, and another workspace neither reads nor changes it (SG-3).
+func TestForWhichEntriesIsKeptAndStaysInItsTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	runAs := seedServiceAccount(ctx, t, tenantA)
+
+	rule := ruleFixture(t, tenantA, runAs, authorA)
+	rule.Entries = "is: open"
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Insert(ctx, rule)
+	}); err != nil {
+		t.Fatalf("writing the rule: %v", err)
+	}
+	stored := findRule(ctx, t, tenantA, rule.ID)
+	if stored.Entries != "is: open" {
+		t.Fatalf("read back %q, want the line written", stored.Entries)
+	}
+
+	rule.Entries = "is: open created: -6w"
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return automationRules().Update(ctx, rule, 1)
+	}); err != nil {
+		t.Fatalf("the edit: %v", err)
+	}
+	if got := findRule(ctx, t, tenantA, rule.ID).Entries; got != "is: open created: -6w" {
+		t.Fatalf("after the edit %q", got)
+	}
+
+	// Tenant B reaches neither the line nor the row it lies in.
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := automationRules().Find(ctx, rule.ID)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("tenant B read the rule: %v", err)
+	}
+	stranger := rule
+	stranger.TenantID = tenantB
+	stranger.Entries = ""
+	_ = write(ctx, t, tenantB, func(ctx context.Context) error {
+		return automationRules().Update(ctx, stranger, 2)
+	})
+	if got := findRule(ctx, t, tenantA, rule.ID).Entries; got != "is: open created: -6w" {
+		t.Errorf("tenant B changed the line to %q", got)
+	}
+}
+
+func findRule(ctx context.Context, t *testing.T, tenant, id shared.ID) domain.Rule {
+	t.Helper()
+	var found domain.Rule
+	if err := read(ctx, t, tenant, func(ctx context.Context) error {
+		var err error
+		found, err = automationRules().Find(ctx, id)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the rule: %v", err)
+	}
+	return found
+}

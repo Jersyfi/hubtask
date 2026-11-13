@@ -32,7 +32,9 @@ too. One mechanism serves all three.
   (a sealed secret is referenced by name).
 * **Stable keys, not identifiers.** Blocks are named by keys (`types.incident`,
   `workflows.service_standard.steps.resolve`); the server maps keys to identifiers, so a document
-  applies to a second workspace unchanged.
+  applies to a second workspace unchanged. A rule's `entries`, its *for which entries* line
+  (automation.md §1.2.1), travels as written, as `run_as` does: the people and places it names are
+  the identifiers of the workspace it was written in, and an empty line is left out of the block.
 * **A published schema.** JSON Schema generated from the catalogue, with each key's description,
   bounds, allowed values and an example — served at `/meta/config-schema` and as an MCP resource.
   An agent writes valid configuration because the schema says what valid is.

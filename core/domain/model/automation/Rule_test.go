@@ -805,3 +805,48 @@ func TestATriggerNamesTheModuleItDependsOn(t *testing.T) {
 		}
 	}
 }
+
+// UC-AUT-01 check 12: *for which entries* is one query line over entries, without an order, on a
+// trigger that is about an entry; it is kept as written, trimmed.
+func TestForWhichEntriesIsOneQueryLine(t *testing.T) {
+	cases := []struct {
+		name    string
+		line    string
+		kind    automation.TriggerKind
+		wantErr string
+		want    string
+	}{
+		{name: "empty is every entry", line: "  ", kind: automation.TriggerEvent},
+		{name: "a line is kept", line: " is: open created: -6w ", kind: automation.TriggerEvent, want: "is: open created: -6w"},
+		{name: "a relative date is about an entry", line: "is: open", kind: automation.TriggerRelativeDate, want: "is: open"},
+		{name: "a schedule has no entry", line: "is: open", kind: automation.TriggerSchedule, wantErr: "automation.entries_without_entry"},
+		{name: "a webhook has no entry", line: "is: open", kind: automation.TriggerInboundWebhook, wantErr: "automation.entries_without_entry"},
+		{name: "an order is not a scope", line: "is: open sort: -updated", kind: automation.TriggerEvent, wantErr: "query.sort_not_here"},
+		{name: "an unknown field is refused", line: "colour: red", kind: automation.TriggerEvent, wantErr: "query.field_unknown"},
+		{name: "another kind is refused", line: "type: page", kind: automation.TriggerEvent, wantErr: "query.kind_not_here"},
+		{name: "too long", line: "is: open " + strings.Repeat("x", automation.MaxEntriesLength), kind: automation.TriggerEvent, wantErr: "automation.entries_too_long"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := automation.ValidEntries(tc.line, tc.kind)
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("accepted %q", tc.line)
+				}
+				if code := fieldCodes(t, err)["/entries"]; code != tc.wantErr {
+					t.Fatalf("refused with %v, want %s", fieldCodes(t, err), tc.wantErr)
+				}
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %q, %v; want %q", got, err, tc.want)
+			}
+		})
+	}
+	in := validInput()
+	in.Entries = "is: open"
+	rule, err := automation.NewRule(in)
+	if err != nil || rule.Entries != "is: open" {
+		t.Fatalf("the rule did not keep its entries: %q, %v", rule.Entries, err)
+	}
+}

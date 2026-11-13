@@ -60033,6 +60033,10 @@
           "trigger": {
             "$ref": "#/components/schemas/RuleTrigger"
           },
+          "entries": {
+            "type": "string",
+            "description": "For which entries: a query line, every name in it an identifier, that narrows the entries the rule acts on before its conditions are asked. It is read at each run as `run_as` reads, so it never reaches an entry that account may not read. Empty is every entry the trigger reaches.\n"
+          },
           "conditions": {
             "type": "array",
             "description": "Up to twenty, evaluated in order, and all of them have to hold for the rule to act. An empty list is a rule with no conditions, which runs on every match; an empty *expression* is not a condition at all and is refused as the empty field it is.\n",
@@ -60201,6 +60205,11 @@
           },
           "trigger": {
             "$ref": "#/components/schemas/RuleTrigger"
+          },
+          "entries": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.\n"
           },
           "conditions": {
             "type": "array",
@@ -61349,6 +61358,11 @@
           },
           "trigger": {
             "$ref": "#/components/schemas/RuleTrigger"
+          },
+          "entries": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "For which entries, as a query line with identifiers for names; empty for every entry. A trigger that is about no entry (a schedule, an inbound webhook, an intake entry) takes none.\n"
           },
           "conditions": {
             "type": "array",

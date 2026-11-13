@@ -61,6 +61,10 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 				Description: "[{expr}]: CEL expressions that must all hold, compiled at the write.",
 			},
 			{
+				Name: "entries", Kind: usecase.KindString,
+				Description: "For which entries: a query line, names as identifiers, read as run_as at each run.",
+			},
+			{
 				Name: "actions", Kind: usecase.KindList, Required: true,
 				Description: "What the rule does: [{kind, params}], at least one.",
 			},
@@ -146,6 +150,7 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 			{Name: "run_as", Kind: usecase.KindID, Description: "The new account. Omitted leaves it."},
 			{Name: "trigger", Kind: usecase.KindObject, Description: "The new trigger, whole. Omitted leaves it."},
 			{Name: "conditions", Kind: usecase.KindList, Description: "The new conditions, whole. Omitted leaves them."},
+			{Name: "entries", Kind: usecase.KindString, Description: "The new line for which entries; empty for every entry. Omitted leaves it."},
 			{Name: "actions", Kind: usecase.KindList, Description: "The new steps. Omitted leaves them."},
 			{Name: "throttle", Kind: usecase.KindObject, Description: "The new bounds. Omitted leaves them."},
 			{
@@ -270,7 +275,7 @@ func (h CreateRule) invoke(
 
 	rule, err := h.Execute(ctx, actor, CreateRuleCommand{
 		Name: in.String("name"), Key: in.String("key"), Scope: scope, RunAs: runAs, Trigger: trigger,
-		Conditions: conditions, Actions: actions,
+		Conditions: conditions, Entries: in.String("entries"), Actions: actions,
 		Throttle: throttleFrom(in["throttle"]), OnError: domain.OnError(in.String("on_error")),
 	})
 	if err != nil {
@@ -359,6 +364,10 @@ func (h UpdateRule) invoke(
 			return nil, err
 		}
 		cmd.Conditions = &conditions
+	}
+	if in.Present("entries") {
+		entries := in.String("entries")
+		cmd.Entries = &entries
 	}
 	if in.Present("actions") {
 		actions, err := actionsFrom(in["actions"])
@@ -457,6 +466,7 @@ func ruleOutput(rule domain.Rule) usecase.Output {
 		"run_as":        rule.RunAs.String(),
 		"trigger":       triggerOutput(rule.Trigger),
 		"conditions":    conditions,
+		"entries":       rule.Entries,
 		"actions":       actions,
 		"throttle":      throttle,
 		"on_error":      string(rule.OnError),

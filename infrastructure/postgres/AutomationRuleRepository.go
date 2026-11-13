@@ -144,6 +144,7 @@ func (r AutomationRuleRepository) Insert(ctx context.Context, rule domain.Rule) 
 		RunAs:      runAs,
 		Trigger:    documents.trigger,
 		Conditions: documents.conditions,
+		Entries:    rule.Entries,
 		Actions:    documents.actions,
 		Throttle:   documents.throttle,
 		OnError:    string(rule.OnError),
@@ -321,6 +322,7 @@ func (r AutomationRuleRepository) Update(
 		RunAs:      runAs,
 		Trigger:    documents.trigger,
 		Conditions: documents.conditions,
+		Entries:    rule.Entries,
 		Actions:    documents.actions,
 		Throttle:   documents.throttle,
 		OnError:    string(rule.OnError),
@@ -739,6 +741,7 @@ func automationRuleFrom(row sqlc.ListAutomationRulesRow) (domain.Rule, error) {
 			Workflow: trigger.Workflow, Step: trigger.Step,
 		},
 		Conditions: make([]domain.Condition, 0, len(conditions)),
+		Entries:    row.Entries,
 		Actions:    make([]domain.Action, 0, len(actions)),
 		Throttle: domain.Throttle{
 			MaxRunsPerHour: throttle.MaxRunsPerHour, DedupeKeyExpr: throttle.DedupeKeyExpr,

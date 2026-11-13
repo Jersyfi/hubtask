@@ -851,6 +851,7 @@ type AutomationRule struct {
 	CheckedAt         pgtype.Timestamptz
 	PausedForDeletion bool
 	Key               *string
+	Entries           string
 }
 
 type BackupRun struct {
