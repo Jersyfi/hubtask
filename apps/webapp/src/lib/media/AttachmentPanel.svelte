@@ -32,9 +32,9 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { attachmentsPath, media } from '../data/media.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import { acceptFor, isReady, isWithinUploadLimit, keepsOffline, uploadLimitOf } from '../data/media.ts';
+  import { acceptFor, fileKindOf, isReady, isWithinUploadLimit, keepsOffline, uploadLimitOf } from '../data/media.ts';
   import { resource } from '../data/resource.svelte.ts';
-  import { formatBytes } from '../i18n/bytes.ts';
+  import { formatBytes, formatFileSize } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
@@ -125,10 +125,10 @@
           }),
   );
 
-  /** The second line of a row: what it is and how big, in the reader's units. */
+  /** The second line of a row: what kind of file it is and how big, in the reader's words and units. */
   function detailOf(object: MediaObject): string {
-    const size = formatBytes(object.size, messages.locale);
-    if (isReady(object)) return `${object.content_type} · ${size}`;
+    const size = formatFileSize(object.size, messages.locale, t);
+    if (isReady(object)) return `${t(`app.media.kind.${fileKindOf(object.content_type, object.file_name)}`)} · ${size}`;
     // Held for the installation's scanner, or found malicious since: neither is downloaded.
     if (object.status === 'PENDING_SCAN') return `${t('app.media.held')} · ${size}`;
     if (object.status === 'INFECTED') return t('app.media.infected');

@@ -602,7 +602,10 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname.endsWith(`/items/${ENTRY.id}/attachments`) && request.method() === 'GET') {
-      return route.fulfill({ json: { data: [{ id: '01a0e2e0-0000-7000-8000-000000000901', file_name: 'plan.pdf', content_type: 'application/pdf', size: 2048, status: 'READY', created_at: '2026-10-01T08:00:00Z' }], page: { next_cursor: null, has_more: false } } });
+      return route.fulfill({ json: { data: [
+        { id: '01a0e2e0-0000-7000-8000-000000000901', file_name: 'plan.pdf', content_type: 'application/pdf', size: 2048, status: 'READY', created_at: '2026-10-01T08:00:00Z' },
+        { id: '01a0e2e0-0000-7000-8000-000000000902', file_name: 'Wallet-Integration.md', content_type: 'text/markdown', size: 600, status: 'READY', created_at: '2026-10-01T08:00:00Z' },
+      ], page: { next_cursor: null, has_more: false } } });
     }
     if (request.method() === 'POST' && url.pathname.includes('/media')) {
       uploads.push(url.pathname);
@@ -615,7 +618,9 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
   const files = page.locator('[data-entry-attachments] .files');
   await files.waitFor({ timeout: 5_000 });
   assert.equal(await files.getAttribute('data-view'), 'grid', 'files open as the scene\'s grid');
-  assert.equal((await page.locator('[data-attachment] .ending').textContent()).trim(), 'PDF');
+  assert.equal((await page.locator('[data-attachment] .ending').first().textContent()).trim(), 'PDF');
+  // A card says what kind of file it is and how big in the reader's words - never its media type.
+  assert.deepEqual((await files.locator('[data-attachment] .detail').allInnerTexts()).map((each) => each.trim()), ['PDF · 2 kB', 'Text · 600 B']);
   // The grid's last cell is the dashed tile to add one; a list has the button under it instead.
   const tile = files.locator('li.add:last-child');
   assert.equal(await tile.getByRole('button', { name: 'Choose a file' }).count(), 1, 'no add tile as the grid\'s last cell');

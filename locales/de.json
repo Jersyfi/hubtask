@@ -14777,5 +14777,16 @@
   "app.entry.deadline_left": "noch {span}",
   "app.entry.deadline_overdue": "seit {span} überfällig",
   "app.entry.deadline_due": "bis {at}",
-  "app.entry.deadline_was_due": "war fällig {at}"
+  "app.entry.deadline_was_due": "war fällig {at}",
+  "app.media.kind.image": "Bild",
+  "app.media.kind.video": "Video",
+  "app.media.kind.audio": "Audio",
+  "app.media.kind.pdf": "PDF",
+  "app.media.kind.sheet": "Tabelle",
+  "app.media.kind.slides": "Präsentation",
+  "app.media.kind.archive": "Archiv",
+  "app.media.kind.text": "Text",
+  "app.media.kind.document": "Dokument",
+  "app.media.kind.file": "Datei",
+  "app.media.size_bytes": "{size} B"
 }

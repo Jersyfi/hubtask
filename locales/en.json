@@ -14777,5 +14777,16 @@
   "app.entry.deadline_left": "{span} left",
   "app.entry.deadline_overdue": "overdue for {span}",
   "app.entry.deadline_due": "until {at}",
-  "app.entry.deadline_was_due": "was due {at}"
+  "app.entry.deadline_was_due": "was due {at}",
+  "app.media.kind.image": "Image",
+  "app.media.kind.video": "Video",
+  "app.media.kind.audio": "Audio",
+  "app.media.kind.pdf": "PDF",
+  "app.media.kind.sheet": "Spreadsheet",
+  "app.media.kind.slides": "Presentation",
+  "app.media.kind.archive": "Archive",
+  "app.media.kind.text": "Text",
+  "app.media.kind.document": "Document",
+  "app.media.kind.file": "File",
+  "app.media.size_bytes": "{size} B"
 }

@@ -41,3 +41,12 @@ export function formatBytes(bytes: number, locale: string): string {
     maximumFractionDigits: unit === 0 ? 0 : 1,
   }).format(value);
 }
+
+/**
+ * A file's size on its card or row: as `formatBytes`, but under a kilobyte the catalogue's short
+ * unit ("600 B"), where `Intl` writes the unit out ("600 byte") beside the other sizes' symbols.
+ */
+export function formatFileSize(bytes: number, locale: string, t: (code: string, params: Record<string, string>) => string): string {
+  if (!Number.isFinite(bytes) || bytes < 0 || bytes >= 1000) return formatBytes(bytes, locale);
+  return t('app.media.size_bytes', { size: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(bytes) });
+}

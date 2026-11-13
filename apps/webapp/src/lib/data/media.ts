@@ -141,3 +141,22 @@ export function acceptFor(usage: 'COVER' | 'ATTACHMENT'): string | undefined {
 export function keepsOffline(error: unknown, holdsFiles: boolean): boolean {
   return holdsFiles && error instanceof TransportError && (error.kind === 'offline' || error.kind === 'timeout');
 }
+
+/** What a file is, in the words a card says it (`app.media.kind.*`), never its media type. */
+export type FileKind = 'image' | 'video' | 'audio' | 'pdf' | 'sheet' | 'slides' | 'archive' | 'text' | 'document' | 'file';
+
+/** A file's kind by its media type, else by its name's ending. */
+export function fileKindOf(contentType: string | null | undefined, fileName: string | null | undefined): FileKind {
+  const type = (contentType ?? '').toLowerCase();
+  const ending = /\.([a-z0-9]{1,5})$/i.exec(fileName ?? '')?.[1]?.toLowerCase() ?? '';
+  if (type.startsWith('image/')) return 'image';
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('audio/')) return 'audio';
+  if (type.includes('pdf') || ending === 'pdf') return 'pdf';
+  if (type.includes('sheet') || type.includes('excel') || type.includes('csv') || ['xlsx', 'xls', 'ods', 'csv'].includes(ending)) return 'sheet';
+  if (type.includes('presentation') || type.includes('powerpoint') || ['pptx', 'ppt', 'odp', 'key'].includes(ending)) return 'slides';
+  if (type.includes('zip') || type.includes('compressed') || type.includes('tar') || type.includes('gzip') || ['zip', 'gz', 'tgz', 'tar', '7z', 'rar'].includes(ending)) return 'archive';
+  if (type.includes('word') || type.includes('opendocument.text') || type.includes('rtf') || ['docx', 'doc', 'odt', 'rtf', 'pages'].includes(ending)) return 'document';
+  if (type.startsWith('text/') || type.includes('json') || type.includes('xml') || ['md', 'txt', 'json', 'xml', 'log'].includes(ending)) return 'text';
+  return 'file';
+}
