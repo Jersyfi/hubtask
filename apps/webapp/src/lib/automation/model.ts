@@ -49,10 +49,15 @@ export interface Draft {
   runAs: string;
   trigger: TriggerDraft;
   conditions: string[];
+  /** *For which entries* (E-12): the query line as the writer reads it; the editor resolves its names at save. */
+  entries: string;
   actions: Step[];
   throttle: { maxRunsPerHour?: number; dedupeKeyExpr?: string };
   onError: string;
 }
+
+/** The triggers about an entry, the ones *for which entries* narrows (automation.md §1.2.1). */
+export const ENTRY_TRIGGERS: readonly string[] = ['EVENT', 'RELATIVE_DATE', 'STEP_TAKEN', 'MANUAL'];
 
 /** The three the contract calls the engine's own, which no catalogue lists. */
 export const FLOW_KINDS = ['WAIT', 'BRANCH', 'STOP'] as const;
@@ -67,6 +72,7 @@ export function emptyDraft(eventType = ''): Draft {
     runAs: '',
     trigger: { kind: 'EVENT', event_type: eventType },
     conditions: [],
+    entries: '',
     actions: [],
     throttle: {},
     onError: 'STOP',
@@ -149,6 +155,7 @@ export function fromRule(rule: Rule): Draft {
       ...(rule.trigger.step ? { step: rule.trigger.step } : {}),
     },
     conditions: rule.conditions.map((condition) => condition.expr),
+    entries: rule.entries ?? '',
     actions: stepsFrom(rule.actions),
     throttle: {
       ...(rule.throttle?.max_runs_per_hour ? { maxRunsPerHour: rule.throttle.max_runs_per_hour } : {}),
@@ -265,6 +272,8 @@ export function toRuleDraft(draft: Draft, name: string): RuleDraft {
     run_as: draft.runAs,
     trigger: sent,
     conditions: draft.conditions.map((expr) => expr.trim()).filter((expr) => expr !== '').map((expr) => ({ expr })),
+    // Sent whole, empty too: an edit that clears the line widens the rule back to every entry.
+    ...(ENTRY_TRIGGERS.includes(t.kind) ? { entries: draft.entries.trim() } : {}),
     actions: actionsFrom(draft.actions),
     ...(draft.throttle.maxRunsPerHour || draft.throttle.dedupeKeyExpr
       ? {

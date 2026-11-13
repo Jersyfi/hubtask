@@ -15,7 +15,7 @@
   import ActionForm, { type Choice, type Field } from './ActionForm.svelte';
   import Composer from './Composer.svelte';
   import { goneAt } from './findings.ts';
-  import { isRung, listAt, parentOf, pointerOf, replaceAt, stepAt, type Draft } from './model.ts';
+  import { ENTRY_TRIGGERS, isRung, listAt, parentOf, pointerOf, replaceAt, stepAt, type Draft } from './model.ts';
   import type { Selection } from './selection.ts';
   import type { RuleFinding } from '../data/rules.svelte.ts';
   import { eventGroups, kindWord } from './words.ts';
@@ -48,6 +48,10 @@
     onremovestep: (path: string) => void;
     onremovecondition: (index: number) => void;
     onaddcondition: () => void;
+    /** *For which entries* as the writer reads it, what is wrong with it, and its change. */
+    entriesLine?: string;
+    entriesError?: string | undefined;
+    onentries?: (line: string) => void;
     /** The inbound address, the view's to mint. Starting a rule is the head's *Start now*. */
     inbound?: { rotatedAt?: string; onmint: () => void; isWorking: boolean };
     /** The workflows and their steps a STEP_TAKEN rule may name (UC-FLW-04 check 4). */
@@ -74,6 +78,9 @@
     onremovestep,
     onremovecondition,
     onaddcondition,
+    entriesLine = '',
+    entriesError,
+    onentries,
     inbound,
     workflowChoices = [],
   }: Props = $props();
@@ -376,6 +383,11 @@
       <Callout>{t('app.flow.manual_hint')}</Callout>
     {:else}
       <Callout>{t('app.flow.jumble_hint')}</Callout>
+    {/if}
+    {#if ENTRY_TRIGGERS.includes(draft.trigger.kind) && onentries}
+      <!-- One field (E-12): the query line chooses the entries, formulas over values stay conditions. -->
+      <Input label={t('app.rules.entries')} hint={t('app.rules.entries_hint')} value={entriesLine} error={entriesError} spellcheck={false}
+        placeholder={t('app.rules.entries_placeholder')} oninput={(event) => onentries((event.currentTarget as HTMLInputElement).value)} />
     {/if}
     <Callout tone="info">{t('app.flow.trigger_all_six')}</Callout>
   {:else if selection.kind === 'scope'}
