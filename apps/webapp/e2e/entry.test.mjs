@@ -865,3 +865,35 @@ test('chromium: 1280 px — the ＋ inside a task offers a work package and an a
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
+
+// The description is never drawn empty on its way in: an entry with notes shows them, or nothing
+// while they load - not the placeholder for a frame first.
+test('chromium: 1280 px — the description does not flash empty while the entry loads', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  await context.addInitScript(() => {
+    window.__emptySeen = [];
+    // Blank (the text not drawn yet and nothing saying so) or the placeholder of an empty one.
+    new MutationObserver(() => {
+      const body = document.querySelector('#entry-description [id$="-body"]');
+      if (!body) return;
+      const isBlank = body.textContent.trim() === '' && !body.querySelector('[aria-busy="true"]');
+      if (isBlank || body.querySelector('[data-placeholder][data-empty], p.quiet')) window.__emptySeen.push(body.innerHTML.slice(0, 120));
+    }).observe(document, { childList: true, subtree: true, attributes: true });
+  });
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    if (new URL(request.url()).pathname.endsWith(`/items/${ENTRY.id}`) && request.method() === 'GET') {
+      return route.fulfill({ json: { ...ENTRY, notes: 'Written **before** the page opened.' } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.locator('#entry-description').getByText('before').waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(500);
+  assert.deepEqual(await page.evaluate(() => window.__emptySeen), [], 'the description stood empty while it had notes');
+  assert.deepEqual(failures, []);
+});

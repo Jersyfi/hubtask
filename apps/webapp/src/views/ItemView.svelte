@@ -1107,6 +1107,13 @@
     inlineNotes = item.notes ?? '';
   });
 
+  /**
+   * The notes as drawn: the entry's own until the reader types. Read straight from the entry, so
+   * the first frame already holds them - a copy filled by an effect drew the empty placeholder for
+   * a frame first.
+   */
+  const notesShown = $derived(isInlineDirty ? inlineNotes : (item?.notes ?? ''));
+
   async function commitInline() {
     if (!item || !isInlineDirty) return;
     if (inlineTitle.trim() === '') {
@@ -1343,11 +1350,11 @@
              formatted text, written in place in the pages' editor, stored as Markdown (E-3). -->
         {#if !isTypeKnown}
           {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
-        {:else if carries('NOTES') && (isWritable || inlineNotes.trim() !== '')}
+        {:else if carries('NOTES') && (isWritable || notesShown.trim() !== '')}
           {#key item.id}
             <RichText
               bind:this={notesText}
-              value={inlineNotes}
+              value={notesShown}
               label={t('app.entries.notes')}
               placeholder={t('app.item.notes_placeholder')}
               editable={isWritable}
@@ -1361,7 +1368,8 @@
           {#if isWritable}
             <MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={insertMention} />
           {/if}
-        {:else}
+        {:else if mayChangeHere !== undefined || readOnlyReason !== undefined}
+          <!-- Not while the role is read: an entry that turns out writable would say "empty" first. -->
           <p class="quiet">{t('app.item.notes_placeholder')}</p>
         {/if}
         {#if hasAi && isTypeKnown && carries('NOTES')}

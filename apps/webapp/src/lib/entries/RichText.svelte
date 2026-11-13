@@ -14,6 +14,8 @@
   import type { Editor, ReferenceAttrs, ReferenceDrawing } from '@hubtask/editor';
   import type { ReferenceTarget } from '@hubtask/sync-engine';
 
+  import { Skeleton } from '@hubtask/design-system/components';
+
   import { engine } from '../data/engine.ts';
   import { referencesIn, resolveRequest, targetLabel } from '../data/links.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -44,6 +46,8 @@
   let current = untrack(() => value);
   let isFocused = $state(false);
   let isEmpty = $state(untrack(() => value.trim() === ''));
+  /** The editor has drawn the text. Before, a text that is there is a skeleton - never a blank box. */
+  let isReady = $state(false);
 
   const targets = new Map<string, ReferenceTarget>();
   const listeners = new Set<() => void>();
@@ -105,6 +109,7 @@
       });
       if (lang) made.view.dom.setAttribute('lang', lang);
       editor = made;
+      isReady = true;
       void resolve(current);
     });
     return () => {
@@ -172,6 +177,7 @@
   }
 </script>
 
+{#if !isReady && !isEmpty}<div class="loading" aria-busy="true"><Skeleton lines={3} /></div>{/if}
 <div
   class="rich"
   data-editable={editable ? '' : undefined}
@@ -196,6 +202,7 @@
 ></div>
 
 <style>
+  .loading { padding-block: var(--sp-050); }
   .rich { position: relative; min-inline-size: 0; overflow-wrap: anywhere; }
   .rich[data-empty]::before {
     position: absolute;
