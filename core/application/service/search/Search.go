@@ -10,6 +10,7 @@ package search
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +33,7 @@ const SearchAllName = "SearchAll"
 // The kinds, in the order an answer groups them when none is asked.
 const (
 	KindEntry      = "ENTRY"
+	KindTicket     = "TICKET"
 	KindPage       = "PAGE"
 	KindWhiteboard = "WHITEBOARD"
 	KindGoal       = "GOAL"
@@ -43,7 +45,7 @@ const (
 )
 
 // Kinds is every kind, in the default order.
-var Kinds = []string{KindEntry, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment}
+var Kinds = []string{KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment}
 
 const (
 	maxWords    = 200
@@ -74,6 +76,10 @@ type Question struct {
 	Sort            []any
 	IncludeArchived bool
 	IncludeTrashed  bool
+	// Apart keeps tickets out of the entries: TICKET is asked beside ENTRY.
+	Apart bool
+	// entries is the entry search's answer, read once for ENTRY and TICKET.
+	entries *entryAnswer
 }
 
 // Ask is the store's question for the candidates of a kind.
@@ -214,7 +220,7 @@ func Terms(words string) ([]string, error) {
 
 // objectKinds are the kinds `type:` names that a search reads, by the query's word.
 var objectKinds = map[string]string{
-	"task": KindEntry, "workpackage": KindEntry, "activity": KindEntry, "ticket": KindEntry,
+	"task": KindEntry, "workpackage": KindEntry, "activity": KindEntry, "ticket": KindTicket,
 	"page": KindPage, "whiteboard": KindWhiteboard, "goal": KindGoal, "dashboard": KindDashboard,
 	"asset": KindAsset, "person": KindPerson, "file": KindFile, "comment": KindComment,
 }
@@ -297,6 +303,9 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 		return Answer{}, invalid("/size", "search.size_out_of_range")
 	}
 	question.HubID, question.Size = query.HubID, size
+	question.entries = &entryAnswer{}
+	_, tickets := h.Finders[KindTicket]
+	question.Apart = tickets && slices.Contains(kinds, KindTicket)
 	answer := Answer{Hits: []Hit{}, Facets: []Facet{}}
 	asked := map[string]bool{}
 	for i, kind := range kinds {
@@ -328,9 +337,10 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 // only outside a hub, and asked something - entries and pages read words a name does not.
 func (h SearchAll) asks(kind string, q Question, only string, typed map[string]bool) bool {
 	switch {
-	case only != "" && kind != only, typed != nil && !typed[kind], kind == KindPerson && !q.HubID.IsZero():
+	case only != "" && kind != only && (only != KindEntry || kind != KindTicket),
+		typed != nil && !typed[kind], kind == KindPerson && !q.HubID.IsZero():
 		return false
-	case kind == KindEntry:
+	case kind == KindEntry, kind == KindTicket:
 		return strings.TrimSpace(q.Words) != "" || q.Filter != nil
 	case kind == KindPage:
 		return strings.TrimSpace(q.Words) != "" || len(q.Conditions) > 0
@@ -382,6 +392,7 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionRead,
 		Summary: "One search over every kind of object the caller may read - entries, pages, " +
 			"whiteboards, goals, dashboards, inventory items, people, file names and comments - " +
+			"tickets apart from the other entries where TICKET is asked, a ticket key finding its entry - " +
 			"each hit with its kind, title, place, tile, the passage that matched where there is " +
 			"one and its state, grouped by kind and best first within a kind, at most size per " +
 			"kind; facets counts each kind's hits the caller may read, a count with more being a " +
@@ -397,7 +408,7 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "q", Kind: usecase.KindString, Required: true, Description: "The words and keys as one Hubtask query, at most 200 characters; every free word must occur, every key narrows."},
-			{Name: "kinds", Kind: usecase.KindList, Description: "The kinds to search, in the order the answer groups them: ENTRY, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT. Omitted is every kind."},
+			{Name: "kinds", Kind: usecase.KindList, Description: "The kinds to search, in the order the answer groups them: ENTRY, TICKET, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT. Omitted is every kind. TICKET is the entries of the collections that act as a desk; beside it, ENTRY holds the other entries."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "Only this hub's objects; people stand in no hub and are then left out."},
 			{Name: "size", Kind: usecase.KindInt, Description: "At most this many hits per kind, 1 to 25; 5 when omitted."},
 		},

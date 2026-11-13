@@ -9,6 +9,7 @@ import (
 
 	viewrepo "github.com/Jersyfi/hubtask/core/application/repository/view"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/search"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -138,28 +139,23 @@ func unanswerable(err error) bool {
 		errors.Is(err, shared.ErrValidation)
 }
 
-// desksOf answers the hub's collections that act as a desk: those offering a type the portal
-// takes (UC-SVC-05), as the client's desksOf reads them. At most view.MaxValues, the most one
-// query's IN names; a hub holds far fewer desks.
+// desksOf answers the hub's collections that act as a desk, as DeskCollections tells them. At most
+// view.MaxValues, the most one query's IN names; a hub holds far fewer desks.
 func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]shared.ID, error) {
-	rows, err := h.EntryTypes.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	types := workdomain.NewEntryTypes(rows)
 	var desks []shared.ID
 	query := workrepo.ContainerQuery{ParentID: hubID, Type: workdomain.ContainerCollection, Page: workrepo.Page{Size: work.MaxPageSize}}
+	tell := DeskCollections{EntryTypes: h.EntryTypes, Gate: h.Gate}
 	for {
 		page, err := h.Desk.Containers.List(ctx, query)
 		if err != nil {
 			return nil, err
 		}
+		acting, err := tell.Desks(ctx, actor, page.Containers)
+		if err != nil {
+			return nil, err
+		}
 		for _, collection := range page.Containers {
-			offered, err := h.Gate.OfferedTaskTypes(ctx, collection)
-			if err != nil {
-				return nil, err
-			}
-			if len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0 && len(desks) < view.MaxValues {
+			if acting[collection.ID] && len(desks) < view.MaxValues {
 				desks = append(desks, collection.ID)
 			}
 		}
@@ -168,6 +164,37 @@ func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext
 		}
 		query.Page.Cursor = page.Info.NextCursor
 	}
+}
+
+// DeskCollections tells the collections that act as a desk: those offering a type the portal
+// takes (UC-SVC-05), as the client's desksOf reads them. The search names their entries tickets.
+// It reads inside the caller's transaction.
+type DeskCollections struct {
+	EntryTypes workrepo.EntryTypes
+	Gate       work.EntryGate
+}
+
+var _ search.Desks = DeskCollections{}
+
+// Desks answers, per collection, whether it acts as a desk.
+func (d DeskCollections) Desks(ctx context.Context, actor appshared.ActorContext, collections []workdomain.Container) (map[shared.ID]bool, error) {
+	acting := map[shared.ID]bool{}
+	if len(collections) == 0 {
+		return acting, nil
+	}
+	rows, err := d.EntryTypes.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	types := workdomain.NewEntryTypes(rows)
+	for _, collection := range collections {
+		offered, err := d.Gate.OfferedTaskTypes(ctx, collection)
+		if err != nil {
+			return nil, err
+		}
+		acting[collection.ID] = len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0
+	}
+	return acting, nil
 }
 
 // StandardQueue is a standard queue's query at a hub: the open entries of its desks, narrowed by

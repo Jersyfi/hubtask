@@ -66,7 +66,7 @@ func TestAHubSearchLeavesPeopleOut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(answer.Facets) != len(Kinds) || len(asked) != len(Kinds)-1 || answer.Facets[6].Kind != KindPerson || answer.Facets[6].Count != 0 {
+	if len(answer.Facets) != len(Kinds) || len(asked) != len(Kinds)-1 || answer.Facets[7].Kind != KindPerson || answer.Facets[7].Count != 0 {
 		t.Fatalf("asked %d finders, facets %+v", len(asked), answer.Facets)
 	}
 }
@@ -123,13 +123,14 @@ func TestAKeyKeepsTheSearchToItsKind(t *testing.T) {
 			}
 		}},
 		{"goal.state: at_risk", []string{KindGoal}, nil},
-		{"passkey who: me", []string{KindEntry}, func(t *testing.T, q Question) {
+		{"passkey who: me", []string{KindEntry, KindTicket}, func(t *testing.T, q Question) {
 			if q.Words != "passkey" || q.Filter == nil || len(q.Conditions) != 0 {
 				t.Errorf("asked %+v", q)
 			}
 		}},
 		{"type: page, whiteboard budget", []string{KindPage, KindWhiteboard}, nil},
-		{"budget", []string{KindEntry, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment}, nil},
+		{"type: ticket printer", []string{KindTicket}, nil},
+		{"budget", []string{KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment}, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.q, func(t *testing.T) {

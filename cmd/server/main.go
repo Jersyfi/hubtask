@@ -2294,6 +2294,14 @@ func run() error {
 	// registry run as the reader, through the catalogue set below.
 	glanceSearches := &deferredCatalogue{}
 	searchNames := postgres.NewSearchNamesRepository()
+	// Entries and tickets share one entry search per search; a ticket is an entry of a collection that acts as a desk.
+	searchEntries := searchservice.Entries{
+		Invoker: glanceSearches, Containers: containers, UnitOfWork: unitOfWork,
+		Keys:  work.ByKey{Reader: authorizer, Names: searchNames, UnitOfWork: unitOfWork},
+		Desks: servicedeskservice.DeskCollections{EntryTypes: entryTypes, Gate: entryGate},
+	}
+	searchTickets := searchEntries
+	searchTickets.Tickets = true
 	// A person's stars are read as the person through the catalogue set below (UC-WRK-37).
 	starReads := &deferredCatalogue{}
 	starService := identity.Stars{
@@ -2731,7 +2739,8 @@ func run() error {
 		// One search over every kind (UC-WRK-18 check 9): entries and pages through their own searches as the
 		// reader, the other kinds by their names, each narrowed by its own permission question.
 		searchservice.SearchAll{Finders: map[string]searchservice.Finder{
-			searchservice.KindEntry:      searchservice.Entries{Invoker: glanceSearches, Containers: containers, UnitOfWork: unitOfWork},
+			searchservice.KindEntry:      searchEntries,
+			searchservice.KindTicket:     searchTickets,
 			searchservice.KindPage:       knowledgeservice.PageFinder{Pages: knowledgeservice.SearchPages{Space: pageSpace, Searcher: pageSpace.Pages}},
 			searchservice.KindWhiteboard: whiteboardservice.Finder{Studio: boardStudio, Names: searchNames},
 			searchservice.KindGoal:       goalservice.GoalFinder{Steward: steward, Names: searchNames},
