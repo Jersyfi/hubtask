@@ -1397,11 +1397,12 @@
   .cell[data-filled][data-first]:not([data-milestone]):not([data-summary]) { border-start-start-radius: var(--r-sm); border-end-start-radius: var(--r-sm); }
   .cell[data-filled][data-last]:not([data-milestone]):not([data-summary]) { border-start-end-radius: var(--r-sm); border-end-end-radius: var(--r-sm); }
 
-  /* Narrow - a phone, a narrow pane - the chart comes first (user-experience.md §7.5): a column of
-     titles would leave the bars a sliver, so each title stands on its own line above its bar, as
-     wide as what is visible and kept in view while the chart scrolls within itself. */
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
-  @container (inline-size < 600px) {
+  /* On a phone the chart comes first (user-experience.md §7.5): a column of titles would leave the
+     bars a sliver, so each title stands on its own line above its bar, as wide as what is visible
+     and kept in view while the chart scrolls within itself. By the viewport, not the container: a
+     chart narrowed by a pane beside it keeps its columns and scrolls sideways instead. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
     .axis,
     .timeline:not([data-wide='0']) .axis,
     .timeline:not([data-narrow='0']) .axis { margin-inline-start: 0; }

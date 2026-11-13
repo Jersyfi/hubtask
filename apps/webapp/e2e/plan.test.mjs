@@ -472,6 +472,14 @@ test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is 
   assert.equal(await page.locator('[inert]').count(), 0, 'something behind the panel is inert');
   const [chart, pane] = [await page.locator('.timeline').first().boundingBox(), await side.boundingBox()];
   assert.ok(chart && pane && chart.x + chart.width <= pane.x + 1, `the chart lies under the panel: ${JSON.stringify({ chart, pane })}`);
+  // Narrowed by the pane, the chart keeps its title and outline columns (scene planview): titles
+  // stand over the bars on a phone only, and the chart scrolls sideways within its own surface.
+  assert.equal(await page.locator('.timeline .heads').first().isVisible(), true, 'beside the panel the chart lost its column heads');
+  assert.equal(await row.locator('[data-outline]').isVisible(), true, 'beside the panel the row lost its outline columns');
+  const [title, lanes] = [await row.locator('.lead').boundingBox(), await row.locator('.lanes').boundingBox()];
+  assert.ok(title && lanes && Math.abs(title.y - lanes.y) < 2 && title.x + title.width <= lanes.x + 1,
+    `beside the panel the title stands over its bar: ${JSON.stringify({ title, lanes })}`);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'the chart widened the page');
   // A change shows at once beside it.
   await side.locator('[data-plan-presentation-panel="timeline"]').click();
   assert.equal(await page.locator('.timeline').first().getAttribute('data-look'), 'light');
