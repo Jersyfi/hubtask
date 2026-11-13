@@ -269,6 +269,18 @@ test('chromium 375: a long title takes the head\'s width beside its key', { time
     });
     assert.ok(sizes.field >= sizes.head * 0.8, `the title takes ${Math.round(sizes.field)} of ${Math.round(sizes.head)} px`);
     assert.ok(sizes.keyBottom <= sizes.fieldTop + 1, 'the key stands above the title');
+    // The phone bar names the entry by its key, beside a whole way back (task.m): the title is the head's.
+    const bar = page.locator('[data-phone-bar]');
+    assert.match(await bar.locator('[data-bar="title"]').innerText(), /^KITCHEN-\d+$/, 'the bar carries the entry\'s key');
+    const fit = await page.evaluate(() => {
+      const box = (selector) => document.querySelector(`[data-phone-bar] ${selector}`)?.getBoundingClientRect();
+      const back = box('[data-back]');
+      const title = box('[data-bar="title"]');
+      const end = box('.end');
+      return { back: back?.width ?? 0, overlaps: title && end ? title.right > end.left + 1 : false };
+    });
+    assert.ok(fit.back >= 44, `the way back is ${Math.round(fit.back)} px wide`);
+    assert.ok(!fit.overlaps, 'the bar\'s title runs under its marks');
   } finally {
     await close();
   }

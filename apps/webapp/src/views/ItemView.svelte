@@ -208,7 +208,9 @@
 
   // The bar carries the title on a phone (ADR-0061 decision 2); on every width the head's `h1`
   // is read rather than drawn, because the title the reader sees is the field they edit it in.
-  $effect(() => (isInPane ? undefined : page.entitle(item?.title)));
+  // An entry with a key gives the bar its key (task.m): the head already shows the whole title,
+  // and a long one in the bar pushed the way back and the marks out of it.
+  $effect(() => (isInPane ? undefined : page.entitle(ticketKey ?? item?.title)));
   $effect(() => (isInPane ? undefined : page.locate(item?.collection_id)));
 
   // What the overview's "what you had open" is built from. Noted when the entry has a title rather
