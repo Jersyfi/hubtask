@@ -145,7 +145,7 @@
   import { entryGoalsPath } from '../lib/data/goals.svelte.ts';
   import { entryApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
-  import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatDue, formatDueShort } from '../lib/i18n/datetime.ts';
   import { textLanguages } from '../lib/data/query.ts';
   import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -525,6 +525,16 @@
       ? t('app.due.span', { start: startValue, due: dueValue })
       : (dueValue ?? startValue),
   );
+  /** The head's dates in a chip's few characters, days only (the scene's *3 – 27 Nov*); on a phone the due alone, *until 27 Nov*. The details row keeps the full value. */
+  const headDates = $derived.by(() => {
+    if (!item) return undefined;
+    const zone = item.due_time_zone ?? signedIn.zone;
+    const short = (iso: string) => formatDueShort(iso, messages.locale, zone, { allDay: true });
+    const due = item.due_at ? short(item.due_at) : undefined;
+    if (due && (viewport.isCompact || !item.start_at)) return viewport.isCompact ? t('app.due.head_until', { due }) : due;
+    if (due && item.start_at) return t('app.due.head_span', { start: short(item.start_at), due });
+    return item.start_at ? short(item.start_at) : undefined;
+  });
   /**
    * What this entry's **type** carries, from `/meta/capabilities` and from nowhere else
    * (`domain-model.md` §2). A row is drawn only where the answer is `permitted`: a field the
@@ -1253,7 +1263,7 @@
         onrename={isWritable ? rename : undefined}
         next={statusNext}
         person={carries('ASSIGNMENT') || carries('MEMBERS') ? (item.assignee_id ? { name: accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed'), src: accounts.pictureOf(item.assignee_id) } : { emptyLabel: t('app.entry.nobody') }) : undefined}
-        due={carries('DUE_DATE') && datesValue ? { label: datesValue } : undefined}
+        due={carries('DUE_DATE') && headDates ? { label: headDates } : undefined}
         deadline={deadlineChip}
         facts={headFacts}
         trail={isInPane ? undefined : headTrail}

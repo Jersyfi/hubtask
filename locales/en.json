@@ -9158,6 +9158,8 @@
   "app.due.zone_note": "{time} where it was set, {reader_time} for you.",
   "app.due.start": "Starts",
   "app.due.span": "{start} → {due}",
+  "app.due.head_span": "{start} – {due}",
+  "app.due.head_until": "until {due}",
   "app.due.start_clear": "Clear the start",
   "app.due.overdue": "Overdue",
   "app.due.soon": "Due soon",
