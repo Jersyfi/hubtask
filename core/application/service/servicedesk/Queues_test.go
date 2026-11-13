@@ -226,3 +226,14 @@ func TestTheHubsQueuesThroughTheDoor(t *testing.T) {
 		t.Fatalf("answered %v", data)
 	}
 }
+
+// UC-WRK-18 check 9. A collection that names no type it offers - it offers every type - is no desk, as the client
+// tells a desk: the search does not call its entries tickets.
+func TestACollectionOfferingEveryTypeIsNoDesk(t *testing.T) {
+	acting, err := DeskCollections{EntryTypes: portalTypes{}}.Desks(context.Background(), reader(), []work.Container{
+		{ID: queueDesk, TenantID: tenantID, Type: work.ContainerCollection, ParentID: queueHub},
+	})
+	if err != nil || acting[queueDesk] {
+		t.Fatalf("answered %v, %v", acting, err)
+	}
+}

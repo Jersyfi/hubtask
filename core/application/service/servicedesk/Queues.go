@@ -139,23 +139,28 @@ func unanswerable(err error) bool {
 		errors.Is(err, shared.ErrValidation)
 }
 
-// desksOf answers the hub's collections that act as a desk, as DeskCollections tells them. At most
-// view.MaxValues, the most one query's IN names; a hub holds far fewer desks.
+// desksOf answers the hub's collections that act as a desk: those offering a type the portal
+// takes (UC-SVC-05). At most view.MaxValues, the most one query's IN names; a hub holds far fewer
+// desks.
 func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) ([]shared.ID, error) {
+	rows, err := h.EntryTypes.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	types := workdomain.NewEntryTypes(rows)
 	var desks []shared.ID
 	query := workrepo.ContainerQuery{ParentID: hubID, Type: workdomain.ContainerCollection, Page: workrepo.Page{Size: work.MaxPageSize}}
-	tell := DeskCollections{EntryTypes: h.EntryTypes, Gate: h.Gate}
 	for {
 		page, err := h.Desk.Containers.List(ctx, query)
 		if err != nil {
 			return nil, err
 		}
-		acting, err := tell.Desks(ctx, actor, page.Containers)
-		if err != nil {
-			return nil, err
-		}
 		for _, collection := range page.Containers {
-			if acting[collection.ID] && len(desks) < view.MaxValues {
+			offered, err := h.Gate.OfferedTaskTypes(ctx, collection)
+			if err != nil {
+				return nil, err
+			}
+			if len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0 && len(desks) < view.MaxValues {
 				desks = append(desks, collection.ID)
 			}
 		}
@@ -166,9 +171,10 @@ func (h ListHubQueues) desksOf(ctx context.Context, actor appshared.ActorContext
 	}
 }
 
-// DeskCollections tells the collections that act as a desk: those offering a type the portal
-// takes (UC-SVC-05), as the client's desksOf reads them. The search names their entries tickets.
-// It reads inside the caller's transaction.
+// DeskCollections tells the collections that act as a desk as the client's actsAsDesk reads them:
+// those offering by name a type the portal takes (UC-SVC-05) - a collection that offers every
+// type names none and is no desk. The search names their entries tickets. It reads inside the
+// caller's transaction.
 type DeskCollections struct {
 	EntryTypes workrepo.EntryTypes
 	Gate       work.EntryGate
@@ -192,7 +198,7 @@ func (d DeskCollections) Desks(ctx context.Context, actor appshared.ActorContext
 		if err != nil {
 			return nil, err
 		}
-		acting[collection.ID] = len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0
+		acting[collection.ID] = len(offered) > 0 && len(domain.RequestCatalogue(types, offered, nil, actor.Locale)) > 0
 	}
 	return acting, nil
 }
