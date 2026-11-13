@@ -75,6 +75,7 @@ function queueOf(body) {
   return narrowing.op === 'IS_NULL' ? 'unassigned' : 'mine';
 }
 const queries = [];
+const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000999', display_name: 'Mira Holm' };
 const RECENT = [{ ...ticket('02', 'VPN drops at noon'), updated_at: '2026-11-04T09:30:00Z' }, { ...ticket('03', 'New laptop for Ana'), updated_at: '2026-11-03T08:00:00Z' }];
 const releaseOf = (n, name, on, state = 'PLANNED') => ({ id: `01a0e2e0-0000-7000-8000-0000000007${n}`, hub_id: HUB.id, name, description: '', release_on: on, state, released_at: null, notes_page_id: null, version: 1 });
 const RELEASES = [releaseOf('01', 'Winter release with the new planning board and the reworked reports', '2026-12-10'), releaseOf('02', 'Autumn fixes', '2026-11-20'), releaseOf('03', 'Summer', '2026-07-01', 'RELEASED')];
@@ -163,7 +164,12 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
     }
     const sla = /\/api\/v1\/items\/01a0e2e0-0000-7000-8000-0000000006(\d\d)\/sla$/.exec(path);
     if (sla) return route.fulfill({ json: { data: goalsOf(sla[1]) ?? [] } });
-    if (path.endsWith('/api/v1/accounts:resolve')) return route.fulfill({ json: { data: [{ id: ACCOUNT.id, display_name: ACCOUNT.display_name }] } });
+    if (path.endsWith('/api/v1/accounts:resolve')) return route.fulfill({ json: { data: [{ id: ACCOUNT.id, display_name: ACCOUNT.display_name }, OTHER] } });
+    const history = /\/api\/v1\/items\/([^/]+)\/activity$/.exec(path);
+    if (history) {
+      const at = RECENT.find((entry) => entry.id === history[1]);
+      return route.fulfill({ json: { ...PAGE, data: at ? [{ id: `s-${at.id}`, item_id: at.id, code: 'activity.item_created', actor: { type: 'USER', id: OTHER.id }, occurred_at: at.updated_at, change_set: {} }] : [] } });
+    }
     if (path.endsWith('/api/v1/sla-policies')) return route.fulfill({ json: { data: [] } });
     if (path.endsWith('/api/v1/time-records:report')) return route.fulfill({ json: { group_by: [], groups: [], minutes: 390, withheld_minutes: 0, withheld_groups: 0 } });
     if (path.endsWith('/api/v1/items:query')) {
@@ -691,11 +697,15 @@ test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what
   assert.equal(await lines.locator('[data-product-line="time"] a').getAttribute('href'), `/hubs/${HUB.id}/time`);
   assert.match(await lines.locator('[data-product-line="goals"]').innerText(), /^Goals\s+1\s+pursued/);
   assert.equal(await lines.locator('[data-product-line="goals"] a').getAttribute('href'), `/hubs/${HUB.id}/goals`);
-  const recent = page.getByRole('region', { name: 'Recently changed' });
-  await recent.waitFor({ timeout: 10_000 });
-  assert.deepEqual(await recent.locator('.title').allTextContents(), RECENT.map((entry) => entry.title));
+  // What happened, in sentences: the person, what they did, and the thing with its tile, newest first;
+  // the boards' changes among the entries' (work-surface §6.1, scene hub).
+  const recent = page.getByRole('region', { name: 'What happened' });
+  await recent.locator('[data-recent-entry]').first().waitFor({ timeout: 10_000 });
+  await recent.getByText(OTHER.display_name).first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(await recent.locator('.title').allTextContents(), [...RECENT.map((entry) => entry.title), BOARDS[0].title, BOARDS[1].title]);
   assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/items/${RECENT[0].id}`);
-  assert.match(await recent.locator('.where').first().innerText(), new RegExp(`^${DESK.name} · `));
+  assert.match(await recent.locator('li').first().locator('.said').innerText(), new RegExp(`^${OTHER.display_name} created\\s*${RECENT[0].title}$`));
+  assert.match(await recent.locator('[data-recent="board"] .said').first().innerText(), /changed the whiteboard/);
   const asked = queries.find((body) => body?.sort?.[0]?.field === 'updated_at');
   assert.deepEqual(asked.scope, { container_id: HUB.id, include_descendants: true });
   await noSidewaysScroll(page, 'hub overview, desk, time and goals');
@@ -711,6 +721,8 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   t.after(close);
   const plan = page.getByRole('button', { name: 'Plan a sprint' });
   await plan.waitFor({ timeout: 10_000 });
+  // The plans' band (E-1): its tile and figures - the sprints running, the releases due.
+  await page.waitForFunction(() => [...document.querySelectorAll('.band .figure')].map((each) => each.textContent?.trim()).join('|') === '1 sprint running|2 releases due', null, { timeout: 10_000 });
   await page.getByRole('button', { name: 'In another collection' }).click();
   await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
