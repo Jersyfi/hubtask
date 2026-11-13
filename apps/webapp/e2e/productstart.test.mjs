@@ -198,6 +198,7 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
       return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${[...records, '{"cursor":"c-e2e"}'].join('\n')}\n` });
     }
     if (path === '/containers' && route.request().method() === 'GET') return route.fulfill({ json: { ...PAGE, data: url.searchParams.get('type') === 'HUB' ? [hub] : [] } });
+    if (path === `/hubs/${HUB}/pages` && route.request().method() === 'POST') return route.fulfill({ status: 201, json: { id: '01a0e2e0-0000-7000-8000-0000000004f9', hub_id: HUB, title: 'Untitled', parent_id: null } });
     if (path === `/hubs/${HUB}/pages`) return route.fulfill({ json: { ...PAGE, data: [] } });
     if (path === '/config/templates' && route.request().method() === 'GET') return route.fulfill({ json: { data: [KANBAN, SCRUM] } });
     if (path === '/memberships' && url.searchParams.get('scope_type') === 'HUB') {
@@ -217,10 +218,10 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
   const main = page.locator('#main');
   await main.getByRole('button', { name: 'Scrum team', exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await main.getByRole('button', { name: 'New page', exact: true }).count(), 1, 'the create act is not offered once');
-  // §5.2: the act creates - the place's create dialog opens, not only its list.
+  // §5.2, S-6: the act creates - a new page opens at once, no dialog.
   await main.getByRole('button', { name: 'New page', exact: true }).click();
-  await page.waitForURL(`**/hubs/${HUB}/pages?new=1`, { timeout: 10_000 });
-  await page.getByRole('dialog', { name: 'New page' }).waitFor({ timeout: 10_000 });
+  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 10_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'New page' }).count(), 0, 'a dialog stands before the page');
   assert.deepEqual(failures, []);
 });
 
@@ -289,9 +290,9 @@ test('chromium: the plans\' first use brings a project file in from the home', a
   assert.deepEqual(failures, []);
 });
 
-// §5.2: a create dialog names where it makes the object as its *In:* chip, one press to change -
-// among the hubs where the product is on and the reader may write, never one where it is off.
-test('chromium: the create dialog makes the page in the hub its place chip names', async (t) => {
+// S-6 (scene phome, pnew): the pages' home's *start with a template* makes the page at once,
+// with the template's words; no dialog asks first.
+test('chromium: a page started from a template is made at once with its words', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -337,32 +338,13 @@ test('chromium: the create dialog makes the page in the hub its place chip names
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/hubs/${HUB}/pages?new=1`);
-  const dialog = page.getByRole('dialog', { name: 'New page' });
-  await dialog.waitFor({ timeout: 15_000 });
-  const chip = dialog.locator('[data-chip="place"]');
-  await chip.filter({ hasText: 'Allgemein' }).waitFor({ timeout: 10_000 });
-  await chip.click();
-  const choices = page.getByRole('menuitem');
-  await choices.first().waitFor({ timeout: 10_000 });
-  assert.deepEqual(await choices.allInnerTexts(), ['Allgemein', 'IT-Service-Desk'], 'the chip offers a hub where pages are off');
-  await page.getByRole('menuitem', { name: 'IT-Service-Desk' }).click();
-  await chip.filter({ hasText: 'IT-Service-Desk' }).waitFor({ timeout: 10_000 });
-  // One anatomy (§5.2): the title first, the gallery with Blank chosen, the chip, one primary.
-  const order = await dialog.evaluate((root) => ['input', '[data-page-start]', '[data-chip="place"]']
-    .map((selector) => root.querySelector(selector))
-    .every((each, i, all) => each && (i === 0 || all[i - 1].compareDocumentPosition(each) & Node.DOCUMENT_POSITION_FOLLOWING)));
-  assert.ok(order, 'the dialog does not run title, gallery, place');
-  assert.equal(await dialog.locator('[data-page-start="blank"] button').getAttribute('aria-pressed'), 'true');
-  assert.equal(await dialog.locator('select').count(), 0, 'the templates are still a select');
-  await dialog.locator('[data-page-start="shipped:meeting"] button').click();
-  assert.equal(await dialog.locator('[data-page-start="shipped:meeting"] button').getAttribute('aria-pressed'), 'true');
-  await dialog.getByLabel('Title').fill('Runbook');
-  await dialog.getByRole('button', { name: 'Write the page', exact: true }).click();
-  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 10_000 });
-  assert.deepEqual(made, [IT], 'the page was not made in the hub the chip names');
-  assert.equal(sent[0]?.title, 'Runbook');
-  assert.ok(typeof sent[0]?.body === 'string' && sent[0].body.length > 0, 'the chosen template\'s body was not sent');
+  await page.goto(`${served.origin}/hubs/${IT}/pages?new=1&template=meeting`);
+  await page.waitForURL('**/pages/01a0e2e0-0000-7000-8000-0000000004f9', { timeout: 15_000 });
+  assert.equal(await page.getByRole('dialog', { name: 'New page' }).count(), 0, 'a dialog stands before the page');
+  assert.deepEqual(made, [IT], 'the page was not made in the hub asked');
+  assert.equal(sent[0]?.title, 'Meeting notes');
+  assert.ok(typeof sent[0]?.body === 'string' && sent[0].body.includes('## '), 'the template\'s body was not sent');
+  assert.equal(sent[0]?.icon, '🗓️');
   assert.deepEqual(failures, []);
 });
 

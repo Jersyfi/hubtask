@@ -33,7 +33,7 @@ const MANY = [HOME, ...Array.from({ length: 60 }, (_, n) => row(10 + n, `A page 
 const BODY = `Start with [](hubtask:page/${id(3)}) and [](hubtask:entry/${id(80)}).\n\n![](hubtask:media/${id(90)})\n`;
 const empty = { data: [], page: { next_cursor: null, has_more: false } };
 
-async function opened(browser, rows, width = 1280) {
+async function opened(browser, rows, width = 1280, { body = BODY, unpublished = false } = {}) {
   const written = [];
   const { page, failures, context } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -49,9 +49,12 @@ async function opened(browser, rows, width = 1280) {
       return route.fulfill({ status: 201, json: { ...row(50, request.postDataJSON().title), body: request.postDataJSON().body, ancestors: [], writable: true, shared: false } });
     }
     if (path === `/hubs/${HUB.id}/page-labels` || path === `/hubs/${HUB.id}/trashed-pages`) return route.fulfill({ json: empty });
-    if (path === `/hubs/${HUB.id}/page-drafts`) return route.fulfill({ json: { hub_id: HUB.id, drafts: false } });
+    if (path === `/hubs/${HUB.id}/page-drafts`) return route.fulfill({ json: { hub_id: HUB.id, drafts: unpublished } });
     const one = rows.find((each) => path === `/pages/${each.id}`) ?? (path === `/pages/${id(50)}` ? row(50, 'Knowledge base') : undefined);
-    if (one) return route.fulfill({ json: { ...one, body: BODY, ancestors: [], writable: true, shared: false, drafts: false, unpublished: false, draft: null } });
+    if (one && request.method() === 'PATCH') {
+      return route.fulfill({ json: { ...one, body, ...request.postDataJSON(), version: one.version + 1, ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
+    }
+    if (one) return route.fulfill({ json: { ...one, body, ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
     if (/^\/pages\/[^/]+\/(comments|versions|backlinks)$/.test(path)) return route.fulfill({ json: empty });
     if (/^\/pages\/[^/]+\/language-variants$/.test(path)) return route.fulfill({ json: { page_id: HOME.id, source_page_id: null, language: null, variants: [] } });
     if (/^\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { page_id: HOME.id, labels: [] } });
@@ -226,6 +229,52 @@ test("the drafts switch is among the hub's settings, not beside the tree", async
     await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save', exact: true }).click();
     assert.deepEqual((await sent).postDataJSON(), { drafts: true });
     assert.equal(written.filter((write) => write.method === 'PUT').length, 1);
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// S-6 (scene pnew): a new page is the page at once - the drafts band over it, the templates as chips
+// under its empty title, one previewed beside it before it is used, "/" and "@" explained in the
+// empty text.
+test('a new page offers its templates as chips with a preview beside, under the drafts band (S-6)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await opened(browser, FULL, 1440, { body: '', unpublished: true });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // The live document answers empty, as a new page's does: the editor writes then.
+    await page.context().routeWebSocket(/\/realtime\/documents\/page\//, (ws) => {
+      ws.onMessage(() => {});
+      ws.send(Buffer.from([0, 1, 2, 0, 0]));
+      ws.send(Buffer.from([0, 0, 1, 0]));
+    });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    const band = page.locator('[data-page-draft-band]');
+    await band.waitFor({ timeout: 15_000 });
+    assert.match(await band.innerText(), /^Draft\. Only you see this page until you publish it/);
+    const starts = page.locator('[data-page-starts]');
+    await starts.waitFor({ timeout: 10_000 });
+    const chips = await starts.locator('.chips > [data-page-start]').allInnerTexts();
+    assert.deepEqual(chips, ['🗓️ Meeting notes', '⚖️ Decision record', '🔄 Retrospective', '📘 How-to guide', '🎯 Project brief', 'Our template']);
+    assert.match(await starts.innerText(), /Whole space: Team space · Project space · Knowledge base/);
+    const empty = page.locator('.page-empty');
+    await empty.waitFor({ timeout: 10_000 });
+    assert.match(await empty.getAttribute('data-placeholder') ?? '', /type \/ for blocks, @ for people, pages and entries/);
+    await starts.locator('[data-page-start="shipped:decision"]').click();
+    const preview = page.locator('[data-page-start-preview]');
+    await preview.waitFor({ timeout: 10_000 });
+    assert.match(await preview.innerText(), /Decision record[\s\S]*Context[\s\S]*Consequences/);
+    const column = await page.locator('article.column').boundingBox();
+    const beside = await preview.boundingBox();
+    assert.ok(column && beside && beside.x >= column.x + column.width - 1, 'the preview stands beside the page, not in it');
+    await preview.getByRole('button', { name: 'Use this template' }).click();
+    await preview.waitFor({ state: 'detached', timeout: 10_000 });
+    const change = written.find((each) => each.method === 'PATCH' && each.path === `/pages/${HOME.id}`);
+    assert.ok(change && change.body.body.includes('## Context'), 'the template\'s words were not written');
+    assert.equal(change.body.icon, '⚖️');
+    assert.equal(change.body.title, undefined, 'a page with a title of its own keeps it');
     assert.deepEqual(failures, []);
     await close();
   } finally {

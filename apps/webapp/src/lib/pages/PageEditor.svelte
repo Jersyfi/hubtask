@@ -666,7 +666,7 @@
           current.destroy();
           element.replaceChildren();
           current = createPageEditor({
-            element, body, editable: true, drawing, label: t('app.pages.body_label', { title: page.title }),
+            element, body, editable: true, drawing, label: t('app.pages.body_label', { title: page.title }), placeholder: t('app.pages.empty_text'),
             live: { doc, connection, user: { name: account?.display_name ?? '', caret: caretOf(account?.id ?? '') } },
             fallback: t('app.pages.reference_loading'),
             onChange: changed,

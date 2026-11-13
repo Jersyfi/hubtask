@@ -418,7 +418,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   test(`chromium ${width} px, ${scheme}: the pages' home shows what waits for review and what changed`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
-    const { page, failures, close } = await open(browser, { width, scheme, path: '/pages', modulesOn: ['KNOWLEDGE'] });
+    const { page, failures, close } = await open(browser, { width, scheme, path: '/pages', modulesOn: ['KNOWLEDGE'], role: 'OWNER' });
     t.after(close);
     const review = page.getByRole('region', { name: 'Due for your review · 1' });
     await review.waitFor({ timeout: 10_000 });
@@ -437,6 +437,12 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     await reading.waitFor({ timeout: 10_000 });
     assert.match(await reading.innerText(), /Onboarding guide[\s\S]*Verified|Verified[\s\S]*Onboarding guide/);
     assert.match(await reading.innerText(), /Your first week: the laptop/, 'a card shows the page\'s opening words');
+    // S-6: *start with a template* makes the page at once, from the template, where the create act leads.
+    const start = page.getByRole('region', { name: 'Start with a template' });
+    await start.waitFor({ timeout: 10_000 });
+    const starts = start.getByRole('link');
+    assert.equal(await starts.count(), 6, 'five templates and all of them');
+    assert.match(await starts.first().getAttribute('href') ?? '', /\/hubs\/[^/]+\/pages\?new=1&template=meeting$/);
     const recent = page.getByRole('region', { name: 'Recently changed pages' });
     assert.deepEqual(await recent.locator('.name').allTextContents(), [PAGES[1].title, 'Onboarding guide', 'Support rota']);
     assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/pages/${PAGES[1].id}`);

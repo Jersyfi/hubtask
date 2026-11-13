@@ -583,6 +583,7 @@
           pageId: route.name === 'page' ? route.params.id : undefined,
           isCreateAsked: route.query['new'] === '1' || route.query['new'] === 'under',
           isCreateUnder: route.name === 'page' && route.query['new'] === 'under',
+          startWith: route.query['template'],
           onnavigate: (path: string) => router.navigate(path),
           onreplace: (path: string) => router.replace(path),
         }}

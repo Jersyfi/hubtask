@@ -18,6 +18,14 @@
 /* The column is the measure (`layout.reading`), not the frame's narrower one for a paragraph. */
 .page-text .page-body p { max-inline-size: none; color: var(--text-primary); }
 .page-text .page-body:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
+/* An empty page explains itself in its first line (S-6); the words are no text, so the caret stays first. */
+.page-text .page-body .page-empty::before {
+  float: inline-start;
+  block-size: 0;
+  color: var(--text-subtle);
+  content: attr(data-placeholder);
+  pointer-events: none;
+}
 .page-text .page-body h1,
 .page-text .page-body h2,
 .page-text .page-body h3 { font-family: var(--font-display); line-height: var(--lh-tight); }

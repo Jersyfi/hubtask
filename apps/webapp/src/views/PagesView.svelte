@@ -35,7 +35,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, shippedSpace, VERIFY_DAYS, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pages,
+    EXPORT_TYPES, SHIPPED_SPACES, SHIPPED_TEMPLATES, draftStateOf, hasSubpages, homePageOf, writtenBody, shippedSpace, VERIFY_DAYS, exportBytes, backlinksPath, exportFileName, pageCommentsPath, pagePath, pages,
     pagesPath, shippedTemplate, subtreeOf, templatesPath, verifiedUntil, versionPath, versionsPath,
     type ShippedSpace, type ShippedTemplate,
   } from '../lib/data/pages.svelte.ts';
@@ -51,11 +51,12 @@
   import PageLabels from '../lib/pages/PageLabels.svelte';
   import PageEditor from '../lib/pages/PageEditor.svelte';
   import PageHistory from '../lib/pages/PageHistory.svelte';
+  import PageStarts from '../lib/pages/PageStarts.svelte';
+  import PageStartPreview from '../lib/pages/PageStartPreview.svelte';
+  import { START_ICONS, isBlankBody, startChange, type PageStart } from '../lib/pages/starts.ts';
   import { levelThreads } from '../lib/pages/margin.ts';
   import { platform } from '../lib/platform/index.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import CreateDialog from '../lib/product/CreateDialog.svelte';
-  import { createPlaces } from '../lib/product/places.svelte.ts';
 
   interface Props {
     /** The hub whose space is drawn; absent when a page's address names only the page. */
@@ -68,9 +69,11 @@
     isCreateAsked?: boolean;
     /** The create asked for is under the open page: ＋ on its row in the sidebar's *Contents* (§5.2). */
     isCreateUnder?: boolean;
+    /** The create asked for starts from one of Hubtask's templates: the pages' home's *start with a template*. */
+    startWith?: string;
   }
 
-  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false }: Props = $props();
+  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false, startWith }: Props = $props();
 
   // --- What is read ------------------------------------------------------------------------------
 
@@ -126,7 +129,7 @@
   $effect(() => {
     if (!isCreateAsked || isCreateOpened || !mayWrite) return;
     isCreateOpened = true;
-    untrack(() => startCreate(isCreateUnder ? pageId : undefined));
+    untrack(() => startCreate(isCreateUnder ? pageId : undefined, SHIPPED_TEMPLATES.find((key) => key === startWith)));
   });
   /** A wiki's or documents' import makes pages in the hub, which takes shaping it, as every import there does. */
   const mayImport = $derived(
@@ -154,25 +157,21 @@
     }
   }
 
-  let isCreating = $state(false);
-  let draftTitle = $state('');
-  let draftParent = $state<string | undefined>(undefined);
-  let draftTemplate = $state('');
-  let draftWithSubpages = $state(true);
-  // A top-level page may be made in another hub where pages are on (§5.2); a child stays under its parent.
-  let draftHub = $state('');
-  const placesToMake = createPlaces('KNOWLEDGE', 'HUB', () => isCreating && !draftParent);
-  const isElsewhere = $derived(draftHub !== '' && draftHub !== hubId);
-  const draftOwnTemplate = $derived(draftTemplate.startsWith('own:') ? draftTemplate.slice(4) : undefined);
-  const draftOffersSubpages = $derived(draftOwnTemplate !== undefined && hasSubpages(rows, draftOwnTemplate));
-
-  function startCreate(parent?: string) {
-    draftTitle = '';
-    draftParent = parent;
-    draftHub = hubId;
-    draftTemplate = '';
-    draftWithSubpages = true;
-    isCreating = true;
+  // A new page opens at once (S-6): no dialog; its templates wait under its empty title.
+  let isMaking = false;
+  async function startCreate(parent?: string, template?: ShippedTemplate) {
+    if (isMaking || !hubId) return;
+    isMaking = true;
+    const shipped = template ? shippedTemplate(template, t) : undefined;
+    const made = await act(() =>
+      pages.create(hubId, {
+        title: shipped?.title ?? t('app.pages.untitled'),
+        ...(parent ? { parent_id: parent } : {}),
+        ...(shipped && template ? { body: shipped.body, icon: START_ICONS[template] } : {}),
+      }),
+    );
+    isMaking = false;
+    if (made) onnavigate(`/pages/${made.id}`);
   }
 
   /** An empty space started from one of Hubtask's space templates, in one press. */
@@ -182,25 +181,68 @@
     if (made) onnavigate(`/pages/${made.id}`);
   }
 
-  async function create() {
-    const title = draftTitle.trim();
-    const space = draftTemplate.startsWith('space:') ? shippedSpace(draftTemplate.slice(6) as ShippedSpace, t) : undefined;
-    const shipped = draftTemplate.startsWith('shipped:') ? shippedTemplate(draftTemplate.slice(8) as ShippedTemplate, t) : space;
-    const own = draftOwnTemplate;
-    const subpages = space?.subpages;
-    const made = await act(() =>
-      pages.create(isElsewhere ? draftHub : hubId, {
-        title: title || shipped?.title || t('app.pages.untitled'),
-        ...(draftParent ? { parent_id: draftParent } : {}),
-        ...(shipped ? { body: shipped.body } : {}),
-        ...(subpages ? { subpages } : {}),
-        ...(own ? { template_id: own } : {}),
-        ...(own && draftOffersSubpages && draftWithSubpages ? { with_subpages: true } : {}),
-      }),
-    );
-    if (!made) return;
-    isCreating = false;
-    onnavigate(`/pages/${made.id}`);
+  // --- A new page's starts (scene pnew) -----------------------------------------------------------
+
+  let chosenStart = $state<PageStart | undefined>(undefined);
+  let ownStart = $state<{ id: string; body: string } | undefined>(undefined);
+  let isUsingStart = $state(false);
+  const offersStarts = $derived(!!current && current.writable && isBlankBody(writtenBody(current)));
+  const ownTemplates = $derived(templateRows.filter((row) => row.id !== current?.id).map((row) => ({ id: row.id, title: row.title, icon: row.icon })));
+  $effect(() => {
+    if (!offersStarts) chosenStart = undefined;
+  });
+
+  /** What a start writes and shows: its title, mark, words and the pages a whole space adds. */
+  const startShown = $derived.by(() => {
+    const start = chosenStart;
+    if (!start) return undefined;
+    if (start.kind === 'shipped') {
+      const made = shippedTemplate(start.key, t);
+      return { ...made, icon: START_ICONS[start.key], lead: `${t(`app.pages.template.${start.key}.lead`)} ${t('app.pages.start_shipped')}`, subpages: [] };
+    }
+    if (start.kind === 'space') {
+      const made = shippedSpace(start.key, t);
+      return { ...made, icon: null, lead: t(`app.pages.space.${start.key}.lead`), subpages: made.subpages };
+    }
+    return { title: start.title, icon: start.icon, lead: t('app.pages.template_own_hint'), body: ownStart?.id === start.id ? ownStart.body : '', subpages: [] };
+  });
+
+  async function chooseStart(start: PageStart) {
+    chosenStart = start;
+    if (start.kind !== 'own' || ownStart?.id === start.id) return;
+    const read = await engine.refresh<Page>({ path: pagePath(start.id) });
+    if (read.status === 'ready') ownStart = { id: start.id, body: read.data.body ?? '' };
+  }
+
+  /** The start written into the page and its live document; a whole space's pages made beneath it. */
+  async function useStart() {
+    const shown = startShown;
+    if (!current || !shown || isUsingStart) return;
+    isUsingStart = true;
+    const start = chosenStart;
+    // A template of the space with pages under it starts them too (UC-DOC-05/5): the server copies
+    // them, so the new page takes the blank one's place.
+    if (start?.kind === 'own' && hasSubpages(rows, start.id)) {
+      const blank = current;
+      const title = blank.title.trim() === t('app.pages.untitled') ? shown.title : blank.title;
+      const made = await act(() => pages.create(blank.hub_id, { title, template_id: start.id, with_subpages: true, ...(blank.parent_id ? { parent_id: blank.parent_id } : {}) }));
+      if (made) {
+        await act(() => pages.trash(blank), undefined);
+        onnavigate(`/pages/${made.id}`);
+      }
+      isUsingStart = false;
+      return;
+    }
+    const change = startChange(current, t('app.pages.untitled'), shown);
+    const changed = await act(() => pages.change(current, change));
+    if (changed) {
+      replaced = { body: change.body };
+      for (const sub of shown.subpages) {
+        await act(() => pages.create(changed.hub_id, { ...sub, parent_id: changed.id }));
+      }
+      chosenStart = undefined;
+    }
+    isUsingStart = false;
   }
 
   let titleDraft = $state<string | undefined>(undefined);
@@ -456,19 +498,6 @@
   const spacePages = $derived(rows.map((row) => ({ id: row.id, title: row.title, parent_id: row.parent_id })));
   const hubViews = $derived(views.of(hubId).map((view) => ({ id: view.id, name: view.name })));
 
-  /** The create dialog's gallery (§5.2): *Blank* first, the hub's own templates, Hubtask's pages and spaces. */
-  interface PageStart { readonly value: string; readonly name: string; readonly summary: string; readonly mark: 'file-text' | 'copy' | 'layout-template'; readonly note?: string }
-  const templateCards = $derived<readonly PageStart[]>([
-    { value: '', name: t('app.pages.blank'), summary: t('app.pages.blank_hint'), mark: 'file-text' },
-    // A hub's own templates are its pages: offered only for a page made in that hub.
-    ...(isElsewhere ? [] : templateRows.map((row) => ({ value: `own:${row.id}`, name: row.title, summary: t('app.pages.template_own_hint'), mark: 'copy' as const }))),
-    ...SHIPPED_TEMPLATES.map((key) => ({ value: `shipped:${key}`, name: t(`app.pages.template.${key}.title`), summary: t(`app.pages.template.${key}.lead`), mark: 'file-text' as const })),
-    ...SHIPPED_SPACES.map((key) => ({
-      value: `space:${key}`, name: t(`app.pages.space.${key}.title`), summary: t(`app.pages.space.${key}.lead`), mark: 'layout-template' as const,
-      note: t('app.pages.space_pages', { count: shippedSpace(key, t).subpages.length }),
-    })),
-  ]);
-
   // --- A space with drafts (UC-DOC-15) -----------------------------------------------------------
 
   const pageDraft = $derived(current ? draftStateOf(current) : 'live');
@@ -629,6 +658,18 @@
 
           <div class="reader" class:with-beside={viewport.isLarge}>
             <article class="column" class:with-gutter={current.writable && !viewport.isCompact} aria-labelledby="page-title">
+              {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
+                <!-- The drafts band (scene pnew 1): what only its writer sees, with publishing beside it. -->
+                <Banner tone="warning" icon="lock">
+                  <span data-page-draft-band><strong>{t('app.pages.draft_word')}</strong> {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_band' : 'app.pages.draft_hint')}</span>
+                  {#snippet action()}
+                    <Inline gap="050">
+                      <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
+                      <Button size="sm" tone="subtle" onclick={pageDraft === 'draft' ? discard : trash}>{t('app.pages.discard')}</Button>
+                    </Inline>
+                  {/snippet}
+                </Banner>
+              {/if}
               {#if current.icon}<span class="icon" aria-hidden="true">{current.icon}</span>{/if}
               {#if current.writable}
                 <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
@@ -663,18 +704,14 @@
                   {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
                 {/snippet}
               </TrustLine>
-              {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
-                <Banner tone="info">
-                  {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_hint' : 'app.pages.draft_hint')}
-                  {#snippet action()}
-                    <Inline gap="050">
-                      <Button size="sm" tone="primary" onclick={release}>{t('app.pages.release')}</Button>
-                      {#if pageDraft === 'draft'}<Button size="sm" tone="subtle" onclick={discard}>{t('app.pages.discard_draft')}</Button>{/if}
-                    </Inline>
-                  {/snippet}
-                </Banner>
-              {:else if current.writable && pageDraft === 'published'}
+              {#if current.writable && pageDraft === 'published'}
                 <p class="quiet">{t('app.pages.published_hint')}</p>
+              {/if}
+              {#if offersStarts}
+                <PageStarts own={ownTemplates} chosen={chosenStart} onchoose={chooseStart} />
+                {#if startShown && !viewport.isLarge}
+                  {@render startPreview()}
+                {/if}
               {/if}
 
               <div class="body" bind:this={bodyElement}>
@@ -716,7 +753,25 @@
               {/if}
             </article>
 
+            {#snippet startPreview()}
+              {#if startShown}
+                <PageStartPreview
+                  title={startShown.title}
+                  icon={startShown.icon}
+                  lead={startShown.lead}
+                  body={startShown.body}
+                  subpages={startShown.subpages.length}
+                  isBusy={isUsingStart}
+                  onuse={useStart}
+                  onclose={() => (chosenStart = undefined)}
+                />
+              {/if}
+            {/snippet}
+
             {#snippet beside()}
+              {#if startShown && viewport.isLarge}
+                {@render startPreview()}
+              {/if}
               {#snippet threadCard(thread: (typeof threads)[number])}
                 <article class="thread" class:resolved={thread.first.resolved} class:at-passage={!!thread.first.quote}>
                   {#if thread.first.quote}
@@ -878,38 +933,6 @@
 </div>
 </WorkPage>
 
-{#if isCreating}
-  <CreateDialog
-    bind:isOpen={isCreating}
-    title={draftParent ? t('app.pages.new_child') : t('app.pages.new')}
-    cancelLabel={t('app.pages.cancel')}
-    nameLabel={t('app.pages.page_title')}
-    bind:name={draftTitle}
-    isWide
-    place={draftParent ? undefined : { current: draftHub, fallback: hub?.name, places: placesToMake.list, onchoose: (id) => {
-      draftHub = id;
-      if (draftTemplate.startsWith('own:') && id !== hubId) draftTemplate = '';
-    } }}
-    primary={{ label: t('app.pages.create'), busyLabel: busy ? t('app.pages.creating') : undefined, onclick: () => void create() }}
-  >
-    {#snippet gallery()}
-      <TemplateGallery label={t('app.pages.start_from')} isLabelHidden>
-        {#each templateCards as card (card.value)}
-          <TemplateCard name={card.name} summary={card.summary} mark={card.mark} note={card.note} isChosen={draftTemplate === card.value} isCompact data-page-start={card.value || 'blank'}>
-            {#snippet action()}
-              <Button size="sm" tone={draftTemplate === card.value ? 'primary' : 'secondary'} icon={draftTemplate === card.value ? 'check' : undefined} aria-pressed={draftTemplate === card.value} onclick={() => (draftTemplate = card.value)}>
-                {t('app.pages.template_pick')}<VisuallyHidden>{` ${card.name}`}</VisuallyHidden>
-              </Button>
-            {/snippet}
-          </TemplateCard>
-        {/each}
-      </TemplateGallery>
-    {/snippet}
-    {#if draftOffersSubpages}
-      <Switch label={t('app.pages.with_subpages')} bind:checked={draftWithSubpages} />
-    {/if}
-  </CreateDialog>
-{/if}
 
 {#if isMoving && current}
   <Dialog size="s" bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}>

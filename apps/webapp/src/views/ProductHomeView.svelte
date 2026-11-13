@@ -45,7 +45,8 @@
   import { renderProblem } from '../lib/problem.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
-  import { pages, pagesPath } from '../lib/data/pages.svelte.ts';
+  import { SHIPPED_TEMPLATES, pages, pagesPath } from '../lib/data/pages.svelte.ts';
+  import { START_ICONS } from '../lib/pages/starts.ts';
   import { pagesRead } from '../lib/pages/reading.ts';
   import { classesPath, classWord, cmdb, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
@@ -456,6 +457,8 @@
       menu: createPlaces.length > 1 ? { label: t(createAct.inCode), items: createPlaces, onselect: go } : undefined,
     };
   });
+  /** The pages' home's *start with a template* (scene phome): a new page from it opens at once where the act leads. */
+  const startAt = $derived(module === 'KNOWLEDGE' && createPlaces[0] ? createAt(module, createPlaces[0].id) : undefined);
   /** The first use's create act on the empty answer, where the head would otherwise carry it. */
   const firstCreate = $derived(primary ? { label: primary.label, onclick: primary.onclick } : undefined);
   // The plans' side way is a project file brought into a collection (scene homeplans 4): the plan's
@@ -845,6 +848,23 @@
         </Stack>
       </section>
     {/if}
+    {#if startAt && currentTab === 'foryou'}
+      <section class="panel" aria-labelledby="product-start" data-pages-start>
+        <h2 class="eyebrow" id="product-start">{t('app.product_home.pages_start')}</h2>
+        <ul class="start-rows">
+          {#each SHIPPED_TEMPLATES as key (key)}
+            <li>
+              <ListRow href={`${startAt}&template=${key}`} onactivate={() => onnavigate(`${startAt}&template=${key}`)} label={t(`app.pages.template.${key}.title`)}>
+                {#snippet leading()}<span aria-hidden="true">{START_ICONS[key]}</span>{/snippet}
+                <span class="name">{t(`app.pages.template.${key}.title`)}</span>
+                {#snippet trailing()}<Icon name="chevron-right" size="sm" />{/snippet}
+              </ListRow>
+            </li>
+          {/each}
+        </ul>
+        <a class="start-all" href={startAt} onclick={(event) => { event.preventDefault(); onnavigate(startAt); }}>{t('app.product_home.pages_start_all')}</a>
+      </section>
+    {/if}
     {#if recent.length > 0 && currentTab === 'foryou'}
       <section aria-labelledby="product-pages">
         <Stack gap="100">
@@ -997,7 +1017,9 @@
   .panel > .eyebrow { padding: var(--sp-150) var(--sp-200) var(--sp-050); }
   .panel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-100); padding: var(--sp-150) var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .panel-head .heading { display: inline-flex; gap: var(--sp-050); align-items: center; }
-  .review-rows, .space-rows { margin: 0; padding: 0; list-style: none; }
+  .review-rows, .space-rows, .start-rows { margin: 0; padding: 0; list-style: none; }
+  .start-all { display: block; padding: var(--sp-100) var(--sp-200) var(--sp-150); color: var(--text-brand); font-size: var(--fs-075); font-weight: var(--fw-semibold); text-decoration: none; }
+  .start-all:hover { text-decoration: underline; }
   .review-rows li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); padding: var(--sp-100) var(--sp-200); }
   .review-rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .review-rows .name { flex: 1 1 var(--sp-1600); min-inline-size: 0; color: var(--text-primary); text-decoration: none; }
