@@ -37,6 +37,7 @@
   import { inserted, referencesIn, resolved } from '../data/links.svelte.ts';
   import { DeskTools } from '../servicedesk/desktools.svelte.ts';
   import EntryPresence from '../entries/EntryPresence.svelte';
+  import { quietRowsInView } from './quietrows.ts';
 
   /**
    * `mayComment`: whether the reader may add to this thread, from their role on the entry - a
@@ -259,7 +260,7 @@
     <CommentThread
       label={t('app.comments.title')}
       comments={threadRows().slice(0, shownCount)}
-      events={show === 'all' ? events : []}
+      events={show === 'all' ? quietRowsInView(events, threadRows().slice(0, shownCount)) : []}
       emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
       removedLabel={t('app.comments.removed')}
       editLabel={t('app.comments.edit')}
