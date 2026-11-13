@@ -12,7 +12,8 @@ const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
 
 test('a kind whose module is off is never asked (P-17)', () => {
   assert.deepEqual(kindsOn(BAR_KINDS, []), ['ENTRY', 'PERSON', 'FILE']);
-  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'WHITEBOARD', 'CMDB']), [...BAR_KINDS]);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), ['ENTRY', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET']);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), [...BAR_KINDS]);
 });
 
 test('the line travels in the body, whole; nothing is asked without it (Q-5)', () => {

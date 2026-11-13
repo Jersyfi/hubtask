@@ -13,7 +13,7 @@
 import { resolveKey } from '@hubtask/query';
 
 /** The kinds `/search:all` answers, as the contract names them. */
-export type Kind = 'ENTRY' | 'PAGE' | 'WHITEBOARD' | 'GOAL' | 'DASHBOARD' | 'ASSET' | 'PERSON' | 'FILE' | 'COMMENT';
+export type Kind = 'ENTRY' | 'TICKET' | 'PAGE' | 'WHITEBOARD' | 'GOAL' | 'DASHBOARD' | 'ASSET' | 'PERSON' | 'FILE' | 'COMMENT';
 
 export interface Hit {
   readonly kind: Kind;
@@ -41,13 +41,16 @@ export interface Answer {
 }
 
 /** The scopes of the header search, in the order the concept draws them (§6.11). */
-export const BAR_KINDS: readonly Kind[] = ['ENTRY', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET'];
+export const BAR_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET'];
 
 /** Every kind of the search page, entries first, comments last. */
-export const PAGE_KINDS: readonly Kind[] = ['ENTRY', 'PAGE', 'WHITEBOARD', 'GOAL', 'DASHBOARD', 'ASSET', 'PERSON', 'FILE', 'COMMENT'];
+export const PAGE_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'GOAL', 'DASHBOARD', 'ASSET', 'PERSON', 'FILE', 'COMMENT'];
 
-/** The module a kind needs; a kind whose module is off is never asked and never drawn (P-17). */
-const MODULE: Partial<Record<Kind, string>> = { PAGE: 'KNOWLEDGE', WHITEBOARD: 'WHITEBOARD', GOAL: 'GOALS', DASHBOARD: 'GOALS', ASSET: 'CMDB' };
+/**
+ * The module a kind needs, by the manifest's module keys; a kind whose module is off is never
+ * asked and never drawn (P-17). Without TICKET asked, the server counts tickets as entries.
+ */
+const MODULE: Partial<Record<Kind, string>> = { TICKET: 'SERVICE_DESK', PAGE: 'KNOWLEDGE', WHITEBOARD: 'WHITEBOARD', GOAL: 'GOALS', DASHBOARD: 'GOALS', ASSET: 'ASSETS' };
 
 /** The kinds of `wanted` this installation answers, as its modules are on. */
 export function kindsOn(wanted: readonly Kind[], modulesOn: readonly string[] | undefined): Kind[] {
@@ -106,6 +109,7 @@ export function arrange(hits: readonly Hit[], kinds: readonly Kind[], narrowed?:
 function objectPath(kind: string, id: string): string | undefined {
   switch (kind) {
     case 'ENTRY':
+    case 'TICKET':
       return `/items/${id}`;
     case 'PAGE':
       return `/pages/${id}`;
@@ -228,6 +232,8 @@ export function tileOf(hit: Hit): { readonly icon: string; readonly product?: 'p
       return { icon: 'shield', product: 'assets' };
     case 'PERSON':
       return { icon: 'user' };
+    case 'TICKET':
+      return { icon: hit.state === 'DONE' ? 'square-check' : 'inbox', product: 'desk' };
     default:
       return { icon: mark ?? (hit.state === 'DONE' ? 'square-check' : 'square'), color: 'brand' };
   }

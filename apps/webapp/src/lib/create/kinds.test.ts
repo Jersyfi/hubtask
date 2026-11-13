@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import { AT_ONCE, kindOfLetter, kindsHere, lastHere, noteLast } from './kinds.ts';
 
-const all = ['KNOWLEDGE', 'WHITEBOARD', 'GOALS', 'CMDB', 'TIME'];
+const all = ['KNOWLEDGE', 'WHITEBOARD', 'GOALS', 'ASSETS', 'TIME'];
 
 test('in a hub one writes and shapes, every kind whose module is on (C-1)', () => {
   assert.deepEqual(kindsHere({ mayCapture: true, hubId: 'h', modulesOn: all, mayWrite: true, mayShape: true }), ['entry', 'page', 'whiteboard', 'goal', 'dashboard', 'asset', 'time', 'collection']);

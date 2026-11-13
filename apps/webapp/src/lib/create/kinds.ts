@@ -52,7 +52,7 @@ export function kindsHere(here: Here): CreateKind[] {
     ...(inHub && on('KNOWLEDGE') ? ['page' as const] : []),
     ...(inHub && on('WHITEBOARD') ? ['whiteboard' as const] : []),
     ...(inHub && on('GOALS') ? ['goal' as const, 'dashboard' as const] : []),
-    ...(inHub && on('CMDB') ? ['asset' as const] : []),
+    ...(inHub && on('ASSETS') ? ['asset' as const] : []),
     ...(on('TIME') && here.mayCapture ? ['time' as const] : []),
     ...(here.hubId !== undefined && here.mayShape ? ['collection' as const] : []),
   ];
