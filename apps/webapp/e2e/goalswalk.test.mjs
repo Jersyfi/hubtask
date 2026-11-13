@@ -551,3 +551,30 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
+
+// UC-GOL-04 check 22: *Als Liste öffnen* opens the counted collection with the widget's line - the
+// dashboard's filter and its own - as a changed, unsaved view, and the line never enters the address.
+test('chromium: a widget opens its collection\'s list with its line, which stays out of the address', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = {
+    id: '01a0e2e0-0000-7000-8000-00000000a631', title: 'New this month', chart: 'NUMBER', source: 'QUERY', view_id: null,
+    query: { scope: { container_id: COLLECTION.id }, filter: { field: 'created_at', op: 'GTE', value: '@today-P6W' }, aggregate: { function: 'COUNT' } },
+    goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 4, h: 2,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a632', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: 'is: open', version: 1, widgets: [widget] };
+  const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { dashboards: [board], figures: { [widget.id]: [{ group: null, period: null, count: 12, value: null }] } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.getByText('12', { exact: true }).waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'More for New this month' }).click();
+  await page.getByRole('menuitem', { name: 'Open as list' }).click();
+  await page.waitForURL(`**/collections/${COLLECTION.id}`, { timeout: 5_000 });
+  assert.ok(!page.url().includes('open') && !page.url().includes('created'), 'the line stays out of the address');
+  await page.getByRole('button', { name: 'View · 1 changed' }).waitFor({ timeout: 5_000 });
+  const asked = walk.written.filter((each) => each.path === '/items:query').map((each) => JSON.stringify(each.body));
+  assert.ok(asked.some((body) => body.includes('is_completed') && body.includes('@today-P6W')), 'the list asks for the widget\'s line');
+  assert.deepEqual(walk.errors(), []);
+});

@@ -89,6 +89,7 @@
   import { captureRulesOf } from '../lib/entries/capture.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
+  import { takeOver } from '../lib/data/listhandoff.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
   import { live } from '../lib/data/live.svelte.ts';
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
@@ -1176,6 +1177,18 @@
     if (!arrangement) return;
     untrack(() => {
       if (!barCurrent.startsWith('view:')) baseSetup = { ...setup, line: '', order: undefined, lanesBy: '' };
+    });
+  });
+  // A line handed over in memory (a dashboard widget's *Als Liste öffnen*) is applied once the
+  // tab's view is taken, so it counts as a change to save or discard, never as the view.
+  $effect(() => {
+    const at = id;
+    if (!arrangement || !baseSetup || container?.type !== 'COLLECTION' || viewAsked) return;
+    untrack(() => {
+      const handed = takeOver(at);
+      if (handed === undefined) return;
+      kept = undefined;
+      line = handed;
     });
   });
   const viewChanged = $derived(baseSetup ? changedParts(setup, baseSetup) : 0);

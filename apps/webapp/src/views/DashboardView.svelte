@@ -37,11 +37,12 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    MAX_WIDGETS, csvOf, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
+    MAX_WIDGETS, csvOf, listFilter, dashboardPath, digestPath, figureRows, figuresPath, goals, hubOf, leftRows, moved, nextBox, readingOrder, resized, runningRows,
     seriesTable, widgetWrite, type FigureNaming, type FigureRow, type SeriesTable,
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
+  import { handOver } from '../lib/data/listhandoff.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -485,14 +486,54 @@
     const released = widget.released?.length ? t('app.dashboards.released_line', { fields: widget.released.join(', ') }) : '';
     return [own, released].filter(Boolean).join(' · ');
   }
+  /** The widget's own filter as a tree: its stored one, or its line read. */
+  function ownTree(widget: DashboardWidgetWrite): Record<string, unknown> | undefined {
+    const query = (widget.query ?? {}) as { q?: unknown; filter?: unknown };
+    if (typeof query.q === 'string') {
+      const parsed = parseQuery(query.q);
+      return parsed.ok ? (parsed.query.filter as Record<string, unknown> | undefined) : undefined;
+    }
+    return query.filter && typeof query.filter === 'object' ? query.filter as Record<string, unknown> : undefined;
+  }
+  // A widget's scope is a place: the hubs' collections are read so a scope is known as one.
+  const scopesWidgets = $derived(shown.some((widget) => widget.source === 'QUERY'));
+  const hubIds = $derived(containers.hubs.map((hub) => hub.id).join(' '));
+  $effect(() => {
+    if (!scopesWidgets || hubIds === '') return;
+    const ids = hubIds.split(' ');
+    const opened = untrack(() => ids.map((id) => containers.openLevel(id)));
+    return () => opened.forEach((close) => close());
+  });
+  /** The collection a widget counts in, where its list can be opened. */
+  function countedCollection(widget: DashboardWidgetWrite): string | undefined {
+    const query = widget.query as { scope_container_id?: unknown; scope?: { container_id?: unknown } } | undefined;
+    const scope = query?.scope?.container_id ?? query?.scope_container_id;
+    return typeof scope === 'string' && containers.find(scope)?.type === 'COLLECTION' ? scope : undefined;
+  }
   /** Where the widget's entries are listed: its saved view, or the collection it counts in. */
   function listHref(widget: DashboardWidgetWrite): string | undefined {
     if (widget.source === 'VIEW' && widget.view_id) {
       const view = views.of().concat(placeHub ? views.of(placeHub) : []).find((each) => each.id === widget.view_id) as { container_id?: string | null } | undefined;
       return view?.container_id ? `/collections/${view.container_id}?view=${widget.view_id}` : undefined;
     }
-    const scope = (widget.query as { scope_container_id?: unknown } | undefined)?.scope_container_id;
-    return typeof scope === 'string' && containers.find(scope)?.type === 'COLLECTION' ? `/collections/${scope}` : undefined;
+    const scope = countedCollection(widget);
+    return scope ? `/collections/${scope}` : undefined;
+  }
+  /**
+   * Opens the widget's list. A counted collection opens with the widget's line - what the
+   * dashboard passes on and its own - as a changed, unsaved view; the line goes over in memory,
+   * never in the address (security.md §9).
+   */
+  function openList(widget: DashboardWidgetWrite) {
+    const href = listHref(widget);
+    if (!href) return;
+    const scope = widget.source === 'QUERY' ? countedCollection(widget) : undefined;
+    if (scope) {
+      const tree = listFilter(filterTree as Record<string, unknown> | undefined, widget.released ?? [], ownTree(widget), containers.find(scope)?.parent_id);
+      const line = tree ? lineOf({ filter: tree as never }, names) : '';
+      if (line) handOver(scope, line);
+    }
+    onnavigate(href);
   }
   function widgetMenu(widget: DashboardWidgetWrite, key: string) {
     const href = listHref(widget);
@@ -504,7 +545,7 @@
     ];
   }
   function onWidgetMenu(widget: DashboardWidgetWrite, key: string, id: string) {
-    if (id === 'list') { const href = listHref(widget); if (href) onnavigate(href); }
+    if (id === 'list') openList(widget);
     if (id === 'table') tables = { ...tables, [key]: !tables[key] };
     if (id === 'csv') exportWidget(widget);
     if (id === 'xlsx') exportWidget(widget, true);

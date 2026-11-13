@@ -687,3 +687,33 @@ export function csvOf(heads: readonly string[], rows: readonly (readonly (string
   };
   return `${[heads, ...rows].map((row) => row.map(cell).join(',')).join('\r\n')}\r\n`;
 }
+
+// --- The dashboard's filter as a widget inherits it (§6.5) --------------------------------------
+
+type Node = Record<string, unknown>;
+const isLeaf = (node: Node): boolean => typeof node['field'] === 'string';
+
+/** The filter's top-level conditions, one per chip: a group ORed together stays one condition. */
+export function conditionsOf(filter: Node | undefined): Node[] {
+  if (!filter) return [];
+  if (filter['op'] === 'AND' && Array.isArray(filter['nodes'])) return filter['nodes'] as Node[];
+  return [filter];
+}
+
+/** What a widget takes of the dashboard's filter: its conditions but those on released fields - the server's rule. */
+export function inheritedFilter(filter: Node | undefined, released: readonly string[] = []): Node | undefined {
+  const kept = conditionsOf(filter).filter((node) => !(isLeaf(node) && released.includes(String(node['field']))));
+  if (kept.length === 0) return undefined;
+  return kept.length === 1 ? kept[0] : { op: 'AND', nodes: kept };
+}
+
+/**
+ * The tree *Als Liste öffnen* hands to a collection's list: what the dashboard passes on AND the
+ * widget's own filter, without a hub condition the collection already answers (its own hub).
+ */
+export function listFilter(filter: Node | undefined, released: readonly string[], own: Node | undefined, hubId: string | null | undefined): Node | undefined {
+  const shared = conditionsOf(inheritedFilter(filter, released)).filter((node) => !(node['field'] === 'hub_id' && node['op'] === 'EQ' && node['value'] === hubId));
+  const nodes = [...shared, ...conditionsOf(own)];
+  if (nodes.length === 0) return undefined;
+  return nodes.length === 1 ? nodes[0] : { op: 'AND', nodes };
+}

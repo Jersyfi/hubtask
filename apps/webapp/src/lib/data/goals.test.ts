@@ -9,7 +9,7 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
   folded, leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
-  widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces,
+  widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces, conditionsOf, inheritedFilter, listFilter,
 } from './goals.ts';
 
 const goal = (id: string, parent: string | null, progress: number | null = null): Goal => ({
@@ -278,4 +278,28 @@ test('a figure widget writes its target and warning line back, another kind neve
   assert.equal(number.warn_at, 40);
   const bars = widgetWrite({ ...base, chart: 'BAR', target: 30, warn_at: null } as unknown as DashboardWidget);
   assert.equal(bars.target, undefined);
+});
+
+// UC-GOL-04 check 18: a widget takes the dashboard's filter but the conditions on fields it released,
+// as the server does; a condition ORed together is one and stays whole.
+test('a widget inherits the dashboard filter but what it released', () => {
+  const hub = { field: 'hub_id', op: 'EQ', value: 'h1' };
+  const open = { field: 'is_completed', op: 'EQ', value: false };
+  const either = { op: 'OR', nodes: [{ field: 'status', op: 'EQ', value: 'todo' }, { field: 'status', op: 'EQ', value: 'done' }] };
+  const filter = { op: 'AND', nodes: [hub, open, either] };
+  assert.equal(conditionsOf(filter).length, 3);
+  assert.deepEqual(inheritedFilter(filter, ['is_completed', 'status']), { op: 'AND', nodes: [hub, either] });
+  assert.deepEqual(inheritedFilter(hub, ['hub_id']), undefined);
+  assert.deepEqual(inheritedFilter(filter, []), filter);
+});
+
+// UC-GOL-04 check 22: *Als Liste öffnen* hands over the inherited filter and the widget's own,
+// without the hub the collection already lies in.
+test('the list a widget opens carries its own line and what it inherits', () => {
+  const hub = { field: 'hub_id', op: 'EQ', value: 'h1' };
+  const open = { field: 'is_completed', op: 'EQ', value: false };
+  const mine = { field: 'priority', op: 'EQ', value: 'high' };
+  assert.deepEqual(listFilter({ op: 'AND', nodes: [hub, open] }, [], mine, 'h1'), { op: 'AND', nodes: [open, mine] });
+  assert.deepEqual(listFilter({ op: 'AND', nodes: [hub, open] }, ['is_completed'], undefined, 'h2'), hub);
+  assert.equal(listFilter(undefined, [], undefined, 'h1'), undefined);
 });
