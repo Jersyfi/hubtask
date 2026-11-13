@@ -48,6 +48,11 @@ publishes; the board now shows one column per status.
    workflow shared from the workspace there under a key of its own, which names the workflow it
    was copied from; only that hub and its collections run a hub's own workflow, it is listed only
    to who may read the hub, and a collection running it is refused leaving the hub.
+10. A person who may shape a collection's board without a workflow makes *a workflow from these
+    columns*: a preview names the workflow's statuses - one per column, the first column's to do,
+    the done column's done, the others in progress, every step free - and the status each entry
+    takes; on confirmation the collection's tasks run it, each column shows its own status and
+    every entry has its column's status, in its history (owner's decision of 2026-11-12).
 
 ## Where it ends
 
@@ -60,4 +65,5 @@ publishes; the board now shows one column per status.
 
 ## Today
 
-* Check 4: not met — the scheme preview does not yet answer `boards` nor the set take `columns` (work surface Phase 2c, `docs/backlog/work-surface/build-plan.md` §6); the web mapping step is family 3.2.
+* Check 4: not met in the web app — the server answers the preview's `boards` and the set takes `columns`; the web mapping step is work surface family 3.2 (`docs/backlog/work-surface/build-plan.md` §6).
+* Check 10: not met in the web app — the server makes it (`POST /containers/{id}/board:workflow`, `dry_run` first); the web control is work surface family 3.2.

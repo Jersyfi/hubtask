@@ -54,6 +54,12 @@ column at a time.
 10. Under a workflow a card dropped on a column takes the one step that reaches it; where several
     do, the person picks one in a picker and nothing changes until they do; where none does, the
     drop is refused and the card shows why (owner's decision of 2026-11-12).
+11. A person who may change the collection's shape shows a list as a board and a board without a
+    workflow as a list again, from one control in the same place on the list row, the card, the
+    entry head and the phone sheet, after a preview: a board starts with an open and a done column,
+    completed cards in the done one; back to a list the columns go and every entry keeps its
+    completion. Neither is offered while a workflow runs for the tasks (owner's decision of
+    2026-11-12).
 
 ## Where it ends
 
@@ -72,3 +78,4 @@ column at a time.
 * Check 6: not met — the web board still couples in the client; it uses the server's coupling and `POST /items/{id}:drop` in work surface family 3.2 (`docs/backlog/work-surface/build-plan.md`).
 * Check 9: not met — the web mapping and *Ohne Spalte*, work surface family 3.2.
 * Check 10: not met — the web drop picker, work surface family 3.2.
+* Check 11: not met in the web app — the server switches (`POST /containers/{id}/board:switch`, `dry_run` first) and answers the level as `state_mode`; the web control is work surface family 3.2.
