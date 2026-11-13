@@ -216,16 +216,25 @@ test('chromium: 1280 px — the backlog tab: the running sprint folded, the plan
   // waits while another sprint runs (P-05).
   const planned = page.getByRole('region', { name: 'The planned sprint' });
   assert.match(await planned.innerText(), /Sprint 3/u);
-  assert.match(await planned.locator('[data-load]').innerText(), /0 of ≈ 5 points · velocity of the last 3/u);
+  assert.match(await planned.locator('[data-load]').innerText(), /0 of ≈ 5 pt · velocity of the last 3/u);
   const start = planned.getByRole('button', { name: 'Start sprint' });
   assert.equal(await start.count(), 1);
   assert.equal(await start.getAttribute('aria-disabled'), 'true', 'a second sprint starts beside the running one');
 
   // UC-PLN-07: the backlog as a ranking with its sum, no per-person capacity anywhere (E-22).
   const backlog = page.locator('[data-backlog]');
-  assert.match(await backlog.locator('[data-backlog-figure]').innerText(), /2 entries · 2 points estimated · 1 without estimate/u);
+  assert.match(await backlog.locator('[data-backlog-figure]').innerText(), /2 entries · 2 pt estimated · 1 without estimate/u);
   assert.deepEqual(await backlog.locator('[data-backlog-row] .title').allInnerTexts(), [ITEMS[3].title, ITEMS[4].title]);
   assert.equal(await page.getByText(/capacity/iu).count(), 0);
+  // A row as scene backlog 4: the key, the title, the points chip; the filter line narrows it.
+  assert.equal(await backlog.locator(`[data-backlog-row="${ITEMS[4].id}"] [data-entry-key]`).innerText(), 'KITCHEN-35');
+  assert.equal(await backlog.locator(`[data-backlog-row="${ITEMS[4].id}"] [data-points-chip]`).innerText(), '2 pt');
+  const filter = page.getByRole('search', { name: 'Filter the backlog' });
+  await filter.getByRole('button', { name: 'Without estimate' }).click();
+  assert.deepEqual(await backlog.locator('[data-backlog-row] .title').allInnerTexts(), [ITEMS[3].title]);
+  await filter.getByRole('button', { name: 'Without estimate' }).click();
+  // *Plan a sprint* stands at the backlog's head, where a sprint is planned from (scene backlog 4).
+  assert.equal(await backlog.getByRole('button', { name: 'Plan a sprint' }).count(), 1);
 
   // Ranked by the keyboard: Alt+Down on the first row's handle puts it after the second.
   await backlog.getByRole('button', { name: `Rank of ${ITEMS[3].title}: Alt with the arrow keys` }).press('Alt+ArrowDown');
@@ -238,12 +247,16 @@ test('chromium: 1280 px — the backlog tab: the running sprint folded, the plan
   assert.deepEqual(wrote(written, 'POST', `/sprints/${NEXT.id}/entries`)?.body, { item_ids: [ITEMS[3].id] });
 
   // An estimate typed in hours into the row's chip and kept by Enter, no Save beside it; one past
-  // the bound is refused at the chip before anything is sent.
+  // the bound is refused at the chip before anything is sent. The chip is a field once pressed.
+  const chip = () => backlog.locator(`[data-backlog-row="${ITEMS[3].id}"] [data-points-chip]`);
+  assert.equal(await chip().innerText(), 'estimate');
+  await chip().click();
   const field = page.getByLabel(`Estimate of ${ITEMS[3].title}`);
   await field.fill('1.5h');
   await field.press('Enter');
   await settle(page);
   assert.deepEqual(wrote(written, 'PUT', `/items/${ITEMS[3].id}/estimate`)?.body, { unit: 'HOURS', value: 1.5 });
+  await chip().click();
   await field.fill('20000');
   await field.press('Enter');
   await settle(page);

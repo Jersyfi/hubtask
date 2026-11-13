@@ -17,7 +17,7 @@
     Button, Icon, IconButton, Inline, Input, ProgressBar, Select, Skeleton, Textarea,
     hasLeftTheHandle, rankIntent, WorkPage,
   } from '@hubtask/design-system/components';
-  import type { Sprint, SprintBacklog, SprintDetail, SprintList, Velocity, WorkItem } from '@hubtask/sync-engine';
+  import type { Estimate, Sprint, SprintBacklog, SprintDetail, SprintList, Velocity, WorkItem } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -28,11 +28,16 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { anchorFor } from '../lib/data/rank.ts';
   import {
-    backlogPath, carryTargets, estimateOf, estimateText, planLoad, sprintPath, sprints, sprintsPath, valueOf, velocityPath,
+    backlogPath, carryTargets, planLoad, sprintPath, sprints, sprintsPath, valueOf, velocityPath, type EstimateInput,
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { formatPlainDay } from '../lib/i18n/datetime.ts';
+  import { formatShortDay } from '../lib/i18n/datetime.ts';
+  import { entryTypes, iconOf, typeNameOf, typeOf } from '../lib/data/entrytypes.svelte.ts';
+  import { ticketKeyOf } from '../lib/data/ticket.ts';
+  import EntryKey from '../lib/entries/EntryKey.svelte';
+  import PeopleMarks from '../lib/people/PeopleMarks.svelte';
+  import PointsChip from '../lib/planning/PointsChip.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -61,7 +66,10 @@
   // The collection's own level: the version a rank write states.
   $effect(() => {
     const id = collectionId;
-    return untrack(() => items.openCollection(id));
+    return untrack(() => {
+      const stops = [items.openCollection(id), entryTypes.open()];
+      return () => stops.forEach((stop) => stop());
+    });
   });
 
   const mayWrite = $derived(holds(people.roleOf(rolePath, actor.account?.id, roleOrder()) ?? undefined, 'WRITE_ITEMS').status === 'permitted');
@@ -119,8 +127,8 @@
   }
 
   const unit = $derived(target?.unit ?? velocity?.unit ?? 'POINTS');
-  const unitLabel = $derived(t(`app.sprints.unit_${unit}`));
-  const span = (sprint: Sprint) => t('app.sprints.span', { from: formatPlainDay(sprint.start_on, messages.locale), to: formatPlainDay(sprint.end_on, messages.locale) });
+  const unitShortLabel = $derived(t(`app.sprints.unit_short_${unit}`));
+  const span = (sprint: Sprint) => t('app.sprints.span_short', { from: formatShortDay(sprint.start_on, messages.locale), to: formatShortDay(sprint.end_on, messages.locale) });
   const runningOpen = $derived((runningDetail?.entries ?? []).filter((e) => !e.removed_at));
   const targetOpen = $derived((targetDetail?.entries ?? []).filter((e) => !e.removed_at));
   const plannedValue = $derived(valueOf(targetOpen, unit));
@@ -128,20 +136,44 @@
   const backlogValue = $derived(valueOf(backlog, unit));
   const unestimated = $derived(backlog.filter((entry) => !entry.estimate).length);
 
-  /** The draft of each estimate field, by entry, until it is saved. */
-  const drafts = $state<Record<string, string>>({});
-  const estimateErrors = $state<Record<string, string | undefined>>({});
-  function saveEstimate(itemId: string, title: string) {
-    const text = drafts[itemId];
-    if (text === undefined) return;
-    const input = estimateOf(text);
-    if (input === undefined) {
-      estimateErrors[itemId] = t('estimates.value_out_of_range', { maximum: '10000' });
-      return;
-    }
-    estimateErrors[itemId] = undefined;
-    void act(() => sprints.estimate(collectionId, zone, target?.id, itemId, input), t('app.sprints.estimated', { title })).then(() => delete drafts[itemId]);
+  /** An estimate saved from a row's points chip (UC-PLN-07 check 5). */
+  function saveEstimate(itemId: string, title: string, input: EstimateInput | null) {
+    void act(() => sprints.estimate(collectionId, zone, target?.id, itemId, input), t('app.sprints.estimated', { title }));
   }
+
+  // A row carries the entry's key, type and person (scene backlog 4): the collection's page holds
+  // most; an entry beyond it is read on its own.
+  let beyond = $state<Record<string, WorkItem | null>>({});
+  const itemOf = (itemId: string): WorkItem | undefined => items.find(itemId) ?? beyond[itemId] ?? undefined;
+  const isLevelRead = $derived(items.stateOf(`container:${collectionId}`)?.status === 'ready');
+  const toRead = $derived(isLevelRead ? [...backlog, ...targetOpen].map((entry) => entry.item_id).filter((id) => !(id in beyond) && items.find(id) === undefined) : []);
+  $effect(() => {
+    const ids = toRead;
+    if (ids.length === 0) return;
+    untrack(() => {
+      beyond = { ...beyond, ...Object.fromEntries(ids.map((id) => [id, null])) };
+      void Promise.all(ids.map((id) => engine.refresh<WorkItem>({ path: `/items/${id}` }).then((read) => [id, read.status === 'ready' ? read.data : null] as const)))
+        .then((pairs) => { beyond = { ...beyond, ...Object.fromEntries(pairs) }; })
+        .catch(() => undefined);
+    });
+  });
+  const typeName = (item: WorkItem | undefined) => (item?.entry_type ? typeNameOf(entryTypes.all, item.entry_type, (level) => t('app.entry_types.level', { level })) : '');
+
+  // The filter line (scene backlog): the types, words of the key or title, and *without estimate*.
+  let typeShown = $state('');
+  let words = $state('');
+  let isUnestimatedOnly = $state(false);
+  const typesHere = $derived([...new Set(backlog.map((entry) => itemOf(entry.item_id)?.entry_type).filter((key): key is string => Boolean(key)))]);
+  const typeOptions = $derived([{ value: '', label: t('app.sprints.types_all') }, ...typesHere.map((key) => ({ value: key, label: typeName(itemOf(backlog.find((entry) => itemOf(entry.item_id)?.entry_type === key)?.item_id ?? '')) || key }))]);
+  const isFiltered = $derived(typeShown !== '' || words.trim() !== '' || isUnestimatedOnly);
+  function isKept(entry: { item_id: string; title: string; estimate: Estimate | null | undefined }): boolean {
+    const item = itemOf(entry.item_id);
+    if (typeShown && item?.entry_type !== typeShown) return false;
+    if (isUnestimatedOnly && entry.estimate) return false;
+    const wanted = words.trim().toLocaleLowerCase();
+    return !wanted || entry.title.toLocaleLowerCase().includes(wanted) || (ticketKeyOf(place, item?.number) ?? '').toLocaleLowerCase().includes(wanted);
+  }
+  const shownBacklog = $derived(isFiltered ? backlog.filter(isKept) : backlog);
 
   function planIn(itemId: string) {
     const sprint = target;
@@ -259,33 +291,21 @@
   const startSprint = (sprint: Sprint) => void act(() => sprints.start(collectionId, zone, sprint.id), t('app.sprints.started', { name: sprint.name }));
 </script>
 
-{#snippet estimate(entry: { item_id: string; title: string; estimate: SprintBacklog['data'][number]['estimate'] })}
-  {#if mayWrite}
-    <span class="estimate">
-      <Input
-        label={t('app.sprints.estimate_of', { title: entry.title })}
-        isLabelHidden
-        size="sm"
-        placeholder={t('app.sprints.estimate_placeholder')}
-        value={drafts[entry.item_id] ?? estimateText(entry.estimate)}
-        error={estimateErrors[entry.item_id]}
-        oninput={(event: Event) => (drafts[entry.item_id] = (event.currentTarget as HTMLInputElement).value)}
-        onchange={() => saveEstimate(entry.item_id, entry.title)}
-      />
-    </span>
-  {:else if entry.estimate}
-    <span class="chip">{estimateText(entry.estimate)}</span>
-  {/if}
+{#snippet rowParts(entry: { item_id: string; title: string; estimate: Estimate | null | undefined })}
+  <!-- The row as scene backlog 4 draws it: the type's mark and the key, the title, then the type,
+       the points chip and the person at its end. -->
+  {@const item = itemOf(entry.item_id)}
+  {@const type = item ? typeOf(entryTypes.all, item.type, item.entry_type ?? undefined) : undefined}
+  <span class="mark"><Icon name={type ? iconOf(type) : 'square-check'} size="sm" />{#if item}<EntryKey collection={place} number={item.number} />{/if}</span>
+  <a class="title" href={`/items/${entry.item_id}`}>{entry.title}</a>
+  {#if typeName(item)}<span class="type" data-type>{typeName(item)}</span>{/if}
+  <PointsChip title={entry.title} estimate={entry.estimate} isEditable={mayWrite} onsave={(input) => saveEstimate(entry.item_id, entry.title, input)} />
+  <span class="person">{#if item?.assignee_id}<PeopleMarks assigneeId={item.assignee_id} />{/if}</span>
 {/snippet}
 
 <WorkPage>
   {#snippet top()}
-  <CollectionHead
-    {collectionId}
-    current="backlog"
-    {onnavigate}
-    primary={mayWrite ? { label: t('app.sprints.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
-  />
+  <CollectionHead {collectionId} current="backlog" {onnavigate} />
   {/snippet}
 
   {#if refusal}
@@ -294,7 +314,23 @@
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-    {#if mayWrite}<p class="quiet hint" data-backlog-hint>{t('app.sprints.backlog_hint')}</p>{/if}
+    <!-- The filter line (scene backlog): types and words in one field, *without estimate*, and how
+         the ranking reads on the right. -->
+    <div class="filter-line" role="search" aria-label={t('app.sprints.backlog_filter')} data-backlog-filter>
+      <span class="query">
+        {#if typesHere.length > 0}
+          <span class="type-chip">
+            <span class="chip-key">{t('app.sprints.type')}</span>
+            <Select label={t('app.sprints.type')} isLabelHidden size="sm" value={typeShown} options={typeOptions}
+              onchange={(event: Event) => (typeShown = (event.currentTarget as HTMLSelectElement).value)} />
+            {#if typeShown}<IconButton size="sm" icon="x" label={t('app.sprints.types_clear')} onclick={() => (typeShown = '')} />{/if}
+          </span>
+        {/if}
+        <input class="words" type="search" aria-label={t('app.sprints.filter_placeholder')} placeholder={t('app.sprints.filter_placeholder')} bind:value={words} />
+      </span>
+      <Button size="sm" tone="secondary" icon="funnel" aria-pressed={isUnestimatedOnly} onclick={() => (isUnestimatedOnly = !isUnestimatedOnly)}>{t('app.sprints.unestimated_only')}</Button>
+      {#if mayWrite}<p class="quiet hint" data-backlog-hint>{t('app.sprints.backlog_hint')}</p>{/if}
+    </div>
 
     {#if running && running.id !== target?.id}
       <!-- The running sprint folded (scene backlog 2): its name, days and load, and the way into it. -->
@@ -303,7 +339,7 @@
           <Icon name="chevron-right" size="sm" />
           <b class="name">{running.name}</b>
           <span class="state" data-state="ACTIVE">{t('app.sprints.state_ACTIVE')}</span>
-          <span class="quiet">{t('app.sprints.running_figure', { span: span(running), count: String(runningOpen.length), value: String(valueOf(runningOpen, running.unit)), unit: t(`app.sprints.unit_${running.unit}`) })}</span>
+          <span class="quiet">{t('app.sprints.running_figure', { span: span(running), count: String(runningOpen.length), value: String(valueOf(runningOpen, running.unit)), unit: t(`app.sprints.unit_short_${running.unit}`) })}</span>
           <span class="grow"></span>
           <a class="open" href={`/collections/${collectionId}/sprint`}><Icon name="arrow-right" size="sm" />{t('app.sprints.open_sprint')}</a>
         </div>
@@ -322,7 +358,7 @@
           {#if load && velocity}
             <span class="load" data-load data-over-velocity={load.isOver ? '' : undefined}>
               <ProgressBar size="sm" label={t('app.sprints.load_label')} value={load.percent}
-                valueLabel={t('app.sprints.load', { planned: String(plannedValue), velocity: String(velocity.average), unit: unitLabel })} />
+                valueLabel={t('app.sprints.load', { planned: String(plannedValue), velocity: String(velocity.average), unit: unitShortLabel })} />
               {#if load.isOver}<span class="over"><Icon name="triangle-alert" size="sm" />{t('app.sprints.load_over')}</span>{/if}
             </span>
           {/if}
@@ -342,8 +378,8 @@
             {#each targetOpen as entry (entry.item_id)}
               <li class="row" data-card={entry.item_id} data-dragging={dragging?.id === entry.item_id ? '' : undefined}
                 onpointerdown={mayWrite ? (event) => beginDrag(event, entry.item_id, 'sprint') : undefined}>
-                <a class="title" href={`/items/${entry.item_id}`}>{entry.title}</a>
-                {@render estimate(entry)}
+                <span class="handle-space" aria-hidden="true"></span>
+                {@render rowParts(entry)}
                 {#if mayWrite}
                   <IconButton size="sm" icon="arrow-down" label={t('app.sprints.to_backlog_of', { title: entry.title })} onclick={() => takeOut(entry.item_id)} />
                 {/if}
@@ -367,13 +403,17 @@
     <section class="block" aria-labelledby="backlog-heading" data-backlog data-drop="backlog" data-over={over?.zone === 'backlog' && dragging?.from === 'sprint' ? '' : undefined}>
       <div class="head">
         <h2 id="backlog-heading" class="name">{t('app.sprints.backlog_column')}</h2>
-        <span class="quiet" data-backlog-figure>{t('app.sprints.backlog_figure', { count: String(backlog.length), value: String(backlogValue), unit: unitLabel, unestimated: String(unestimated) })}</span>
+        <span class="quiet" data-backlog-figure>{t('app.sprints.backlog_figure', { count: String(backlog.length), value: String(backlogValue), unit: unitShortLabel, unestimated: String(unestimated) })}</span>
+        <span class="grow"></span>
+        {#if mayWrite}<Button tone="secondary" icon="plus" onclick={() => openPlan(undefined)}>{t('app.sprints.plan')}</Button>{/if}
       </div>
       {#if backlog.length === 0}
         <p class="quiet empty">{t('app.sprints.backlog_empty')}</p>
+      {:else if shownBacklog.length === 0}
+        <p class="quiet empty">{t('app.sprints.filtered_empty')}</p>
       {:else}
         <ol class="rows" aria-labelledby="backlog-heading">
-          {#each backlog as entry, index (entry.item_id)}
+          {#each shownBacklog as entry, index (entry.item_id)}
             <li class="row" data-backlog-row={entry.item_id} data-card={entry.item_id}
               data-dragging={dragging?.id === entry.item_id ? '' : undefined}
               data-before={over?.before === entry.item_id && dragging?.from === 'backlog' && dragging.id !== entry.item_id ? '' : undefined}
@@ -382,8 +422,7 @@
                 <button type="button" class="handle" data-handle aria-label={t('app.sprints.rank_of', { title: entry.title })}
                   onkeydown={(event) => onHandleKey(event, entry.item_id, index)}><Icon name="grip-vertical" size="sm" /></button>
               {/if}
-              <a class="title" href={`/items/${entry.item_id}`}>{entry.title}</a>
-              {@render estimate(entry)}
+              {@render rowParts(entry)}
               {#if mayWrite && target}
                 <IconButton size="sm" icon="arrow-up" label={t('app.sprints.into_planned_of', { title: entry.title, sprint: target.name })} onclick={() => planIn(entry.item_id)} />
               {/if}
@@ -422,7 +461,20 @@
 {/if}
 
 <style>
-  .hint { text-align: end; }
+  .filter-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); min-inline-size: 0; }
+  .query { display: flex; flex: 0 1 calc(var(--sp-1000) * 4.5); align-items: center; gap: var(--sp-100); min-inline-size: 0; padding: var(--sp-050) var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); background: var(--bg-surface); }
+  .query:focus-within { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .type-chip { display: inline-flex; flex: none; align-items: center; gap: var(--sp-050); padding-inline-start: var(--sp-100); border-radius: var(--r-sm); background: var(--bg-surface-sunken); font-size: var(--fs-075); }
+  .type-chip :global(.shell) { border-color: transparent; background: transparent; }
+  .type-chip :global(.select) { font-weight: var(--fw-semibold); }
+  .chip-key { color: var(--text-secondary); }
+  .words { flex: 1 1 auto; min-inline-size: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: var(--fs-075); }
+  .words:focus { outline: none; }
+  .filter-line .hint { margin-inline-start: auto; text-align: end; }
+  .mark { display: inline-flex; flex: none; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
+  .type { flex: none; padding: 0 var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); color: var(--text-secondary); font-size: var(--fs-075); }
+  .person { display: inline-flex; flex: none; justify-content: center; min-inline-size: var(--sp-300); }
+  .handle-space { flex: none; inline-size: var(--sp-300); }
   .block { display: flex; flex-direction: column; min-width: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .block[data-over] { outline: var(--bw-ring) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); padding: var(--sp-150) var(--sp-200); }
@@ -438,11 +490,10 @@
   .row { display: flex; align-items: center; gap: var(--sp-100); min-block-size: var(--layout-target); padding: var(--sp-050) var(--sp-200); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .row[data-dragging] { opacity: 0.6; }
   .row[data-before] { box-shadow: inset 0 var(--bw-thick) 0 var(--accent-primary); }
-  .title { flex: 1; min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; }
-  .estimate :global(input) { inline-size: var(--sp-1000); }
+  .title { flex: 1; min-width: 0; color: var(--text-primary); overflow-wrap: anywhere; text-decoration: none; }
+  .title:hover { text-decoration: underline; }
   .handle { display: inline-grid; place-items: center; min-inline-size: var(--sp-300); min-block-size: var(--sp-300); padding: 0; border: 0; border-radius: var(--r-sm); background: none; color: var(--text-subtle); cursor: grab; }
   .handle:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
-  .chip { padding: 0 var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); color: var(--text-secondary); font-size: var(--fs-075); }
   .drop { margin: var(--sp-100) var(--sp-200) var(--sp-150); padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-md); text-align: center; }
   .empty { padding: var(--sp-100) var(--sp-200) var(--sp-150); }
   .capture { padding: var(--sp-100) var(--sp-200) var(--sp-150); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
