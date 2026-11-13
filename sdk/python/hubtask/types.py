@@ -2399,6 +2399,8 @@ class PortalRequest(TypedDict, total=False):
     title: Required[str]
     notes: Required[str | None]
     status: Required[str | None]
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     is_completed: Required[bool]
     completed_at: Required[str | None]
     created_at: Required[str]
@@ -2448,6 +2450,8 @@ class PortalRequestDetail(TypedDict, total=False):
     title: Required[str]
     notes: Required[str | None]
     status: Required[str | None]
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     is_completed: Required[bool]
     completed_at: Required[str | None]
     created_at: Required[str]

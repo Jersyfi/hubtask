@@ -31559,6 +31559,15 @@ components:
         title: { type: string }
         notes: { type: [string, "null"] }
         status: { type: [string, "null"] }
+        status_name:
+          type: [string, "null"]
+          description: >
+            The status as the desk's workflow names it; null where no workflow runs or the status
+            has no name of its own, which a client words by `status_category`.
+        status_category:
+          type: [string, "null"]
+          enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+          description: The status's category; null where no workflow runs.
         is_completed: { type: boolean }
         completed_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }

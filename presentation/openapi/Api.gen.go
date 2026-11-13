@@ -7894,6 +7894,60 @@ func (e PolicySource) Valid() bool {
 	}
 }
 
+// Defines values for PortalRequestStatusCategory.
+const (
+	PortalRequestStatusCategoryBACKLOG     PortalRequestStatusCategory = "BACKLOG"
+	PortalRequestStatusCategoryDONE        PortalRequestStatusCategory = "DONE"
+	PortalRequestStatusCategoryINPROGRESS  PortalRequestStatusCategory = "IN_PROGRESS"
+	PortalRequestStatusCategoryLessThannil PortalRequestStatusCategory = "<nil>"
+	PortalRequestStatusCategoryTODO        PortalRequestStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalRequestStatusCategory enum.
+func (e PortalRequestStatusCategory) Valid() bool {
+	switch e {
+	case PortalRequestStatusCategoryBACKLOG:
+		return true
+	case PortalRequestStatusCategoryDONE:
+		return true
+	case PortalRequestStatusCategoryINPROGRESS:
+		return true
+	case PortalRequestStatusCategoryLessThannil:
+		return true
+	case PortalRequestStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PortalRequestDetailStatusCategory.
+const (
+	PortalRequestDetailStatusCategoryBACKLOG     PortalRequestDetailStatusCategory = "BACKLOG"
+	PortalRequestDetailStatusCategoryDONE        PortalRequestDetailStatusCategory = "DONE"
+	PortalRequestDetailStatusCategoryINPROGRESS  PortalRequestDetailStatusCategory = "IN_PROGRESS"
+	PortalRequestDetailStatusCategoryLessThannil PortalRequestDetailStatusCategory = "<nil>"
+	PortalRequestDetailStatusCategoryTODO        PortalRequestDetailStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalRequestDetailStatusCategory enum.
+func (e PortalRequestDetailStatusCategory) Valid() bool {
+	switch e {
+	case PortalRequestDetailStatusCategoryBACKLOG:
+		return true
+	case PortalRequestDetailStatusCategoryDONE:
+		return true
+	case PortalRequestDetailStatusCategoryINPROGRESS:
+		return true
+	case PortalRequestDetailStatusCategoryLessThannil:
+		return true
+	case PortalRequestDetailStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PortfolioItemsKind.
 const (
 	PortfolioItemsKindCOLLECTION PortfolioItemsKind = "COLLECTION"
@@ -22146,13 +22200,22 @@ type PortalRequest struct {
 	IsCompleted  bool               `json:"is_completed"`
 
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
-	IsOwn     *bool     `json:"is_own,omitempty"`
-	Notes     *string   `json:"notes"`
-	Number    int64     `json:"number"`
-	Status    *string   `json:"status"`
-	Title     string    `json:"title"`
-	UpdatedAt time.Time `json:"updated_at"`
+	IsOwn  *bool   `json:"is_own,omitempty"`
+	Notes  *string `json:"notes"`
+	Number int64   `json:"number"`
+	Status *string `json:"status"`
+
+	// StatusCategory The status's category; null where no workflow runs.
+	StatusCategory *PortalRequestStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string   `json:"status_name,omitempty"`
+	Title      string    `json:"title"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// PortalRequestStatusCategory The status's category; null where no workflow runs.
+type PortalRequestStatusCategory string
 
 // PortalRequestDetail defines model for PortalRequestDetail.
 type PortalRequestDetail struct {
@@ -22188,9 +22251,18 @@ type PortalRequestDetail struct {
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`
 	Sla          []EntrySlaGoal       `json:"sla"`
 	Status       *string              `json:"status"`
-	Title        string               `json:"title"`
-	UpdatedAt    time.Time            `json:"updated_at"`
+
+	// StatusCategory The status's category; null where no workflow runs.
+	StatusCategory *PortalRequestDetailStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string   `json:"status_name,omitempty"`
+	Title      string    `json:"title"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+// PortalRequestDetailStatusCategory The status's category; null where no workflow runs.
+type PortalRequestDetailStatusCategory string
 
 // PortalRequestPage defines model for PortalRequestPage.
 type PortalRequestPage struct {
