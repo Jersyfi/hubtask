@@ -171,8 +171,12 @@ for (const width of [1280, 390]) {
       assert.equal(await arrow.getAttribute('data-kind'), 'now');
       assert.match(await arrow.getAttribute('d') ?? '', /^M [\d.]+ [\d.]+ C /, 'the arrow is measured between the boxes');
       assert.ok((await arrow.getAttribute('marker-end'))?.startsWith('url(#'), 'it ends in an arrowhead');
-      // A step from any status is written on its target.
-      assert.ok((await picture.locator('[data-picture-status="resolved"]').innerText()).includes('from any status'));
+      // A step from any status is an arrow from the entry's status, dashed where it is blocked for the reader.
+      const any = picture.locator('path[data-arrow="resolve:new"]');
+      await any.waitFor({ state: 'attached', timeout: 5_000 });
+      assert.equal(await any.getAttribute('data-kind'), 'blocked');
+      assert.notEqual(await any.evaluate((path) => getComputedStyle(path).strokeDasharray), 'none', 'a blocked step is dashed');
+      assert.equal(await picture.locator('[data-label="resolve:new"]').textContent(), 'Resolved · from any status');
       const legend = await picture.locator('[data-picture-legend]').innerText();
       for (const words of ['the entry\'s status', 'steps you can take now', 'other steps', 'blocked for you']) assert.ok(legend.includes(words), `the legend: ${legend}`);
       const start = await picture.locator('[data-step-card="start"]').innerText();
@@ -186,6 +190,73 @@ for (const width of [1280, 390]) {
       assert.ok(scroll <= 0, `nothing scrolls sideways: ${scroll}`);
       const box = await picture.boundingBox();
       assert.ok(box && box.x >= 0 && box.x + box.width <= width + 1, `the picture fits the width: ${JSON.stringify(box)}`);
+    } finally {
+      await close();
+    }
+  });
+}
+
+// A story's workflow, as the demo runs it: a step there and one back between two boxes of one lane,
+// and a step from any status limited to a role.
+const STORY = {
+  initial: 'backlog',
+  statuses: [
+    { key: 'backlog', name: 'Backlog', category: 'BACKLOG', color_token: 'slate' },
+    { key: 'todo', name: 'To do', category: 'TODO', color_token: 'slate' },
+    { key: 'in_progress', name: 'In progress', category: 'IN_PROGRESS', color_token: 'blue' },
+    { key: 'in_review', name: 'In review', category: 'IN_PROGRESS', color_token: 'violet' },
+    { key: 'done', name: 'Done', category: 'DONE', color_token: 'green' },
+    { key: 'dropped', name: 'Dropped', category: 'BACKLOG', color_token: 'slate' },
+  ],
+  steps: [
+    { key: 'plan', name: 'Plan', from: ['backlog'], to: 'todo' },
+    { key: 'start', name: 'Begin', from: ['todo'], to: 'in_progress' },
+    { key: 'review', name: 'Ask for review', from: ['in_progress'], to: 'in_review' },
+    { key: 'rework', name: 'Rework', from: ['in_review'], to: 'in_progress' },
+    { key: 'finish', name: 'Finish', from: ['in_review'], to: 'done' },
+    { key: 'reopen', name: 'Reopen', from: ['done'], to: 'todo' },
+    { key: 'drop', name: 'Drop', from: [], to: 'dropped' },
+  ].map((step) => ({ approval: false, limited: step.key === 'drop', ...step })),
+};
+
+for (const width of [1280, 1024]) {
+  test(`chromium ${width}: the workflow picture keeps every step's name clear of the others and draws a blocked step dashed (E-23)`, { timeout: 60_000 }, async () => {
+    const { page, close } = await open(width, {
+      runs: true,
+      extra: (read) => {
+        if (read === `/items/${ENTRY.id}`) return { ...ENTRY, entry_type: 'incident', status: 'in_progress' };
+        if (read !== `/items/${ENTRY.id}/steps`) return undefined;
+        return {
+          workflow: 'incident', status: 'in_progress', by_default: false, may_design: false, picture: STORY,
+          steps: [{ key: 'review', name: 'Ask for review', to: 'in_review', asks: [], allowed: true }],
+          blocked: [{ key: 'drop', name: 'Drop', to: 'dropped', reason: 'workflows.step_who_unmet', roles: ['ADMIN'], people: [], groups: [] }],
+          done_route: [{ key: 'review', name: 'Ask for review', to: 'in_review' }, { key: 'finish', name: 'Finish', to: 'done' }],
+        };
+      },
+    });
+    try {
+      const status = page.locator('[data-steps]');
+      await status.waitFor({ timeout: 10_000 });
+      await status.getByRole('button', { name: /Change status/ }).click();
+      await page.getByRole('button', { name: 'View workflow' }).filter({ visible: true }).first().click();
+      const picture = page.locator('[data-workflow-picture]');
+      await picture.waitFor({ timeout: 5_000 });
+      const drop = picture.locator('path[data-arrow="drop:in_progress"]');
+      await drop.waitFor({ state: 'attached', timeout: 5_000 });
+      assert.equal(await drop.getAttribute('data-kind'), 'blocked');
+      assert.notEqual(await drop.evaluate((path) => getComputedStyle(path).strokeDasharray), 'none', 'the step blocked for the reader is dashed');
+      await page.waitForTimeout(300);
+      const names = await picture.locator('text[data-label]').evaluateAll((texts) => texts.map((text) => {
+        const r = text.getBoundingClientRect();
+        return { name: text.textContent, left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      }));
+      assert.ok(names.some((each) => each.name === 'Ask for review') && names.some((each) => each.name === 'Rework'), JSON.stringify(names));
+      for (const [i, a] of names.entries()) {
+        for (const b of names.slice(i + 1)) {
+          const apart = a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top;
+          assert.ok(apart, `"${a.name}" and "${b.name}" overlap: ${JSON.stringify([a, b])}`);
+        }
+      }
     } finally {
       await close();
     }

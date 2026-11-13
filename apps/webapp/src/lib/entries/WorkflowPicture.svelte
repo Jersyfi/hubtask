@@ -9,6 +9,7 @@
   // exactly is named for the steps from the entry's status only, as far as the answer names it.
   //
   // The arrows are measured from the boxes after layout, so no length is written here (rule 15).
+  import { tick } from 'svelte';
   import { StateLozenge } from '@hubtask/design-system/components';
   import type { EntrySteps } from '@hubtask/sync-engine';
   import { statusLabel } from '../data/workflows.ts';
@@ -47,16 +48,50 @@
   const leavesHere = (step: PictureStep) => (step.from.length === 0 ? step.to !== current : step.from.includes(current));
   const kindOf = (step: PictureStep): Kind =>
     leavesHere(step) && allowed.has(step.key) ? 'now' : leavesHere(step) && blocked.has(step.key) ? 'blocked' : 'other';
-  const anyInto = (key: string) => picture.steps.filter((step) => step.from.length === 0 && step.to === key);
+  // A step from any status is an arrow from the entry's status; only on the entry's own status,
+  // where no arrow leaves, is it written on the box.
+  const anyInto = (key: string) => (key === current ? picture.steps.filter((step) => step.from.length === 0 && step.to === key) : []);
 
   let canvas = $state<HTMLDivElement | undefined>(undefined);
   const boxes = new Map<string, HTMLElement>();
   let extent = $state({ width: 0, height: 0 });
   let arrows = $state<readonly { key: string; d: string; kind: Kind; label: string; x: number; y: number; anchor: Anchor }[]>([]);
+  const labels = new Map<string, SVGTextElement>();
+  /** How far each name is moved down so that no two names overlap, by arrow. */
+  let shifts = $state<ReadonlyMap<string, number>>(new Map());
 
   function box(node: HTMLElement, key: string) {
     boxes.set(key, node);
     return { destroy: () => boxes.delete(key) };
+  }
+  function label(node: SVGTextElement, key: string) {
+    labels.set(key, node);
+    return { destroy: () => labels.delete(key) };
+  }
+
+  /** Moves a name down past every name above it that it would overlap, top to bottom. */
+  function separate() {
+    const placed: { x: number; y: number; width: number; height: number }[] = [];
+    const out = new Map<string, number>();
+    const measured = arrows
+      .map((arrow) => ({ key: arrow.key, rect: labels.get(arrow.key)?.getBBox() }))
+      .filter((each): each is { key: string; rect: DOMRect } => each.rect !== undefined && each.rect.width > 0)
+      .sort((a, b) => a.rect.y - b.rect.y || a.rect.x - b.rect.x);
+    for (const { key, rect } of measured) {
+      const at = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      for (let moved = true; moved; ) {
+        moved = false;
+        for (const other of placed) {
+          const apart = at.x >= other.x + other.width || other.x >= at.x + at.width || at.y >= other.y + other.height || other.y >= at.y + at.height;
+          if (apart) continue;
+          at.y = other.y + other.height + at.height / 8;
+          moved = true;
+        }
+      }
+      placed.push(at);
+      if (at.y !== rect.y) out.set(key, at.y - rect.y);
+    }
+    shifts = out;
   }
 
   /** One arrow per step and status it leaves, along the axis the boxes lie apart on; two opposite
@@ -73,12 +108,25 @@
       return { xMin: left, yMin: top, xMax: left + r.width, yMax: top + r.height, width: r.width, height: r.height, cx: left + r.width / 2, cy: top + r.height / 2 };
     };
     const lowest = Math.max(0, ...[...boxes.keys()].map((key) => rect(key)?.yMax ?? 0));
+    /** Whether another box stands between two boxes of one column, so a straight arrow would cross it. */
+    const crosses = (from: string, to: string) => {
+      const a = rect(from);
+      const b = rect(to);
+      if (!a || !b) return false;
+      const [top, bottom] = a.cy < b.cy ? [a.cy, b.cy] : [b.cy, a.cy];
+      return [...boxes.keys()].some((key) => {
+        if (key === from || key === to) return false;
+        const c = rect(key);
+        return Boolean(c && c.cy > top && c.cy < bottom && c.xMin < Math.max(a.xMax, b.xMax) && c.xMax > Math.min(a.xMin, b.xMin));
+      });
+    };
     const pairs = new Set(picture.steps.flatMap((step) => step.from.map((from) => `${from}>${step.to}`)));
     const out: { key: string; d: string; kind: Kind; label: string; x: number; y: number; anchor: Anchor }[] = [];
     for (const step of picture.steps) {
       const target = rect(step.to);
       if (!target) continue;
-      for (const from of step.from) {
+      const froms = step.from.length > 0 ? step.from : step.to === current ? [] : [current];
+      for (const from of froms) {
         const source = rect(from);
         if (!source || from === step.to) continue;
         const dx = target.cx - source.cx;
@@ -108,7 +156,7 @@
           d = `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`;
           x = (x1 + x2) / 2;
           y = (y1 + y2) / 2;
-        } else if (dy < 0 && -dy > source.height * 2.5) {
+        } else if (dy < 0 && crosses(from, step.to)) {
           // A long way up: beside the boxes between.
           const edge = Math.max(0, Math.min(source.xMin, target.xMin) - source.width / 4);
           d = `M ${source.xMin} ${source.cy} C ${edge} ${source.cy}, ${edge} ${target.cy}, ${target.xMin} ${target.cy}`;
@@ -131,10 +179,13 @@
         const gap = source.height / 4;
         if (anchor === 'middle') y += isBelow ? gap * 2 : -gap;
         else x += anchor === 'start' ? gap : -gap;
-        out.push({ key: `${step.key}:${from}`, d, kind: kindOf(step), label: stepName(step), x, y, anchor });
+        const name = step.from.length === 0 ? t('app.workflows.picture_any_into', { name: stepName(step) }) : stepName(step);
+        out.push({ key: `${step.key}:${from}`, d, kind: kindOf(step), label: name, x, y, anchor });
       }
     }
     arrows = out;
+    shifts = new Map();
+    void tick().then(separate);
   }
 
   $effect(() => {
@@ -178,8 +229,10 @@
         <text
           class="label"
           data-kind={arrow.kind}
+          use:label={arrow.key}
+          data-label={arrow.key}
           x={arrow.x}
-          y={arrow.y}
+          y={arrow.y + (shifts.get(arrow.key) ?? 0)}
           text-anchor={arrow.anchor}
           dominant-baseline={arrow.anchor === 'middle' ? 'auto' : 'middle'}
         >{arrow.label}</text>
