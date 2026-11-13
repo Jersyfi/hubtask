@@ -28,6 +28,7 @@ import { MathBlock } from './math.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { lineBelow, lineStart, moveLine, removeLine } from './lines.ts';
 import { caretLabels } from './carets.ts';
+import { placeholder } from './placeholder.ts';
 import { readSelectionFirst } from './selection.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
@@ -432,6 +433,8 @@ export interface PageEditorOptions {
   readonly onTick?: (entryId: string, checked: boolean) => void;
   /** The text box's accessible name, resolved by the application: a text box without one is unnamed (WCAG 4.1.2). */
   readonly label?: string;
+  /** The words an empty, writable document shows in its first line (`placeholder.ts`). */
+  readonly placeholder?: string;
 }
 
 /** Builds the editor. The caller destroys it with the screen. */
@@ -498,6 +501,10 @@ export function createPageEditor(options: PageEditorOptions): Editor {
       },
     }) as never);
     extensions.push(CaretLabels);
+  }
+  if (options.editable && options.placeholder) {
+    const words = options.placeholder;
+    extensions.push(Extension.create({ name: 'pagePlaceholder', addProseMirrorPlugins: () => [placeholder(words)] }));
   }
   let made: Editor | undefined;
   const editor = new Editor({
