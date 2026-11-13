@@ -62,3 +62,16 @@ test('a row keeps when it was opened and where it lives, and a list from before 
   assert.equal(kept[0]?.placeId, 'kitchen');
   assert.equal(kept[1]?.at, undefined);
 });
+
+// §6.11 (palette t 2): an entry opened last keeps its key, so its row says TAMA-1 before its title.
+test('an entry keeps its key; a key that arrives later is a change; a key that is no text is not trusted', () => {
+  const kept = parse(JSON.stringify([
+    { kind: 'item', id: 'a', title: 'Passkey', key: 'TAMA-1' },
+    { kind: 'item', id: 'b', title: 'Odd', key: 7 },
+  ]));
+  assert.deepEqual(kept.map((row) => row.id), ['a']);
+  assert.equal(kept[0]?.key, 'TAMA-1');
+  const unkeyed: Recent = { kind: 'item', id: 'a', title: 'Passkey' };
+  assert.equal(isUnchanged([unkeyed], { ...unkeyed, key: 'TAMA-1' }), false);
+  assert.equal(isUnchanged([{ ...unkeyed, key: 'TAMA-1' }], { ...unkeyed, key: 'TAMA-1' }), true);
+});

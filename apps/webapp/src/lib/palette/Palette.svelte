@@ -692,6 +692,7 @@
     {:else}
       <Icon name={iconOf(row)} />
     {/if}
+    {#if recent?.key}<span class="ticketkey">{recent.key}</span>{/if}
     <span class="title">{labelOf(row)}</span>
     {#if context}<span class="context">{context}</span>{/if}
     <!-- What a row is, said to a reader; the group's heading already says it to the eye. -->
@@ -1092,4 +1093,5 @@
   .foot { color: var(--text-secondary); font-size: var(--fs-075); }
 
   .key { display: inline-flex; flex: none; }
+  .ticketkey { flex: none; color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-075); }
 </style>

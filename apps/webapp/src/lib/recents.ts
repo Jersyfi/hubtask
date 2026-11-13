@@ -36,6 +36,8 @@ export interface Recent {
   readonly at?: number;
   /** Where it lives: an entry's collection, a collection's hub - for its tile's mark and place. Absent on a hub. */
   readonly placeId?: string;
+  /** An entry's key where its collection gives one, "TAMA-1": drawn before its title. */
+  readonly key?: string;
 }
 
 const KINDS: readonly string[] = ['item', 'collection', 'hub'];
@@ -48,7 +50,8 @@ function isRecent(row: unknown): row is Recent {
     typeof each.title === 'string' &&
     KINDS.includes(each.kind as string) &&
     (each.at === undefined || typeof each.at === 'number') &&
-    (each.placeId === undefined || typeof each.placeId === 'string')
+    (each.placeId === undefined || typeof each.placeId === 'string') &&
+    (each.key === undefined || typeof each.key === 'string')
   );
 }
 
@@ -82,5 +85,5 @@ export function promote(rows: readonly Recent[], row: Recent): readonly Recent[]
 /** Whether promoting would change anything: the same row, already at the front, under the same title. */
 export function isUnchanged(rows: readonly Recent[], row: Recent): boolean {
   const first = rows[0];
-  return first !== undefined && first.id === row.id && first.kind === row.kind && first.title === row.title;
+  return first !== undefined && first.id === row.id && first.kind === row.kind && first.title === row.title && first.key === row.key;
 }

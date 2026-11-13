@@ -205,7 +205,7 @@
   // Not in the pane, where the reader is on the list beside it rather than on this.
   $effect(() => {
     if (isInPane || !item?.title) return;
-    recents.note({ kind: 'item', id: item.id, title: item.title, placeId: item.collection_id });
+    recents.note({ kind: 'item', id: item.id, title: item.title, placeId: item.collection_id, ...(ticketKey ? { key: ticketKey } : {}) });
   });
 
   /**

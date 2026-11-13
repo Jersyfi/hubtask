@@ -470,6 +470,9 @@ test('chromium: the empty palette offers the common actions and the places opene
   const names = await rowNames(page);
   assert.ok(names.includes('Create …'), 'the empty palette does not offer Create');
   assert.ok(names.includes('Kitchen'), 'the empty palette does not offer the collection opened last');
+  // The entry opened last says its key before its title (palette t 2).
+  const recent = listOf(page).locator('[role="group"]').filter({ has: page.locator('.head', { hasText: /^Recently opened$/u }) });
+  assert.equal(await recent.getByRole('option', { name: new RegExp(ITEMS[0].title, 'u') }).locator('.ticketkey').textContent(), `KITCHEN-${ITEMS[0].number}`);
   // *Quick* goes to Today, the inbox and each product on, by the column's routes (§6.11).
   for (const name of ['Go to Today', 'Go to Inbox']) assert.ok(names.includes(name), `no ${name}: ${names.join(' | ')}`);
   const quick = listOf(page).locator('[role="group"]').filter({ has: page.locator('.head', { hasText: /^Quick$/u }) });
