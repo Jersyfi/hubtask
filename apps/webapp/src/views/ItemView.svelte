@@ -140,7 +140,10 @@
   import { entryMenu as menuOfEntry } from '../lib/entries/entryMenu.ts';
   import { archivalOfItem } from '../lib/data/lifecycle.ts';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
-  import { resource } from '../lib/data/resource.svelte.ts';
+  import { resource, resourceWhen } from '../lib/data/resource.svelte.ts';
+  import { codeLinksPath } from '../lib/data/code.ts';
+  import { entryGoalsPath } from '../lib/data/goals.svelte.ts';
+  import { entryApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
   import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
   import { textLanguages } from '../lib/data/query.ts';
@@ -1156,16 +1159,31 @@
     { id: 'entry-conversation', label: t('app.entry.mark_conversation'), count: commentCount !== undefined ? String(commentCount) : undefined },
   ]);
   /** The rail's sections (ET-1, ET-6): deadlines and *Einordnung* first on a ticket; a module switched off registers none (P-17). */
+  // A folded rail section says how many it holds (the scene's *Code 3*, *Approvals 0*): the
+  // section's own list read once more, first page only, so a long one says "20+".
+  type Counted = { data?: readonly unknown[]; page?: { has_more?: boolean } };
+  const codeRead = resource<Counted>(untrack(() => codeLinksPath(id)));
+  const goalsRead = resourceWhen<Counted>(() => (modulesOn.includes('GOALS') ? entryGoalsPath(id) : undefined));
+  const approvalsRead = resourceWhen<Counted>(() => (modulesOn.includes('SERVICE_DESK') ? entryApprovalsPath(id) : undefined));
+  function countOf(read: { state: ResourceState<Counted> }): string | undefined {
+    if (read.state.status !== 'ready') return undefined;
+    const rows = read.state.data.data ?? [];
+    return read.state.data.page?.has_more ? `${rows.length}+` : String(rows.length);
+  }
+
   const railSections = $derived.by((): RailSection[] => {
     const out: RailSection[] = [];
     if (isDeskEntry) out.push({ id: 'deadlines', title: t('app.entry.rail_deadlines'), tile: { icon: 'clock', product: 'desk' } });
     if (triageRows.length > 0 && carries('CUSTOM_FIELDS')) out.push({ id: 'triage', title: t('app.entry.rail_triage') });
     if (holdsDetails) out.push({ id: 'details', title: t('app.entry.rail_details') });
     if (isDeskEntry) out.push({ id: 'requester', title: t('app.entry.rail_requester') });
-    if (modulesOn.includes('SERVICE_DESK')) out.push({ id: 'approvals', title: t('app.entry.rail_approvals'), isFolded: !isDeskEntry });
+    if (modulesOn.includes('SERVICE_DESK')) {
+      const count = countOf(approvalsRead);
+      out.push({ id: 'approvals', title: t('app.entry.rail_approvals'), count, isFolded: !isDeskEntry || count === '0' });
+    }
     if (modulesOn.includes('TIME')) out.push({ id: 'time', title: t('app.entry.rail_time'), tile: { icon: 'timer', product: 'time' } });
-    if (modulesOn.includes('GOALS')) out.push({ id: 'goals', title: t('app.entry.rail_goals'), tile: { icon: 'flag', product: 'goals' }, isFolded: true });
-    out.push({ id: 'code', title: t('app.entry.rail_code'), isFolded: true });
+    if (modulesOn.includes('GOALS')) out.push({ id: 'goals', title: t('app.entry.rail_goals'), tile: { icon: 'flag', product: 'goals' }, count: countOf(goalsRead), isFolded: true });
+    out.push({ id: 'code', title: t('app.entry.rail_code'), count: countOf(codeRead), isFolded: true });
     out.push({ id: 'origin', title: t('app.entry.rail_origin'), isFolded: true });
     return out;
   });

@@ -642,6 +642,30 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
   assert.deepEqual(unstubbed(), []);
 });
 
+// ET-1: a folded rail section says how many it holds - code, goals, approvals - read from the
+// section's own list.
+test('chromium: 1280 px — folded rail sections carry their counts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/code-links`) && request.method() === 'GET') {
+      return route.fulfill({ json: { data: [{}, {}, {}].map((_, n) => ({ id: `01a0e2e0-0000-7000-8000-00000000c00${n}`, kind: 'COMMIT', ref: `abc${n}`, title: 'Fix', url: 'https://forge.example/c', created_at: '2026-10-01T08:00:00Z' })), page: { has_more: false } } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  const rail = page.locator('.rail');
+  await rail.getByRole('button', { name: 'Unfold Code, 3' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
 // ET-3: from twenty files on the section is a list cut to its first twenty, *Show all* the rest.
 test('chromium: 1280 px — more than twenty files fold to a list of twenty', async (t) => {
   const browser = await chromium.launch();

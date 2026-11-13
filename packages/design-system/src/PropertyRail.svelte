@@ -81,7 +81,7 @@
           class="head"
           aria-expanded={isOpen(item)}
           aria-controls={bodyId}
-          aria-label={isOpen(item) ? foldLabel(item.title) : unfoldLabel(item.title)}
+          aria-label={`${isOpen(item) ? foldLabel(item.title) : unfoldLabel(item.title)}${item.count ? `, ${item.count}` : ''}`}
           onclick={() => toggle(item)}
         >
           {#if item.tile}<ProductTile icon={item.tile.icon} product={item.tile.product} size="sm" />{/if}

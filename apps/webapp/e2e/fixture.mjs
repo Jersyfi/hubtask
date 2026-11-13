@@ -1323,8 +1323,9 @@ export function fallback(route, request, path) {
   if (/^\/items\/[^/]+\/links$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { links: [], backlinks: [], page_backlinks: [], whiteboard_backlinks: [] } });
   }
-  // No forge named the entry, no file is linked on it, no value of it came from AI.
-  if (/^\/items\/[^/]+\/(code-links|file-links|provenance)$/u.test(read) && request.method() === 'GET') {
+  // No forge named the entry, no file is linked on it, no value of it came from AI; it serves no
+  // goal and waits on no approval (the rail counts both).
+  if (/^\/items\/[^/]+\/(code-links|file-links|provenance|goals|approvals)$/u.test(read) && request.method() === 'GET') {
     return route.fulfill({ json: { data: [] } });
   }
   // No workflow binds the entries and no link type or entry type is defined beyond none, so an
