@@ -950,6 +950,7 @@
     {#each laneKeys as lane (lane)}
     <div class="lane-row" data-lane={lanesBy ? lane : undefined}>
     {#if lanesBy}<p class="lane-head"><b>{lane === '' ? t('app.board.lane_none') : (laneName?.(lane) ?? lane)}</b> <span>{entriesOfLane(lane)}</span></p>{/if}
+    <div class="lane-columns">
     {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = lanesBy ? cardsOf(bucketId).filter((card) => laneOf(card, lanesBy) === lane) : cardsOf(bucketId)}
@@ -959,7 +960,9 @@
       {@const key = bucket?.id ?? NO_COLUMN}
       {@const shown = bucket ? (bucket.statuses ?? []) : unmapped}
       {@const refusal = refusals.get(key)}
-      {#if (bucket !== null || cards.length > 0 || unmapped.length > 0) && (!isOneColumn || key === shownKey)}
+      <!-- In lanes the column-less column stands in every lane once any card has no column, so the
+           columns keep one position across the lanes. -->
+      {#if (bucket !== null || cardsOf(null).length > 0 || unmapped.length > 0) && (!isOneColumn || key === shownKey)}
         <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
              across the board, which is why it is the whole column rather than the list of cards:
              an empty column is a destination too. -->
@@ -1124,6 +1127,7 @@
         </div>
       {/if}
     {/each}
+    </div>
     </div>
     {/each}
 
@@ -1331,11 +1335,15 @@
      what it scrolls: a card's checkbox hides its input the visually-hidden way, absolutely, and
      an absolute box inside an unpositioned scroller overflows the scroller's ancestor - which is
      how a board widens the page by four hundred pixels on a tablet. */
-  /* Without lanes a row is no box: the columns stand in the board's own row. */
-  .lane-row { display: contents; }
-  .board[data-lanes] { flex-direction: column; }
-  .board[data-lanes] .lane-row { display: flex; flex-wrap: wrap; gap: var(--sp-200); align-items: start; padding-block-end: var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
-  .lane-head { flex-basis: 100%; margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  /* Without lanes a row is no box: the columns stand in the board's own row. In lanes every lane
+     is as wide as its columns and the board scrolls them sideways together, so a column stands at
+     one position in every lane (scene viewcfg); the lane's name stays at the start while it does. */
+  .lane-row,
+  .lane-columns { display: contents; }
+  .board[data-lanes] { flex-direction: column; align-items: flex-start; }
+  .board[data-lanes] .lane-row { display: flex; flex-direction: column; gap: var(--sp-100); inline-size: max-content; min-inline-size: 100%; box-sizing: border-box; padding-block-end: var(--sp-200); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
+  .board[data-lanes] .lane-columns { display: flex; gap: var(--sp-200); align-items: start; }
+  .lane-head { position: sticky; inset-inline-start: 0; align-self: flex-start; margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
   .lane-head b { color: var(--text-primary); font-weight: var(--fw-semibold); }
   .board {
     position: relative;

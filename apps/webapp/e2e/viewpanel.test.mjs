@@ -186,6 +186,19 @@ test('chromium 1280: a board in lanes by a custom field, each lane a row of the 
   assert.deepEqual(heads.slice(0, -1).sort(), [`Bath ${count('Bath')}`, `Kitchen ${count('Kitchen')}`].sort(), `the lanes: ${heads}`);
   assert.ok(heads.at(-1).endsWith(` ${count('')}`), `the lane without a value is not last: ${heads}`);
   assert.equal(await board.locator('.lane-row[data-lane=""]').count(), 1);
+  // One sideways scroll for all lanes: each lane's columns on one line, at the same positions in
+  // every lane, never wrapped under each other.
+  const placed = await board.locator('.lane-row').evaluateAll((lanes) => lanes.map((lane) => [...lane.querySelectorAll('[data-column-zone]')].map((zone) => {
+    const box = zone.getBoundingClientRect();
+    return { zone: zone.dataset.columnZone, x: Math.round(box.left), y: Math.round(box.top) };
+  })));
+  for (const lane of placed) {
+    assert.equal(new Set(lane.map((each) => each.y)).size, 1, `a lane wraps its columns: ${JSON.stringify(lane)}`);
+    assert.deepEqual(lane.map((each) => [each.zone, each.x]), placed[0].map((each) => [each.zone, each.x]), 'the lanes draw their columns at different positions');
+  }
+  const scroll = await board.evaluate((element) => ({ overflow: getComputedStyle(element).overflowX, lanes: [...element.querySelectorAll('.lane-row')].map((lane) => lane.scrollWidth <= lane.clientWidth + 1) }));
+  assert.equal(scroll.overflow, 'auto', 'the board does not scroll sideways as one');
+  assert.ok(scroll.lanes.every(Boolean), 'a lane scrolls on its own');
 
   await panel.getByLabel('Name').fill('By room');
   await panel.locator('[data-view-save]').click();
