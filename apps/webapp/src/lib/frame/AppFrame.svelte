@@ -1020,8 +1020,9 @@
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
-  <!-- *Erstellen*: C, Q, the bar's button and the bottom bar's ＋ (C-5); capture is its line. -->
-  {#if isCaptureOffered && create.isOpen}
+  <!-- *Erstellen*: C, Q, the bar's button and the bottom bar's ＋ (C-5); capture is its line.
+       Mounted while closed: a kind's own dialog (a collection) outlives the menu that opened it. -->
+  {#if isCaptureOffered}
     <CreateMenu here={captureHere} onnavigate={go} />
   {/if}
   {#if isCaptureOffered && capture.isOpen}
