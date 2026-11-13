@@ -645,9 +645,10 @@ test('chromium 375 px, dark: the plans\' home lists the releases to come', async
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 375, scheme: 'dark', path: '/plans', modulesOn: ['PLANNING'] });
   t.after(close);
-  const upcoming = page.getByRole('region', { name: 'Releases to come' });
+  // *For you* (scene homeplans): the releases to come as a card, the soonest first.
+  const upcoming = page.locator('[data-plan-card="releases"]');
   await upcoming.waitFor({ timeout: 10_000 });
-  assert.deepEqual(await upcoming.locator('.name').allTextContents(), ['Autumn fixes', RELEASES[0].name]);
+  assert.deepEqual(await upcoming.locator('.card-rows a').allTextContents(), ['Autumn fixes', RELEASES[0].name]);
   assert.equal(await upcoming.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}/releases`);
   await noSidewaysScroll(page, 'plans 375 dark');
   assert.deepEqual(failures, []);
@@ -660,11 +661,22 @@ test('chromium 1280 px: the plans\' home lists the sprints running and says each
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING'] });
   t.after(close);
+  // *For you* (scene homeplans): the sprint that ends first as a card - its days left, what is done
+  // of its scope, its burndown and where it runs.
+  const card = page.locator('[data-plan-card="sprint"]');
+  await card.locator('[data-burndown]').waitFor({ timeout: 10_000 });
+  assert.match(await card.innerText(), /Running: Sprint Kranich/u);
+  assert.match(await card.innerText(), /(Its last day has passed|\d+ days? left)/u);
+  assert.match(await card.innerText(), /9 of 21 points done/u);
+  assert.match(await card.innerText(), new RegExp(`${HUB.name} › ${SCRUM.name}`));
+  await card.getByRole('button', { name: 'Open' }).click();
+  await page.waitForFunction((id) => location.pathname.startsWith(`/collections/${id}`), SCRUM.id, { timeout: 10_000 });
+  // The sprints' own tab lists them whole.
+  await page.goto(`${served.origin}/plans?tab=sprints`);
   const running = page.getByRole('region', { name: 'Sprints running' });
   await running.waitFor({ timeout: 10_000 });
   assert.deepEqual(await running.locator('.name').allTextContents(), ['Sprint Kranich']);
-  assert.match(await running.locator('.purpose').first().innerText(), new RegExp(`${HUB.name} › ${SCRUM.name} · (Its last day has passed|\\d+ days? left)`));
-  assert.equal(await running.getByRole('link').first().getAttribute('href'), `/collections/${SCRUM.id}/sprints`);
+  await page.goto(`${served.origin}/plans`);
   await page.waitForFunction((name) => [...document.querySelectorAll('main a')].some((a) => a.textContent?.includes(name) && a.textContent.includes('Sprint Kranich ·')), HUB.name, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
@@ -742,8 +754,8 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   t.after(close);
   const plan = page.getByRole('button', { name: 'Plan a sprint' });
   await plan.waitFor({ timeout: 10_000 });
-  // The plans' band (E-1): its tile and figures - the sprints running, the releases due.
-  await page.waitForFunction(() => [...document.querySelectorAll('.band .figure')].map((each) => each.textContent?.trim()).join('|') === '1 sprint running|2 releases due', null, { timeout: 10_000 });
+  // The plans' band (E-1): its tile and figures - the sprints running, the releases due, the plans late.
+  await page.waitForFunction(() => [...document.querySelectorAll('.band .figure')].map((each) => each.textContent?.trim()).join('|') === '1 sprint running|2 releases due|1 plan late', null, { timeout: 10_000 });
   await page.getByRole('button', { name: 'In another collection' }).click();
   await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
@@ -899,10 +911,14 @@ test('chromium 1280 px: the plans\' and the assets\' hub rows say each hub\'s st
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING', 'ASSETS'] });
   t.after(close);
-  const hubs = page.getByRole('region', { name: 'In your hubs' });
+  // The plans in the reader's hubs: the phase now, the sprint and the release, the delay in its
+  // words, and the phases as one bar (scene homeplans).
+  const hubs = page.getByRole('region', { name: 'Plans in your hubs' });
   const row = hubs.locator('li').filter({ hasText: HUB.name });
-  await row.locator('[data-hub-line]').waitFor({ timeout: 10_000 });
-  assert.match(await row.locator('[data-hub-line]').innerText(), /Autumn fixes/u);
+  await row.locator('[data-plan-late]').waitFor({ timeout: 10_000 });
+  assert.match(await row.locator('[data-hub-line]').innerText(), /^Shell · Sprint Kranich · .* · Next: Autumn fixes .* · 4 days late$/u);
+  assert.deepEqual(await row.locator('[data-phase]').evaluateAll((all) => all.map((each) => each.getAttribute('data-phase'))), ['done', 'now']);
+  assert.equal(await row.locator('[data-phases]').getAttribute('aria-label'), 'Phases: Groundwork, Shell');
 
   await page.goto(`${served.origin}/assets`);
   const assets = page.getByRole('region', { name: 'In your hubs' }).locator('li').filter({ hasText: HUB.name });

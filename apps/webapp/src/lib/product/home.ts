@@ -418,3 +418,30 @@ export function placesToCreate(options: {
       .map((collection) => ({ id: collection.id, label: `${hub.name} › ${collection.name}` })),
   );
 }
+
+/** A plan's phase as the plans' home draws it: its share of the plan and where it stands. */
+export interface Phase {
+  readonly id: string;
+  readonly title: string;
+  readonly days: number;
+  readonly state: 'done' | 'now' | 'later';
+}
+
+/**
+ * A plan's phases (work-surface §6.1, scene homeplans): its top-level entries in the order they
+ * start, each with its working days; the one running today is *now*, else the first not done.
+ * A plan with no dated top-level entry has none.
+ */
+export function phasesOf(
+  entries: readonly { readonly item_id: string; readonly title: string; readonly parent_id: string | null; readonly start: string; readonly finish: string; readonly duration_days: number; readonly done: boolean; readonly external: boolean }[],
+  today: string,
+): Phase[] {
+  const top = entries.filter((each) => each.parent_id === null && !each.external).sort((a, b) => a.start.localeCompare(b.start));
+  const running = top.find((each) => !each.done && each.start <= today && today <= each.finish) ?? top.find((each) => !each.done);
+  return top.map((each) => ({
+    id: each.item_id,
+    title: each.title,
+    days: Math.max(1, each.duration_days),
+    state: each === running ? 'now' : each.done ? 'done' : 'later',
+  }));
+}

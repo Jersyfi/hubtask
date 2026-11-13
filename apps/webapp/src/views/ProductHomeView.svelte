@@ -7,7 +7,7 @@
   // read where the product is on, each opening the hub's own screen of it. A hub narrows the
   // workspace's modules (UC-INS-21 check 3), so each hub is asked which are on there.
   import { untrack } from 'svelte';
-  import { Badge, EmptyState, Icon, ListRow, PageHeader, ProductBand, Skeleton, Stack, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import { Badge, EmptyState, Icon, ListRow, PageHeader, ProductBand, Skeleton, Stack, ViewBar, Widget, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -22,10 +22,11 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { productOf } from '../lib/navigation.ts';
-  import { createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
+  import { phasesOf, createAt, createOf, homeTabs, placesByUse, writableHubs, isUnused, hubScreenOf, hubsWithAssetsFirst, inventoryByClass, inventorySummary, nextReleaseOf, pagesToReview, recentBoards, recentPages, releasesDue, sprintsRunning } from '../lib/product/home.ts';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import { releasesPath } from '../lib/data/releases.svelte.ts';
-  import { sprintsPath } from '../lib/data/sprints.svelte.ts';
+  import { sprintPath, sprintsPath } from '../lib/data/sprints.svelte.ts';
+  import SprintBurndown from '../lib/plans/SprintBurndown.svelte';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { sprintDaysLeft } from '../lib/today.ts';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -33,7 +34,7 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, PortfolioList, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, PageList, PlanSchedule, PlanTolerance, PortfolioList, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
   import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
   import BoardTemplates, { type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import { config } from '../lib/data/config.svelte.ts';
@@ -136,6 +137,14 @@
   eachHub<ReleaseList>('PLANNING', releasesPath, (hubId, data) => (releasesAt = { ...releasesAt, [hubId]: data.data }));
   const upcoming = $derived(module === 'PLANNING' ? releasesDue(releasesAt, hubsWith.map((hub) => hub.id), isWhole ? Infinity : RELEASES_SHOWN) : []);
 
+  /**
+   * The plans late (E-1): a hub's plan whose forecast end lies past its latest baseline's, as the
+   * plan's standing answers it; a plan without a baseline is never late.
+   */
+  let slipAt = $state<Record<string, number>>({});
+  eachHub<PlanTolerance>('PLANNING', (hubId) => `/plans/${hubId}/tolerance`, (hubId, data) => (slipAt = { ...slipAt, [hubId]: data.exception?.slip_days ?? 0 }));
+  const plansLate = $derived(module === 'PLANNING' ? hubsWith.filter((hub) => (slipAt[hub.id] ?? 0) > 0).length : 0);
+
   /** The plans' home lists the sprints running in the hubs' collections (§2.2), the soonest to end first. */
   const SPRINTS_SHOWN = 8;
   let sprintsAt = $state<Record<string, SprintList['data']>>({});
@@ -155,6 +164,26 @@
   });
   const running = $derived(sprintsRunning(sprintsAt, sprintCollections, isWhole ? Infinity : SPRINTS_SHOWN));
   const today = $derived(todayIn(actor.zone));
+  /** *For you*'s sprint card: the running sprint that ends first, with its burndown. */
+  const firstSprint = $derived(module === 'PLANNING' && currentTab === 'foryou' ? running[0] : undefined);
+  let firstDetail = $state<SprintDetail | undefined>(undefined);
+  $effect(() => {
+    const id = firstSprint?.id;
+    const zone = actor.zone;
+    if (!id) return;
+    return untrack(() => engine.subscribe<SprintDetail>({ path: sprintPath(id, zone) }, (next) => {
+      if (next.status === 'ready' && next.data.sprint) firstDetail = next.data;
+    }));
+  });
+  /** Each hub's plan as the scheduler places it, for its phases. */
+  let scheduleAt = $state<Record<string, PlanSchedule>>({});
+  eachHub<PlanSchedule>('PLANNING', (hubId) => `/plans/${hubId}/schedule?zone=${encodeURIComponent(actor.zone)}`, (hubId, data) => { if (Array.isArray(data.entries)) scheduleAt = { ...scheduleAt, [hubId]: data }; });
+  /** The hubs with a plan - dated work, a sprint running or a release to come - each with its phases. */
+  const plansListed = $derived(
+    module !== 'PLANNING' ? [] : hubsWith
+      .map((hub) => ({ hub, phases: phasesOf(scheduleAt[hub.id]?.entries ?? [], today) }))
+      .filter(({ hub, phases }) => phases.length > 0 || sprintsRunning(sprintsAt, collectionsOfHub(hub.id), 1).length > 0 || nextReleaseOf(releasesAt, hub.id) !== undefined),
+  );
   const sprintLeft = (endOn: string) => t('app.sprints.days_left', { count: String(sprintDaysLeft(endOn, today)) });
 
   /** The assets' home opens with the inventory's health across hubs (§2.2). */
@@ -321,6 +350,7 @@
       return [
         t('app.product_home.band_sprints', { count: running.length }),
         t('app.product_home.band_releases', { count: upcoming.length }),
+        ...(plansLate > 0 ? [t('app.product_home.band_plans_late', { count: plansLate })] : []),
       ];
     }
     if (module === 'ASSETS' && inventory.isWhole && assetHubs.length > 0) {
@@ -463,7 +493,71 @@
     {#if isPlanQuiet}
       <p class="quiet" data-plan-quiet>{t('app.product_home.plans_quiet')}</p>
     {/if}
-    {#if running.length > 0 && (currentTab === 'foryou' || currentTab === 'sprints')}
+    {#if module === 'PLANNING' && currentTab === 'foryou' && (firstSprint || upcoming.length > 0)}
+      <!-- *For you* (scene homeplans): the sprint that ends first with its burndown, the releases to come. -->
+      <div class="plan-cards">
+        {#if firstSprint}
+          {@const where = containers.find(firstSprint.collection_id)}
+          {@const last = firstDetail?.sprint.id === firstSprint.id ? firstDetail.burndown.at(-1) : undefined}
+          <div class="plan-card" data-plan-card="sprint" data-sprint={firstSprint.id}>
+            <Widget title={t('app.product_home.sprint_card', { name: firstSprint.name })} tile={{ icon: 'calendar', product: 'plans' }}
+              figure={sprintLeft(firstSprint.end_on)}
+              line={last ? t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit: t(`app.sprints.unit_${firstSprint.unit}`) }) : undefined}
+              act={{ label: t('app.today.card_open'), onclick: () => onnavigate(`/collections/${firstSprint.collection_id}/sprints`) }}>
+              {#if firstDetail?.sprint.id === firstSprint.id}<SprintBurndown detail={firstDetail} />{/if}
+              {#if where}<span class="card-from">{hubName(where.parent_id ?? '')} › {where.name}</span>{/if}
+            </Widget>
+          </div>
+        {/if}
+        {#if upcoming.length > 0}
+          <div class="plan-card" data-plan-card="releases">
+            <Widget title={t('app.product_home.releases_due')} tile={{ icon: 'flag', product: 'plans' }}>
+              <ul class="card-rows">
+                {#each upcoming.slice(0, 3) as each (each.id)}
+                  <li>
+                    <a href={`/hubs/${each.hub_id}/releases`}>{each.name}</a>
+                    <span class="when">{formatPlainDay(each.release_on, messages.locale)}</span>
+                    <span class="card-from">{hubName(each.hub_id)}</span>
+                  </li>
+                {/each}
+              </ul>
+            </Widget>
+          </div>
+        {/if}
+      </div>
+    {/if}
+    {#if module === 'PLANNING' && currentTab === 'foryou' && plansListed.length > 0}
+      <section aria-labelledby="product-plans">
+        <Stack gap="100">
+          <h2 class="heading" id="product-plans">{t('app.product_home.plans_in_hubs')}</h2>
+          <ul class="hubs">
+            {#each plansListed as { hub, phases } (hub.id)}
+              {@const path = hubScreenOf(module, hub.id) ?? `/hubs/${hub.id}`}
+              {@const now = phases.find((each) => each.state === 'now')}
+              {@const slip = slipAt[hub.id] ?? 0}
+              {@const line = hubLine(hub.id)}
+              <li data-plan={hub.id}>
+                <ListRow href={path} onactivate={() => onnavigate(path)} label={hub.name}>
+                  {#snippet leading()}<Icon name={markOf(hub)} size="sm" />{/snippet}
+                  <span class="name" title={hub.name}>{hub.name}</span>
+                  <span class="purpose" data-hub-line>
+                    {[now?.title, line].filter(Boolean).join(' · ')}{#if slip > 0}{now || line ? ' · ' : ''}<span class="late" data-plan-late>{t('app.product_home.plan_late', { count: slip })}</span>{/if}
+                  </span>
+                  {#snippet trailing()}
+                    {#if phases.length > 0}
+                      <span class="phases" role="img" aria-label={t('app.product_home.phases_label', { phases: phases.map((each) => each.title).join(', ') })} data-phases>
+                        {#each phases as phase (phase.id)}<span class="phase" data-phase={phase.state} data-late={phase.state === 'now' && slip > 0 ? '' : undefined} style:flex-grow={phase.days}></span>{/each}
+                      </span>
+                    {/if}
+                  {/snippet}
+                </ListRow>
+              </li>
+            {/each}
+          </ul>
+        </Stack>
+      </section>
+    {/if}
+    {#if running.length > 0 && currentTab === 'sprints'}
       <section aria-labelledby="product-sprints">
         <Stack gap="100">
           <h2 class="heading" id="product-sprints">{t('app.product_home.sprints_running')}</h2>
@@ -482,7 +576,7 @@
         </Stack>
       </section>
     {/if}
-    {#if upcoming.length > 0 && (currentTab === 'foryou' || currentTab === 'releases')}
+    {#if upcoming.length > 0 && currentTab === 'releases'}
       <section aria-labelledby="product-releases">
         <Stack gap="100">
           <h2 class="heading" id="product-releases">{t('app.product_home.releases_due')}</h2>
@@ -551,7 +645,7 @@
         </Stack>
       </section>
     {/if}
-    {#if hubScreenOf(module, '') !== undefined && (showsHubs || (!isReading && hubsWith.length === 0))}
+    {#if hubScreenOf(module, '') !== undefined && ((showsHubs && !(module === 'PLANNING' && currentTab === 'foryou' && !isReading && hubsWith.length > 0)) || (!isReading && hubsWith.length === 0))}
       <section aria-labelledby="product-hubs">
         <Stack gap="100">
           <h2 class="heading" id="product-hubs">{t('app.product_home.hubs')}</h2>
@@ -599,6 +693,22 @@
   /* Boards are visual, so they are cards (§5.1), as many to a row as fit. */
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
   .purpose { display: block; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
+  /* *For you* on the plans: two cards side by side, one column where they do not fit. */
+  .plan-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(var(--sp-1600) * 2)), 1fr)); gap: var(--sp-150); }
+  .card-from { color: var(--text-subtle); font-size: var(--fs-075); }
+  .card-rows { display: grid; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .card-rows li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-100); }
+  .card-rows a { overflow: hidden; color: var(--text-primary); font-weight: var(--fw-semibold); text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
+  .card-rows a:hover { text-decoration: underline; }
+  .card-rows .when { color: var(--text-secondary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
+  .late { color: var(--text-danger); }
+  /* A plan's phases as one bar: done, now, later; the one now late says so in the line. */
+  .phases { display: flex; gap: var(--sp-025); inline-size: var(--sp-1600); block-size: var(--sp-100); }
+  .phase { flex-basis: 0; border-radius: var(--r-sm); background: var(--accent-primary-subtle); }
+  .phase[data-phase='done'] { background: var(--accent-primary); }
+  .phase[data-phase='now'] { background: var(--accent-primary); }
+  .phase[data-late] { background: var(--status-danger-accent); }
+
   /* The same figures as a hub's health section draws (lib/assets/Health.svelte). */
   .figures { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--sp-1600)), 1fr)); gap: var(--sp-100); margin: 0; }
   .figures div {

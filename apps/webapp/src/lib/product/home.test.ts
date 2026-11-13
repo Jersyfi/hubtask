@@ -8,7 +8,7 @@ import { SOURCE } from '../i18n/source.ts';
 import { PRODUCTS } from '../navigation.ts';
 import { ROUTES } from '../routes.ts';
 import { resolve } from '../router.ts';
-import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding } from './home.ts';
+import { collectionScreenOf, createAt, createOf, CREATE_ASKED, isUnused, recentRuns, homeTabs, hubScreenOf, inventorySummary, moreInHubtask, pagesToReview, recentBoards, recentPages, releasesDue, placesByUse, placesToCreate, writableHubs, nextReleaseOf, hubsWithAssetsFirst, inventoryByClass, sprintsRunning, pagesChangedSince, boardsChangedSince, goalsStanding, phasesOf } from './home.ts';
 
 // user-experience.md §2.2: every product's home leads somewhere - to a hub's screen of it or to a
 // workspace-wide screen it already has - and every address resolves to a route.
@@ -287,4 +287,19 @@ test('a hub\'s overview counts the goals still pursued and those of them at risk
   const goals = ['ON_TRACK', 'AT_RISK', 'OFF_TRACK', 'NONE', 'DONE', 'DROPPED'].map((status) => ({ status }));
   assert.deepEqual(goalsStanding(goals), { open: 4, atRisk: 2 });
   assert.deepEqual(goalsStanding([]), { open: 0, atRisk: 0 });
+});
+
+test('a plan\'s phases are its top-level entries by start, the one running today now', () => {
+  const entry = (id: string, start: string, finish: string, done = false, parent: string | null = null) =>
+    ({ item_id: id, title: id, parent_id: parent, start, finish, duration_days: 5, done, external: false });
+  const phases = phasesOf([
+    entry('build', '2026-11-10', '2026-11-20'),
+    entry('plan', '2026-11-01', '2026-11-07', true),
+    entry('wall', '2026-11-11', '2026-11-12', false, 'build'),
+    entry('open', '2026-12-01', '2026-12-05'),
+  ], '2026-11-13');
+  assert.deepEqual(phases.map((each) => [each.id, each.state]), [['plan', 'done'], ['build', 'now'], ['open', 'later']]);
+  // Between phases the first not done is the one now.
+  assert.deepEqual(phasesOf([entry('plan', '2026-11-01', '2026-11-07', true), entry('open', '2026-12-01', '2026-12-05')], '2026-11-13').map((each) => each.state), ['done', 'now']);
+  assert.deepEqual(phasesOf([], '2026-11-13'), []);
 });
