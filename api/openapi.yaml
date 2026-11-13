@@ -18278,7 +18278,11 @@ paths:
       description: >
         The workflow the entry's collection runs for its type, the entry's status, and the steps
         the person may take from it, each with what it asks for, what it still needs and whether
-        its checks hold. `workflow` is null where none runs; a reader gets no steps.
+        its checks hold. `workflow` is null where none runs; a reader gets no steps. Beside them
+        the steps from the status the person may not take, each with a reason code and who may;
+        the fewest steps into done; the workflow's picture, read-only for every reader; and
+        whether the person may open it in the designer. Where no workflow runs the picture is the
+        default one, every status reachable, and completing the entry reaches done.
       responses:
         "200":
           description: The steps
@@ -32215,6 +32219,7 @@ components:
               messages: { type: object, additionalProperties: { type: string }, description: "The words per language." }
               message_code: { type: [string, "null"], description: "The shipped message picked." }
         holds: { type: boolean, description: "Whether it may be taken now." }
+        approval_levels: { type: integer, minimum: 0, description: "How many levels of approval taking it opens; 0 moves the entry at once." }
         from: { type: string, description: "On a try: the status it was judged from." }
         leaves_from: { type: boolean, description: "On a try: whether it leaves that status." }
 
@@ -32227,6 +32232,74 @@ components:
         steps:
           type: array
           items: { $ref: "#/components/schemas/StepVerdict" }
+        blocked:
+          type: array
+          description: The steps from the status the person may not take, in the workflow's order; empty for a reader.
+          items: { $ref: "#/components/schemas/BlockedStep" }
+        done_route:
+          type: array
+          description: >
+            The fewest steps from the status into a done one, whoever may take them; empty from a
+            done status, where no step leads there, and where no workflow runs.
+          items:
+            type: object
+            required: [key, name, to]
+            properties:
+              key: { type: string }
+              name: { type: [string, "null"] }
+              to: { type: string }
+        picture: { $ref: "#/components/schemas/WorkflowPicture" }
+        by_default:
+          type: boolean
+          description: >
+            True where no workflow runs: the picture is the default one, every status is
+            reachable, and completing the entry reaches done.
+        may_design: { type: boolean, description: "Whether the person may open the workflow in the designer." }
+
+    BlockedStep:
+      type: object
+      description: A step from the entry's status the person may not take, and who may.
+      required: [key, name, to, reason, roles, people, groups]
+      properties:
+        key: { type: string }
+        name: { type: [string, "null"] }
+        to: { type: string }
+        reason:
+          type: string
+          enum: [workflows.step_who_unmet, workflows.step_condition_unmet]
+          description: >
+            `workflows.step_who_unmet`: the step is limited to roles, people or groups the person
+            is not among; `workflows.step_condition_unmet`: its condition over the entry and the
+            person does not hold.
+        roles: { type: array, items: { type: string }, description: "The roles that may take it." }
+        people:
+          type: array
+          description: The people the step's person fields name on this entry.
+          items: { type: string, format: uuid }
+        groups: { type: array, items: { type: string, format: uuid }, description: "The groups whose members may take it." }
+        permission: { type: string, description: "The permission that opens it to whoever holds it." }
+
+    WorkflowPicture:
+      type: object
+      description: A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+      required: [statuses, initial, steps]
+      properties:
+        statuses:
+          type: array
+          items: { $ref: "#/components/schemas/WorkflowStatus" }
+        initial: { type: string }
+        steps:
+          type: array
+          items:
+            type: object
+            required: [key, name, from, to, limited, approval]
+            properties:
+              key: { type: string }
+              name: { type: [string, "null"] }
+              from: { type: array, items: { type: string }, description: "Empty is any status but its target." }
+              to: { type: string }
+              limited: { type: boolean, description: "Whether only some people may take it." }
+              approval: { type: boolean, description: "Whether taking it waits for an approval." }
 
     EntryType:
       type: object

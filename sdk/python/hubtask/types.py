@@ -2684,6 +2684,7 @@ StepVerdict = TypedDict("StepVerdict", {
     "missing": Required[list[str]],
     "checks": Required[list[dict[str, Any]]],
     "holds": Required[bool],
+    "approval_levels": int,
     "from": str,
     "leaves_from": bool,
 }, total=False)
@@ -2692,6 +2693,28 @@ class EntrySteps(TypedDict, total=False):
     workflow: Required[str | None]
     status: Required[str | None]
     steps: Required[list["StepVerdict"]]
+    blocked: list["BlockedStep"]
+    done_route: list[dict[str, Any]]
+    picture: "WorkflowPicture"
+    by_default: bool
+    may_design: bool
+
+class BlockedStep(TypedDict, total=False):
+    """A step from the entry's status the person may not take, and who may."""
+    key: Required[str]
+    name: Required[str | None]
+    to: Required[str]
+    reason: Required[Literal["workflows.step_who_unmet", "workflows.step_condition_unmet"]]
+    roles: Required[list[str]]
+    people: Required[list[str]]
+    groups: Required[list[str]]
+    permission: str
+
+class WorkflowPicture(TypedDict, total=False):
+    """A workflow drawn read-only - its statuses and the steps between them, without who may take them."""
+    statuses: Required[list["WorkflowStatus"]]
+    initial: Required[str]
+    steps: Required[list[dict[str, Any]]]
 
 class EntryType(TypedDict, total=False):
     """A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries."""

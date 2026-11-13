@@ -2008,6 +2008,24 @@ func (e BackupTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for BlockedStepReason.
+const (
+	WorkflowsStepConditionUnmet BlockedStepReason = "workflows.step_condition_unmet"
+	WorkflowsStepWhoUnmet       BlockedStepReason = "workflows.step_who_unmet"
+)
+
+// Valid indicates whether the value is a known member of the BlockedStepReason enum.
+func (e BlockedStepReason) Valid() bool {
+	switch e {
+	case WorkflowsStepConditionUnmet:
+		return true
+	case WorkflowsStepWhoUnmet:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BulkOperationOp.
 const (
 	ADDLABEL     BulkOperationOp = "ADD_LABEL"
@@ -13779,6 +13797,30 @@ type BillingRateList struct {
 	Data []BillingRate `json:"data"`
 }
 
+// BlockedStep A step from the entry's status the person may not take, and who may.
+type BlockedStep struct {
+	// Groups The groups whose members may take it.
+	Groups []openapi_types.UUID `json:"groups"`
+	Key    string               `json:"key"`
+	Name   *string              `json:"name"`
+
+	// People The people the step's person fields name on this entry.
+	People []openapi_types.UUID `json:"people"`
+
+	// Permission The permission that opens it to whoever holds it.
+	Permission *string `json:"permission,omitempty"`
+
+	// Reason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
+	Reason BlockedStepReason `json:"reason"`
+
+	// Roles The roles that may take it.
+	Roles []string `json:"roles"`
+	To    string   `json:"to"`
+}
+
+// BlockedStepReason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
+type BlockedStepReason string
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -17341,9 +17383,27 @@ type EntrySlaList struct {
 
 // EntrySteps defines model for EntrySteps.
 type EntrySteps struct {
-	Status   *string       `json:"status"`
-	Steps    []StepVerdict `json:"steps"`
-	Workflow *string       `json:"workflow"`
+	// Blocked The steps from the status the person may not take, in the workflow's order; empty for a reader.
+	Blocked *[]BlockedStep `json:"blocked,omitempty"`
+
+	// ByDefault True where no workflow runs: the picture is the default one, every status is reachable, and completing the entry reaches done.
+	ByDefault *bool `json:"by_default,omitempty"`
+
+	// DoneRoute The fewest steps from the status into a done one, whoever may take them; empty from a done status, where no step leads there, and where no workflow runs.
+	DoneRoute *[]struct {
+		Key  string  `json:"key"`
+		Name *string `json:"name"`
+		To   string  `json:"to"`
+	} `json:"done_route,omitempty"`
+
+	// MayDesign Whether the person may open the workflow in the designer.
+	MayDesign *bool `json:"may_design,omitempty"`
+
+	// Picture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+	Picture  *WorkflowPicture `json:"picture,omitempty"`
+	Status   *string          `json:"status"`
+	Steps    []StepVerdict    `json:"steps"`
+	Workflow *string          `json:"workflow"`
 }
 
 // EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
@@ -24548,9 +24608,12 @@ type StepUpRequest struct {
 // StepVerdict defines model for StepVerdict.
 type StepVerdict struct {
 	// Allowed Whether the person may take it.
-	Allowed bool     `json:"allowed"`
-	Asks    []string `json:"asks"`
-	Checks  []struct {
+	Allowed bool `json:"allowed"`
+
+	// ApprovalLevels How many levels of approval taking it opens; 0 moves the entry at once.
+	ApprovalLevels *int     `json:"approval_levels,omitempty"`
+	Asks           []string `json:"asks"`
+	Checks         []struct {
 		Holds   bool    `json:"holds"`
 		Key     string  `json:"key"`
 		Message *string `json:"message,omitempty"`
@@ -26561,6 +26624,25 @@ type WorkflowList struct {
 		EntryType *string `json:"entry_type"`
 		Workflow  string  `json:"workflow"`
 	} `json:"scheme"`
+}
+
+// WorkflowPicture A workflow drawn read-only - its statuses and the steps between them, without who may take them.
+type WorkflowPicture struct {
+	Initial  string           `json:"initial"`
+	Statuses []WorkflowStatus `json:"statuses"`
+	Steps    []struct {
+		// Approval Whether taking it waits for an approval.
+		Approval bool `json:"approval"`
+
+		// From Empty is any status but its target.
+		From []string `json:"from"`
+		Key  string   `json:"key"`
+
+		// Limited Whether only some people may take it.
+		Limited bool    `json:"limited"`
+		Name    *string `json:"name"`
+		To      string  `json:"to"`
+	} `json:"steps"`
 }
 
 // WorkflowPreview defines model for WorkflowPreview.
