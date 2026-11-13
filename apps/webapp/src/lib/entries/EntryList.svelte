@@ -1984,6 +1984,8 @@
     /* Out of sight until then, never out of reach: still in the reading order and focusable, so
        a screen reader finds a row's menu and the Tab key brings it into view. */
     .row:not(:hover, :focus-within, :has(:global([aria-expanded='true']))) .tools {
+      /* Their containing block, so a visually hidden label is clipped with them, not past the row. */
+      position: relative;
       inline-size: var(--sp-025);
       block-size: var(--sp-025);
       padding: 0;
