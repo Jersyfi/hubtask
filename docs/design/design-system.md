@@ -508,7 +508,7 @@ otherwise.
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
-`DeadlineBar` · `DeadlineList` · `DensitySwitch`
+`DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline`
 
 The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
 §5; its mockups are the look), built before any screen uses them so that one pattern looks the same
@@ -590,6 +590,12 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   deadline's bar with words (a paused clock with its mark, the track a hairline's colour so it shows
   on the dark surface); a ticket's deadlines by urgency with bar and due time, the kept line and
   *All deadlines as a table* (ET-6); *Comfortable | Compact* kept on the device, gone on a phone.
+
+* **`TrustLine`**, **`PageOutline`** — the two blocks of a page in Knowledge that frame its reading
+  (S-2, S-3): under the title who answers for the page, the verification as a `StateLozenge`
+  (*verified until …* or *review due*, a button for a writer), the last change and the labels; beside
+  the reading column (`layout.reading`, running text at `font.size.250` with the loose line height)
+  the headings of levels 2 and 3, the one in view marked and followed while the page scrolls.
 
 **Fixes after review (2026-11-13).** A `work` row is one line at the density's height: no cell
 wraps, the title is cut with an ellipsis and shows its whole words on hover (`titleText`) and while
