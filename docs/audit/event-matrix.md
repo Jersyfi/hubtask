@@ -129,6 +129,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
+| `ai.query_asked` | AskQuery | `tenant` | INFO | Every time |
 | `ai.question_asked` | AskWorkspace | `account` | NOTICE | Every time |
 | `ai.rule_asked` | DescribeRule | `automation_rule` | NOTICE | Every time |
 | `ai.source_chosen` | ChooseAiSource | `ai_source` | NOTICE | Every time |
@@ -141,7 +142,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.summary_asked` | AiSummarizeThread | `ai_suggestion` | NOTICE | Every time |
 | `ai.template_asked` | AiGenerateTemplate | `ai_suggestion` | NOTICE | Every time |
 | `ai.translation_asked` | AiTranslate | `item` | NOTICE | Every time |
-| `ai.query_asked` | AskQuery | `tenant` | INFO | Every time; never the question |
 
 ## Approval
 
