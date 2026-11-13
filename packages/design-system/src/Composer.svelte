@@ -86,6 +86,15 @@
   const isEmpty = $derived(value.trim() === '');
 
   let snippetMenu = $state<{ open: (index?: number) => void } | null>(null);
+  // A menu of the bar takes the focus out of the composer: while one is open the bar stays, or its
+  // trigger would vanish under it and close it.
+  let isSnippetsOpen = $state(false);
+  let isMacrosOpen = $state(false);
+
+  /** Opens the insert menu at its first item, as `/` does in the plain field: the caller's editor asks for it. */
+  export function openSnippets(): void {
+    snippetMenu?.open(0);
+  }
 
   function send() {
     if (isEmpty || isBusy || disabledReason !== undefined) return;
@@ -101,7 +110,7 @@
   }
 </script>
 
-<div class="composer" data-mode={isNote ? 'note' : 'reply'} data-readonly={disabledReason !== undefined ? '' : undefined} data-empty={isEmpty ? '' : undefined}>
+<div class="composer" data-mode={isNote ? 'note' : 'reply'} data-readonly={disabledReason !== undefined ? '' : undefined} data-empty={isEmpty ? '' : undefined} data-held={isSnippetsOpen || isMacrosOpen ? '' : undefined}>
   {#if modes}
     <div class="modes">
       <div class="tabs" role="tablist" aria-label={modes.label}>
@@ -150,14 +159,14 @@
       <div class="bar">
         {#if attach}<IconButton icon="paperclip" label={attach.label} tone="subtle" size="sm" onclick={attach.onattach} />{/if}
         {#if snippets}
-          <Menu bind:this={snippetMenu} label={snippets.label} items={snippets.items} onselect={snippets.onselect}>
+          <Menu bind:this={snippetMenu} bind:isOpen={isSnippetsOpen} label={snippets.label} items={snippets.items} onselect={snippets.onselect}>
             {#snippet trigger(props)}
               <IconButton icon="file-text" label={snippets.label} tone="subtle" size="sm" {...props} />
             {/snippet}
           </Menu>
         {/if}
         {#if macros}
-          <Menu label={macros.label} items={macros.items} onselect={macros.onselect} head={macros.title ? macroTitle : undefined}>
+          <Menu bind:isOpen={isMacrosOpen} label={macros.label} items={macros.items} onselect={macros.onselect} head={macros.title ? macroTitle : undefined}>
             {#snippet trigger(props)}
               <IconButton icon="zap" label={macros.label} tone="subtle" size="sm" {...props} />
             {/snippet}
@@ -269,9 +278,9 @@
 
   /* Empty and not in use, it is one line to start writing in (§6.9): the formatting and the send
      come forward with the focus, so a quiet conversation does not open on an empty form. */
-  .composer[data-empty]:not(:focus-within) .format,
-  .composer[data-empty]:not(:focus-within) .bar { display: none; }
-  .composer[data-empty]:not(:focus-within) .field { min-block-size: 0; }
+  .composer[data-empty]:not(:focus-within, [data-held]) .format,
+  .composer[data-empty]:not(:focus-within, [data-held]) .bar { display: none; }
+  .composer[data-empty]:not(:focus-within, [data-held]) .field { min-block-size: 0; }
 
   .bar {
     display: flex;
