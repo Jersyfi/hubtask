@@ -156,6 +156,14 @@ export interface Names {
   none: string;
 }
 
+/**
+ * A report group's identity for its row: its keys as dimension and value. A key is an object, so
+ * joining the keys themselves made every group the same text and the table refused the duplicates.
+ */
+export function groupKey(group: { readonly keys: readonly { readonly dimension: string; readonly value: string }[] }): string {
+  return JSON.stringify(group.keys.map((key) => [key.dimension, key.value]));
+}
+
 /** The words for one key of a report's group. */
 export function keyLabel(key: TimeReport['groups'][number]['keys'][number], names: Names): string {
   if (key.value === '') return names.none;

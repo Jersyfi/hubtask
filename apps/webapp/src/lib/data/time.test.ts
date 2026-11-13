@@ -8,7 +8,7 @@ import type { PlacedTimeRecord } from '@hubtask/sync-engine';
 
 import {
   ranTooLong, usualEnd,
-  absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel,
+  absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel, groupKey,
   hoursClockText, minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf, weekText,
 } from './time.ts';
 
@@ -190,4 +190,12 @@ test('hours are written as hours and minutes, signed', () => {
   assert.equal(hoursClockText(0), '0:00');
   assert.equal(hoursClockText(-2.25), '−2:15');
   assert.equal(hoursClockText(0.333), '0:20');
+});
+
+test('a report group is told apart by its keys, not by the text of an object', () => {
+  const ana = { keys: [{ dimension: 'PERSON', value: 'p-1' }, { dimension: 'ENTRY', value: 'e-1' }] };
+  const ben = { keys: [{ dimension: 'PERSON', value: 'p-2' }, { dimension: 'ENTRY', value: 'e-1' }] };
+  assert.notEqual(groupKey(ana), groupKey(ben), 'two people, two rows - the report crashed on a duplicate key');
+  assert.equal(groupKey(ana), groupKey({ keys: [...ana.keys] }));
+  assert.notEqual(groupKey({ keys: [{ dimension: 'ENTRY', value: 'a|b' }] }), groupKey({ keys: [{ dimension: 'ENTRY', value: 'a' }, { dimension: 'ENTRY', value: 'b' }] }));
 });

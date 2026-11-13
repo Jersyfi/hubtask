@@ -40,7 +40,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    DIMENSIONS, WORK_TYPES, addDays, dayHeading, exportCsv, isChangeable, keyLabel, minutesOf, minutesText, queuePath, time,
+    DIMENSIONS, WORK_TYPES, addDays, dayHeading, exportCsv, groupKey, isChangeable, keyLabel, minutesOf, minutesText, queuePath, time,
     weekDays, weekGrid, weekPath, weekStartOf, type RecordFields,
   } from '../lib/data/time.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -519,7 +519,7 @@
           <p class="quiet">{t('app.time.withheld', { groups: String(answer.withheld_groups), minutes: minutesText(answer.withheld_minutes) })}</p>
         {/if}
       {/if}
-      <DataTable label={t('app.time.tab_report')} columns={reportColumns} rows={answer.groups} key={(group: TimeReport['groups'][number]) => group.keys.join('|')}>
+      <DataTable label={t('app.time.tab_report')} columns={reportColumns} rows={answer.groups} key={(group: TimeReport['groups'][number]) => groupKey(group)}>
         {#snippet cell(group: TimeReport['groups'][number], column: DataColumn)}
           {#if column.id === 'minutes'}
             <span class="share">
