@@ -1540,6 +1540,8 @@ func run() error {
 		Providers: aiResolver, Budget: quotaGuard,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
+	// One search's words are embedded once across its requests (UC-AI-07).
+	searchMemo := work.NewMeaningMemo(clockadapter.System{})
 	// What asking a provider does when the job runs. It acts for the person who asked, so
 	// the reads it performs go through the catalogue with their rights - which is the same
 	// arrangement the acceptance has, and for the same reason.
@@ -3123,7 +3125,7 @@ func run() error {
 		suggestionservice.FindDuplicatesByTitle{
 			Meaning: work.SearchMeaning{
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
-				UnitOfWork: unitOfWork, Kept: keptOut,
+				UnitOfWork: unitOfWork, Kept: keptOut, Memo: searchMemo,
 			},
 			Neighbours: postgres.NewEmbeddingRepository(),
 			Reader:     authorizer,
@@ -3505,7 +3507,7 @@ func run() error {
 			// search rather than a failure.
 			Meaning: work.SearchMeaning{
 				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
-				UnitOfWork: unitOfWork, Kept: keptOut,
+				UnitOfWork: unitOfWork, Kept: keptOut, Memo: searchMemo,
 			},
 		}.Descriptor(),
 		// The index brought current at an administrator's request: what the row's

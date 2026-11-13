@@ -34,6 +34,8 @@ type SearchMeaning struct {
 	// Kept is whose content stays out of AI. A person kept out searches by words: what they type
 	// is theirs, and no AI action is theirs (UC-PRV-05 check 7). Nil keeps nobody out.
 	Kept KeptOutReader
+	// Memo reuses a search's vector across its requests; nil embeds every time.
+	Memo *MeaningMemo
 }
 
 // defaultMeaningTimeout is how long a search waits for a provider.
@@ -96,6 +98,11 @@ func (m SearchMeaning) Of(
 		return nil, "", nil
 	}
 
+	key := meaningKey{tenant: actor.TenantID, model: capabilities.EmbeddingModel, words: words}
+	if vector, held := m.Memo.get(key); held {
+		return vector, capabilities.EmbeddingModel, nil
+	}
+
 	timeout := m.Timeout
 	if timeout <= 0 {
 		timeout = defaultMeaningTimeout
@@ -119,5 +126,6 @@ func (m SearchMeaning) Of(
 	// The configured name rather than the one the provider answered, for the reason the pass
 	// stores the configured one: it is what the rows carry, and a provider that resolves an alias
 	// would otherwise name a model no row is stored under.
+	m.Memo.put(key, answer.Vectors[0])
 	return answer.Vectors[0], capabilities.EmbeddingModel, nil
 }
