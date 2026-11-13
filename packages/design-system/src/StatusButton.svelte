@@ -42,6 +42,8 @@
     look?: LozengeLook;
     /** Present: the status is read only here, and this says why (P-05). */
     disabledReason?: string;
+    /** The id of the element that already says the reason (a read-only notice): the status refers to it and says it no second time. */
+    reasonSaidAt?: string;
     onstep?: (step: WorkflowStep) => void;
     closeLabel: string;
     grabLabel?: string;
@@ -58,6 +60,7 @@
     workflow,
     look,
     disabledReason,
+    reasonSaidAt,
     onstep,
     closeLabel,
     grabLabel,
@@ -152,8 +155,8 @@
 
 <span class="anchor" bind:this={anchor}>
   {#if disabledReason !== undefined}
-    <span class="status" data-tone={tone} data-readonly="" aria-describedby={reasonId}>{#if look?.icon}<Icon name={look.icon} size="sm" />{/if}{current.label}</span>
-    <span class="reason" id={reasonId}>{disabledReason}</span>
+    <span class="status" data-tone={tone} data-readonly="" aria-describedby={reasonSaidAt ?? reasonId}>{#if look?.icon}<Icon name={look.icon} size="sm" />{/if}{current.label}</span>
+    {#if !reasonSaidAt}<span class="reason" id={reasonId}>{disabledReason}</span>{/if}
   {:else}
     <button
       type="button"

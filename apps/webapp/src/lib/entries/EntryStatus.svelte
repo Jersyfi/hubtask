@@ -34,10 +34,12 @@
     oncomplete: () => void;
     /** Present: the reader may not change the entry now, and this says why. */
     disabledReason?: string;
+    /** The id of the page's notice that says the reason already. */
+    reasonSaidAt?: string;
     onnavigate?: (path: string) => void;
   }
 
-  let { item, runs = $bindable(false), next = $bindable(undefined), oncomplete, disabledReason, onnavigate }: Props = $props();
+  let { item, runs = $bindable(false), next = $bindable(undefined), oncomplete, disabledReason, reasonSaidAt, onnavigate }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntrySteps>(untrack(() => `/items/${item.id}/steps`));
@@ -185,6 +187,7 @@
       doneHint={model.doneHint}
       workflow={answer.picture && !model.byDefault ? { label: t('app.workflows.view'), onview: () => (isPictureOpen = true) } : undefined}
       {disabledReason}
+      {reasonSaidAt}
       onstep={choose}
       closeLabel={t('app.workflows.close')}
       grabLabel={t('app.workflows.close')}

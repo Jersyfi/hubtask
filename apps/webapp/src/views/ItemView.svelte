@@ -1201,7 +1201,7 @@
         isDone={item.completion?.is_completed === true}
       >
         {#snippet status()}
-          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} {onnavigate} />{/key}
+          {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
       <!-- On a phone the head's top row stays hidden (WB-8); the ask and the key's copy stay reachable under it. -->
