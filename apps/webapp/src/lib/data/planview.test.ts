@@ -60,6 +60,7 @@ test('a colour per value, in the order they come, round the palette', () => {
   assert.equal(tones.get('h'), 1);
 });
 
+// UC-PLN-01 check 6, UC-PLN-02 check 7.
 test('without the module the plan is the entries own dates: a due alone is a point, no date is undated (E-16)', () => {
   const day = (instant: string) => instant.slice(0, 10);
   const plan = scheduleOfEntries(

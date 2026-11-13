@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-04, P-08, P-11, P-13, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, apps/webapp/src/lib/data/planning.test.ts, apps/webapp/src/lib/data/schedule.test.ts, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/plan.test.mjs, test/architecture/doorsalike_test.go]
+checked_by: [core/domain/model/planning/Schedule_test.go, core/application/service/planning/Planner_test.go, test/integration/planning_repository_test.go, apps/webapp/src/lib/data/planning.test.ts, apps/webapp/src/lib/data/schedule.test.ts, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/plan.test.mjs, test/architecture/doorsalike_test.go, apps/webapp/e2e/timeline.test.mjs, apps/webapp/src/lib/data/planview.test.ts, apps/webapp/src/lib/workspace/placeViews.test.ts, apps/webapp/e2e/sprints.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs]
 ---
 
 # See the plan as a Gantt chart and move it by hand
@@ -46,15 +46,21 @@ The design lead sets the copy to start two days after the design starts instead.
 5. A parent set to automatic spans its children; a dependency to or from it is drawn and not
    scheduled.
 6. A loop of dependencies cannot be scheduled and is refused with `planning.cycle`.
-7. The Gantt screen draws the plan's bars, milestones and summary bars, a today line and zoom from
-   a day to a year, moves and resizes a bar by dragging and draws a dependency by dragging, and is
-   operable by keyboard and readable as a table.
+7. *Zeitplan* draws the plan in two presentations of one tab - a light timeline and the Gantt,
+   which needs the planning module: bars, milestones and summary bars, a today line and zoom from a
+   day to a year; it moves and resizes a bar by dragging and draws a dependency by dragging, and is
+   operable by keyboard and readable as a table. Without the module a collection's timeline is the
+   light presentation drawn from the entries' own dates. The plan's view - presentation, what is
+   seen, rows, bars, the baseline compared against and the columns - is saved as a view of its place.
 8. REST, MCP and hubctl read the plan, apply it, and set a dependency's timing and an entry's mode
    alike.
 9. While the server is away, the Gantt screen draws the plan from the device's copy: the entries'
    own dates in the reader's zone, their mode and milestone mark and the dependencies between them
    with their kind and lag, and says that proposed moves, float and the critical chain come back
    with the server; none of them is reckoned on the device.
+10. A hub's plan is one tool with the tabs Zeitplan, Table, Dependencies, Releases and Sprints;
+    *Sprints* shows only where a collection of the hub runs sprints, and gathers their sprints:
+    running with a burndown, planned against the velocity, closed committed against done.
 
 ## Where it ends
 

@@ -343,7 +343,7 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   const { page, failures, written, close, unstubbed } = await open(browser, `/hubs/${HUB.id}/releases`);
   t.after(close);
 
-  // It opens on the next planned release, with what is done and open counted by the server.
+  // UC-PLN-08 check 7. It opens on the next planned release, with what is done and open counted by the server.
   const chosen = page.locator(`[data-release-chosen="${COMING.id}"]`);
   await chosen.waitFor({ timeout: 15_000 });
   await page.locator('[data-release-done]').getByText('1 done, 0 open').waitFor({ timeout: 5_000 });
@@ -398,7 +398,7 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   assert.deepEqual(unstubbed(), []);
 });
 
-// Scene plansprints: the hub's Sprints tab gathers every collection's sprints.
+// Scene plansprints (UC-PLN-02 check 10): the hub's Sprints tab gathers every collection's sprints.
 test('chromium: 1280 px — the hub\'s sprints: running with its burndown, planned against the velocity, closed committed against done', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

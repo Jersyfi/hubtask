@@ -45,9 +45,10 @@ link to its entry.
    deleted, and its entries are in none afterwards.
 6. A release stays in its workspace: the workspace next door neither reads nor deletes it, and it
    and its entries are in the workspace's archive and its access export.
-7. The *Releases* screen of a hub shows its releases, the selected one's entries done and open, the
-   entries of one of the hub's collections to add, and releases it with the choice where open work
-   goes and whether the notes are written.
+7. The *Releases* screen of a hub names the next release and the sprint running, shows its releases
+   on an axis of months, the selected one's entries done and open, adds entries from every
+   collection of the hub, and releases it with the choice where open work goes and whether the
+   notes are written.
 8. While the server is away, the *Releases* screen answers a hub's releases and a release's entries
    from the device's copy; every write waits for the server.
 9. REST, MCP and hubctl plan, change, fill, release and read releases alike.

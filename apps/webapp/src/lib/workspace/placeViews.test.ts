@@ -22,6 +22,7 @@ test('a collection draws one view bar: list, board, timeline, time and its saved
   assert.equal(collectionViews({ id: 'c', modulesOn: ALL, saved }).at(-1)?.href, '/collections/c?view=v1');
 });
 
+// UC-PLN-02 check 10: what a collection runs decides its views, as it decides the hub plan's Sprints.
 test('a collection that runs sprints opens with the board and the sprint; a desk keeps to its lists', () => {
   assert.deepEqual(ids(collectionViews({ id: 'c', modulesOn: ALL, runsSprints: true })), ['board', 'sprint', 'backlog', 'list', 'timeline', 'time']);
   // The sprint view names the running sprint (the mockup's *Sprint 42*), the backlog a view of its own.
