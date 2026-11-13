@@ -1154,12 +1154,14 @@
     dateField = next.dateField;
     showsLimits = next.limits;
   }
-  // The tab's view is what the changes are counted against: taken when the tab changes.
+  // The tab's view is what the changes are counted against, taken when the tab changes. A layout's
+  // own tab asks nothing and orders by hand, so a line, an order or lanes carried into it from the
+  // panel stay counted as changes rather than becoming the tab's (scene viewcfg 1).
   $effect(() => {
     void barCurrent;
     if (!arrangement) return;
     untrack(() => {
-      if (!barCurrent.startsWith('view:')) baseSetup = setup;
+      if (!barCurrent.startsWith('view:')) baseSetup = { ...setup, line: '', order: undefined, lanesBy: '' };
     });
   });
   const viewChanged = $derived(baseSetup ? changedParts(setup, baseSetup) : 0);
