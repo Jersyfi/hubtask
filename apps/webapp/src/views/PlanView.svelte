@@ -533,6 +533,11 @@
       isAdding = false;
     }, t('app.planning.linked', { waiting: titleOf(waiting), waited: titleOf(waited) }));
   }
+  /** *Free the date*: the entry kept by hand is scheduled, so the dependency holds again. */
+  const isKeptByHand = (itemId: string) => byId.get(itemId)?.entry.mode === 'MANUAL';
+  function freeDate(itemId: string) {
+    void act(() => planning.setScheduling(planId, zone, itemId, { mode: 'AUTOMATIC' }), t('app.planning.date_freed', { title: titleOf(itemId) }));
+  }
   function removeDependency(linkId: string, waitingId: string, waitedId: string) {
     void act(
       () => planning.unlink(planId, zone, linkId, waitingId, waitedId),
@@ -620,12 +625,15 @@
     { id: 'milestone', label: t('app.planning.col_milestone'), priority: 2 },
     ...(isReviewing || accepted.length > 0 ? [{ id: 'move', label: t('app.planning.col_move'), priority: 2 as const }] : []),
   ]);
+  // "Waits ‹ on" (scene plandeps 4): the time relation is one chip, which opens it.
   const dependencyColumns = $derived<DataColumn[]>([
     { id: 'waiting', label: t('app.planning.col_waiting'), priority: 1 },
+    { id: 'arrow', label: '', priority: 2 },
     { id: 'waited', label: t('app.planning.col_waited'), priority: 2 },
-    { id: 'kind', label: t('app.planning.col_kind'), priority: 2 },
-    { id: 'lag', label: t('app.planning.col_lag'), align: 'end', priority: 2 },
+    { id: 'timing', label: t('app.planning.timing'), priority: 1 },
   ]);
+  const timingSaid = (each: { dependency_kind: string; lag_days: number }) =>
+    each.lag_days === 0 ? t(`app.planning.kind_${each.dependency_kind}`) : t('app.planning.timing_chip', { kind: t(`app.planning.kind_${each.dependency_kind}`), lag: String(each.lag_days) });
   type PlanRow = (typeof rows)[number];
   type PlanDependency = PlanSchedule['dependencies'][number];
   /** A dependency's ⋯: taking it back (PS-6). */
@@ -783,19 +791,26 @@
     {/if}
 
     {#if schedule.conflicts.length > 0}
-      <Banner tone="warning" title={t('app.planning.conflicts')}>
-        <ul class="plain">
+      <!-- What the plan cannot hold stands on top (scene plandeps 2): each with *Free the date*,
+           which lets the scheduler place the entry kept by hand. -->
+      <div class="band danger" role="alert" data-conflicts>
+        <Icon name="triangle-alert" size="sm" />
+        <div class="band-text">
+          <b>{t('app.planning.cannot_hold', { count: String(schedule.conflicts.length) })}</b>
           {#each schedule.conflicts as conflict (`${conflict.predecessor_id}>${conflict.successor_id}`)}
-            <li>
-              {t('app.planning.conflict', {
-                waiting: titleOf(conflict.successor_id),
-                waited: titleOf(conflict.predecessor_id),
-                date: dayLabel(conflict.earliest),
-              })}
-            </li>
+            <span class="conflict">
+              {t('app.planning.conflict', { waiting: titleOf(conflict.successor_id), waited: titleOf(conflict.predecessor_id), date: dayLabel(conflict.earliest) })}
+              {#if mayWrite && schedule.conflicts.length > 1 && isKeptByHand(conflict.successor_id)}
+                <Button size="sm" tone="subtle" aria-label={t('app.planning.free_date_of', { title: titleOf(conflict.successor_id) })} onclick={() => freeDate(conflict.successor_id)}>{t('app.planning.free_date')}</Button>
+              {/if}
+            </span>
           {/each}
-        </ul>
-      </Banner>
+        </div>
+        {#if mayWrite && schedule.conflicts.length === 1 && schedule.conflicts[0] && isKeptByHand(schedule.conflicts[0].successor_id)}
+          {@const only = schedule.conflicts[0]}
+          <Button size="sm" tone="subtle" data-free-date aria-label={t('app.planning.free_date_of', { title: titleOf(only.successor_id) })} onclick={() => freeDate(only.successor_id)}>{t('app.planning.free_date')}</Button>
+        {/if}
+      </div>
     {/if}
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -883,9 +898,9 @@
   {/if}
 {/snippet}
 
-{#snippet addOpener()}
+{#snippet addOpener(isPrimary = false)}
   {#if mayWrite && linkable.length > 1}
-    <Button size="sm" tone="secondary" icon="plus" data-add-dependency-open onclick={() => (isAdding = true)}>{t('app.planning.add_dependency')}</Button>
+    <Button size="sm" tone={isPrimary ? 'primary' : 'secondary'} icon="plus" data-add-dependency-open onclick={() => (isAdding = true)}>{t('app.planning.add_dependency')}</Button>
   {/if}
 {/snippet}
 
@@ -962,7 +977,10 @@
       {@render acceptChosen()}
     </div>
   {:else if part === 'dependencies'}
-    {@render addOpener()}
+    <div class="controls">
+      <span class="quiet grow-bar" data-dependencies-said>{t('app.planning.dependencies_said', { count: String(schedule?.dependencies.length ?? 0) })}</span>
+      {@render addOpener(true)}
+    </div>
   {/if}
 {/snippet}
 
@@ -1076,7 +1094,6 @@
       rows={schedule?.dependencies ?? []}
       key={(each: PlanDependency) => each.link_id}
       rowLabel={(each: PlanDependency) => titleOf(each.successor_id)}
-      verb={mayWrite ? timingVerb : undefined}
       menu={dependencyMenu}
       onmenu={(each: PlanDependency) => removeDependency(each.link_id, each.successor_id, each.predecessor_id)}
       sheetDismissLabel={t('app.page.sheet_close')}
@@ -1085,9 +1102,10 @@
     >
       {#snippet cell(each: PlanDependency, column: DataColumn)}
         {#if column.id === 'waiting'}{titleOf(each.successor_id)}
+        {:else if column.id === 'arrow'}<span class="arrow" aria-hidden="true"><Icon name="chevron-left" size="sm" /></span>
         {:else if column.id === 'waited'}{titleOf(each.predecessor_id)}
-        {:else if column.id === 'kind'}{t(`app.planning.kind_${each.dependency_kind}`)}
-        {:else}<span class="number">{each.lag_days}</span>{/if}
+        {:else if mayWrite}{@render timingVerb(each)}
+        {:else}<span class="chip" data-broken={broken.has(`${each.predecessor_id}>${each.successor_id}`) ? '' : undefined}>{timingSaid(each)}</span>{/if}
       {/snippet}
     </DataTable>
 {/snippet}
@@ -1099,30 +1117,38 @@
   {@const name = titleOf(each.successor_id)}
   {#if draft}
     {#if viewport.isCompact}
-      <Button size="sm" tone="subtle" aria-label={t('app.planning.timing_of', { title: name })} onclick={() => (timingOpen = each.link_id)}>{t('app.planning.timing')}</Button>
+      <button type="button" class="chip" data-timing-chip={each.link_id} data-broken={broken.has(`${each.predecessor_id}>${each.successor_id}`) ? '' : undefined} aria-label={t('app.planning.timing_of', { title: name })} onclick={() => (timingOpen = each.link_id)}>{timingSaid(each)}</button>
       <Sheet title={t('app.planning.timing_title', { title: name })} closeLabel={t('app.page.sheet_close')} grabLabel={t('app.page.sheet_grab')}
         bind:isOpen={() => timingOpen === each.link_id, (open) => (timingOpen = open ? each.link_id : undefined)}>
-        {@render timingFields(each.link_id, name)}
+        {@render timingFields(each.link_id, name, each)}
       </Sheet>
     {:else}
       <Popover label={t('app.planning.timing_title', { title: name })} placement={{ side: 'block-end', align: 'end' }}
         bind:isOpen={() => timingOpen === each.link_id, (open) => (timingOpen = open ? each.link_id : undefined)}>
         {#snippet trigger(props)}
-          <Button size="sm" tone="subtle" aria-label={t('app.planning.timing_of', { title: name })} {...props}>{t('app.planning.timing')}</Button>
+          <button type="button" class="chip" data-timing-chip={each.link_id} data-broken={broken.has(`${each.predecessor_id}>${each.successor_id}`) ? '' : undefined} aria-label={t('app.planning.timing_of', { title: name })} {...props}>{timingSaid(each)}</button>
         {/snippet}
-        {@render timingFields(each.link_id, name)}
+        {@render timingFields(each.link_id, name, each)}
       </Popover>
     {/if}
   {/if}
 {/snippet}
 
-{#snippet timingFields(linkId: string, name: string)}
+{#snippet timingFields(linkId: string, name: string, each: PlanDependency)}
   {@const draft = timing[linkId]}
   {#if draft}
     <div class="timing" data-timing={linkId}>
-      <Select label={t('app.planning.kind_of', { title: name })} size="sm" bind:value={draft.kind} options={kinds} />
-      <Input label={t('app.planning.lag_of', { title: name })} size="sm" bind:value={draft.lag} inputmode="numeric" error={lagErrors[linkId]} />
-      <Inline justify="end"><Button size="sm" onclick={() => saveTimingAndClose(linkId)}>{t('app.planning.save_timing')}</Button></Inline>
+      <p class="label-quiet">{t('app.planning.timing')}</p>
+      <div class="kinds" role="radiogroup" aria-label={t('app.planning.kind_of', { title: name })}>
+        {#each kinds as kind (kind.value)}
+          <button type="button" role="radio" class="kind" aria-checked={draft.kind === kind.value} data-kind={kind.value} onclick={() => (draft.kind = kind.value)}>{kind.label}</button>
+        {/each}
+      </div>
+      <Input label={t('app.planning.lag_days')} size="sm" bind:value={draft.lag} inputmode="numeric" hint={t('app.planning.lag_hint')} error={lagErrors[linkId]} />
+      <Inline justify="end">
+        <Button size="sm" tone="subtle" onclick={() => { timingOpen = undefined; removeDependency(linkId, each.successor_id, each.predecessor_id); }}>{t('app.planning.remove')}</Button>
+        <Button size="sm" onclick={() => saveTimingAndClose(linkId)}>{t('app.planning.save_timing')}</Button>
+      </Inline>
     </div>
   {/if}
 {/snippet}
@@ -1254,6 +1280,17 @@
   .warn { color: var(--text-danger); }
   .band { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); padding: var(--sp-200); border-radius: var(--r-md); background: var(--status-warning-surface); border: var(--bw-hairline) solid var(--status-warning-border); }
   .band-text { flex: 1; min-inline-size: 0; margin: 0; font-size: var(--fs-075); }
+  .band.danger { align-items: flex-start; background: var(--status-danger-surface); border-color: var(--status-danger-border); color: var(--text-primary); }
+  .band.danger .band-text { display: flex; flex-direction: column; gap: var(--sp-050); }
+  .conflict { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .chip { display: inline-flex; align-items: center; min-block-size: var(--sp-300); padding-inline: var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-sm); font: inherit; font-size: var(--fs-075); color: var(--text-primary); background: var(--bg-surface); white-space: nowrap; }
+  button.chip { cursor: pointer; }
+  .chip[data-broken] { color: var(--status-danger-text); border-color: var(--status-danger-border); background: var(--status-danger-surface); }
+  .arrow { display: inline-flex; color: var(--text-subtle); }
+  .kinds { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  .kind { min-block-size: var(--layout-target); padding-inline: var(--sp-150); border: var(--bw-hairline) solid var(--border-strong); border-radius: var(--r-md); font: inherit; font-size: var(--fs-075); color: var(--text-primary); background: var(--bg-surface); cursor: pointer; }
+  .kind[aria-checked='true'] { color: var(--text-brand); border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
+  .label-quiet { margin: 0; color: var(--text-subtle); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-transform: uppercase; }
   .band-mark { color: var(--text-secondary); }
   .baseline { display: flex; align-items: center; gap: var(--sp-100); }
   .grow { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; }

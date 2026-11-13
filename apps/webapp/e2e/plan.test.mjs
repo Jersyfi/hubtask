@@ -56,7 +56,7 @@ const SCHEDULE = {
 const BASELINE = { id: '01a0e2e0-0000-7000-8000-0000000f1b01', plan_id: COLLECTION.id, name: 'Agreed 1 Oct', taken_at: '2026-10-01T09:00:00Z', taken_by: null, entry_count: 3 };
 
 /** The collection's plan, with every write recorded and answered with what it makes. */
-async function plan(browser, width = 1280) {
+async function plan(browser, width = 1280, schedule = SCHEDULE) {
   const written = [];
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
   await context.unroute('**/api/v1/**');
@@ -70,7 +70,7 @@ async function plan(browser, width = 1280) {
     const method = request.method();
     const body = request.postDataJSON();
     if (method !== 'GET') written.push({ method, path, body });
-    if (path === `/plans/${COLLECTION.id}/schedule`) return route.fulfill({ json: SCHEDULE });
+    if (path === `/plans/${COLLECTION.id}/schedule`) return route.fulfill({ json: schedule });
     if (path === `/plans/${COLLECTION.id}/baselines`) return route.fulfill({ json: { data: [BASELINE] } });
     if (path === `/baselines/${BASELINE.id}` && method === 'DELETE') return route.fulfill({ status: 204 });
     if (path === `/plans/${COLLECTION.id}/tolerance`) {
@@ -213,15 +213,18 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
   assert.equal(await page.getByRole('radiogroup', { name: 'Views of the plan' }).count(), 0, 'a second strip under the view bar');
   await page.getByRole('table', { name: 'The plan as a table' }).waitFor({ timeout: 5_000 });
 
-  // A dependency's lag, typed and saved in its popover (§5.1), not in a field per row.
+  // A dependency's time relation is one chip, "kind · lag", which opens it in a popover (§5.1,
+  // scene plandeps 3): the kind as four choices, the lag typed, saved together.
   const opening = page.getByRole('button', { name: `Change the timing of the dependency of ${SECOND.title}` });
+  assert.equal((await opening.textContent()).trim(), 'Finish to start · 1 d');
   await opening.click();
-  const lag = page.getByLabel(`Lag of the dependency of ${SECOND.title}`);
+  const lag = page.locator('[data-timing]').getByLabel('Lag in working days');
+  await page.locator('[data-timing]').getByRole('radio', { name: 'Start to start' }).click();
   await lag.fill('-2');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(300);
   const timing = written.find((each) => each.method === 'PUT' && each.path === `/links/${LINK}/timing`);
-  assert.deepEqual(timing?.body, { dependency_kind: 'FS', lag_days: -2 });
+  assert.deepEqual(timing?.body, { dependency_kind: 'SS', lag_days: -2 });
   assert.equal(await lag.count(), 0, 'the popover stays open after its save');
 
   // A lag past the bound is refused here, before anything is sent, and the popover stays.
@@ -283,6 +286,32 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   await page.waitForTimeout(300);
   assert.ok(written.some((each) => each.method === 'DELETE' && each.path === `/links/${LINK}`), 'the dependency was not removed');
   await page.getByRole('status').filter({ hasText: `${SECOND.title} no longer waits for ${FIRST.title}.` }).first().waitFor({ timeout: 5_000 });
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+// Scene plandeps 2: what the plan cannot hold stands on top, the broken chip is marked, and *Free
+// the date* hands the entry kept by hand back to the scheduler.
+test('chromium: 1280 px — what the plan cannot hold is on top, and its date is freed', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const kept = SCHEDULE.entries.map((each) => (each.item_id === SECOND.id ? { ...each, mode: 'MANUAL' } : each));
+  const broken = { ...SCHEDULE, entries: kept, conflicts: [{ predecessor_id: FIRST.id, successor_id: SECOND.id, dependency_kind: 'FS', earliest: addDays(today, 6) }] };
+  const { page, failures, written, close, unstubbed } = await plan(browser, 1280, broken);
+  t.after(close);
+
+  const band = page.locator('[data-conflicts]');
+  await band.waitFor({ timeout: 5_000 });
+  assert.match(await band.textContent(), /1 dependency the plan cannot hold:/);
+  const top = await band.boundingBox();
+  const chart = await page.locator('.timeline').first().boundingBox();
+  assert.ok(top.y < chart.y, 'the band stands below the chart');
+  assert.equal(await page.locator(`[data-timing-chip="${LINK}"][data-broken]`).count(), 1, 'the broken chip is not marked');
+  await page.getByRole('button', { name: `Free the date of ${SECOND.title}` }).click();
+  await page.waitForTimeout(300);
+  const freed = written.find((each) => each.method === 'PUT' && each.path === `/items/${SECOND.id}/scheduling`);
+  assert.deepEqual(freed?.body, { mode: 'AUTOMATIC' });
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
