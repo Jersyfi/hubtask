@@ -1022,8 +1022,8 @@
         <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open data-opener="view" onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
       </div>
       <div class="controls second" role="group" aria-label={t('app.planning.chart_options')}>
-        {@render queryLine()}
         {#if isGantt}
+          {@render queryLine()}
           <Button size="sm" tone="secondary" icon="zap" aria-pressed={setup.bars.critical} data-critical-switch onclick={() => (setup = { ...setup, bars: { ...setup.bars, critical: !setup.bars.critical } })}>{t('app.planning.critical_path')}</Button>
           {#if kept.length > 0}
             <Select
@@ -1044,9 +1044,12 @@
             <Button size="sm" tone="secondary" icon="calendar" data-undated-open onclick={() => (isUndatedOpen = true)}>{t('app.planning.undated_button', { count: String(undated.length) })}</Button>
           {/if}
         {:else}
-          <Button size="sm" tone="subtle" icon="layout-grid" onclick={() => (isPanelOpen = true)}>{t('app.planning.group_named', { name: t(`app.planview.group_${setup.groupBy}`) })}</Button>
-          <span class="quiet legend">{t('app.planning.legend_timeline')}</span>
+          <!-- The light look's line, as scene plan draws it: grouping, what is seen, the hint, the tray at the end. -->
+          <Button size="sm" tone="subtle" icon="layout-grid" data-plan-group-open onclick={() => (isPanelOpen = true)}>{t('app.planning.group_named', { name: t(`app.planview.group_${setup.groupBy}`) })}</Button>
+          {@render queryLine()}
+          <span class="quiet">{t('app.planning.legend_timeline')}</span>
           {#if undated.length > 0}
+            <span class="grow-bar"></span>
             <Button size="sm" tone="secondary" icon="calendar" data-undated-open onclick={() => (isUndatedOpen = true)}>{t('app.planning.undated_button', { count: String(undated.length) })}</Button>
           {/if}
         {/if}

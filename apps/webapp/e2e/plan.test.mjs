@@ -314,6 +314,12 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
   assert.equal(await chart.getAttribute('data-look'), 'light');
   assert.equal(await page.locator('[data-critical-switch]').count(), 0);
   assert.equal(await page.locator('.timeline .rows [data-row]').count() >= 3, true, 'the light timeline lost rows');
+  // Its line as scene plan draws it: the grouping, then what is seen, the tray's opener at the end.
+  const line = await page.locator('.controls.second').evaluate((element) => [...element.querySelectorAll('[data-plan-group-open], [data-plan-query] [data-opener="view"], [data-undated-open]')]
+    .map((each) => ({ what: each.matches('[data-plan-group-open]') ? 'group' : each.matches('[data-undated-open]') ? 'undated' : 'filter', end: each.getBoundingClientRect().right, start: each.getBoundingClientRect().left, line: element.getBoundingClientRect().right })));
+  assert.deepEqual(line.filter((each) => each.what !== 'undated').map((each) => each.what), ['group', 'filter'], JSON.stringify(line));
+  const tray = line.find((each) => each.what === 'undated');
+  assert.ok(!tray || tray.line - tray.end < 2, `the tray's opener does not stand at the line's end: ${JSON.stringify(line)}`);
   // What changed is counted on the panel's opener, and the panel saves it as a view of the place.
   assert.equal((await page.locator('[data-plan-view-open]').first().textContent()).trim(), 'View · 1');
   await page.locator('[data-plan-view-open]').first().click();
