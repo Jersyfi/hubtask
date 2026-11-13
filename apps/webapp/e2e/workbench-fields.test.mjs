@@ -99,7 +99,8 @@ test('a missing value is marked, said and described, in chromium', { timeout: 5 
     await page.goto(`${server.origin}/?story=wave-3-domain-comment-thread--not-offered`);
     const comments = page.locator('.host article');
     await comments.first().waitFor();
-    assert.equal(await comments.nth(0).getByRole('button', { name: 'Edit' }).count(), 1, 'the own comment lost Edit');
+    // Edit and remove wait in the comment's ⋯ beside Reply, as the scene draws it.
+    assert.equal(await comments.nth(0).getByRole('button', { name: 'More for this comment' }).count(), 1, 'the own comment lost its ⋯');
     assert.equal(await comments.nth(1).getByRole('button').count(), 0, 'somebody else’s comment offers a control');
 
     // A box that shares the area's reason points at the notice, draws no bubble and does not flip.

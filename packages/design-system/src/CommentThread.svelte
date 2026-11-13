@@ -27,7 +27,9 @@
   import Icon from './Icon.svelte';
   import type { IconName } from './icons/index.ts';
   import Button from './Button.svelte';
+  import IconButton from './IconButton.svelte';
   import LoadMore from './LoadMore.svelte';
+  import Menu from './Menu.svelte';
 
   /** One comment, as the thread draws it. The shape `Comment` has, narrowed to what is rendered. */
   export interface ThreadComment {
@@ -86,6 +88,8 @@
     editLabel: string;
     deleteLabel: string;
     replyLabel: string;
+    /** The ⋯ that holds edit and remove, beside *Reply*: *More for this comment*. */
+    moreLabel: string;
     /** Whether there is another page of comments. */
     hasMore?: boolean;
     /** What the control that fetches it is called, and what it says once a page has landed. */
@@ -113,6 +117,7 @@
     editLabel,
     deleteLabel,
     replyLabel,
+    moreLabel,
     hasMore = false,
     loadMoreLabel,
     arrivedLabel,
@@ -202,19 +207,19 @@
           {#if canReply}
             <Button size="sm" tone="subtle" onclick={() => onReply?.(comment.id)}>{replyLabel}</Button>
           {/if}
+          <!-- *Reply ···* as the scene draws it: edit and remove wait in the ⋯, an unavailable one
+               there with its reason (P-05). -->
           {#if comment.isChangeable !== false}
-            <Button
-              size="sm"
-              tone="subtle"
-              disabledReason={comment.editDisabledReason}
-              onclick={() => onEdit?.(comment.id)}
-            >{editLabel}</Button>
-            <Button
-              size="sm"
-              tone="subtle"
-              disabledReason={comment.deleteDisabledReason}
-              onclick={() => onDelete?.(comment.id)}
-            >{deleteLabel}</Button>
+            <Menu
+              label={moreLabel}
+              items={[
+                { id: 'edit', label: editLabel, icon: 'pencil', disabledReason: comment.editDisabledReason },
+                { id: 'delete', label: deleteLabel, icon: 'trash', isDestructive: true, disabledReason: comment.deleteDisabledReason },
+              ]}
+              onselect={(id) => (id === 'edit' ? onEdit?.(comment.id) : onDelete?.(comment.id))}
+            >
+              {#snippet trigger(props)}<IconButton icon="ellipsis" label={moreLabel} size="sm" tone="subtle" {...props} />{/snippet}
+            </Menu>
           {/if}
         </p>
       {/if}

@@ -14809,5 +14809,6 @@
   "app.portfolios.project_verb": "Ändern",
   "app.desk.requester.open_one": "1 weitere offene Anfrage:",
   "app.desk.requester.open_many": "{count} weitere offene Anfragen:",
-  "app.desk.requester.other_named": "{key}: {title}"
+  "app.desk.requester.other_named": "{key}: {title}",
+  "app.comments.more": "Mehr zu diesem Kommentar"
 }

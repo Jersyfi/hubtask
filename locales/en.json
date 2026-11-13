@@ -14809,5 +14809,6 @@
   "app.portfolios.project_verb": "Change",
   "app.desk.requester.open_one": "1 other open request:",
   "app.desk.requester.open_many": "{count} other open requests:",
-  "app.desk.requester.other_named": "{key}: {title}"
+  "app.desk.requester.other_named": "{key}: {title}",
+  "app.comments.more": "More for this comment"
 }

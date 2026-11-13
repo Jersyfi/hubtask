@@ -430,7 +430,7 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
     }
     // Two replies to the requester and one note for the team: the conversation's tabs count each.
     if (path === `/items/${REQUEST.id}/comments` && method === 'GET') {
-      const post = (n, internal) => ({ id: `01a0e2e0-0000-7000-8000-00000000cd0${n}`, item_id: REQUEST.id, author_id: OTHER.id, body: `Post ${n}`, parent_comment_id: null, internal, created_at: `2026-11-10T0${n}:00:00Z`, edited_at: null, deleted_at: null, version: 1 });
+      const post = (n, internal) => ({ id: `01a0e2e0-0000-7000-8000-00000000cd0${n}`, item_id: REQUEST.id, author_id: n === 3 ? ACCOUNT.id : OTHER.id, body: `Post ${n}`, parent_comment_id: null, internal, created_at: `2026-11-10T0${n}:00:00Z`, edited_at: null, deleted_at: null, version: 1 });
       return { json: { data: [post(1, false), post(2, true), post(3, false)], page: { has_more: false, next_cursor: null } } };
     }
     if (path === '/workflows' && method === 'GET') {
@@ -492,4 +492,13 @@ test('chromium: service desk - a ticket\'s rail names its triage and deadlines i
   const tabs = (await page.locator('#entry-conversation').getByRole('tab').allInnerTexts()).map((text) => text.replace(/\s+/g, ' ').trim());
   assert.deepEqual(tabs.slice(1, 3), ['Antworten 2', 'Interne Notizen 1']);
 
+  // The reader's own post: *Antworten ···* (deskentry.d) - edit and remove wait in the ⋯, not as text buttons.
+  const own = page.locator('#entry-conversation article').filter({ hasText: 'Post 3' }).first();
+  await own.waitFor({ timeout: 10_000 });
+  assert.equal(await own.getByRole('button', { name: 'Antworten', exact: true }).count(), 1, 'the post offers no reply');
+  assert.equal(await own.getByRole('button', { name: /^(Bearbeiten|Entfernen)$/ }).count(), 0, 'edit and remove are text buttons beside the reply');
+  await own.getByRole('button', { name: 'Mehr zu diesem Kommentar' }).click();
+  const acts = page.getByRole('menu', { name: 'Mehr zu diesem Kommentar' });
+  assert.deepEqual((await acts.getByRole('menuitem').allInnerTexts()).map((text) => text.trim()), ['Bearbeiten', 'Entfernen']);
+  await page.keyboard.press('Escape');
 });

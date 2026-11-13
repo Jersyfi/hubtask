@@ -323,6 +323,7 @@
       editLabel={t('app.comments.edit')}
       deleteLabel={t('app.comments.remove')}
       replyLabel={t('app.comments.reply')}
+      moreLabel={t('app.comments.more')}
       hasMore={hasMore || threadRows().length > shownCount}
       loadMoreLabel={t('app.comments.older')}
       loadMoreFailedLabel={olderFailed}

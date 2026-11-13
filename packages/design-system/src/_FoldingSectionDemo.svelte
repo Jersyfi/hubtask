@@ -101,6 +101,7 @@
           removedLabel="Comment removed"
           editLabel="Edit"
           deleteLabel="Remove"
+          moreLabel="More for this comment"
           replyLabel="Reply"
           onReply={() => {}}
           hasMore
