@@ -31,6 +31,7 @@ const INLINE = new Set([
   'TodayView.svelte app.today.mine_none',
   'TodayView.svelte app.today.step_none',
   'TodayView.svelte app.today.jumble_none',
+  'TodayView.svelte app.today.needs_none',
   'InstanceSettingsView.svelte app.instance.settings_plan_none',
   'InstanceSettingsView.svelte app.instance.settings_history_none',
   'CmdbView.svelte app.cmdb_admin.aliases_none',

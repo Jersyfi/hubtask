@@ -2,13 +2,12 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import { platform } from '../lib/platform/index.ts';
-  // *Today*: the page the app opens on (UC-WRK-34), in the overview's place (ADR-0063 decision 1).
-  //
-  // It answers what is the reader's today across every hub and lets them act on it without going
-  // anywhere: what is due on them, ticked off where it stands; each list as one tile with its
-  // figure; each project's next due step; what waits in the jumble; what this device opened last.
-  // Nobody else's day is shown - every read here is the reader's own or narrowed to what they may
-  // see.
+  // *Today*: the page the app opens on (UC-WRK-34), in the overview's place (ADR-0063 decision 1),
+  // arranged as the work-surface concept's scene `today` (§6.1): one row of equal cards, each with
+  // its one act; two columns that end level, *your day* and *needs you* with the sprint under it,
+  // eight rows each; then tiles over the full width. *Sections* hides and orders the cards and the
+  // tiles for the person, stored on the account (E-17). Nobody else's day is shown - every read
+  // here is the reader's own or narrowed to what they may see.
   //
   // **Composed of reads that already exist**: one wordless search for what is on the reader, the
   // collections of each hub with their figures (the same reads the tree makes), one entry per
@@ -28,7 +27,7 @@
   import { untrack } from 'svelte';
 
   import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
-  import { Button, EmptyState, Icon, IconButton, PageHeader, Skeleton, Stack, TaskRow, WorkPage } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Disclosure, EmptyState, Icon, IconButton, Kbd, PageHeader, Skeleton, Stack, Tabs, TaskRow, Widget, WidgetStrip, WorkPage } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -59,7 +58,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { bandsOf, deskAnswerQuery, greetingOf, heldActRows, isListFigure, isProjectFigure, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timeTodayOf } from '../lib/today.ts';
+  import { TODAY_TILES, arrangeSections, bandsOf, breachedCount, capped, cardsOf, dayRows, deskAnswerQuery, greetingOf, heldActRows, hiddenSections, isListFigure, isProjectFigure, movedSection, nearestFirst, productBandsOf, runningDue, sprintDaysLeft, timedCount, timeTodayOf, type TodayCard, type TodaySection, type TodayTile } from '../lib/today.ts';
+  import { preferences } from '../lib/data/preferences.svelte.ts';
   import { entrySlaPath } from '../lib/data/desk.svelte.ts';
   import { watchPageReviews, type ReviewRow } from '../lib/data/reviews.svelte.ts';
   import { burndownLine, burndownTop, sprintDays } from '../lib/data/sprints.ts';
@@ -70,7 +70,7 @@
   import { agents, agentsPath, requestsPath } from '../lib/data/agents.svelte.ts';
   import { approvals, myApprovalsPath } from '../lib/data/approvals.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
-  import { TIMER, elapsedMinutes, minutesText, weekPath, weekStartOf } from '../lib/data/time.svelte.ts';
+  import { TIMER, elapsedMinutes, minutesText, time, weekPath, weekStartOf } from '../lib/data/time.svelte.ts';
   import { todayIn } from '../lib/i18n/zone.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { moreInHubtask } from '../lib/product/home.ts';
@@ -261,22 +261,10 @@
     });
   });
 
-  /**
-   * How many of the reader's rows *On you* draws before it says how many more and leads to the
-   * search (concept round 2, §1): the day at a glance, not the whole list.
-   */
-  const ROWS_SHOWN = 6;
-  const shownBands = $derived.by(() => {
-    let left = ROWS_SHOWN;
-    const take = (rows: readonly WorkItem[]) => {
-      const out = rows.slice(0, Math.max(0, left));
-      left -= out.length;
-      return out;
-    };
-    return { earlier: take(bands.earlier), today: take(bands.today), later: take(bands.later) };
-  });
+  /** *Your day*: eight rows across its bands, the rest behind "all n" (§6.1). */
+  const shownBands = $derived(dayRows(bands));
   const mineTotal = $derived(bands.earlier.length + bands.today.length + bands.later.length);
-  const mineHidden = $derived(mineTotal - shownBands.earlier.length - shownBands.today.length - shownBands.later.length);
+  const mineHidden = $derived(shownBands.rest);
 
   /** The jumble's acts at a row: only for who may decide about an arrival. */
   const mayWriteJumble = $derived(holdsHere('WRITE_ITEMS') === true);
@@ -445,7 +433,7 @@
    * *Needs your answer* (§3.3): the desk entries on the reader with an SLA target running, the one
    * about to breach first on top across the hubs.
    */
-  const DESK_SHOWN = 5;
+  const DESK_SHOWN = 8;
   let deskAt = $state<Record<string, WorkItem[]>>({});
   $effect(() => {
     const ids = productBands.includes('desk') && hubIds ? hubIds.split(' ') : [];
@@ -460,7 +448,8 @@
   // Each hub answers its own nearest first; rows from more than one hub are merged by their due
   // moments, read from each entry's SLA (the rows shown read the same path again).
   const deskMerged = $derived(productBands.includes('desk') && hubIds ? hubIds.split(' ').filter((id) => (deskAt[id]?.length ?? 0) > 0).length > 1 : false);
-  const deskCandidateIds = $derived(deskMerged ? deskCandidates.map((entry) => entry.id).join(' ') : '');
+  // Every candidate's due moment, not only where hubs merge: the reply card counts the breached.
+  const deskCandidateIds = $derived(deskCandidates.map((entry) => entry.id).join(' '));
   let deskDue = $state<Record<string, number | undefined>>({});
   $effect(() => {
     const ids = deskCandidateIds ? deskCandidateIds.split(' ') : [];
@@ -534,14 +523,127 @@
     const at = timeTodayOf(week, day, timer);
     return at?.running && timer?.started_at ? { ...at, running: { ...at.running, minutes: elapsedMinutes(timer.started_at, tick) } } : at;
   });
-  const hasProductBands = $derived(deskRows.length > 0 || waitingCount > 0 || timeToday !== undefined || mySprints.length > 0);
 
-  /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
-  const hasSide = $derived(inUse || hasProductBands || lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0 || moreProducts.length > 0);
 
   const moment = $derived(celebration.current);
 
   const recentHref = (kind: string, id: string) => (kind === 'item' ? `/items/${id}` : kind === 'hub' ? `/hubs/${id}` : `/collections/${id}`);
+
+  /**
+   * *Sections* (E-17): the cards and tiles this person's roles and modules give, in the order they
+   * gave them, the hidden left out - read from the account, so it follows them to every device.
+   * A change is drawn at once and written whole; a refusal puts the account's own back.
+   */
+  let localOrder = $state<readonly string[] | undefined>(undefined);
+  let localHidden = $state<readonly string[] | undefined>(undefined);
+  const sectionOrder = $derived(localOrder ?? actor.account?.today_sections ?? []);
+  const sectionHidden = $derived(localHidden ?? actor.account?.today_sections_hidden ?? []);
+  const givenCards = $derived(cardsOf(manifest.value?.modules_on));
+  const givenTiles = $derived<TodayTile[]>(TODAY_TILES.filter((tile) => tile !== 'INBOX' || hasJumble));
+  const cards = $derived(arrangeSections(givenCards, sectionOrder, sectionHidden));
+  const tiles = $derived(arrangeSections(givenTiles, sectionOrder, sectionHidden));
+  let isArranging = $state(false);
+
+  async function writeSections(order: readonly string[], hidden: readonly string[]) {
+    const id = actor.account?.id;
+    if (!id) return;
+    localOrder = order;
+    localHidden = hidden;
+    try {
+      await preferences.setAccount(id, { today_sections: [...order] as TodaySection[], today_sections_hidden: [...hidden] as TodaySection[] });
+      await actor.reread();
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    } finally {
+      localOrder = undefined;
+      localHidden = undefined;
+    }
+  }
+  /** One group's move writes the whole order: this group's new order, the other group's kept. */
+  function moveSection(isCard: boolean, key: TodaySection, by: -1 | 1) {
+    const group: readonly TodaySection[] = isCard ? givenCards : givenTiles;
+    const moved = movedSection(group, sectionOrder, key, by);
+    const others = arrangeSections<TodaySection>(isCard ? givenTiles : givenCards, sectionOrder, undefined).shown;
+    void writeSections(isCard ? [...moved, ...others] : [...others, ...moved], sectionHidden);
+  }
+  const sectionGroups = $derived([
+    { code: 'app.today.sections_cards', isCard: true, ordered: arrangeSections<TodaySection>(givenCards, sectionOrder, undefined).shown },
+    { code: 'app.today.sections_tiles', isCard: false, ordered: arrangeSections<TodaySection>(givenTiles, sectionOrder, undefined).shown },
+  ]);
+  function showSection(key: TodaySection, isShown: boolean) {
+    void writeSections(sectionOrder, hiddenSections(sectionHidden, key, !isShown));
+  }
+  const sectionCode: Record<TodaySection, string> = {
+    OVERDUE: 'app.today.card_overdue',
+    DUE_TODAY: 'app.today.card_due_today',
+    REPLY: 'app.today.desk',
+    TIME: 'app.today.time',
+    APPROVALS: 'app.today.approvals',
+    COLLECTIONS: 'app.today.collections',
+    INBOX: 'app.today.jumble',
+    RECENT: 'app.today.recent',
+  };
+
+  const searchHref = (f: string) => `/search?${new URLSearchParams({ f })}`;
+  /** Whether the figures behind the cards are still on their way: a zero then would be unmeasured. */
+  const isDayBusy = $derived(isLoading || failure !== undefined);
+  const breached = $derived(breachedCount(deskCandidates.map((entry) => entry.id), deskDue, deskNow.getTime()));
+  const oldestOverdue = $derived(bands.earlier.map((item) => item.due_at).filter((at): at is string => !!at).sort()[0]);
+  const yesLine = $derived(
+    [
+      (waitingApprovals?.length ?? 0) > 0 ? t('app.today.yes_approvals', { count: waitingApprovals?.length ?? 0 }) : undefined,
+      heldRows.length > 0 ? t('app.today.yes_acts', { count: heldRows.length }) : undefined,
+      reviews.length > 0 ? t('app.today.yes_reviews', { count: reviews.length }) : undefined,
+    ].filter(Boolean).join(', '),
+  );
+  async function stopTimer() {
+    try {
+      await time.stopTimer(zone, weekStartOf(day));
+      toast.show({ text: t('app.today.timer_stopped'), tone: 'success' });
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /**
+   * *Needs you*: what waits for this person's answer, one row and one act each - the desk's
+   * entries nearest their deadline first, then the approvals, the agents' held acts and the pages
+   * due for review. Eight at most; the rest is behind the column's "all".
+   */
+  type NeedRow =
+    | { kind: 'desk'; id: string; entry: WorkItem }
+    | { kind: 'approval'; id: string; approval: ApprovalList['data'][number] }
+    | { kind: 'act'; id: string; act: (typeof heldRows)[number] }
+    | { kind: 'review'; id: string; review: ReviewRow };
+  const needRows = $derived<NeedRow[]>([
+    ...deskRows.map((entry) => ({ kind: 'desk' as const, id: entry.id, entry })),
+    ...(waitingApprovals ?? []).map((approval) => ({ kind: 'approval' as const, id: approval.id, approval })),
+    ...heldRows.map((act) => ({ kind: 'act' as const, id: act.id, act })),
+    ...reviews.map((review) => ({ kind: 'review' as const, id: review.id, review })),
+  ]);
+  const needs = $derived(capped(needRows));
+  const hasNeeds = $derived(productBands.includes('desk') || productBands.includes('approvals') || productBands.includes('agent_acts') || productBands.includes('reviews') || productBands.includes('sprint'));
+
+  /** On a phone *your day* and the overview are a switch (§7); everywhere else they stand together. */
+  // Kept for this tab, so *back* from an entry returns to the half the reader was in (R-15).
+  const VIEW_KEY = 'hubtask.today.view';
+  let phoneView = $state<'day' | 'overview'>(readView());
+  function readView(): 'day' | 'overview' {
+    try {
+      return sessionStorage.getItem(VIEW_KEY) === 'overview' ? 'overview' : 'day';
+    } catch {
+      return 'day';
+    }
+  }
+  $effect(() => {
+    const view = phoneView;
+    try {
+      sessionStorage.setItem(VIEW_KEY, view);
+    } catch {
+      // Storage refused: the switch is this visit's only.
+    }
+  });
+  const hasTiles = $derived(tiles.shown.length > 0 || inUse || moreProducts.length > 0);
 </script>
 
 {#snippet entry(item: WorkItem, hasPlace: boolean)}
@@ -572,21 +674,349 @@
   </div>
 {/snippet}
 
-{#snippet band(code: string, rows: readonly WorkItem[])}
+{#snippet band(code: string, rows: readonly WorkItem[], all: number)}
   {#if rows.length > 0}
-    <h3 class="band">{t(code)}</h3>
-    <Stack gap="050">
-      {#each rows as item (item.id)}{@render entry(item, true)}{/each}
-    </Stack>
+    <div class="band-group">
+      <h3 class="band">{t(code)} <span class="band-count">{all}</span></h3>
+      <Stack gap="050">
+        {#each rows as item (item.id)}{@render entry(item, true)}{/each}
+      </Stack>
+    </div>
   {/if}
+{/snippet}
+
+<!-- One card of the row: its figure, one line, its one act; absent where the role or module is. -->
+{#snippet card(key: TodayCard)}
+  <div class="card" data-card={key}>
+    {#if key === 'OVERDUE'}
+      <Widget title={t('app.today.card_overdue')} tile={{ icon: 'triangle-alert', color: 'red' }} figure={String(bands.earlier.length)} isBusy={isDayBusy}
+        figureTone={bands.earlier.length > 0 ? { tone: 'danger', word: t('app.today.card_overdue_word') } : undefined}
+        line={oldestOverdue ? t('app.today.card_overdue_line', { day: formatPlainDay(oldestOverdue.slice(0, 10), messages.locale) }) : undefined}
+        act={{ label: t('app.today.card_show'), onclick: () => onnavigate?.(searchHref('who:me is:open due:overdue')) }} />
+    {:else if key === 'DUE_TODAY'}
+      <Widget title={t('app.today.card_due_today')} tile={{ icon: 'calendar', color: 'blue' }} figure={String(bands.today.length)} isBusy={isDayBusy}
+        line={timedCount(bands.today) > 0 ? t('app.today.card_timed', { count: timedCount(bands.today) }) : undefined}
+        act={{ label: t('app.today.card_show'), onclick: () => onnavigate?.(searchHref('who:me is:open due:today')) }} />
+    {:else if key === 'REPLY'}
+      <Widget title={t('app.today.desk')} tile={{ icon: 'inbox', product: 'desk' }} figure={String(deskCandidates.length)}
+        figureTone={breached > 0 ? { tone: 'danger', word: t('app.today.card_breached_word') } : undefined}
+        line={breached > 0 ? t('app.today.card_breached', { count: breached }) : undefined}
+        act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.('/desk') }} />
+    {:else if key === 'TIME'}
+      <Widget title={t('app.today.time')} tile={{ icon: 'clock', product: 'time' }} figure={timeToday ? minutesText(timeToday.today) : undefined} isBusy={timeToday === undefined}
+        line={timeToday ? [t('app.today.card_time_line', { week: minutesText(timeToday.week) }), timeToday.running ? t('app.today.card_timer_running') : undefined].filter(Boolean).join(' · ') : undefined}
+        act={timeToday?.running ? { label: t('app.today.card_stop'), onclick: () => void stopTimer() } : { label: t('app.today.card_open'), onclick: () => onnavigate?.('/time') }} />
+    {:else if key === 'APPROVALS'}
+      <Widget title={t('app.today.approvals')} tile={{ icon: 'user-check', color: 'green' }} figure={String(waitingCount)} line={yesLine || undefined}
+        act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.('/approvals') }} />
+    {/if}
+  </div>
+{/snippet}
+
+<!-- *Your day*: the capture field on top, then what is overdue, due today, and upcoming folded. -->
+{#snippet yourDay()}
+  <Widget title={isNewWorkspace ? t('app.today.first_steps') : t('app.today.day')}
+    count={!isLoading && !failure && !isNewWorkspace && mineTotal > 0 ? t('app.today.day_count', { today: bands.today.length, overdue: bands.earlier.length }) : undefined}>
+    <div class="day" data-day bind:this={panels}>
+      {#if mayCaptureHere() && !isNewWorkspace}
+        <!-- Capture is the one way to add an entry (§8, UC-WRK-26/7): the field opens it. -->
+        <button type="button" class="capture" data-capture-field onclick={() => capture.summon()}>
+          <Icon name="plus" size="sm" /><span class="capture-words">{t('app.today.capture')}</span><Kbd size="sm">Q</Kbd>
+        </button>
+      {/if}
+      {#if writeFailure}
+        <p class="failure" role="alert">{writeFailure.message}</p>
+      {/if}
+      {#if failure}
+        <FailureState problem={failure} onRetry={() => today.open()()} />
+      {:else if isLoading || (looksNew && !isUseSettled)}
+        <div aria-busy="true"><Skeleton lines={3} /></div>
+      {:else if isNewWorkspace}
+        <!-- The first steps, each ticked where it is already done, each with its act. -->
+        <ul class="steps">
+          {#if workspace.workspace?.starter_skipped === true}
+            <li data-step-choose>
+              <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_choose')}</span>
+              <Button size="sm" tone="secondary" onclick={() => (isChoosing = true)}>{t('app.today.step_choose_act')}</Button>
+            </li>
+          {/if}
+          <li data-done=""><span class="step-mark" aria-hidden="true"><Icon name="check" size="sm" /></span><span class="step-word">{t('app.today.step_hub')}</span></li>
+          <li>
+            <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_capture')}</span>
+            {#if mayCaptureHere()}<Button size="sm" tone="secondary" icon="plus" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>{/if}
+          </li>
+          {#if mayInvite}
+            <li data-done={hasCompany ? '' : undefined}>
+              <span class="step-mark" aria-hidden="true">{#if hasCompany}<Icon name="check" size="sm" />{/if}</span><span class="step-word">{t('app.today.step_invite')}</span>
+              {#if !hasCompany}<Button size="sm" tone="secondary" onclick={() => onnavigate?.('/administration/people')}>{t('app.today.step_invite_act')}</Button>{/if}
+            </li>
+          {/if}
+          {#if jumbleAddress}
+            <li data-step-mail>
+              <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_mail')}</span>
+              <IntakeAddress address={jumbleAddress} />
+            </li>
+          {/if}
+        </ul>
+      {:else if isMineEmpty}
+        <p class="none">{t('app.today.mine_none')}</p>
+      {:else}
+        {@render band('app.today.earlier', shownBands.earlier, bands.earlier.length)}
+        {@render band('app.today.today', shownBands.today, bands.today.length)}
+        {#if shownBands.later.length > 0}
+          <!-- Upcoming folded while something is due sooner; alone, it is the day and stands open. -->
+          <div class="later" data-later>
+            <Disclosure label={t('app.today.later')} description={t('app.today.later_folded', { count: bands.later.length })} isOpen={bands.earlier.length + bands.today.length === 0}>
+              <Stack gap="050">
+                {#each shownBands.later as item (item.id)}{@render entry(item, true)}{/each}
+              </Stack>
+            </Disclosure>
+          </div>
+        {/if}
+        {#if mineHidden > 0 || today.hasMore}
+          <!-- The rest is the search's: `has_more` as well as the rows held back, because a search
+               answers what the caller may see, so a short page is not the end. -->
+          <p class="more"><a href={searchHref('who:me is:open')}>{today.hasMore ? t('app.today.mine_more') : t('app.today.all', { count: mineTotal })}</a></p>
+        {/if}
+      {/if}
+    </div>
+  </Widget>
+{/snippet}
+
+<!-- *Needs you*: one row and one act each, eight at most; the sprint stands under it. -->
+{#snippet needsYou()}
+  <div class="needs-column">
+    <Widget title={t('app.today.needs')} count={needRows.length > 0 ? String(needRows.length) : undefined}>
+      {#if needRows.length === 0}
+        <p class="none">{t('app.today.needs_none')}</p>
+      {:else}
+        <ul class="needs">
+          {#each needs.shown as row (row.kind + row.id)}
+            <li class="need" data-need={row.kind} data-desk-entry={row.kind === 'desk' ? row.id : undefined} data-held-act={row.kind === 'act' ? row.id : undefined} data-review={row.kind === 'review' ? row.id : undefined}>
+              {#if row.kind === 'desk'}
+                <span class="need-mark" data-product="desk" aria-hidden="true"><Icon name="inbox" size="sm" /></span>
+                <a class="subject" href={`/items/${row.id}`}>{row.entry.title}</a>
+                <span class="from">{#key row.id}<SlaRemaining itemId={row.id} now={deskNow} />{/key}</span>
+                <span class="acts"><Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/items/${row.id}`)}>{t('app.today.act_reply')}</Button></span>
+              {:else if row.kind === 'approval'}
+                {@const approval = row.approval}
+                <span class="need-mark" data-product="approvals" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
+                <a class="subject" href={`/items/${approval.item_id}`}>{`${approval.item_number ? `#${approval.item_number} ` : ''}${approval.item_title ?? ''}`}</a>
+                <span class="from">{[approval.step, formatRelative(approval.requested_at, messages.locale)].join(' · ')}</span>
+                <span class="acts">
+                  {#if approval.may_decide}
+                    <Button size="sm" tone="subtle" onclick={() => void approve(approval)}>{t('app.approvals.approve')}</Button>
+                  {:else}
+                    <Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/items/${approval.item_id}`)}>{t('app.today.card_open')}</Button>
+                  {/if}
+                </span>
+              {:else if row.kind === 'act'}
+                {@const act = row.act}
+                {@const said = t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}
+                <span class="need-mark" data-product="agents" aria-hidden="true"><Icon name="zap" size="sm" /></span>
+                {#if act.path}<a class="subject" href={act.path}>{said}</a>{:else}<span class="subject">{said}</span>{/if}
+                <span class="from">{formatRelative(act.at, messages.locale)}</span>
+                <span class="acts">
+                  {#if act.mayApproveHere}
+                    <Button size="sm" tone="subtle" onclick={() => void decideAct(act.id, true)}>{t('app.agents.approve_act')}</Button>
+                  {:else if act.path}
+                    <Button size="sm" tone="subtle" onclick={() => onnavigate?.(act.path ?? '/agents')}>{t('app.today.card_open')}</Button>
+                  {/if}
+                  <IconButton icon="x" size="sm" label={t('app.today.decline_act', { agent: act.name || t('app.today.held_act_agent') })} onclick={() => void decideAct(act.id, false)} />
+                </span>
+              {:else}
+                {@const review = row.review}
+                <span class="need-mark" data-product="pages" aria-hidden="true"><Icon name="file-text" size="sm" /></span>
+                <a class="subject" href={`/pages/${review.id}`}>{t('app.today.review_page', { title: review.title })}</a>
+                <span class="from">{formatRelative(review.updated_at, messages.locale)}</span>
+                <span class="acts"><Button size="sm" tone="subtle" onclick={() => onnavigate?.(`/pages/${review.id}`)}>{t('app.today.act_review')}</Button></span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+        {#if needs.rest > 0}
+          <p class="more"><a href={deskRows.length > 0 && waitingCount === 0 ? '/desk' : '/approvals'}>{t('app.today.all', { count: needRows.length })}</a></p>
+        {/if}
+      {/if}
+    </Widget>
+    {#each mySprints.slice(0, SPRINTS_SHOWN) as mine (mine.sprint.id)}
+      {@const detail = sprintDetails[mine.sprint.id]}
+      {@const unit = t(`app.sprints.unit_${mine.sprint.unit}`)}
+      {@const last = detail?.burndown.at(-1)}
+      <div class="sprint" data-band="sprint" data-sprint={mine.sprint.id}>
+        <Widget title={mine.sprint.name} tile={{ icon: 'calendar', product: 'plans' }}
+          line={[t('app.today.sprint_left', { count: sprintDaysLeft(mine.sprint.end_on, day) }), last ? t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit }) : undefined].filter(Boolean).join(' · ')}
+          act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.(`/collections/${mine.sprint.collection_id}/sprints`) }}>
+          <span class="from">{t('app.today.sprint_mine', { count: mine.my_entries })}</span>
+          {#if detail && detail.burndown.length > 0}
+            {@const days = sprintDays(detail.sprint)}
+            {@const top = burndownTop(detail.sprint, detail.burndown)}
+            <!-- The work left over the sprint's days, on axes that say both. -->
+            <div class="burndown" data-burndown>
+              <span class="y-top" aria-hidden="true">{top}</span>
+              <svg class="spark" viewBox="0 0 400 100" preserveAspectRatio="none" role="img" aria-label={t('app.sprints.burndown_label', { remaining: String(last?.remaining ?? 0), unit })}>
+                <polyline class="axis" points="0,0 0,100 400,100" />
+                <polyline class="ideal" points={burndownLine(detail.burndown, 'ideal', days, top, 400, 100, SPARK_INSET)} />
+                <polyline class="remaining" points={burndownLine(detail.burndown, 'remaining', days, top, 400, 100, SPARK_INSET)} />
+              </svg>
+              <span class="y-zero" aria-hidden="true">0</span>
+              <span class="x-days" aria-hidden="true"><span>{formatPlainDay(detail.sprint.start_on, messages.locale)}</span><span>{formatPlainDay(detail.sprint.end_on, messages.locale)}</span></span>
+            </div>
+          {/if}
+        </Widget>
+      </div>
+    {/each}
+  </div>
+{/snippet}
+
+<!-- A tile over the full width; absent while it has nothing to say. -->
+{#snippet tile(key: TodayTile)}
+  {#if key === 'COLLECTIONS' && (lists.length > 0 || projects.length > 0)}
+    <!-- A list is one row with its figure, never its entries one by one (check 2); a project
+         shows how far it is and the step due next (check 3). -->
+    <div class="tile" data-tile={key} data-span={projects.length > 0 ? 'two' : undefined}>
+      <Widget title={t('app.today.collections')}>
+        <ul class="places">
+          {#each lists as list (list.id)}
+            <li class="place" data-list={list.id}>
+              <a class="place-name" href={`/collections/${list.id}`}><ContainerMark look={list} size="md" /><span class="name" title={list.name}>{list.name}</span></a>
+              {#if list.figure}<span class="place-figure"><CollectionFigure figure={list.figure} name={list.name} /></span>{/if}
+            </li>
+          {/each}
+          {#each projects as project (project.id)}
+            {@const step = today.stepOf(project.id)}
+            <li class="place" data-project={project.id}>
+              <a class="place-name" href={`/collections/${project.id}`}><ContainerMark look={project} size="md" /><span class="name" title={project.name}>{project.name}</span></a>
+              {#if project.figure}<span class="place-figure"><CollectionFigure figure={project.figure} name={project.name} /></span>{/if}
+              {#if step}
+                <div class="step"><span class="step-word">{t('app.today.next_step')}</span>{@render entry(step, false)}</div>
+              {:else if today.stepStateOf(project.id).status === 'ready'}
+                <span class="none step">{t('app.today.step_none')}</span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </Widget>
+    </div>
+  {:else if key === 'INBOX' && hasJumble && waiting.length > 0}
+    <!-- What arrived and has not been put anywhere: where it came from, from whom and when, and
+         the two decisions at the row. -->
+    <div class="tile" data-tile={key}>
+      <Widget title={t('app.today.jumble')} count={t(jumble.moreAfter(WAITING) ? 'app.today.jumble_waiting_more' : 'app.today.jumble_waiting', { count: waiting.length })}
+        act={{ label: t('app.today.card_open'), onclick: () => onnavigate?.('/jumble') }}>
+        <ul class="needs">
+          {#each waiting.slice(0, 3) as arrival (arrival.id)}
+            <li class="need">
+              <span class="need-mark" data-channel={arrival.channel} aria-hidden="true"><Icon name={channelIcon(arrival.channel)} size="sm" /></span>
+              <a class="subject" href="/jumble">{subjectOf(arrival)}</a>
+              <span class="from">{[arrival.sender, arrival.received_at ? formatRelative(arrival.received_at, messages.locale) : undefined].filter(Boolean).join(' · ')}</span>
+              {#if mayWriteJumble}
+                <span class="acts">
+                  <Button size="sm" tone="subtle" onclick={() => onnavigate?.('/jumble')}>{t('app.today.jumble_sort')}</Button>
+                  <IconButton icon="x" size="sm" label={t('app.today.jumble_dismiss', { subject: subjectOf(arrival) })} onclick={() => void dismissArrival(arrival.id)} />
+                </span>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      </Widget>
+    </div>
+  {:else if key === 'INBOX' && hasJumble && jumbleAddress && !isNewWorkspace}
+    <!-- Nothing waits: the tile says where to send things instead of standing empty. -->
+    <div class="tile" data-tile={key} data-jumble-address>
+      <Widget title={t('app.today.jumble')}>
+        <p class="none">{t('app.today.jumble_none')}</p>
+        <IntakeAddress address={jumbleAddress} lead={t('app.mail.jumble_lead')} />
+      </Widget>
+    </div>
+  {:else if key === 'RECENT' && recents.rows.length > 0}
+    <!-- What this device opened last (check 5): kept here and sent nowhere. -->
+    <div class="tile wide" data-tile={key}>
+      <Widget title={t('app.today.recent')}>
+        <ul class="recent">
+          {#each recents.rows.slice(0, 6) as row (row.kind + row.id)}
+            {@const self = row.kind === 'item' ? undefined : containers.find(row.id)}
+            {@const place = row.placeId ? containers.find(row.placeId) : undefined}
+            <li>
+              <a class="chip" href={recentHref(row.kind, row.id)} title={[place?.name, row.at ? formatRelative(new Date(row.at).toISOString(), messages.locale) : undefined].filter(Boolean).join(' · ')}>
+                <span class="rmark" aria-hidden="true">
+                  {#if self}<ContainerMark look={self} size="sm" />{:else if place}<ContainerMark look={place} size="sm" />{:else}<Icon name="square-check" size="sm" />{/if}
+                </span>
+                <span class="rtitle">{row.title}</span>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </Widget>
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet tileRow()}
+  {#if hasTiles}
+    <div class="tiles">
+      {#each tiles.shown as key (key)}{@render tile(key)}{/each}
+      <!-- A workspace in use where nothing is on the reader yet: the way into what exists. -->
+      {#if inUse}
+        <div class="tile" data-band="in-use">
+          <Widget title={t('app.today.in_use')}>
+            <ul class="offers">
+              {#each containers.hubs.filter((hub) => hubUse[hub.id]).slice(0, 5) as hub (hub.id)}
+                <li>
+                  <span class="offer-mark" aria-hidden="true"><ContainerMark look={hub} size="md" /></span>
+                  <span class="offer-words">
+                    <a class="offer-name" href={`/hubs/${hub.id}`}>{hub.name}</a>
+                    <span class="offer-what">{t('app.today.in_use_collections', { count: containers.collectionsOf(hub.id).length })}</span>
+                  </span>
+                </li>
+              {/each}
+              {#each inUseProducts as product (product.id)}
+                <li>
+                  <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                  <span class="offer-words">
+                    <a class="offer-name" href={product.path}>{t(product.code)}</a>
+                    <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                  </span>
+                </li>
+              {/each}
+            </ul>
+          </Widget>
+        </div>
+      {/if}
+      {#if moreProducts.length > 0}
+        <div class="tile" data-more>
+          <Widget title={t('app.today.more')}>
+            <IconButton icon="x" size="sm" label={t('app.today.more_dismiss')} onclick={dismissMore} />
+            <ul class="offers">
+              {#each moreProducts as product (product.id)}
+                <li>
+                  <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
+                  <span class="offer-words">
+                    <span class="offer-name">{t(product.code)}</span>
+                    <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
+                  </span>
+                  <Button size="sm" tone="secondary" onclick={() => tryProduct(product)}>{t('app.today.more_try')}</Button>
+                </li>
+              {/each}
+            </ul>
+          </Widget>
+        </div>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet overview()}
+  {#if hasNeeds}{@render needsYou()}{/if}
+  {@render tileRow()}
 {/snippet}
 
 <WorkPage>
   {#snippet top()}
-    <!-- The day starts with the person (§11.7): the greeting is the heading, the date at its end. -->
-    <PageHeader title={greeting} isTitleInBar={viewport.isCompact}>
-      {#snippet aside()}<span class="date">{dayLine}</span>{/snippet}
-    </PageHeader>
+    <!-- The day starts with the person (§11.7): the greeting is the heading, the date under it,
+         *Sections* at the end where the page has them. -->
+    <PageHeader title={greeting} subtitle={dayLine}
+      secondary={actor.account && !actor.hasNoAccess && !containers.hasNoHubs ? [{ label: t('app.today.sections'), icon: 'settings', onclick: () => (isArranging = true) }] : []} />
   {/snippet}
 
   {#if actor.hasNoAccess && actor.portals.length > 0}
@@ -599,9 +1029,8 @@
       {/snippet}
     </EmptyState>
   {:else if actor.hasNoAccess}
-    <!-- Nobody gave this person anything yet: said in a sentence rather than an empty workspace
-         without explanation (UC-ID-08 check 2), and without *Create hub*, which the server refuses
-         to an account holding no role anywhere - a private hub of one's own included. -->
+    <!-- Nobody gave this person anything yet: said in a sentence (UC-ID-08 check 2), and without
+         *Create hub*, which the server refuses to an account holding no role anywhere. -->
     <EmptyState kind="unused" title={t('app.workspace.no_access')} description={t('app.workspace.no_access_detail')} icon="hub" />
   {:else if containers.hasNoHubs && containers.hubsState.status === 'ready'}
     <!-- A workspace with nothing in it has one thing to say and one thing to do. -->
@@ -613,371 +1042,52 @@
       {/snippet}
     </EmptyState>
   {:else}
-    <!-- The day at a glance (§11.7): each figure a way into the search that lists it. -->
-    {#if !isLoading && !failure}
-      <ul class="glance" aria-label={t('app.today.glance')}>
-        <li><a href={`/search?${new URLSearchParams({ f: 'who:me is:open due:today' })}`}><b>{bands.today.length}</b> {t('app.today.glance_today', { count: bands.today.length })}</a></li>
-        <!-- What is late, said as late (UC-WRK-34 check 6, as changed): the figure in the danger
-             ink with its mark, so it is not the colour alone (rule 3). -->
-        <li><a data-late={bands.earlier.length > 0 ? '' : undefined} href={`/search?${new URLSearchParams({ f: 'who:me is:open due:overdue' })}`}><b>{bands.earlier.length}</b> {#if bands.earlier.length > 0}<span class="hot-mark" aria-hidden="true"><Icon name="triangle-alert" size="sm" /></span>{/if}{t('app.today.glance_overdue', { count: bands.earlier.length })}</a></li>
-        <li><a href={`/search?${new URLSearchParams({ f: 'who:me is:open due:week' })}`}><b>{bands.later.length}</b> {t('app.today.glance_later', { count: bands.later.length })}</a></li>
-        {#if hasJumble}
-          <li><a href="/jumble"><b>{waiting.length}</b> {t('app.today.glance_jumble', { count: waiting.length })}</a></li>
-        {/if}
-        <li><a href={`/search?${new URLSearchParams({ f: 'who:me is:open' })}`}><b>{bands.earlier.length + bands.today.length + bands.later.length}</b> {t('app.today.glance_mine', { count: bands.earlier.length + bands.today.length + bands.later.length })}</a></li>
-      </ul>
-    {/if}
-    <div class="panels" data-alone={hasSide ? undefined : ''} bind:this={panels}>
-      <!-- What is on the reader, split where their own day divides it. -->
-      <section class="panel mine" aria-labelledby="today-mine">
-        <Stack gap="150">
-          <div class="head-row">
-            <h2 class="head" id="today-mine">{isNewWorkspace ? t('app.today.first_steps') : t('app.today.mine')}</h2>
-            {#if !isLoading && !failure && mineTotal > 0}<span class="head-count">{t('app.today.mine_count', { count: mineTotal })}</span>{/if}
+    <div class="today" data-today>
+      {#if cards.shown.length > 0}
+        <div class="cards">
+          <WidgetStrip label={t('app.today.glance')}>
+            {#each cards.shown as key (key)}{@render card(key)}{/each}
+          </WidgetStrip>
+        </div>
+      {/if}
+      {#if viewport.isCompact}
+        <!-- A phone: *your day* or the overview, one at a time (§7). -->
+        <Tabs label={t('app.today.switch')} tabs={[{ id: 'day', label: t('app.today.day') }, { id: 'overview', label: t('app.today.overview') }]} bind:selected={phoneView}>
+          <div class="phone-panel">
+            {#if phoneView === 'day'}{@render yourDay()}{:else}{@render overview()}{/if}
           </div>
-          {#if writeFailure}
-            <p class="failure" role="alert">{writeFailure.message}</p>
-          {/if}
-          {#if failure}
-            <FailureState problem={failure} onRetry={() => today.open()()} />
-          {:else if isLoading || (looksNew && !isUseSettled)}
-            <div aria-busy="true"><Skeleton lines={3} /></div>
-          {:else if isNewWorkspace}
-            <!-- The first steps, each ticked where it is already done, each with its act. -->
-            <ul class="steps">
-              {#if workspace.workspace?.starter_skipped === true}
-                <!-- The first start was skipped and nothing made since: the same dialog, once more (§3.3). -->
-                <li data-step-choose>
-                  <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_choose')}</span>
-                  <Button size="sm" tone="secondary" onclick={() => (isChoosing = true)}>{t('app.today.step_choose_act')}</Button>
-                </li>
-              {/if}
-              <li data-done=""><span class="step-mark" aria-hidden="true"><Icon name="check" size="sm" /></span><span class="step-word">{t('app.today.step_hub')}</span></li>
-              <li>
-                <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_capture')}</span>
-                {#if mayCaptureHere()}<Button size="sm" tone="secondary" icon="plus" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>{/if}
-              </li>
-              {#if mayInvite}
-                <li data-done={hasCompany ? '' : undefined}>
-                  <span class="step-mark" aria-hidden="true">{#if hasCompany}<Icon name="check" size="sm" />{/if}</span><span class="step-word">{t('app.today.step_invite')}</span>
-                  {#if !hasCompany}<Button size="sm" tone="secondary" onclick={() => onnavigate?.('/administration/people')}>{t('app.today.step_invite_act')}</Button>{/if}
-                </li>
-              {/if}
-              {#if jumbleAddress}
-                <li data-step-mail>
-                  <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_mail')}</span>
-                  <IntakeAddress address={jumbleAddress} />
-                </li>
-              {/if}
-            </ul>
-          {:else if isMineEmpty}
-            <!-- An empty card offers the next act, centred (§13, G4). -->
-            <div class="empty">
-              <p class="none">{t('app.today.mine_none')}</p>
-              {#if mayCaptureHere()}
-                <Button size="sm" icon="plus" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
-              {/if}
-            </div>
-          {:else}
-            {@render band('app.today.earlier', shownBands.earlier)}
-            {@render band('app.today.today', shownBands.today)}
-            {@render band('app.today.later', shownBands.later)}
-            {#if mineHidden > 0 || today.hasMore}
-              <!-- The rest is the search's: `has_more` as well as the rows held back, because a
-                   search answers what the caller may see, so a short page is not the end. -->
-              <p class="more">
-                {#if mineHidden > 0}<span>{t('app.today.mine_hidden', { count: mineHidden })} · </span>{/if}<a href={`/search?${new URLSearchParams({ f: 'who:me is:open' })}`}>{t('app.today.mine_more')}</a>
-              </p>
-            {/if}
-          {/if}
-        </Stack>
-      </section>
-
-      <!-- Beside it, what the day is made of besides: the lists, the projects, the jumble, what
-           was opened last. -->
-      {#if hasSide}
-      <div class="side">
-        <!-- The products' bands first, where the products meet the reader's day (check 8). -->
-        {#if deskRows.length > 0}
-          <section class="panel" aria-labelledby="today-desk" data-band="desk">
-            <Stack gap="100">
-              <h2 class="head" id="today-desk">{t('app.today.desk')}</h2>
-              <ul class="inbox">
-                {#each deskRows as entry (entry.id)}
-                  <li class="arrival" data-desk-entry={entry.id}>
-                    <span class="channel" aria-hidden="true"><Icon name="inbox" size="sm" /></span>
-                    <a class="subject" href={`/items/${entry.id}`}>{entry.title}</a>
-                    <span class="from">{#key entry.id}<SlaRemaining itemId={entry.id} now={deskNow} />{/key}</span>
-                  </li>
-                {/each}
-              </ul>
-              <p class="more"><a href="/desk">{t('app.today.desk_all')} →</a></p>
-            </Stack>
-          </section>
-        {/if}
-        {#if waitingCount > 0}
-          <section class="panel" aria-labelledby="today-approvals" data-band="approvals">
-            <Stack gap="100">
-              <div class="head-row">
-                <h2 class="head" id="today-approvals">{t('app.today.approvals')}</h2>
-                <span class="head-count">{t('app.today.approvals_count', { count: waitingCount })}</span>
-              </div>
-              <ul class="inbox">
-                {#each (waitingApprovals ?? []).slice(0, 3) as approval (approval.id)}
-                  {@const title = `${approval.item_number ? `#${approval.item_number} ` : ''}${approval.item_title ?? ''}`}
-                  <li class="arrival">
-                    <span class="channel" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
-                    <a class="subject" href={`/items/${approval.item_id}`}>{title}</a>
-                    <span class="from">{[approval.step, formatRelative(approval.requested_at, messages.locale)].join(' · ')}</span>
-                    {#if approval.may_decide}
-                      <span class="acts">
-                        <Button size="sm" tone="secondary" onclick={() => void approve(approval)}>{t('app.approvals.approve')}</Button>
-                      </span>
-                    {/if}
-                  </li>
-                {/each}
-                {#each heldRows.slice(0, 3) as act (act.id)}
-                  <li class="arrival" data-held-act={act.id}>
-                    <span class="channel" aria-hidden="true"><Icon name="zap" size="sm" /></span>
-                    {#if act.path}
-                      <a class="subject" href={act.path}>{t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}</a>
-                    {:else}
-                      <span class="subject">{t('app.today.held_act', { agent: act.name || t('app.today.held_act_agent') })}</span>
-                    {/if}
-                    <span class="from">{formatRelative(act.at, messages.locale)}</span>
-                    <span class="acts">
-                      {#if act.mayApproveHere}
-                        <Button size="sm" tone="secondary" onclick={() => void decideAct(act.id, true)}>{t('app.agents.approve_act')}</Button>
-                      {/if}
-                      <Button size="sm" tone="subtle" onclick={() => void decideAct(act.id, false)}>{t('app.agents.decline_act')}</Button>
-                    </span>
-                  </li>
-                {/each}
-                {#each reviews.slice(0, 3) as review (review.id)}
-                  <li class="arrival" data-review={review.id}>
-                    <span class="channel" aria-hidden="true"><Icon name="file-text" size="sm" /></span>
-                    <a class="subject" href={`/pages/${review.id}`}>{t('app.today.review_page', { title: review.title })}</a>
-                    <span class="from">{formatRelative(review.updated_at, messages.locale)}</span>
-                  </li>
-                {/each}
-              </ul>
-              {#if waitingCount > 0}<p class="more"><a href="/approvals">{t('app.today.approvals_all')} →</a></p>{/if}
-            </Stack>
-          </section>
-        {/if}
-        {#if timeToday}
-          <section class="panel" aria-labelledby="today-time" data-band="time">
-            <Stack gap="100">
-              <h2 class="head" id="today-time">{t('app.today.time')}</h2>
-              <p class="figures"><b>{minutesText(timeToday.today)}</b> {t('app.today.time_against', { week: minutesText(timeToday.week) })}</p>
-              {#if timeToday.running}
-                <p class="running"><span class="running-mark" aria-hidden="true"><Icon name="clock" size="sm" /></span><span>{t('app.time.timer_running', { minutes: minutesText(timeToday.running.minutes) })}</span>{#if timeToday.running.entryId}<span aria-hidden="true">·</span><a href={`/items/${timeToday.running.entryId}`}>{timeToday.running.entryTitle ? t('app.time.timer_on', { title: timeToday.running.entryTitle }) : t('app.time.timer_open')}</a>{/if}</p>
-              {/if}
-              <p class="more"><a href="/time">{t('app.today.time_open')} →</a></p>
-            </Stack>
-          </section>
-        {/if}
-        {#if mySprints.length > 0}
-          <section class="panel" aria-labelledby="today-sprint" data-band="sprint">
-            <Stack gap="100">
-              <h2 class="head" id="today-sprint">{t('app.today.sprint')}</h2>
-              <ul class="sprints">
-                {#each mySprints.slice(0, SPRINTS_SHOWN) as mine (mine.sprint.id)}
-                  {@const detail = sprintDetails[mine.sprint.id]}
-                  {@const unit = t(`app.sprints.unit_${mine.sprint.unit}`)}
-                  {@const last = detail?.burndown.at(-1)}
-                  <li class="sprint" data-sprint={mine.sprint.id}>
-                    <a class="subject" href={`/collections/${mine.sprint.collection_id}/sprints`}>{mine.sprint.name}</a>
-                    <span class="from">{[t('app.today.sprint_left', { count: sprintDaysLeft(mine.sprint.end_on, day) }), t('app.today.sprint_mine', { count: mine.my_entries })].join(' · ')}</span>
-                    {#if detail && detail.burndown.length > 0}
-                      {@const days = sprintDays(detail.sprint)}
-                      {@const top = burndownTop(detail.sprint, detail.burndown)}
-                      <!-- The work left over the sprint's days, on axes that say both: the top
-                           value and nothing at the left, the first and last day below. -->
-                      <div class="burndown" data-burndown>
-                        <span class="y-top" aria-hidden="true">{top}</span>
-                        <svg class="spark" viewBox="0 0 400 100" preserveAspectRatio="none" role="img" aria-label={t('app.sprints.burndown_label', { remaining: String(last?.remaining ?? 0), unit })}>
-                          <polyline class="axis" points="0,0 0,100 400,100" />
-                          <polyline class="ideal" points={burndownLine(detail.burndown, 'ideal', days, top, 400, 100, SPARK_INSET)} />
-                          <polyline class="remaining" points={burndownLine(detail.burndown, 'remaining', days, top, 400, 100, SPARK_INSET)} />
-                        </svg>
-                        <span class="y-zero" aria-hidden="true">0</span>
-                        <span class="x-days" aria-hidden="true"><span>{formatPlainDay(detail.sprint.start_on, messages.locale)}</span><span>{formatPlainDay(detail.sprint.end_on, messages.locale)}</span></span>
-                      </div>
-                      {#if last}<span class="from">{t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit })}</span>{/if}
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-            </Stack>
-          </section>
-        {/if}
-        <!-- A list is one tile with its figure, never its entries one by one (check 2). -->
-        {#if lists.length > 0}
-          <section class="panel" aria-labelledby="today-lists">
-            <Stack gap="150">
-              <h2 class="head" id="today-lists">{t('app.today.lists')}</h2>
-              <ul class="tiles">
-                {#each lists as list (list.id)}
-                  <li>
-                    <a class="tile" href={`/collections/${list.id}`} data-token={list.color_token ?? undefined}>
-                      <span class="tile-name"><ContainerMark look={list} size="md" /><span class="name" title={list.name}>{list.name}</span></span>
-                      {#if list.figure}<span class="tile-figure"><CollectionFigure figure={list.figure} name={list.name} /></span>{/if}
-                    </a>
-                  </li>
-                {/each}
-              </ul>
-            </Stack>
-          </section>
-        {/if}
-
-        <!-- A project shows how far it is and the step that is due next (check 3). -->
-        {#if projects.length > 0}
-          <section class="panel" aria-labelledby="today-projects">
-            <Stack gap="200">
-              <h2 class="head" id="today-projects">{t('app.today.projects')}</h2>
-              {#each projects as project (project.id)}
-                {@const step = today.stepOf(project.id)}
-                {@const stepState = today.stepStateOf(project.id).status}
-                <div class="project">
-                  <a class="project-name" href={`/collections/${project.id}`}>
-                    <ContainerMark look={project} /><span class="name">{project.name}</span>
-                  </a>
-                  {#if project.figure}<CollectionFigure figure={project.figure} name={project.name} />{/if}
-                  {#if step}
-                    <div class="step">
-                      <span class="step-word">{t('app.today.next_step')}</span>
-                      {@render entry(step, false)}
-                    </div>
-                  {:else if stepState === 'ready'}
-                    <p class="none">{t('app.today.step_none')}</p>
-                  {/if}
-                </div>
-              {/each}
-            </Stack>
-          </section>
-        {/if}
-
-        <!-- What arrived and has not been put anywhere, as a small inbox: where it came from, from
-             whom and how long ago, and the two decisions at the row (concept round 2, §1). Not
-             drawn while nothing waits: an empty card is not a card. -->
-        {#if hasJumble && waiting.length > 0}
-          <section class="panel" aria-labelledby="today-jumble">
-            <Stack gap="100">
-              <div class="head-row">
-                <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
-                <span class="head-count">{t(jumble.moreAfter(WAITING) ? 'app.today.jumble_waiting_more' : 'app.today.jumble_waiting', { count: waiting.length })}</span>
-              </div>
-              <ul class="inbox">
-                {#each waiting.slice(0, 3) as arrival (arrival.id)}
-                  <li class="arrival">
-                    <span class="channel" data-channel={arrival.channel} aria-hidden="true"><Icon name={channelIcon(arrival.channel)} size="sm" /></span>
-                    <a class="subject" href="/jumble">{subjectOf(arrival)}</a>
-                    <span class="from">{[arrival.sender, arrival.received_at ? formatRelative(arrival.received_at, messages.locale) : undefined].filter(Boolean).join(' · ')}</span>
-                    {#if mayWriteJumble}
-                      <span class="acts">
-                        <Button size="sm" tone="secondary" onclick={() => onnavigate?.('/jumble')}>{t('app.today.jumble_sort')}</Button>
-                        <IconButton icon="x" size="sm" label={t('app.today.jumble_dismiss', { subject: subjectOf(arrival) })} onclick={() => void dismissArrival(arrival.id)} />
-                      </span>
-                    {/if}
-                  </li>
-                {/each}
-              </ul>
-              <p class="more"><a href="/jumble">{t(jumble.moreAfter(WAITING) ? 'app.today.jumble_more_than' : 'app.today.jumble_more', { count: waiting.length })} →</a></p>
-            </Stack>
-          </section>
-        {:else if hasJumble && jumbleAddress && !isNewWorkspace}
-          <!-- Nothing waits: the card says where to send things instead of standing empty. -->
-          <section class="panel" aria-labelledby="today-jumble" data-jumble-address>
-            <Stack gap="100">
-              <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
-              <p class="none">{t('app.today.jumble_none')}</p>
-              <IntakeAddress address={jumbleAddress} lead={t('app.mail.jumble_lead')} />
-            </Stack>
-          </section>
-        {/if}
-
-        <!-- A workspace in use where nothing is on the reader yet: the way into what exists. -->
-        {#if inUse}
-          <section class="panel" aria-labelledby="today-in-use" data-band="in-use">
-            <Stack gap="100">
-              <h2 class="head" id="today-in-use">{t('app.today.in_use')}</h2>
-              <ul class="offers">
-                {#each containers.hubs.filter((hub) => hubUse[hub.id]).slice(0, 5) as hub (hub.id)}
-                  <li>
-                    <span class="offer-mark" aria-hidden="true"><ContainerMark look={hub} size="md" /></span>
-                    <span class="offer-words">
-                      <a class="offer-name" href={`/hubs/${hub.id}`}>{hub.name}</a>
-                      <span class="offer-what">{t('app.today.in_use_collections', { count: containers.collectionsOf(hub.id).length })}</span>
-                    </span>
-                  </li>
-                {/each}
-                {#each inUseProducts as product (product.id)}
-                  <li>
-                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
-                    <span class="offer-words">
-                      <a class="offer-name" href={product.path}>{t(product.code)}</a>
-                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
-                    </span>
-                  </li>
-                {/each}
-              </ul>
-            </Stack>
-          </section>
-        {/if}
-
-        <!-- What this device opened last (check 5), as tiles: its mark and colour, its place and
-             when - so the eye finds it again. Kept here and sent nowhere; not drawn while empty. -->
-        {#if recents.rows.length > 0}
-          <section class="panel" aria-labelledby="today-recent">
-            <Stack gap="100">
-              <h2 class="head" id="today-recent">{t('app.today.recent')}</h2>
-              <ul class="recent">
-                {#each recents.rows.slice(0, 4) as row (row.kind + row.id)}
-                  {@const self = row.kind === 'item' ? undefined : containers.find(row.id)}
-                  {@const place = row.placeId ? containers.find(row.placeId) : undefined}
-                  <li>
-                    <a class="rtile" href={recentHref(row.kind, row.id)}>
-                      <span class="rmark" aria-hidden="true">
-                        {#if self}<ContainerMark look={self} size="md" />{:else if place}<ContainerMark look={place} size="md" />{:else}<Icon name="square-check" size="sm" />{/if}
-                      </span>
-                      <span class="rtitle">{row.title}</span>
-                      <span class="rwhere">{[place?.name, row.at ? formatRelative(new Date(row.at).toISOString(), messages.locale) : undefined].filter(Boolean).join(' · ')}</span>
-                    </a>
-                  </li>
-                {/each}
-              </ul>
-            </Stack>
-          </section>
-        {/if}
-
-        {#if moreProducts.length > 0}
-          <section class="panel" aria-labelledby="today-more" data-more>
-            <Stack gap="100">
-              <div class="head-row">
-                <h2 class="head" id="today-more">{t('app.today.more')}</h2>
-                <IconButton icon="x" size="sm" label={t('app.today.more_dismiss')} onclick={dismissMore} />
-              </div>
-              <ul class="offers">
-                {#each moreProducts as product (product.id)}
-                  <li>
-                    <span class="offer-mark" aria-hidden="true"><Icon name={product.icon} size="sm" /></span>
-                    <span class="offer-words">
-                      <span class="offer-name">{t(product.code)}</span>
-                      <span class="offer-what">{t(`app.modules.hint_${product.module.toLowerCase()}`)}</span>
-                    </span>
-                    <Button size="sm" tone="secondary" onclick={() => tryProduct(product)}>{t('app.today.more_try')}</Button>
-                  </li>
-                {/each}
-              </ul>
-            </Stack>
-          </section>
-        {/if}
-      </div>
+        </Tabs>
+      {:else}
+        <div class="columns" data-alone={hasNeeds ? undefined : ''}>
+          {@render yourDay()}
+          {#if hasNeeds}{@render needsYou()}{/if}
+        </div>
+        {@render tileRow()}
       {/if}
     </div>
   {/if}
 </WorkPage>
+
+<!-- *Sections* (E-17): show, hide and order the cards and tiles; the account's, on every device. -->
+<Dialog title={t('app.today.sections_title')} bind:isOpen={isArranging} size="m" dismissLabel={t('app.today.sections_close')}>
+  <p class="none">{t('app.today.sections_lead')}</p>
+  {#each sectionGroups as group (group.code)}
+    {@const ordered = group.ordered}
+    <h3 class="band">{t(group.code)}</h3>
+    <ul class="arrange" data-arrange={group.code}>
+      {#each ordered as key, at (key)}
+        {@const name = t(sectionCode[key])}
+        <li data-section={key}>
+          <Checkbox label={name} checked={!sectionHidden.includes(key)} onchange={(event) => showSection(key, (event.currentTarget as HTMLInputElement).checked)} />
+          <span class="arrange-acts">
+            <IconButton icon="arrow-up" size="sm" label={t('app.today.section_up', { name })} disabledReason={at === 0 ? t('app.today.section_first') : undefined} onclick={() => moveSection(group.isCard, key, -1)} />
+            <IconButton icon="arrow-down" size="sm" label={t('app.today.section_down', { name })} disabledReason={at === ordered.length - 1 ? t('app.today.section_last') : undefined} onclick={() => moveSection(group.isCard, key, 1)} />
+          </span>
+        </li>
+      {/each}
+    </ul>
+  {/each}
+</Dialog>
 
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
@@ -986,46 +1096,94 @@
   oncreated={(id, landing) => { tryingWith = undefined; onnavigate?.(landing ?? `/hubs/${id}`); }} />
 
 <style>
-  .offers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
-  .offers li { display: flex; align-items: center; gap: var(--sp-150); min-width: 0; }
-  .offer-mark { display: inline-grid; place-items: center; inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); background: var(--accent-primary-subtle); color: var(--text-brand); flex: none; }
-  .offer-words { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-  .offer-name { font-weight: var(--fw-medium); }
-  .offer-what { color: var(--text-secondary); font-size: var(--fs-075); }
-  /* One column on a phone; from `expanded` the concept's two - what is on the reader the wider,
-     because it is the reason they are here, the rest stacked beside it. */
-  .panels {
+  /* The scene `today` (work-surface concept §6.1): the cards' row, two columns that end level, the
+     tiles over the full width. One column below `expanded`; on a phone the cards swipe and the
+     columns are a switch (§7). */
+  .today { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); min-inline-size: 0; }
+  .cards { min-inline-size: 0; }
+
+  .columns {
     display: grid;
     gap: var(--sp-200);
     grid-template-columns: minmax(0, 1fr);
-    align-items: start;
+    align-items: stretch;
+  }
+  /* The columns end level: the grid stretches each to the row; *needs you* grows above the sprint. */
+  .needs-column { display: flex; flex-direction: column; gap: var(--sp-200); min-inline-size: 0; }
+  .needs-column > :global(section:first-child) { flex: 1; }
+
+  .tiles {
+    display: grid;
+    gap: var(--sp-200);
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tile { display: flex; min-inline-size: 0; }
+  .tile > :global(section) { flex: 1; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
+  @media (width >= 905px) {
+    .columns { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+    .columns[data-alone] { grid-template-columns: minmax(0, 1fr); }
+    .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .tile.wide { grid-column: 1 / -1; }
+    /* Projects carry their next step as a row of its own: the tile takes two of the three. */
+    .tile[data-span='two'] { grid-column: span 2; }
   }
 
-  .side { display: grid; gap: var(--sp-200); min-width: 0; }
+  .phone-panel { display: grid; gap: var(--sp-200); padding-block-start: var(--sp-150); }
+  .phone-panel .tiles { grid-template-columns: minmax(0, 1fr); }
 
-  .head-row { display: flex; align-items: baseline; gap: var(--sp-100); }
-  .head-count { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-075); font-weight: var(--fw-medium); }
-
-  /* The first steps of a new workspace: a checklist, each step's act at its end. */
-  .steps { display: grid; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
-  .steps li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-block-size: var(--density-control-sm-min); }
-  .step-mark {
-    display: inline-grid;
-    place-items: center;
-    flex: none;
-    inline-size: var(--sp-250);
-    block-size: var(--sp-250);
-    border: var(--bw-thick) solid var(--border-strong);
-    border-radius: var(--r-sm);
+  /* A tablet holds three cards to a row, so a card's words are not broken one to a line; the
+     strip's own row stands from `expanded`, its swipe below `medium`. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` and `.expanded` (600px, 905px); a media query cannot read a custom property. */
+  @media (width >= 600px) and (width < 905px) {
+    .cards > :global(section) { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
-  .steps li[data-done] .step-mark { border-color: var(--accent-primary); background: var(--accent-primary); color: var(--text-inverse); }
-  .steps li[data-done] .step-word { color: var(--text-subtle); text-decoration: line-through; }
-  .step-word { flex: 1; min-width: 0; }
+  .card { display: flex; min-inline-size: 0; }
+  .card > :global(section) { flex: 1; }
 
-  /* The jumble as a small inbox: the channel's mark, the subject, who and when below it, the two
-     decisions at the end. */
-  .inbox { display: grid; margin: 0; padding: 0; list-style: none; }
-  .arrival {
+  .day { display: flex; flex-direction: column; gap: var(--sp-150); min-inline-size: 0; }
+
+  /* The capture field: looks like a field, opens the one capture (§8). */
+  .capture {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    inline-size: 100%;
+    min-block-size: var(--density-control-md-min);
+    padding: var(--sp-050) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-subtle);
+    font: inherit;
+    text-align: start;
+    cursor: text;
+  }
+  .capture:hover { border-color: var(--border-strong); }
+  .capture:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+  .capture-words { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .band-group { display: grid; gap: var(--sp-050); }
+  .band {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+  }
+  .band-count { color: var(--text-subtle); font-weight: var(--fw-regular); }
+
+  .none { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
+  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-100); }
+  .more { margin: 0; font-size: var(--fs-075); }
+
+  a { color: var(--text-brand); }
+  a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
+
+  /* A row that needs the person: the product's mark, the subject, one line under it, one act. */
+  .needs { display: grid; margin: 0; padding: 0; list-style: none; }
+  .need {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: 'mark subject acts' 'mark from acts';
@@ -1034,8 +1192,8 @@
     padding-block: var(--sp-100);
     border-block-start: var(--bw-hairline) solid var(--border-subtle);
   }
-  .arrival:first-child { border-block-start: 0; }
-  .channel {
+  .need:first-child { border-block-start: 0; }
+  .need-mark {
     grid-area: mark;
     display: inline-grid;
     place-items: center;
@@ -1045,19 +1203,20 @@
     background: var(--label-slate-bg);
     color: var(--label-slate-fg);
   }
-  .channel[data-channel='EMAIL'] { background: var(--label-blue-bg); color: var(--label-blue-fg); }
-  .channel[data-channel='WEBHOOK'] { background: var(--label-green-bg); color: var(--label-green-fg); }
+  .need-mark[data-product='desk'] { background: var(--product-desk-surface); color: var(--product-desk-ink); }
+  .need-mark[data-product='agents'] { background: var(--product-agents-surface); color: var(--product-agents-ink); }
+  .need-mark[data-product='pages'] { background: var(--product-pages-surface); color: var(--product-pages-ink); }
+  .need-mark[data-product='approvals'] { background: var(--label-green-bg); color: var(--label-green-fg); }
+  .need-mark[data-channel='EMAIL'] { background: var(--label-blue-bg); color: var(--label-blue-fg); }
+  .need-mark[data-channel='WEBHOOK'] { background: var(--label-green-bg); color: var(--label-green-fg); }
   .subject { grid-area: subject; overflow: hidden; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
   .subject:hover { text-decoration: underline; }
   .from { grid-area: from; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .acts { grid-area: acts; display: inline-flex; align-items: center; gap: var(--sp-050); }
-  /* A running sprint: its name, the days left and the reader's share, and its burndown below. */
-  /* A title beside its hub and collection keeps room for a few words more than the row's own least
-     width: where the place does not fit beside that, it goes under the title (the row wraps). */
+
+  /* A title beside its hub and collection keeps room for a few words more than the row's least. */
   [data-entry-row] :global(.content) { min-inline-size: min(100%, 28ch); }
-  .sprints { display: grid; gap: var(--sp-200); margin: 0; padding: 0; list-style: none; }
-  .sprint { display: grid; gap: var(--sp-050); }
-  .sprint .subject, .sprint .from { grid-area: auto; }
+
   .burndown {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -1076,216 +1235,60 @@
   .spark .remaining { stroke: var(--accent-primary); }
   .spark .ideal { stroke: var(--border-strong); }
 
-  /* What was opened last, as tiles two to a row: the mark, the title, the place and when. */
-  .recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22ch), 1fr)); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
-  .rtile {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: 'mark title' 'mark where';
-    align-items: center;
-    gap: 0 var(--sp-100);
-    padding: var(--sp-100);
-    border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
-    color: var(--text-primary);
-    text-decoration: none;
-  }
-  .rtile:hover { background: var(--bg-surface-hover); }
-  .rmark { grid-area: mark; display: inline-flex; color: var(--text-secondary); }
-  .rtitle { grid-area: title; overflow: hidden; font-weight: var(--fw-medium); text-overflow: ellipsis; white-space: nowrap; }
-  .rwhere { grid-area: where; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
-
-  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
-  @media (width >= 905px) {
-    .panels { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
-    /* Nothing beside it: *On you* takes the width rather than leaving a column empty. */
-    .panels[data-alone] { grid-template-columns: minmax(0, 1fr); }
-  }
-
-  .date { color: var(--text-secondary); font-size: var(--fs-100); white-space: nowrap; }
-
-  /* A standalone element, so it takes the surface and the raised shadow rather than a border
-     (`design-system.md` rule 1). The frame's canvas is what it sits on. */
-  .panel {
-    background: var(--bg-surface);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    box-shadow: var(--shadow-raised);
-    padding: var(--sp-150) var(--sp-200);
-    min-width: 0;
-  }
-
-  .head {
-    margin: 0;
-    font-size: var(--fs-200);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-  }
-
-  /* The band's word is flush left: the same start as the panel's heading and the rows' boxes. */
-  .band {
-    margin: 0;
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-    color: var(--text-secondary);
-  }
-
-  .none { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
-
-  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-100); }
-
-  .more { margin: 0; font-size: var(--fs-075); }
-
-  /* *Time today*: the day's figure large, the week beside it, the running timer under it. */
-  .figures { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
-  .figures b { color: var(--text-primary); font-size: var(--fs-300); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
-  .running { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-primary); font-size: var(--fs-100); }
-  .running-mark { display: inline-flex; color: var(--text-success); }
-
-  a { color: var(--text-brand); }
-
-  a:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-    border-radius: var(--r-xs);
-  }
-
-  /* The tiles: a list in a glance, its name and its figure, as many to a row as fit. Inside a
-     panel, so sunk into it rather than raised a second time. */
-  .tiles {
-    display: grid;
-    gap: var(--sp-100);
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16ch), 1fr));
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  /* A grid item's automatic minimum is its content's width: a long name widened its tile past its
-     column and the card past the column of cards. */
-  .tiles > li { display: flex; min-inline-size: 0; }
-
-  .tile {
-    display: flex;
-    flex: 1;
-    min-inline-size: 0;
-    flex-direction: column;
-    gap: var(--sp-100);
-    padding: var(--sp-150);
-    border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
-    color: var(--text-primary);
-    text-decoration: none;
-  }
-
-  .tile:hover { background: var(--bg-surface-hover); }
-
-  /* A list's tile in its own colour where its people chose one (design-system.md §6): the place's
-     colour, never a level's; the label's measured pair, so its words keep their contrast. */
-  .tile[data-token] { background: var(--tile-bg); color: var(--tile-fg); }
-  .tile[data-token]:hover { background: var(--tile-bg); filter: brightness(0.97); }
-  .tile[data-token='slate'] { --tile-bg: var(--label-slate-bg); --tile-fg: var(--label-slate-fg); }
-  .tile[data-token='blue'] { --tile-bg: var(--label-blue-bg); --tile-fg: var(--label-blue-fg); }
-  .tile[data-token='teal'] { --tile-bg: var(--label-teal-bg); --tile-fg: var(--label-teal-fg); }
-  .tile[data-token='green'] { --tile-bg: var(--label-green-bg); --tile-fg: var(--label-green-fg); }
-  .tile[data-token='lime'] { --tile-bg: var(--label-lime-bg); --tile-fg: var(--label-lime-fg); }
-  .tile[data-token='amber'] { --tile-bg: var(--label-amber-bg); --tile-fg: var(--label-amber-fg); }
-  .tile[data-token='orange'] { --tile-bg: var(--label-orange-bg); --tile-fg: var(--label-orange-fg); }
-  .tile[data-token='red'] { --tile-bg: var(--label-red-bg); --tile-fg: var(--label-red-fg); }
-  .tile[data-token='magenta'] { --tile-bg: var(--label-magenta-bg); --tile-fg: var(--label-magenta-fg); }
-  .tile[data-token='violet'] { --tile-bg: var(--label-violet-bg); --tile-fg: var(--label-violet-fg); }
-
-  /* The day at a glance: a row of figures, each a link, wrapping where the width ends. */
-  .glance {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-100);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .glance a {
-    display: inline-flex;
-    align-items: baseline;
-    gap: var(--sp-050);
-    padding: var(--sp-100) var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .glance a:hover { background: var(--bg-surface-hover); }
-
-  /* Something late: the figure on the danger state's surface, with its mark beside the word
-     (rule 3) - a status, drawn as one. */
-  .glance a[data-late] {
-    border-color: var(--status-danger-border);
-    background: var(--status-danger-surface);
-    color: var(--status-danger-text);
-  }
-  .hot-mark { display: inline-flex; }
-
-  .glance b {
-    font-size: var(--fs-400);
-    font-weight: var(--fw-bold);
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* An empty card's sentence and its act, centred in the card (§13, G4). */
-  .empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--sp-100);
-    padding-block: var(--sp-200);
-    text-align: center;
-  }
-
-  .tile-name, .project-name {
-    display: flex;
-    align-items: center;
-    gap: var(--sp-100);
-    min-width: 0;
-    font-weight: var(--fw-medium);
-  }
-
+  /* *Your collections*: a row each, the mark, the name, the figure at the end. */
+  .places { display: grid; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .place { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); min-inline-size: 0; }
+  .place-name { flex: 1 1 14ch; }
+  .place-name { display: flex; align-items: center; gap: var(--sp-100); min-inline-size: 0; color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
+  .place-name:hover .name { text-decoration: underline; }
+  .place-figure { color: var(--text-secondary); font-size: var(--fs-075); }
   .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  /* A list's name in its tile: two lines at most, then an ellipsis - a narrow column cut it after
-     a word. A word longer than the tile ends in the ellipsis, as a hub's name does (`NavLevel`). */
-  .tile .name {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    white-space: normal;
-  }
-
-  .tile-figure { color: var(--text-secondary); font-size: var(--fs-075); }
-
-  .project {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-100);
-    min-width: 0;
-  }
-
-  .project-name { color: var(--text-primary); text-decoration: none; }
-
-  .project-name:hover .name { text-decoration: underline; }
-
-  .project :global(.figure) { color: var(--text-secondary); font-size: var(--fs-075); }
-
-  .step {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-050);
-  }
-
+  .step { flex-basis: 100%; display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
   .step-word { color: var(--text-secondary); font-size: var(--fs-075); }
+
+  /* What was opened last: chips in a row, wrapping. */
+  .recent { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    max-inline-size: 32ch;
+    padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
+    font-size: var(--fs-075);
+    text-decoration: none;
+  }
+  .chip:hover { background: var(--bg-surface-hover); }
+  .rmark { display: inline-flex; color: var(--text-secondary); }
+  .rtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .offers { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); margin: 0; padding: 0; list-style: none; }
+  .offers li { display: flex; align-items: center; gap: var(--sp-150); min-width: 0; }
+  .offer-mark { display: inline-grid; place-items: center; inline-size: var(--sp-400); block-size: var(--sp-400); border-radius: var(--r-md); background: var(--accent-primary-subtle); color: var(--text-brand); flex: none; }
+  .offer-words { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .offer-name { font-weight: var(--fw-medium); }
+  .offer-what { color: var(--text-secondary); font-size: var(--fs-075); }
+
+  /* The first steps of a new workspace: a checklist, each step's act at its end. */
+  .steps { display: grid; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
+  .steps li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-block-size: var(--density-control-sm-min); }
+  .step-mark {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    inline-size: var(--sp-250);
+    block-size: var(--sp-250);
+    border: var(--bw-thick) solid var(--border-strong);
+    border-radius: var(--r-sm);
+  }
+  .steps li[data-done] .step-mark { border-color: var(--accent-primary); background: var(--accent-primary); color: var(--text-inverse); }
+  .steps li[data-done] .step-word { color: var(--text-subtle); text-decoration: line-through; }
+  .steps .step-word { flex: 1; min-width: 0; color: inherit; font-size: inherit; }
+
+  /* *Sections*: a row each, its switch and its two moves. */
+  .arrange { display: grid; gap: var(--sp-050); margin: 0 0 var(--sp-150); padding: 0; list-style: none; }
+  .arrange li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+  .arrange-acts { display: inline-flex; gap: var(--sp-025); }
 </style>

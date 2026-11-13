@@ -28,10 +28,13 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 4. The jumble shows how many arrivals wait and the first three.
 5. Recently opened places on this device are listed.
 6. What is overdue is said as overdue, without blame: the glance counts it, its band is *Overdue* and its rows carry the overdue mark with the date; no "you missed" anywhere. (Changed 2026-10-24 by the product owner: the person wants to see at once what is late.)
-7. The page greets the person by the time of their day and says at a glance how much is due today, how much is coming up, what waits in the jumble and what is open on them, each figure a link to those entries.
+7. The page greets the person by the time of their day and says at a glance, as a row of cards, how much is overdue and due today and, where their products are on, what needs their reply, their time today and what waits for their yes; each card's one act leads to those entries. (The glance became the work-surface concept's row of cards, §6.1.)
 8. Where a product is on, *Today* shows its band (*Needs your answer*, *Waiting for your yes*, *Time today*, *Sprint*) fed by the product's own reads, and none where it is off. *Needs your answer* lists the open desk entries with an SLA target running that the reader holds, or that nobody holds yet in a collection whose auto-assign policy names a group the reader belongs to (by the owner's seventh answers, item 6). (Added 2026-10-31 by the product owner's decision to build the user-experience direction, `user-experience.md` §3.3 and §9.)
+
+9. *Sections* lets the person hide and order *Today*'s cards (overdue, due today, needs your reply, time today, waits for your yes) and tiles (your collections, the inbox, recently opened); the arrangement is the account's and follows the person to another device, and a card or tile their roles or modules do not give is neither shown nor offered. (Added 2026-11-12 by the product owner's decision E-17 of the work-surface concept.)
 
 ## Where it ends
 
 * The page is the person's own; nobody else's day is shown.
+* The person may hide and order the cards and tiles, nothing more: *Today* does not become a free dashboard - no section of one's own, no section another person sees (work-surface concept E-17).
 * The detailed lists stay [UC-WRK-20](./UC-WRK-20-see-what-is-on-me-when-i-arrive.md).

@@ -184,18 +184,26 @@ test('R-13: beside a wide sidebar the list\'s tools wrap rather than hide, each 
   assert.deepEqual(failures, []);
 });
 
+/** Today's collections tile; on a phone it is the overview's, behind the switch (work-surface §7). */
+async function todayCollections(page) {
+  const overview = page.getByRole('tab', { name: 'Overview' });
+  await page.locator('[data-today]').waitFor();
+  if (await overview.count() && (await overview.getAttribute('aria-selected')) !== 'true') await overview.click();
+  return page.locator('[data-tile="COLLECTIONS"]');
+}
+
 test('R-15: a new screen starts at its top, back returns to where the reader was', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   for (const [name, size] of [['phone', phone], ['desktop', { ...desktop, height: 500 }]]) {
     const { page, failures, close } = await go(browser, { path: '/', ...size });
     t.after(close);
-    const tile = page.locator('section[aria-labelledby="today-lists"] a', { hasText: WEB.name });
+    const tile = (await todayCollections(page)).locator('a', { hasText: WEB.name });
     await tile.waitFor();
     const reach = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
     assert.ok(reach > 120, `${name}: Today is taller than the screen`);
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     await tile.scrollIntoViewIfNeeded();
-    await page.evaluate(() => scrollBy(0, 60));
     const at = await page.evaluate(() => scrollY);
     assert.ok(at > 100, `${name}: Today scrolled to ${at}`);
     await tile.click();
@@ -203,8 +211,8 @@ test('R-15: a new screen starts at its top, back returns to where the reader was
     await page.waitForTimeout(300);
     assert.equal(await page.evaluate(() => scrollY), 0, `${name}: the collection opened where Today was scrolled to`);
     await page.goBack();
-    await tile.waitFor();
-    await page.waitForFunction((y) => Math.abs(scrollY - y) <= 2, at, { timeout: 5_000 });
+    await (await todayCollections(page)).locator('a', { hasText: WEB.name }).waitFor();
+    await page.waitForFunction((y) => Math.abs(scrollY - y) <= 2, at, { timeout: 5_000 }).catch(async () => assert.fail(`${name}: back returned to ${await page.evaluate(() => scrollY)}, not ${at}`));
     assert.deepEqual(failures, []);
   }
 });
@@ -232,7 +240,7 @@ test('R-15 on desktop: a row of the sidebar opens its screen at the top, and the
   assert.deepEqual(failures, []);
 });
 
-test('Today\'s Lists: a long name stays in its tile, and the card in its column', async (t) => {
+test('Today\'s collections: a long name stays in its tile, and the tile in its column', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const long = 'Team Boreal – Platform & API and everything around it';
@@ -245,7 +253,7 @@ test('Today\'s Lists: a long name stays in its tile, and the card in its column'
   for (const size of [desktop, { width: 1024, height: 900 }, phone]) {
     const { page, failures, close } = await go(browser, { path: '/', extra, ...size });
     t.after(close);
-    const card = page.locator('section[aria-labelledby="today-lists"]');
+    const card = await todayCollections(page);
     await card.locator('a', { hasText: 'Team Boreal' }).waitFor();
     const edge = await box(card);
     for (const tile of await card.locator('a').all()) {

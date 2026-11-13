@@ -164,11 +164,14 @@ test('chromium: 1280 px — Today and search say where each entry lives, in the 
 
   // Today names the hub first, in the hub's colour, then the collection in its own
   // (UC-WRK-34 check 1, UC-WRK-33 check 1).
-  const mine = page.locator('section[aria-labelledby="today-mine"]');
+  const mine = page.locator('[data-day]');
   const tokens = (place) => place.locator('[data-token]').evaluateAll((marks) => marks.map((mark) => mark.getAttribute('data-token')));
   const clients = mine.locator('.place', { hasText: LOOK_COLLECTION.name });
   await clients.first().waitFor({ timeout: 10_000 });
   assert.deepEqual(await tokens(clients.first()), ['violet', 'amber']);
+  // What is coming up stands folded while something is due sooner (work-surface §6.1).
+  const later = mine.getByText('Coming up');
+  if (await later.count()) await later.click();
   const invoices = mine.locator('.place', { hasText: PLAIN_COLLECTION.name });
   await invoices.first().waitFor({ timeout: 5_000 });
   assert.deepEqual(await tokens(invoices.first()), ['violet'], 'a collection without a colour draws one');
