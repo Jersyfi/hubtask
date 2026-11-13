@@ -406,6 +406,9 @@
     const seen = editor;
     const body = host;
     if (!seen || !body || !atText || !isWriting) return;
+    // Only the text itself moves the handle: a pointer crossing the handle's menu or a panel laid
+    // over other lines would retarget the line the menu acts on.
+    if (!(event.target instanceof Node) || !body.contains(event.target)) return;
     const frame = body.getBoundingClientRect();
     if (event.clientY < frame.top || event.clientY > frame.bottom) return;
     const at = lineAt(seen, { left: Math.min(Math.max(event.clientX, frame.left + 1), frame.right - 1), top: event.clientY }); // design-system-lint-ignore: a viewport box, as the browser measures it

@@ -106,6 +106,24 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await page.locator('[data-block-grip]').click();
   await page.getByRole('menuitem', { name: 'Move down' }).click();
   await body.locator(':scope > :first-child', { hasText: 'Next line' }).waitFor({ timeout: 5_000 });
+  // The menu acts on its own line, though the pointer crosses other lines on its way through it.
+  await body.getByText('Next line').click();
+  for (const more of ['Third line', 'Fourth line', 'Fifth line']) {
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(more);
+  }
+  await body.getByText('Next line').click();
+  const count = await body.locator(':scope > *').count();
+  await page.locator('[data-block-grip]').click();
+  const remove = page.getByRole('menuitem', { name: 'Remove' });
+  const over = await remove.boundingBox();
+  await page.mouse.move(over.x + 4, over.y + 2, { steps: 4 });
+  await remove.click();
+  await body.getByText('Next line').waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await body.locator(':scope > *').count(), count - 1, 'one line went, the one the menu was opened at');
+  for (const more of ['Third line', 'Fourth line', 'Fifth line']) assert.equal(await body.getByText(more).count(), 1, `${more} stays`);
+  await body.getByText('Fifth line').click();
 
   // A checklist line offers *task from it* at its end; the collections open under the line (S-4).
   await page.keyboard.press('End');
