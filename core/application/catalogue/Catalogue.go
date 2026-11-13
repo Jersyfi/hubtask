@@ -192,6 +192,7 @@ func Descriptors() []usecase.Descriptor {
 		servicedeskservice.DeleteReplyTemplate{}.Descriptor(),
 		servicedeskservice.RenderReplyTemplate{}.Descriptor(),
 		servicedeskservice.ReportSla{}.Descriptor(),
+		servicedeskservice.ReadMyDeadlinesKept{}.Descriptor(),
 		servicedeskservice.ListRequestCatalogue{}.Descriptor(),
 		servicedeskservice.SetDeskLogo{}.Descriptor(),
 		servicedeskservice.GetDeskLogo{}.Descriptor(),

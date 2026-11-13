@@ -422,8 +422,9 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 // one's own, as renaming oneself is. The running sprints a person is in are judged per sprint on one
 // of their own entries in it (UC-WRK-34). The twelve of a workspace's address are decided inside: a
 // change, an own domain and its main address by the owner's role or the operator's register, the
-// notices and the device's list are a person's own (UC-INS-15, UC-INS-19, UC-ID-25).
-const undeclaredPermissionsAtMost = 218
+// notices and the device's list are a person's own (UC-INS-15, UC-INS-19, UC-ID-25). The deadlines a
+// handler kept are their own entries' (UC-SVC-02 check 15).
+const undeclaredPermissionsAtMost = 219
 
 func TestTheDeclaredPermissionsOnlyGrow(t *testing.T) {
 	undeclared := 0

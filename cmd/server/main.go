@@ -2484,6 +2484,7 @@ func run() error {
 			Requesters: postgres.RequesterRepository{IDs: ids},
 		}.Descriptor(),
 		servicedeskservice.ReportSla{Desk: serviceDesk}.Descriptor(),
+		servicedeskservice.ReadMyDeadlinesKept{Desk: serviceDesk, Kept: postgres.ServiceDeskRecords{}}.Descriptor(),
 		servicedeskservice.ListReplyTemplates{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DefineReplyTemplate{Desk: serviceDesk}.Descriptor(),
 		servicedeskservice.DeleteReplyTemplate{Desk: serviceDesk}.Descriptor(),

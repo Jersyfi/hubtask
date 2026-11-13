@@ -528,6 +528,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `entry_sla.kept_read` | ReadMyDeadlinesKept | `entry_sla` | INFO | When refused |
 | `entry_sla.read` | ReadEntrySla | `entry_sla` | INFO | When refused |
 | `entry_sla.reported` | ReportSla | `entry_sla` | INFO | When refused |
 
