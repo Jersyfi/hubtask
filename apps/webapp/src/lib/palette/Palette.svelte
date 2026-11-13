@@ -56,6 +56,8 @@
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { search } from '../data/search.svelte.ts';
   import { searchAll } from '../data/everything.ts';
+  import { content, parse, structural } from '../data/searchquery.ts';
+  import { compactLine } from '../search/queryline.ts';
   import { views } from '../data/views.svelte.ts';
   import { BAR_KINDS, arrange, keyIn, kindsOn, markWords, pathOf as hitPath, personLine, requestOf, scopesOf, tileOf, type Answer, type Hit, type Scope } from '../search/everything.ts';
   import { workspace } from '../data/workspace.svelte.ts';
@@ -495,8 +497,11 @@
       return finish(() => capture.open({ text: typed }));
     }
     if (row.kind === 'saved') {
-      search.handOver(savedLine(row.id));
-      return finish(() => onnavigate('/search'));
+      // Split as the search page splits it: the narrowing travels in the address, so a saved
+      // search picked while standing on another replaces it; the words are handed over.
+      const kept = parse(compactLine(savedLine(row.id)));
+      if (content(kept) !== '') search.handOver(content(kept));
+      return goSearch(structural(kept), { handOver: false });
     }
     if (row.kind === 'found') {
       const hit = foundByKey.get(row.id);
