@@ -298,8 +298,8 @@ test('chromium: while an entry is being created, what already looks like it is n
     page.on('pageerror', (error) => failures.push(String(error)));
     try {
       await page.goto(`${served.origin}/items/${ENTRY.id}`);
-      await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
-      await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).fill('Book an electrician');
+      // The capture line at the parts' foot is the capture field in place (C-4).
+      await page.locator('[data-parts-capture]').getByRole('textbox', { name: 'What do you want to remember?' }).fill('Book an electrician');
       await page.waitForTimeout(900);
       if (ai) {
         await page.getByText('Possibly already here:').waitFor({ timeout: 5_000 });

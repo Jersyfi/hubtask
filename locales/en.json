@@ -14686,6 +14686,7 @@
   "app.entry.nobody": "Nobody yet",
   "app.entry.title_label": "Title",
   "app.entry.edit_title": "Edit title",
+  "app.entry.parts_capture": "Type a title, Enter adds it",
   "app.entry.show_all": "Show all {count}",
   "app.entry.show_less": "Show less",
   "app.entry.show_more": "Show more",

@@ -102,6 +102,7 @@
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import AmountPanel from '../lib/entries/AmountPanel.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
+  import CaptureDialog from '../lib/capture/CaptureDialog.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import LinksSection from '../lib/entries/LinksSection.svelte';
   import AffectedCis from '../lib/entries/AffectedCis.svelte';
@@ -1296,7 +1297,12 @@
             {#if hasAi}
               <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable && !isCollectionArchived} onclose={closeProposal} />
             {/if}
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} rowLimit={8} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} rowLimit={8} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} isAddedInPlace />
+            {#if mayCreateHere && !isCollectionArchived && item.collection_id}
+              <div class="parts-capture" data-parts-capture>
+                <CaptureDialog inPlace={{ collectionId: item.collection_id, parentId: item.id, parentTitle: item.title, types: heldTypes, keepsOpen: true }} inPlaceLabel={t('app.entry.parts_capture')} />
+              </div>
+            {/if}
           </FoldingSection>
         </div>
       {/if}
@@ -1620,6 +1626,9 @@
 
   /* A ✦ that has no field row of its own sits at the end of the line under its subject. */
   .field-ai { display: flex; justify-content: flex-end; }
+
+  /* The capture line closes the parts as the scene's foot row does, under the last row's rule. */
+  .parts-capture { padding-block: var(--sp-050); border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 
   .phone-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .format { display: inline-flex; flex-wrap: wrap; gap: var(--sp-025); }

@@ -116,6 +116,8 @@
     isExpanded?: boolean;
     /** A subtree folded to its first rows (ET-3); *Show all* draws the rest. */
     rowLimit?: number;
+    /** The top level is added to by the capture line its caller draws in place under the list (C-4). */
+    isAddedInPlace?: boolean;
     /**
      * What the last bulk did, by entry.
      *
@@ -204,6 +206,7 @@
     onsort,
     sortable = [],
     rowLimit,
+    isAddedInPlace = false,
   }: Props = $props();
   let isAllRowsShown = $state(false);
 
@@ -1250,7 +1253,7 @@
            empty state in the middle of the entry (concept round 2, §4). -->
       <div class="sub-empty">
         <p class="sub-none">{t('app.item.no_children')}</p>
-        {#if !isReadOnly && mayCreate && topTypes().length > 0}
+        {#if !isReadOnly && mayCreate && topTypes().length > 0 && !isAddedInPlace}
           {#each addControls as control (control.label)}
             <AddRow label={control.label} onclick={() => startAdding('root', control.type)} />
           {/each}
@@ -1407,7 +1410,7 @@
         />
       {/if}
 
-      {#if !isReadOnly && mayCreate && topTypes().length > 0}
+      {#if !isReadOnly && mayCreate && topTypes().length > 0 && !isAddedInPlace}
         {#if !(viewport.isCompact && !root)}
           <!-- Capture, pointed here: a door into the one add, said as quietly as the board's column
                foot says it (design-system.md §11.8). Not on a phone's collection, where the bottom

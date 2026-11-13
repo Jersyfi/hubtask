@@ -14686,6 +14686,7 @@
   "app.entry.nobody": "Noch niemand",
   "app.entry.title_label": "Titel",
   "app.entry.edit_title": "Titel bearbeiten",
+  "app.entry.parts_capture": "Titel tippen, ↵ legt an",
   "app.entry.show_all": "Alle {count} zeigen",
   "app.entry.show_less": "Weniger zeigen",
   "app.entry.show_more": "Mehr zeigen",

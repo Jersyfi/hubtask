@@ -1444,9 +1444,11 @@ between columns is the card's menu (§11.9).
 2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
    carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
    *Select*, since no bulk bar acts there. Every
-   level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
-   manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
-   one, gated by `add_child`. The first three direct children that hold anything open, the rest
+   level carries its checkbox, type mark, twist and "done of total" count, each row one line ruled
+   from the next (`TaskRow` `isOneLine`, the title losing its end); the section heading is the
+   manifest's name for the child type. The top level ends in the capture field drawn in place
+   (C-4: the same parser and chips, the level as its kind pill, Enter adds and the line stays);
+   a row's "+" opens capture under that row, gated by `add_child`. The first three direct children that hold anything open, the rest
    and deeper levels closed, as the work surface's `task` scene draws them; "expand all" in the section
    head; which levels are open is the device's (§11.10). Depth comes from the tree, never a type
    name. The bottom level has no subtree; its breadcrumb is the way up.

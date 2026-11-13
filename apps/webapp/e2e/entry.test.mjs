@@ -75,6 +75,20 @@ async function captureOne(page, title, kind) {
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
 }
 
+/** Adds a part on the capture line at the foot of the parts (C-4): the same field, drawn in place. */
+async function captureInPlace(page, title, kind) {
+  const line = page.locator('[data-parts-capture]');
+  const field = line.getByRole('textbox', { name: 'What do you want to remember?' });
+  await field.waitFor({ timeout: 5_000 });
+  if (kind) {
+    await line.locator('[data-chip="kind"]').click();
+    await page.getByRole('menuitem', { name: kind }).click();
+  }
+  await field.fill(title);
+  await field.press('Enter');
+  await page.waitForFunction((each) => each?.value === '', await field.elementHandle(), { timeout: 5_000 });
+}
+
 test('chromium: 1280 px — the trail, the head in place, the details rows, the subtree, the tabs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -224,25 +238,24 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.equal(await page.evaluate((id) => sessionStorage.getItem(`hubtask.subtree.${id}`), ENTRY.id), '[]');
   await page.getByRole('button', { name: 'Open every level' }).click();
   assert.equal(await page.locator('.level [data-row]').count(), 5);
-  // A child from the entry's page: "Add a work package" at the end, "Add an activity" inside a row.
-  await page.getByRole('button', { name: 'Add a work package' }).click();
-  await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA');
-  await captureOne(page, 'Grout');
+  // A child from the entry's page: the capture line at the parts' foot (C-4), an activity inside a row.
+  assert.equal(await page.getByRole('dialog', { name: 'Capture' }).count(), 0);
+  await captureInPlace(page, 'Grout');
   await page.waitForTimeout(300);
   const created = written.find((w) => w.method === 'POST' && w.path.endsWith('/items') && w.body?.title === 'Grout');
   assert.deepEqual({ type: created?.body?.type, parent_id: created?.body?.parent_id }, { type: 'WORK_PACKAGE', parent_id: ENTRY.id });
+  assert.equal(await page.locator('[data-parts-capture] textarea').evaluate((field) => field === document.activeElement), true, 'the line keeps the focus for the next part');
   await reveal(page.getByRole('button', { name: `Add an activity inside ${CHILDREN[ENTRY.id][0].title}` }));
   await captureOne(page, 'Cut the tiles');
   await page.waitForTimeout(300);
   const child = written.find((w) => w.method === 'POST' && w.body?.title === 'Cut the tiles');
   assert.deepEqual({ type: child?.body?.type, parent_id: child?.body?.parent_id }, { type: 'ACTIVITY', parent_id: CHILDREN[ENTRY.id][0].id });
-  // UC-WRK-03 check 1: the task offers both kinds the manifest permits under it, each by its own
-  // control, and an activity is created directly in the task - no chooser in between.
-  await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.locator('[data-chip="kind"]').count(), 0, 'a chooser for a kind the control already named');
-  await captureOne(page, 'Ask about grout colours');
+  // UC-WRK-03 check 1: the line offers both kinds the manifest permits under the task, by name,
+  // and what is chosen is created directly in the task.
+  await page.locator('[data-parts-capture] [data-chip="kind"]').click();
+  assert.deepEqual((await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Work package', 'Activity']);
+  await page.keyboard.press('Escape');
+  await captureInPlace(page, 'Ask about grout colours', 'Activity');
   await page.waitForTimeout(300);
   const direct = written.find((w) => w.method === 'POST' && w.body?.title === 'Ask about grout colours');
   assert.deepEqual({ type: direct?.body?.type, parent_id: direct?.body?.parent_id }, { type: 'ACTIVITY', parent_id: ENTRY.id });
