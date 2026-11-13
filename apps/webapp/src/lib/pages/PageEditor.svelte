@@ -393,6 +393,14 @@
     });
   });
 
+  // The boxes are where the text stood when measured; the status line and the phone's bar come and
+  // go above the text with writing, so the text moves and is measured again once they are drawn.
+  $effect(() => {
+    void isWriting;
+    void hasPanel;
+    if (atText) void tick().then(measure);
+  });
+
   // The handle follows the pointer over the text, as it follows the caret.
   function hover(event: PointerEvent) {
     const seen = editor;
