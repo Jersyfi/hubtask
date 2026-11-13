@@ -41,7 +41,7 @@ const WORKFLOW = {
 };
 
 /** The fixture's collection at a level, with every write recorded and `:drop` answered by `drop`. */
-async function at(browser, level, { width = 1280, view = 'List', drop } = {}) {
+async function at(browser, level, { width = 1280, view = 'List', drop, workflowsOn = level === 'WORKFLOW' } = {}) {
   const written = [];
   const tab = await signedIn(browser, width, 900);
   const columns = level === 'WORKFLOW'
@@ -54,10 +54,10 @@ async function at(browser, level, { width = 1280, view = 'List', drop } = {}) {
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, '');
     if (request.method() !== 'GET') written.push({ method: request.method(), path, query: new URL(request.url()).search, body: request.postDataJSON() });
     if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: { ...COLLECTION, state_mode: level } });
-    if (level === 'WORKFLOW' && request.method() === 'GET' && path === '/meta/capabilities') {
+    if (workflowsOn && request.method() === 'GET' && path === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'], workspace_permissions: PERMISSIONS.OWNER } });
     }
-    if (level === 'WORKFLOW' && /\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
+    if (workflowsOn && /\/containers\/[^/]+\/modules$/.test(path)) return route.fulfill({ json: { modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'] } });
     if (request.method() === 'GET' && path === `/containers/${COLLECTION.id}/buckets`) return route.fulfill({ json: columns });
     if (request.method() === 'GET' && path === '/workflows' && level === 'WORKFLOW') {
       return route.fulfill({ json: { data: [WORKFLOW], scheme: [{ container_id: COLLECTION.id, entry_type: null, workflow: WORKFLOW.key }] } });
@@ -195,7 +195,7 @@ test('chromium: L0 - "Show as board" previews the server\'s dry run, then switch
 test('chromium: L1 - "Back to the list" and "Workflow from these columns" each preview first', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, written, context } = await at(browser, 'COLUMNS');
+  const { page, written, context } = await at(browser, 'COLUMNS', { workflowsOn: true });
   t.after(() => context.close());
   await page.locator(`[data-row="${ITEMS[0].id}"] [data-state-chip]`).waitFor({ timeout: 15_000 });
   await fromPlaceMenu(page, 'Back to the list');
@@ -204,15 +204,12 @@ test('chromium: L1 - "Back to the list" and "Workflow from these columns" each p
   assert.match((await preview.textContent()) ?? '', /3 columns are removed.*Done stays done/s);
   await page.keyboard.press('Escape');
   assert.equal(written.filter((each) => each.body?.dry_run === false).length, 0, 'closing the preview switched');
-  // Workflows need their module: without it the menu does not offer the workflow (P-05).
-  await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
-  const offered = await page.getByRole('menuitem').allTextContents();
-  await page.keyboard.press('Escape');
-  if (offered.some((each) => each.includes('Workflow from these columns'))) {
-    await fromPlaceMenu(page, 'Workflow from these columns');
-    await page.locator('[data-level-preview] [data-mapping-row]').first().waitFor({ timeout: 5_000 });
-    assert.equal(await page.locator('[data-level-preview] [data-mapping-row]').count(), BUCKETS.length);
-  }
+  await fromPlaceMenu(page, 'Workflow from these columns');
+  await page.locator('[data-level-preview] [data-mapping-row]').first().waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-level-preview] [data-mapping-row]').count(), BUCKETS.length, 'a status per column');
+  await page.getByRole('dialog').getByRole('button', { name: 'Make the workflow' }).click();
+  await page.waitForTimeout(300);
+  assert.deepEqual(written.filter((each) => each.path.endsWith('/board:workflow')).map((each) => each.body), [{ dry_run: true }, { dry_run: false }]);
 });
 
 test('chromium: L1 - deleting the done column asks which column means done, the server\'s suggestion chosen', async (t) => {
