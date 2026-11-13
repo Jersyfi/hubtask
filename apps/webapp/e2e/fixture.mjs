@@ -175,10 +175,17 @@ export const MANIFEST = {
   supported_locales: [{ locale: 'en', direction: 'ltr' }, { locale: 'de', direction: 'ltr' }],
   query_fields: [
     { field: 'title', operators: ['CONTAINS', 'EQ'], sortable: true, groupable: false, nullable: false },
-    { field: 'due_at', operators: ['LT', 'GT', 'IS_NULL'], sortable: true, groupable: false, nullable: true },
+    { field: 'due_at', kind: 'timestamp', operators: ['LT', 'GT', 'IS_NULL'], sortable: true, groupable: false, nullable: true },
     { field: 'bucket_id', operators: ['EQ', 'IN'], sortable: false, groupable: true, nullable: true },
   ],
-  view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'],
+  // The query line's keys (ADR-0102), a few: what the panel *Ansicht* offers and reads.
+  query_keys: [
+    { key: 'is', value: 'state', objects: ['task'], examples: ['is: open'], values: ['open', 'done'] },
+    { key: 'who', field: 'assignee_id', value: 'person', objects: ['task'], examples: ['who: me'], values: ['me', 'none'] },
+    { key: 'title', field: 'title', value: 'text', objects: ['task'], examples: ['title: tile'], values: [] },
+    { key: 'due', field: 'due_at', value: 'time', objects: ['task'], examples: ['due: <today'], values: [] },
+  ],
+  view_layouts: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE', 'CALENDAR'],
   // The role matrix as the server publishes it (domain-model.md §3.2), strongest first - the order
   // the effective role along a path is taken in, and the per-entry cells the screens offer from.
   roles: ROLES,
