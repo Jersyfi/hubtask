@@ -964,7 +964,7 @@
       <span class="window-said"><VisuallyHidden>{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</VisuallyHidden></span>
     </div>
   {:else if part === 'table'}
-    <div class="controls">
+    <div class="controls" data-fill>
       <Button size="sm" tone="secondary" icon="funnel" onclick={() => (isPanelOpen = true)}>{setup.line.trim() ? setup.line : t('app.planning.filter')}</Button>
       {#if kept.length > 0}
         <Select label={t('app.planning.baseline')} isLabelHidden size="sm" value={baselineId}
@@ -977,7 +977,7 @@
       {@render acceptChosen()}
     </div>
   {:else if part === 'dependencies'}
-    <div class="controls">
+    <div class="controls" data-fill>
       <span class="quiet grow-bar" data-dependencies-said>{t('app.planning.dependencies_said', { count: String(schedule?.dependencies.length ?? 0) })}</span>
       {@render addOpener(true)}
     </div>
@@ -1279,6 +1279,8 @@
   .bars { display: flex; flex-direction: column; gap: var(--sp-150); inline-size: 100%; }
   .controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); }
   .grow-bar { flex: 1; }
+  /* The tab's only line: its last acts stand at the end, as the head's do. */
+  .controls[data-fill] { flex: 1 1 auto; }
   .legend { margin-inline-start: auto; }
   .segments { display: inline-flex; align-items: center; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); overflow: hidden; background: var(--bg-surface); }
   .segments button { display: inline-flex; align-items: center; gap: var(--sp-050); min-block-size: var(--layout-target); padding-inline: var(--sp-150); font: inherit; font-size: var(--fs-075); color: var(--text-primary); background: transparent; border: none; cursor: pointer; }
@@ -1315,6 +1317,8 @@
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; }
   .what { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
+  .what a { color: var(--text-primary); text-decoration: none; }
+  .what a:hover { text-decoration: underline; }
   .what[data-done] a { color: var(--text-secondary); }
   .diamond { color: var(--accent-signature); font-size: var(--fs-065); }
   .moved { color: var(--text-brand); font-weight: var(--fw-semibold); }
