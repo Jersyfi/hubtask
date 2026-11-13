@@ -168,7 +168,8 @@ for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]
         // Nothing applied: the writes are the questions, the view, and the dismissal.
         const kinds = writes.map((each) => `${each.method} ${each.path}`);
         for (const kind of kinds) {
-          assert.ok(kind === 'POST /ask' || kind === 'POST /views' || /^POST \/suggestions\/[^/]+:dismiss$/.test(kind), `an unexpected write: ${kind}`);
+          // A count asked over the list (the phone's query strip) is a read sent as POST, not a write.
+          assert.ok(kind === 'POST /ask' || kind === 'POST /views' || kind === 'POST /items:aggregate' || /^POST \/suggestions\/[^/]+:dismiss$/.test(kind), `an unexpected write: ${kind}`);
         }
         assert.deepEqual(failures, []);
       } finally {

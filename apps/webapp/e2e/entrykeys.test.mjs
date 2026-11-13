@@ -40,8 +40,10 @@ test('a row, a card and the panel draw the key with the prefix, or the handle wh
       const { page, failures, close } = await opened(browser);
       await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
       // The key is a field of the list; the board's cards draw what the list's fields say.
-      await page.getByRole('button', { name: 'Fields' }).click();
-      await page.getByRole('menuitem', { name: 'Key' }).click();
+      // Fields are chosen in the View panel (E-21), not a menu of their own.
+      await page.locator('[data-opener="view"]').click();
+      await page.locator('[data-view-panel] [data-view-field="key"]').getByRole('checkbox').check();
+      await page.keyboard.press('Escape');
       await page.locator(`[data-field="key"] [data-entry-key]`).getByText(key, { exact: true }).first().waitFor({ timeout: 15_000 });
       await chooseView(page, 'Board');
       const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
