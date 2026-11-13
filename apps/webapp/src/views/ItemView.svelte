@@ -644,18 +644,6 @@
   let activeTab = $state('all');
   /** The tab that is actually shown: the history, where this type has no conversation to open. */
   const shownTab = $derived(!carries('COMMENTS') ? 'history' : activeTab);
-  /** The conversation's tabs (§6.9): story *All · Comments · History*; ticket *All · Replies · Internal notes · History*. */
-  const conversationTabs = $derived([
-    ...(carries('COMMENTS')
-      ? [
-          { id: 'all', label: t('app.entry.conv_all') },
-          ...(isDeskEntry
-            ? [{ id: 'replies', label: t('app.entry.conv_replies') }, { id: 'notes', label: t('app.entry.conv_notes') }]
-            : [{ id: 'comments', label: t('app.entry.conv_comments') }]),
-        ]
-      : []),
-    { id: 'history', label: t('app.entry.conv_history') },
-  ]);
   /** What happened between the posts, as quiet rows of *All*: the history without the posts themselves. */
   const quietRows = $derived<ThreadEvent[]>(
     history.state.status === 'ready'
@@ -667,6 +655,26 @@
           })
       : [],
   );
+  /** The conversation's tabs (§6.9): story *All · Comments · History*; ticket *All · Replies · Internal notes · History*. */
+  // Each tab says how many it holds once its list is read (the scene's *All · 21*), as far as read;
+  // an empty one says nothing rather than *0*.
+  const counted = (count: number | undefined) => (count ? count : undefined);
+  const posts = $derived(thread.state.status === 'ready' ? (thread.state.data.data ?? []) : undefined);
+  const historyCount = $derived(history.state.status === 'ready' ? (history.state.data.data ?? []).length : undefined);
+  const conversationTabs = $derived([
+    ...(carries('COMMENTS')
+      ? [
+          { id: 'all', label: t('app.entry.conv_all'), count: counted(posts && historyCount !== undefined ? posts.length + quietRows.length : undefined) },
+          ...(isDeskEntry
+            ? [
+                { id: 'replies', label: t('app.entry.conv_replies'), count: counted(posts?.filter((post) => !post.internal).length) },
+                { id: 'notes', label: t('app.entry.conv_notes'), count: counted(posts?.filter((post) => post.internal).length) },
+              ]
+            : [{ id: 'comments', label: t('app.entry.conv_comments'), count: counted(posts?.length) }]),
+        ]
+      : []),
+    { id: 'history', label: t('app.entry.conv_history'), count: counted(historyCount) },
+  ]);
   /** Who raised the ticket: the reply tab's words (ET-7). */
   const requesterName = $derived(isDeskEntry && item?.created_by ? accounts.nameOf(item.created_by) : undefined);
 

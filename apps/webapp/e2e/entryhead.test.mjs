@@ -233,6 +233,9 @@ test('chromium: All mixes the history between the posts by time, the reader\'s o
     const order = await thread.evaluate((root) => [...root.querySelectorAll('[data-thread-event], .entry')].map((row) => (row.matches('[data-thread-event]') ? 'event' : row.textContent.includes('First post') ? 'first' : 'second')));
     assert.deepEqual(order, ['first', 'event', 'second'], 'the history row stands between the posts it happened between');
     assert.match(await thread.locator('[data-thread-event]').first().innerText(), /^Du hast diesen Eintrag bearbeitet/, 'the reader\'s own step in the second person');
+    // Each tab says how many it holds (the scene's *Alles · 21 · Kommentare · 13 · Verlauf · 8*).
+    const tabs = (await thread.getByRole('tab').allInnerTexts()).map((text) => text.replace(/\s+/g, ' ').trim());
+    assert.deepEqual(tabs, ['Alles 3', 'Kommentare 2', 'Verlauf 1']);
   } finally {
     await close();
   }
