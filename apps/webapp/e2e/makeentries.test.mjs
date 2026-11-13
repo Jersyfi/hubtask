@@ -107,7 +107,10 @@ async function open(browser, width, { ai, scheme = 'light' }) {
   await page.getByRole('main').waitFor();
   await page.waitForTimeout(600);
   await page.locator('body').click({ position: { x: 1, y: 300 } });
+  // Q opens Create; Enter on its empty line opens capture (UC-WRK-46 check 1).
   await page.keyboard.press('q');
+  await page.getByRole('textbox', { name: 'A new entry in one sentence' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Enter');
   await fieldOf(page).waitFor({ timeout: 5_000 });
   return { page, failures, writes, close: () => context.close() };
 }

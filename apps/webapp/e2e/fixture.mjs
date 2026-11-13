@@ -887,6 +887,10 @@ function lookRoute(route, request, url, path) {
   }
   if (index >= 0) return route.fulfill({ json: looked[index] });
   if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { ...PAGE, data: LOOK_ITEMS } });
+  if (path.endsWith('/api/v1/search:all')) {
+    const data = LOOK_ITEMS.map((each) => ({ kind: 'ENTRY', id: each.id, title: each.title, hub_id: null, collection_id: each.collection_id ?? null, tile: null, snippet: null, state: null, key: null, updated_at: null, created_at: null, author_id: null, on: null }));
+    return route.fulfill({ json: { data, facets: [{ kind: 'ENTRY', count: data.length, more: false }] } });
+  }
   if (path.endsWith('/api/v1/sync:snapshot')) {
     const records = [HUB, COLLECTION, ...looked].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
@@ -1249,6 +1253,17 @@ export function fallback(route, request, path) {
     const words = (request.postDataJSON()?.q ?? '').trim().toLowerCase();
     const hits = words === '' ? [] : ALL_ITEMS.filter((each) => each.title.toLowerCase().includes(words));
     return route.fulfill({ json: { ...PAGE, data: hits } });
+  }
+  // The search over every kind, by the same words: the entries, each as a hit row draws it.
+  if (read === '/search:all') {
+    const words = (request.postDataJSON()?.q ?? '').trim().toLowerCase();
+    const hits = words === '' ? [] : ALL_ITEMS.filter((each) => each.title.toLowerCase().includes(words));
+    const data = hits.map((each) => ({
+      kind: 'ENTRY', id: each.id, title: each.title, hub_id: null, collection_id: each.collection_id ?? null, tile: each.type ?? null,
+      snippet: null, state: each.completion?.is_completed ? 'DONE' : 'OPEN', key: null, updated_at: each.updated_at ?? null,
+      created_at: null, author_id: null, on: null,
+    }));
+    return route.fulfill({ json: { data, facets: [{ kind: 'ENTRY', count: data.length, more: false }] } });
   }
 
   // The three writes the walks make, each answered with the entry it

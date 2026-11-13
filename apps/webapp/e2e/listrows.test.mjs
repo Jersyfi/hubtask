@@ -70,7 +70,10 @@ for (const width of [390, 1280]) {
     const heads = () => page.locator('.level h2.group-head > span:first-child').allTextContents();
     assert.equal((await heads()).at(-1)?.trim(), 'Recently', 'Recently ends the list');
     await page.locator('body').click({ position: { x: 1, y: 300 } });
+    // Q opens Create; Enter on its empty line opens capture (UC-WRK-46 check 1).
     await page.keyboard.press('q');
+    await page.getByRole('textbox', { name: 'A new entry in one sentence' }).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Enter');
     const dialog = page.getByRole('dialog', { name: 'Capture' });
     await dialog.getByRole('textbox', { name: 'What do you want to remember?' }).fill('oat');
     const before = dialog.getByRole('region', { name: 'Ticked before' });

@@ -174,7 +174,9 @@ test('chromium: 1280 px — Today and search say where each entry lives, in the 
   assert.deepEqual(await tokens(invoices.first()), ['violet'], 'a collection without a colour draws one');
 
   await page.goto(`${served.origin}/search`);
-  await page.getByRole('searchbox', { name: 'Search everything you can see' }).or(page.getByRole('textbox', { name: 'Search everything you can see' })).first().fill('offer');
+  await page.getByRole('combobox', { name: 'Search everything you can see' }).fill('offer');
+  // The *Entries* facet is the entry list, whose rows name their place in its colour.
+  await page.locator('main nav [data-facet="ENTRY"]').click();
   const hit = page.locator('.place', { hasText: LOOK_COLLECTION.name }).first();
   await hit.waitFor({ timeout: 10_000 });
   assert.equal(await hit.locator('[data-token]').getAttribute('data-token'), 'amber');

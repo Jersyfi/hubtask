@@ -133,7 +133,9 @@ test('chromium: a viewer cannot tick off a search result', async (t) => {
   });
 
   await page.goto(`${served.origin}/search`);
-  await page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('electrician');
+  await page.getByRole('combobox', { name: 'Search everything you can see' }).fill('electrician');
+  // Words show every kind; the *Entries* facet is the entry list, where a hit is a row.
+  await page.locator('main nav [data-facet="ENTRY"]').click();
   const box = page.getByRole('checkbox', { name: `Mark ${ITEMS[1].title} as done` });
   await box.waitFor({ timeout: 10_000 });
   await page.waitForTimeout(600);

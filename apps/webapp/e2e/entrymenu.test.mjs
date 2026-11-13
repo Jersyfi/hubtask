@@ -161,7 +161,9 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   // Search: the same menu on a hit, once the role along its collection has been read.
   const search = await open(browser, '/search');
   t.after(() => search.context.close());
-  await search.page.getByRole('searchbox', { name: 'Search everything you can see' }).fill('electrician');
+  await search.page.getByRole('combobox', { name: 'Search everything you can see' }).fill('electrician');
+  // Words show every kind; the *Entries* facet is the entry list, where a hit is a row.
+  await search.page.locator('main nav [data-facet="ENTRY"]').click();
   const hit = search.page.locator(`[data-hit="${DATED.id}"] a`).first();
   await hit.waitFor({ timeout: 10_000 });
   await search.page.waitForTimeout(600);

@@ -119,9 +119,12 @@ for (const role of ['OWNER', 'AUDITOR']) {
  * create nowhere, and saying where else it goes where they may create only in a collection.
  */
 async function capturesIntoJumble(page) {
-  const open = page.getByRole('banner').getByRole('button', { name: 'Capture', exact: true });
+  const open = page.getByRole('banner').getByRole('button', { name: 'Create', exact: true });
   if ((await open.count()) === 0) return false;
+  // Create's first line is capture's (UC-WRK-46 check 1).
   await open.click();
+  await page.getByRole('textbox', { name: 'A new entry in one sentence' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Capture' });
   await dialog.getByRole('textbox').fill('Call the plumber');
   await page.waitForTimeout(300);

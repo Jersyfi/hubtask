@@ -53,7 +53,9 @@ for (const [collection, keepsOpen] of [[GROCERIES, true], [COLLECTION, false]]) 
   test(`390 px: ${collection.name} pins no add of its own, and the bottom bar's ＋ opens capture pointed at it`, async () => {
     const { page, context, failures } = await open(390, `/collections/${collection.id}`);
     assert.equal(await adds(page).count(), 0, 'an add pinned over the bottom bar');
+    // The ＋ opens Create (UC-WRK-46 check 1); its entry is capture, pointed at where one stands.
     await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' }).click();
+    await page.locator('dialog[open] .tilebutton[data-kind="entry"]').click();
     const { place, keeps } = await opened(page);
     assert.match(place, new RegExp(collection.name, 'u'));
     assert.equal(keeps, keepsOpen, 'keep capturing where a list is typed line after line');

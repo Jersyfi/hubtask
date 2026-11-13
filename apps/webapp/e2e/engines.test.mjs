@@ -413,7 +413,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.waitForTimeout(600);
     await checkbox.focus();
 
+    // Q opens Create; Enter on its empty line opens capture (UC-WRK-46 check 1).
     await page.keyboard.press('q');
+    await page.getByRole('textbox', { name: 'A new entry in one sentence' }).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Enter');
     const field = page.getByRole('textbox', { name: 'What do you want to remember?' });
     await field.waitFor({ timeout: 5_000 });
     await page.keyboard.type('Order tiles !Materials');
