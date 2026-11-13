@@ -10,7 +10,7 @@
   // An entry's description or a comment in the pages' editor (E-3): read as formatted text, written
   // in place with the marks a page has, and still stored as Markdown. The editor is loaded on first
   // use, so a screen that never opens an entry carries none of it.
-  import { onMount, untrack } from 'svelte';
+  import { flushSync, onMount, untrack } from 'svelte';
   import type { Editor, ReferenceAttrs, ReferenceDrawing } from '@hubtask/editor';
   import type { ReferenceTarget } from '@hubtask/sync-engine';
 
@@ -86,7 +86,10 @@
         drawing,
         label,
         fallback: t('app.pages.reference_loading'),
-        onChange: (markdown) => {
+        onChange: (written) => {
+          // The serializer ends a block with a line break the reader never typed; stored, it would
+          // make an unchanged description differ from itself.
+          const markdown = written.replace(/\n+$/, '');
           current = markdown;
           isEmpty = markdown.trim() === '';
           onchange?.(markdown);
@@ -165,6 +168,14 @@
     if (event.key !== 'Escape' || !onescape) return;
     event.preventDefault();
     onescape();
+    // The caller's value is the text as it was; drawn now, while the focus still holds the
+    // drawing back (the effect above waits for nobody to be typing).
+    flushSync();
+    if (editor && library) {
+      current = value;
+      isEmpty = value.trim() === '';
+      editor.commands.setContent(library.fromMarkdown(value) as never, { emitUpdate: false });
+    }
     editor?.commands.blur();
   }}
 ></div>
