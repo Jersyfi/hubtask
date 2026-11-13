@@ -109,6 +109,20 @@ test('a desk collection offers and shows requester, priority and SLA; custom fie
     carriesDue: true, carriesPeople: true, carriesLabels: true, showsTypes: true, isDesk: true, customKeys: ['impact'],
   };
   assert.deepEqual(offeredFields(desk), ['key', 'type', 'requester', 'priority', 'sla', 'column', 'due', 'people', 'labels', 'cf.impact']);
-  assert.deepEqual(defaultArrangement(desk).fields, ['key', 'requester', 'priority', 'sla', 'due', 'people', 'labels']);
+  assert.deepEqual(defaultArrangement(desk).fields, ['key', 'type', 'requester', 'priority', 'sla', 'people']);
   assert.ok(!offeredFields({ ...desk, isDesk: false }).includes('sla'));
+});
+
+// UC-SVC-03 check 12, scene queue: a desk's own list is its queue - the key, type, requester,
+// priority, SLA and assignee, grouped by status where a workflow runs.
+test('a desk collection under a workflow opens grouped by status; status is offered only under one', () => {
+  const desk: ListOffer = {
+    isSimple: false, isLevelled: false, offersAmount: false, hasColumns: false,
+    carriesDue: true, carriesPeople: true, carriesLabels: true, showsTypes: true, isDesk: true, runsWorkflow: true,
+  };
+  assert.equal(defaultArrangement(desk).grouping, 'status');
+  assert.equal(defaultArrangement(desk).done, 'inline');
+  assert.equal(defaultArrangement({ ...desk, runsWorkflow: false }).grouping, 'none');
+  assert.ok(offeredGroupings({ ...desk, isDesk: false }).includes('status'));
+  assert.ok(!offeredGroupings({ ...desk, runsWorkflow: false }).includes('status'));
 });

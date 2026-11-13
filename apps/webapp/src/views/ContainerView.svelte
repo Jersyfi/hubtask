@@ -536,6 +536,7 @@
       carriesLabels: carriedHere('LABELS'),
       showsTypes: typesShown(placeManifest),
       isDesk: isDesk && modulesOn.includes('SERVICE_DESK'),
+      runsWorkflow: stateMode === 'WORKFLOW' || workflowsHere.length > 0,
       customKeys: customFieldFilters.map((field) => field.field.slice('custom_fields.'.length)),
     };
   });

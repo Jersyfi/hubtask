@@ -10258,6 +10258,7 @@
   "app.list.group_column": "Column",
   "app.list.group_assignee": "Assignee",
   "app.list.group_due": "Due",
+  "app.list.group_status": "Status",
   "app.list.done_inline": "Done entries where they stand",
   "app.list.done_bottom": "Done entries at the end",
   "app.list.done_hidden": "Done entries hidden",

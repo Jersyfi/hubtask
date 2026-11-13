@@ -307,6 +307,16 @@
   // A subtree is the parts' table (UC-WRK-03): type, due, person, progress beside each title.
   const fields = $derived<readonly ListField[]>(arrangement?.fields ?? (root ? ['type', 'due', 'people', 'progress'] : ['due', 'people', 'labels', 'progress']));
   /** A column's head: the list's own word, a custom field by its definition's name. */
+  /**
+   * A desk's own list is its queue (UC-SVC-03 check 12, scene queue): the key leads the row, before
+   * its state and title, and the title's head names the request.
+   */
+  const isKeyFirst = $derived(withSla && fields.includes('key'));
+  const cellFields = $derived(isKeyFirst ? fields.filter((field) => field !== 'key') : fields);
+  const statusNameOf = (key: string) => {
+    const status = workflow?.statuses.find((each) => each.key === key);
+    return status ? statusLabel(status, t) : key;
+  };
   const columnName = (field: ListField) => (field.startsWith('cf.') ? (customNames?.[field.slice(3)] ?? field.slice(3)) : t(`app.list.col_${field}`));
   /** The sort key a field's column head orders by, where the installation can order by it. */
   const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id', sla: 'sla_due' };
@@ -659,6 +669,8 @@
           return typeOf(entryTypes.all, row.item.type, row.item.entry_type)?.key ?? row.item.entry_type ?? null;
         case 'column':
           return row.item.bucket_id ?? null;
+        case 'status':
+          return row.item.status ?? null;
         case 'assignee':
           return row.item.assignee_id ?? null;
         case 'category':
@@ -672,6 +684,8 @@
     const order =
       arrangement.grouping === 'column'
         ? columnOrder
+        : arrangement.grouping === 'status'
+          ? (workflow?.statuses ?? []).map((status) => status.key)
         : arrangement.grouping === 'category'
           ? labelOrder
           : arrangement.grouping === 'due'
@@ -701,6 +715,8 @@
         return key === null ? t('app.list.type_none') : typeName(key);
       case 'column':
         return key === null ? t('app.board.unbucketed') : (buckets.of(collectionId).find((bucket) => bucket.id === key)?.name ?? key);
+      case 'status':
+        return key === null ? t('app.desk_queues.no_status') : statusNameOf(key);
       case 'assignee':
         return key === null ? t('app.list.nobody') : (accounts.nameOf(key) ?? t('app.people.unnamed'));
       case 'category':
@@ -1429,16 +1445,17 @@
            buttons that order by it. From `expanded` up, where the fields stand in columns. -->
       <!-- One region with hairlines (WB-4): the heads, the groups with their counts and adds, the
            rows ruled apart, and the foot that continues the list. -->
-      <div class="columns" data-subtree={root ? '' : undefined} role={root ? undefined : 'region'} aria-label={root ? undefined : t('app.entries.region', { name: keyedCollection?.name ?? '' })} data-table={root ? undefined : ''}>
+      <div class="columns" data-subtree={root ? '' : undefined} data-desk={isKeyFirst && !root ? '' : undefined} role={root ? undefined : 'region'} aria-label={root ? undefined : t('app.entries.region', { name: keyedCollection?.name ?? '' })} data-table={root ? undefined : ''}>
       {#if (arrangement || root) && fields.length > 0}
         <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
+          {#if isKeyFirst}<span class="col-head key-head">{columnName('key')}</span>{/if}
           {#if sortOf('title') && onsort}
-            <button type="button" class="col-head title-head" onclick={() => onsort(sortOf('title') ?? '')}>{t('app.list.col_title')}{#if sortField === sortOf('title')}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
+            <button type="button" class="col-head title-head" onclick={() => onsort(sortOf('title') ?? '')}>{isKeyFirst ? t('app.desk_queues.col_request') : t('app.list.col_title')}{#if sortField === sortOf('title')}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
           {:else}
-            <span class="col-head title-head">{t('app.list.col_title')}</span>
+            <span class="col-head title-head">{isKeyFirst ? t('app.desk_queues.col_request') : t('app.list.col_title')}</span>
           {/if}
           <span class="cells">
-            {#each fields as field (field)}
+            {#each cellFields as field (field)}
               {@const key = sortOf(field)}
               {#if key && onsort}
                 <button type="button" class="col-head cell" data-field={field} onclick={() => onsort(key)}>{columnName(field)}{#if sortField === key}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
@@ -1526,6 +1543,10 @@
               {#if isHeaded && arrangement?.grouping === 'column' && group.key !== null && !isReadOnly && mayCreate && topTypes().length > 0}
                 {@const bucketId = group.key}
                 <div class="group-add"><AddRow label={t('app.entries.add_in', { group: groupName(group.key) })} onclick={() => captureField.open({ collectionId, types: topTypes(), bucketId })} /></div>
+              {:else if isHeaded && arrangement?.grouping === 'status' && withSla && !isReadOnly && mayCreate && topTypes().length > 0}
+                <!-- A desk's group ends in capture's door for the desk, as the hub's queue does: a
+                     new request starts where its workflow starts, whichever group it is added under. -->
+                <div class="group-add"><AddRow label={t('app.desk_queues.add_in', { desk: keyedCollection?.name ?? '' })} onclick={() => captureField.open({ collectionId, types: topTypes() })} /></div>
               {/if}
             {/if}
           {/each}
@@ -1665,7 +1686,7 @@
                 <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
               {/if}
             {/if}
-            {#each fields as field (field)}
+            {#each isKeyFirst && chipFor(row.item) ? cellFields : fields as field (field)}
               <span class="cell" data-field={field}>
                 {#if field === 'key'}
                   <EntryKey collection={keyedCollection} number={row.item.number} />
@@ -1791,6 +1812,7 @@
       {/snippet}
       {#snippet chipCell()}
         {@const rowChip = chipFor(row.item)}
+        {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
         {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
       {/snippet}
       <!-- One row in every list (L1): a simple list's line is the same row, without the twist,
@@ -2066,6 +2088,12 @@
     .level[data-columns] .cell { flex: none; flex-wrap: nowrap; overflow: hidden; }
     .level[data-columns] .cell:empty { display: inline-flex; }
     :is(.fields-head, .level[data-columns]) .cell[data-field='key'] { inline-size: calc(var(--sp-1000) * 1.5); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='requester'] { inline-size: calc(var(--sp-1000) * 1.5); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='priority'] { inline-size: var(--sp-1000); }
+    :is(.fields-head, .level[data-columns]) .cell[data-field='sla'] { inline-size: calc(var(--sp-1000) * 1.75); }
+    /* A desk's queue keeps its six columns beside the request at a desktop's width (scene queue). */
+    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell:is([data-field='type'], [data-field='sla']) { inline-size: calc(var(--sp-1000) * 1.5); }
+    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-600); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
@@ -2095,6 +2123,8 @@
     }
 
     .fields-head[data-simple] { padding-inline-start: calc(var(--sp-600) + var(--sp-150)); }
+    /* A desk's key stands where the box would: past the twist alone. */
+    .columns[data-desk] .fields-head { padding-inline-start: calc(var(--sp-800) + var(--sp-100) - var(--sp-300)); }
 
     .fields-head:not([data-columns]) {
       position: absolute;
@@ -2124,6 +2154,9 @@
   button.col-head:hover { color: var(--text-primary); }
   button.col-head:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
   .title-head { flex: 1 0 var(--layout-list-title); }
+  /* A desk's key leads its row, one width in every row and under its head (scene queue). */
+  .key-head,
+  .lead-key { flex: none; display: inline-flex; inline-size: var(--sp-1000); }
 
   /* One group head for every grouping (L4) - the simple list's categories, a column, a person, a
      due band - and the done group's fold (L5). */

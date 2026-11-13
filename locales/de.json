@@ -10258,6 +10258,7 @@
   "app.list.group_column": "Spalte",
   "app.list.group_assignee": "Zuständig",
   "app.list.group_due": "Fälligkeit",
+  "app.list.group_status": "Status",
   "app.list.done_inline": "Erledigtes an seinem Platz",
   "app.list.done_bottom": "Erledigtes am Ende",
   "app.list.done_hidden": "Erledigtes ausblenden",

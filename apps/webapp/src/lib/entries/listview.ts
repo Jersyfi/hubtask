@@ -24,8 +24,8 @@ export type ListField = 'key' | 'type' | 'requester' | 'priority' | 'sla' | 'amo
 export const LIST_FIELDS: readonly ListField[] = ['key', 'type', 'requester', 'priority', 'sla', 'amount', 'column', 'due', 'people', 'labels', 'progress'];
 
 /** How the top level is grouped: nothing, or by one value each entry has. */
-export type ListGrouping = 'none' | 'type' | 'category' | 'column' | 'assignee' | 'due';
-export const LIST_GROUPINGS: readonly ListGrouping[] = ['none', 'type', 'category', 'column', 'assignee', 'due'];
+export type ListGrouping = 'none' | 'status' | 'type' | 'category' | 'column' | 'assignee' | 'due';
+export const LIST_GROUPINGS: readonly ListGrouping[] = ['none', 'status', 'type', 'category', 'column', 'assignee', 'due'];
 
 /** Where a done entry goes: where it stands, gathered at the end, or out of sight. */
 export type DonePlacement = 'inline' | 'bottom' | 'hidden';
@@ -52,6 +52,8 @@ export interface ListOffer {
   readonly showsTypes?: boolean;
   /** A desk's collection (service desk on): the queue's requester, priority and SLA (UC-WRK-45 check 1). */
   readonly isDesk?: boolean;
+  /** A workflow runs for the collection's entries: they stand in statuses, a way to group them. */
+  readonly runsWorkflow?: boolean;
   /** The custom fields in force, offered as `cf.<key>` columns after the collection's own (E-21). */
   readonly customKeys?: readonly string[];
 }
@@ -93,6 +95,8 @@ export function offeredGroupings(offer: ListOffer): readonly ListGrouping[] {
     switch (grouping) {
       case 'none':
         return true;
+      case 'status':
+        return offer.runsWorkflow === true && !offer.isSimple;
       case 'type':
         return offer.showsTypes === true;
       case 'category':
@@ -119,6 +123,15 @@ export function defaultArrangement(offer: ListOffer): ListArrangement {
       fields: offered.filter((field) => field === 'amount'),
       grouping: offer.carriesLabels ? 'category' : 'none',
       done: 'bottom',
+    };
+  }
+  // A desk's own list is its queue (UC-SVC-03 check 12, scene queue): the key, type, requester,
+  // priority, SLA and assignee, grouped by status.
+  if (offer.isDesk === true) {
+    return {
+      fields: offered.filter((field) => field === 'key' || field === 'type' || field === 'requester' || field === 'priority' || field === 'sla' || field === 'people'),
+      grouping: offeredGroupings(offer).includes('status') ? 'status' : 'none',
+      done: 'inline',
     };
   }
   // The key where entries run through a workflow - a desk's queue, a team's tickets - which is
