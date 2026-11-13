@@ -387,10 +387,14 @@
   }
   const compared = $derived(comparing && current ? compareBodies(comparing.body, current.body ?? '') : []);
 
+  // The version comes back through the live document too: the editors hold the text before it and
+  // would write it back at their next save.
   async function restoreVersion(seq: number) {
-    if (!current) return;
+    if (!current || !comparing) return;
+    const body = comparing.body;
     const done = await act(() => pages.restoreVersion(current, seq), t('app.pages.version_restored', { seq: String(seq) }));
     if (done) {
+      replaced = { body };
       comparing = undefined;
       await opened?.refresh();
     }
@@ -452,7 +456,8 @@
   // --- A space with drafts (UC-DOC-15) -----------------------------------------------------------
 
   const pageDraft = $derived(current ? draftStateOf(current) : 'live');
-  let discarded = $state<{ body: string } | undefined>(undefined);
+  /** A body that replaces the live document's: the published one after a discarded draft, a version brought back. */
+  let replaced = $state<{ body: string } | undefined>(undefined);
 
   async function release() {
     if (!current) return;
@@ -464,7 +469,7 @@
     const published = current.body ?? '';
     // A thrown-away draft answers nothing; a refusal is what says it failed.
     await act(() => pages.discardDraft(current), t('app.pages.draft_discarded'));
-    if (refusal === undefined) discarded = { body: published };
+    if (refusal === undefined) replaced = { body: published };
   }
 
 </script>
@@ -658,7 +663,7 @@
                   collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
                   {onnavigate}
                   {reveal}
-                  replaceWith={discarded}
+                  replaceWith={replaced}
                   passages={viewport.isLarge || side === 'comments' ? passages : []}
                   onpassages={passagesMoved}
                   onpresent={(names) => (present = names)}

@@ -240,8 +240,8 @@
     if (!next) return;
     untrack(() => {
       if (!editor || !isLive || !replaceFromMarkdown(editor, next.body)) return;
-      // The page as published is what stands now; nothing waits to be saved.
-      lastSaved = next.body;
+      // The body given is what stands now, as the editor writes it out: nothing waits to be saved.
+      lastSaved = markdownOf(editor);
     });
   });
 
