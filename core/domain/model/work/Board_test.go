@@ -375,3 +375,107 @@ func TestDeletingAColumnPlacesItsEntries(t *testing.T) {
 		t.Error("the last column named a successor")
 	}
 }
+
+func TestDeletingTheDoneColumnNamesItsSuccessor(t *testing.T) {
+	board := threeColumns()
+	_, err := board.ChooseDoneSuccessor(colDone, "")
+	if !errors.Is(err, shared.ErrConflict) || detailOf(t, err) != "buckets.done_successor_required" {
+		t.Fatalf("deleting the done column without a successor: %v, want buckets.done_successor_required", err)
+	}
+	if got, err := board.ChooseDoneSuccessor(colDone, colTodo); err != nil || got != colTodo {
+		t.Errorf("the chosen successor is %s, %v, want the column chosen", got, err)
+	}
+	for _, wrong := range []shared.ID{colDone, boardBy} {
+		if _, err := board.ChooseDoneSuccessor(colDone, wrong); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("successor %s: %v, want buckets.not_found", wrong, err)
+		}
+	}
+	if got, err := board.ChooseDoneSuccessor(colTodo, ""); err != nil || !got.IsZero() {
+		t.Errorf("deleting an open column asked for a successor: %s, %v", got, err)
+	}
+	alone := Board{Columns: []Bucket{{ID: colDone, IsDoneBucket: true}}}
+	if got, err := alone.ChooseDoneSuccessor(colDone, ""); err != nil || !got.IsZero() {
+		t.Errorf("deleting the last column asked for a successor: %s, %v", got, err)
+	}
+	board.Mapping = []ColumnStatus{{BucketID: colDone, Status: "done"}}
+	if got, err := board.ChooseDoneSuccessor(colDone, ""); err != nil || got != colDoing {
+		t.Errorf("under a workflow the mark goes to %s, %v, want the suggestion", got, err)
+	}
+}
+
+func TestTheDoneColumnAfterTheWorkflowGoes(t *testing.T) {
+	shape := reviewShape()
+	board := threeColumns()
+	if done, _ := board.DoneAfterWorkflow(shape); done.ID != colDone {
+		t.Errorf("the marked column is kept: %s", done.ID)
+	}
+	board.Columns[2].IsDoneBucket = false
+	board.Mapping = []ColumnStatus{{BucketID: colDoing, Status: "done"}, {BucketID: colDone, Status: "review"}}
+	if done, _ := board.DoneAfterWorkflow(shape); done.ID != colDoing {
+		t.Errorf("unmarked, the column showing only done statuses takes the mark: %s", done.ID)
+	}
+	board.Mapping = nil
+	if done, _ := board.DoneAfterWorkflow(shape); done.ID != colDone {
+		t.Errorf("else the rightmost column: %s", done.ID)
+	}
+}
+
+func TestABoardChangePreviewsLevelsColumnsAndMoves(t *testing.T) {
+	shape := reviewShape()
+	columns := threeColumns()
+	mapped := columns
+	mapped.Mapping, _ = DefaultMapping(columns.Columns, shape)
+
+	t.Run("a workflow comes to a board", func(t *testing.T) {
+		cells := []BoardCell{
+			{BucketID: colTodo, Count: 2},                  // open in Offen: initial, stays
+			{BucketID: colDoing, Count: 3},                 // open in In Arbeit: initial status, into Offen
+			{BucketID: colDone, Completed: true, Count: 4}, // done: first done status, stays
+			{Completed: true, Count: 1},                    // done without a column: into Erledigt
+		}
+		change := PlanBoardChange(columns, mapped, cells, nil, &shape)
+		if change.Before != StateModeColumns || change.After != StateModeWorkflow {
+			t.Errorf("levels %s → %s", change.Before, change.After)
+		}
+		if change.Moved != 4 || change.ColumnOnly != 0 {
+			t.Errorf("moved %d, column only %d; want 4, 0", change.Moved, change.ColumnOnly)
+		}
+		if len(change.Unmapped) != 1 || change.Unmapped[0].Status != "review" || change.Unmapped[0].BucketID != colTodo {
+			t.Errorf("unmapped %v", change.Unmapped)
+		}
+	})
+
+	t.Run("a column-only move under the same statuses", func(t *testing.T) {
+		cells := []BoardCell{{Status: "doing", BucketID: colTodo, Count: 2}}
+		change := PlanBoardChange(mapped, mapped, cells, &shape, &shape)
+		if change.Moved != 2 || change.ColumnOnly != 2 {
+			t.Errorf("moved %d, column only %d; want 2, 2", change.Moved, change.ColumnOnly)
+		}
+	})
+
+	t.Run("the workflow goes and the columns stay", func(t *testing.T) {
+		cells := []BoardCell{
+			{Status: "review", Count: 2},                                      // Ohne Spalte, open: first column
+			{Status: "dropped", BucketID: colDone, Completed: true, Count: 1}, // stays in the done column
+			{Status: "done", Completed: true, Count: 3},                       // Ohne Spalte, done: done column
+			{Status: "doing", BucketID: colDoing, Count: 5},                   // stays
+		}
+		change := PlanBoardChange(mapped, columns, cells, &shape, nil)
+		if change.Before != StateModeWorkflow || change.After != StateModeColumns {
+			t.Errorf("levels %s → %s", change.Before, change.After)
+		}
+		if change.Moved != 5 || change.ColumnOnly != 0 || change.DoneColumn != colDone {
+			t.Errorf("moved %d, column only %d, done %s", change.Moved, change.ColumnOnly, change.DoneColumn)
+		}
+		if len(change.Board.Mapping) != 0 || len(change.Unmapped) != 0 {
+			t.Errorf("a board without a workflow kept a mapping: %v %v", change.Board.Mapping, change.Unmapped)
+		}
+	})
+
+	t.Run("a collection without columns", func(t *testing.T) {
+		change := PlanBoardChange(Board{}, Board{}, []BoardCell{{Count: 2}}, nil, &shape)
+		if change.Before != StateModeNone || change.After != StateModeWorkflow || change.Moved != 0 {
+			t.Errorf("%+v", change)
+		}
+	})
+}

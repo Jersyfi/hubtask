@@ -232,6 +232,132 @@ func (b Board) DoneSuccessor(deleted shared.ID) (Bucket, bool) {
 	return Bucket{}, false
 }
 
+// ChooseDoneSuccessor answers the column that takes the done mark when deleted goes, as the person
+// deleting it chose (domain-model.md §3.5a): at L1 the done column of a board with other columns
+// left is refused without a choice as buckets.done_successor_required, the suggestion
+// (DoneSuccessor) in its parameters; under a mapping the suggestion is taken. Zero where deleted is
+// not the done column or nothing is left.
+func (b Board) ChooseDoneSuccessor(deleted, chosen shared.ID) (shared.ID, error) {
+	suggested, found := b.DoneSuccessor(deleted)
+	if !found {
+		return "", nil
+	}
+	if len(b.Mapping) > 0 {
+		return suggested.ID, nil
+	}
+	if chosen.IsZero() {
+		return "", shared.ErrConflict.WithDetail("buckets.done_successor_required").
+			WithParams(map[string]string{"suggested_bucket_id": suggested.ID.String()}).
+			WithFields(shared.FieldError{Path: "/new_done_bucket_id", Code: "buckets.done_successor_required"})
+	}
+	if _, live := b.Column(chosen); !live || chosen == deleted {
+		return "", shared.ErrNotFound.WithDetail("buckets.not_found").
+			WithParams(map[string]string{"bucket_id": chosen.String()})
+	}
+	return chosen, nil
+}
+
+// DoneAfterWorkflow answers the column that is the done column once the workflow leaves the board:
+// the one marked, else the rightmost whose statuses are all done, else the rightmost.
+func (b Board) DoneAfterWorkflow(shape WorkflowShape) (Bucket, bool) {
+	if done, found := b.DoneColumn(); found {
+		return done, true
+	}
+	for i := len(b.Columns) - 1; i >= 0; i-- {
+		if ColumnCompletes(b.StatusesOf(b.Columns[i].ID), shape) {
+			return b.Columns[i], true
+		}
+	}
+	if len(b.Columns) == 0 {
+		return Bucket{}, false
+	}
+	return b.Columns[len(b.Columns)-1], true
+}
+
+// BoardCell counts a board's top-level tasks of one status, column and completion.
+type BoardCell struct {
+	Status    string
+	BucketID  shared.ID
+	Completed bool
+	Count     int
+}
+
+// BoardChange is what a change of the workflow in force does to one board (UC-FLW-02 check 4).
+type BoardChange struct {
+	Before, After StateMode
+	// Board is the board after: its columns and, under a workflow, its mapping.
+	Board Board
+	// DoneColumn is the done column after, at L1; it takes the mark where it lacks it.
+	DoneColumn shared.ID
+	// Unmapped are the statuses no column shows after, each with a suggested column.
+	Unmapped []MappingSuggestion
+	// Moved counts the entries whose column changes; ColumnOnly those of them whose status stays.
+	Moved, ColumnOnly int
+}
+
+// PlanBoardChange answers what a board goes through when the workflow in force for its tasks
+// changes from was to will - nil for none -, the board after carrying the mapping chosen. Under a
+// workflow an entry stands in the column of the status it enters; without one a completed entry
+// in the done column, an open one in its own column, else the first.
+func PlanBoardChange(before, after Board, cells []BoardCell, was, will *WorkflowShape) BoardChange {
+	change := BoardChange{
+		Before: StateModeOf(ItemTask, was != nil, len(before.Columns)),
+		After:  StateModeOf(ItemTask, will != nil, len(after.Columns)),
+		Board:  after,
+	}
+	if len(after.Columns) == 0 {
+		return change
+	}
+	if will == nil {
+		change.Board.Mapping = nil
+		done, _ := before.DoneAfterWorkflow(shapeOrEmpty(was))
+		change.DoneColumn = done.ID
+	} else {
+		change.Unmapped = change.Board.Suggestions(*will)
+	}
+	for _, cell := range cells {
+		status, column := "", shared.ID("")
+		if will != nil {
+			status = will.Entering(cell.Status, cell.Completed)
+			column, _ = change.Board.ColumnOfStatus(status)
+		} else {
+			column = change.columnWithout(cell)
+		}
+		if column == cell.BucketID {
+			continue
+		}
+		change.Moved += cell.Count
+		if status == cell.Status {
+			change.ColumnOnly += cell.Count
+		}
+	}
+	return change
+}
+
+// columnWithout is the column of a cell once no workflow runs: completed into the done column,
+// open in its own column where that is not the done column, else the first.
+func (c BoardChange) columnWithout(cell BoardCell) shared.ID {
+	if cell.Completed {
+		return c.DoneColumn
+	}
+	if _, live := c.Board.Column(cell.BucketID); live && cell.BucketID != c.DoneColumn {
+		return cell.BucketID
+	}
+	for _, column := range c.Board.Columns {
+		if column.ID != c.DoneColumn {
+			return column.ID
+		}
+	}
+	return ""
+}
+
+func shapeOrEmpty(shape *WorkflowShape) WorkflowShape {
+	if shape == nil {
+		return WorkflowShape{}
+	}
+	return *shape
+}
+
 // TargetAfterDeleting answers where the entries of a deleted column go: under a mapped workflow
 // none - their statuses are unmapped now, *Ohne Spalte* -; the done column's to its successor,
 // where they stay completed; an open column's to the first open column left. Zero where nothing
@@ -382,21 +508,26 @@ func DefaultMapping(columns []Bucket, shape WorkflowShape) ([]ColumnStatus, []Ma
 		}
 		break
 	}
+	return mapping, Board{Columns: columns, Mapping: mapping}.Suggestions(shape)
+}
+
+// Suggestions answers the shape's statuses no column shows, each with where it would fit: a done
+// status beside the done column, the rest beside the first column.
+func (b Board) Suggestions(shape WorkflowShape) []MappingSuggestion {
+	done, hasDone := b.DoneColumn()
+	first, hasFirst := b.FirstColumn()
 	var suggestions []MappingSuggestion
-	for _, status := range shape.Statuses {
-		if taken[status.Key] {
-			continue
-		}
-		suggestion := MappingSuggestion{Status: status.Key}
+	for _, key := range b.Unmapped(shape) {
+		suggestion := MappingSuggestion{Status: key}
 		switch {
-		case status.Category.Completes() && hasDone:
+		case shape.Completes(key) && hasDone:
 			suggestion.BucketID = done.ID
 		case hasFirst:
 			suggestion.BucketID = first.ID
 		}
 		suggestions = append(suggestions, suggestion)
 	}
-	return mapping, suggestions
+	return suggestions
 }
 
 func sameWord(a, b string) bool {
