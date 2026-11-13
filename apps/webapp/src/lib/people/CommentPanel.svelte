@@ -18,8 +18,8 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, CommentThread, Stack, Switch, Textarea } from '@hubtask/design-system/components';
-  import type { ThreadComment } from '@hubtask/design-system/components';
+  import { Button, CommentThread, Composer, Stack } from '@hubtask/design-system/components';
+  import type { ComposerMode, ThreadComment, ThreadEvent } from '@hubtask/design-system/components';
   import type { Comment, CommentPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -35,7 +35,7 @@
   import MentionDialog from '../entries/MentionDialog.svelte';
   import ReferenceChip from '../entries/ReferenceChip.svelte';
   import { inserted, referencesIn, resolved } from '../data/links.svelte.ts';
-  import DeskTools from '../servicedesk/DeskTools.svelte';
+  import { DeskTools } from '../servicedesk/desktools.svelte.ts';
   import EntryPresence from '../entries/EntryPresence.svelte';
 
   /**
@@ -54,6 +54,9 @@
     mayComment,
     isClosed = false,
     isDesk = false,
+    show = 'comments',
+    events = [],
+    requester,
   }: {
     item: WorkItem;
     path: Path;
@@ -61,10 +64,20 @@
     isClosed?: boolean;
     /** The service desk is on: an internal note, a canned reply and a macro are offered (UC-SVC-04, 06). */
     isDesk?: boolean;
+    /**
+     * Which posts the conversation shows (§6.9): *all* mixes them with `events` as quiet rows;
+     * on a ticket *replies* and *notes* split the public answers from the internal notes.
+     */
+    show?: 'all' | 'comments' | 'replies' | 'notes';
+    events?: readonly ThreadEvent[];
+    /** Who a public reply on a ticket reaches, for the reply tab's words. */
+    requester?: string;
   } = $props();
 
-  /** Whether the next comment is a note for the team; a reply to an internal note is one anyway. */
-  let isInternal = $state(false);
+  /** Whether the next post is a note for the team (ET-7); a reply to an internal note is one anyway. */
+  let mode = $state<ComposerMode>(untrack(() => (show === 'notes' ? 'note' : 'reply')));
+  const isInternal = $derived(mode === 'note');
+  const tools = untrack(() => (isDesk ? new DeskTools(item.id) : undefined));
 
 
   // The path is taken once, as every other subscription in this application takes one: the view
@@ -74,7 +87,7 @@
   const hasMore = $derived(page.state.status === 'ready' && (page.state.data.page?.has_more ?? false));
   /** Why the last press of *Older comments* brought nothing; cleared by the next press. */
   /** How many threads are drawn, newest first: five, then ten more at a time. */
-  let shownCount = $state(5);
+  let shownCount = $state(3);
   let olderFailed = $state<string | undefined>(undefined);
 
   async function older(): Promise<void> {
@@ -122,7 +135,8 @@
   }
 
   function threadRows(): readonly ThreadComment[] {
-    return threadOf(rows).map(({ comment, replies }) => ({
+    const kept = rows.filter((comment) => (show === 'replies' ? !comment.internal : show === 'notes' ? comment.internal : true));
+    return threadOf(kept).map(({ comment, replies }) => ({
       ...renderOne(comment),
       replies: replies.map(renderOne),
     }));
@@ -139,8 +153,8 @@
       when: formatDateTime(comment.created_at, messages.locale),
       at: comment.created_at,
       isRemoved: removed,
-      editedLabel: [comment.internal ? t('app.desk.internal_mark') : '', comment.edited_at ? t('app.comments.edited') : '']
-        .filter((word) => word !== '').join(' · ') || undefined,
+      editedLabel: comment.edited_at ? t('app.comments.edited') : undefined,
+      internalLabel: comment.internal ? t('app.desk.internal_mark') : undefined,
       // Offered to the author and to an administrator, and to nobody else - not drawn off with a
       // sentence on every comment (UC-WRK-19 check 3, P-05) - and to nobody while it is closed.
       isChangeable: moderates && !isClosed,
@@ -213,49 +227,39 @@
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
 
-    <!-- Writing first, the newest under it, five of them: a long conversation stays a glance
-         until somebody asks for more (concept round 2, §4). -->
+    <!-- Writing first, the newest three under it (ET-3). One composer for a comment, a reply and
+         an internal note (ET-7): on a ticket two tabs, the note yellow with a lock, the button
+         saying what it does; snippets and macros as its menus (UC-SVC-06). -->
     {#if mayComment}
-      <Stack gap="100">
-        <Textarea
-          label={editing
-            ? t('app.comments.editing')
-            : replyTo
-              ? t('app.comments.replying')
-              : t('app.comments.write')}
+      <div data-composer>
+        <Composer
+          label={editing ? t('app.comments.editing') : replyTo ? t('app.comments.replying') : t('app.comments.write')}
           bind:value={draft}
-          rows={draft.trim() === '' ? 1 : 3}
-          error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
+          bind:mode
+          modes={isDesk && !editing ? { reply: requester ? t('app.desk.reply_to', { name: requester }) : t('app.desk.reply_tab'), note: t('app.desk.note_tab'), label: t('app.desk.modes') } : undefined}
+          audience={isDesk && requester ? t('app.desk.reply_audience', { name: requester }) : undefined}
+          noteAudience={isDesk ? t('app.desk.note_audience') : undefined}
+          sendLabel={editing ? t('app.workspace.save') : isDesk ? t('app.desk.send_reply') : t('app.comments.send')}
+          noteSendLabel={t('app.desk.save_note')}
+          isBusy={isSending || (tools?.isBusy ?? false)}
+          busyLabel={t('app.workspace.saving')}
+          onsend={() => send()}
+          format={{ label: t('app.comments.format'), items: [{ id: 'mention', label: t('app.mentions.insert'), icon: 'at-sign' }], onformat: () => (isMentionOpen = true) }}
+          snippets={tools && tools.snippets.length > 0 ? { label: t('app.desk.snippets'), items: tools.snippets, onselect: (key) => void tools.insert(key, (text) => (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`)) } : undefined}
+          macros={tools && tools.macros.length > 0 ? { label: t('app.desk.macros'), title: t('app.desk.macros_title'), items: tools.macros, onselect: (id) => void tools.press(id) } : undefined}
         />
-        {#if isDesk && !editing}
-          <Switch label={t('app.desk.internal')} hint={t('app.desk.internal_hint')} checked={isInternal}
-            onchange={(event: Event) => (isInternal = (event.currentTarget as HTMLInputElement).checked)} />
-          <DeskTools itemId={item.id} oninsert={(text) => (draft = draft.trim() === '' ? text : `${draft}\n\n${text}`)} />
-        {/if}
+        {#if tooLong}<p class="failure" role="alert">{t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) })}</p>{/if}
+        {#if tools?.refusal}<p class="failure" role="alert">{tools.refusal}</p>{/if}
         {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
-        <div class="actions">
-          <Button isBusy={isSending} busyLabel={t('app.workspace.saving')} onclick={send}>
-            {editing ? t('app.workspace.save') : t('app.comments.send')}
-          </Button>
-          <Button tone="subtle" icon="link" data-mention-in-comment onclick={() => (isMentionOpen = true)}>{t('app.mentions.insert')}</Button>
-          {#if replyTo || editing}
-            <Button
-              tone="secondary"
-              onclick={() => {
-                replyTo = undefined;
-                editing = undefined;
-                draft = '';
-              }}
-            >
-              {t('app.workspace.cancel')}
-            </Button>
-          {/if}
-        </div>
-      </Stack>
+        {#if replyTo || editing}
+          <Button size="sm" tone="secondary" onclick={() => { replyTo = undefined; editing = undefined; draft = ''; }}>{t('app.workspace.cancel')}</Button>
+        {/if}
+      </div>
     {/if}
     <CommentThread
       label={t('app.comments.title')}
       comments={threadRows().slice(0, shownCount)}
+      events={show === 'all' ? events : []}
       emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
       removedLabel={t('app.comments.removed')}
       editLabel={t('app.comments.edit')}
@@ -287,7 +291,7 @@
   {#if mayComment}<MentionDialog bind:isOpen={isMentionOpen} selfId={item.id} oninsert={mention} />{/if}
 
 <style>
-  .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  [data-composer] { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .failure { margin: 0; color: var(--text-danger); }
 
