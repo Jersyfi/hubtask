@@ -2,12 +2,13 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import ProductBand from './ProductBand.svelte';
+  import Button from './Button.svelte';
   import SummaryCard from './SummaryCard.svelte';
   import type { ProductId } from './ProductTile.svelte';
   import type { IconName } from './icons/index.ts';
 
   interface Props {
-    mode?: 'desk' | 'all' | 'empty';
+    mode?: 'desk' | 'all' | 'empty' | 'timer';
   }
 
   const { mode = 'desk' }: Props = $props();
@@ -40,6 +41,10 @@
       <ProductBand {product} {icon} {name} {figures} primary={{ label: act, icon: 'plus', onclick: () => {} }} />
     {/each}
   </div>
+{:else if mode === 'timer'}
+  <ProductBand product="time" icon="clock" name="My week" figures={['6:00 of 40:00', '9–15 November', 'Open']} primary={{ label: 'Log time', icon: 'plus', onclick: () => {} }} {menu}>
+    {#snippet aside()}<Button tone="subtle" icon="play" onclick={() => {}}>Start timer</Button>{/snippet}
+  </ProductBand>
 {:else}
   <ProductBand product="goals" icon="flag" name="Goals" figures={['No goals yet']} primary={{ label: 'New goal', icon: 'plus', onclick: () => {} }} />
 {/if}

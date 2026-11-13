@@ -27,3 +27,9 @@ export const empty: Story = {
   about: 'A product with no content says so in its figure line; the empty state below is `EmptyState`’s.',
   args: { mode: 'empty' },
 };
+
+export const timer: Story = {
+  name: 'A control of its own (scene time)',
+  about: 'Time’s band holds the timer in `aside`, before *Log time*: the product’s own control at the actions’ height, the timer in the time colour where the caller draws it.',
+  args: { mode: 'timer' },
+};

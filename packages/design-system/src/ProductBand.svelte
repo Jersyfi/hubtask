@@ -26,13 +26,18 @@
     breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void };
     /** The product's `ViewBar`, under the band. */
     views?: Snippet;
+    /**
+     * A control of the product's own before its actions - Time's timer (scene time): the
+     * caller's drawing, at the actions' height, as `PageHeader` holds it.
+     */
+    aside?: Snippet;
   }
 
-  const { product, icon, name, figures = [], primary, menu, breadcrumb, views }: Props = $props();
+  const { product, icon, name, figures = [], primary, menu, breadcrumb, views, aside }: Props = $props();
 </script>
 
 <div class="band" data-product={product}>
-  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} mark={tile} figure={figures.length > 0 ? line : undefined} isFigureBelow />
+  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} {aside} mark={tile} figure={figures.length > 0 ? line : undefined} isFigureBelow />
 </div>
 
 {#snippet tile()}
