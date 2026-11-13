@@ -481,6 +481,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
       },
     }) as never);
   }
+  let made: Editor | undefined;
   const editor = new Editor({
     element: options.element,
     injectCSS: false,
@@ -488,7 +489,13 @@ export function createPageEditor(options: PageEditorOptions): Editor {
     extensions,
     // A live document brings its own content; seeding it is `seedFromMarkdown`'s.
     ...(options.live ? {} : { content: fromMarkdown(options.body) as JSONContent }),
-    editorProps: { attributes: { class: 'page-body', 'aria-multiline': 'true', role: 'textbox', ...(options.label ? { 'aria-label': options.label } : {}) } },
+    // Only a text that can be written in is a textbox: read only, it is announced as the text it is. Asked on
+    // every state, so `setEditable` changes the role too.
+    editorProps: {
+      attributes: (): Record<string, string> => (made?.options.editable ?? options.editable)
+        ? { class: 'page-body', 'aria-multiline': 'true', role: 'textbox', ...(options.label ? { 'aria-label': options.label } : {}) }
+        : { class: 'page-body' },
+    },
     onUpdate: ({ editor: current, transaction }) => {
       if (transaction.getMeta('y-sync$')?.isChangeOrigin) return;
       if (!transaction.getMeta(MIRROR_META)) {
@@ -504,6 +511,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
       options.onBlock?.(top && id ? { id, text: top.textContent.slice(0, 500), ...(selected ? { selected } : {}) } : undefined);
     },
   });
+  made = editor;
   return editor;
 }
 
