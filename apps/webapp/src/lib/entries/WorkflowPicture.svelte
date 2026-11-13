@@ -179,6 +179,12 @@
         const gap = source.height / 4;
         if (anchor === 'middle') y += isBelow ? gap * 2 : -gap;
         else x += anchor === 'start' ? gap : -gap;
+        // A step from any status names itself under its target, clear of the boxes it passes.
+        if (step.from.length === 0) {
+          x = target.xMin;
+          y = target.yMax + gap * 2;
+          anchor = 'start';
+        }
         const name = step.from.length === 0 ? t('app.workflows.picture_any_into', { name: stepName(step) }) : stepName(step);
         out.push({ key: `${step.key}:${from}`, d, kind: kindOf(step), label: name, x, y, anchor });
       }
