@@ -4,8 +4,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { getSchema } from '@tiptap/core';
 import { Schema } from '@tiptap/pm/model';
-import { EditorState } from '@tiptap/pm/state';
+import { EditorState, TextSelection } from '@tiptap/pm/state';
+import StarterKit from '@tiptap/starter-kit';
+import { updateYFragment, yXmlFragmentToProseMirrorRootNode } from '@tiptap/y-tiptap';
+import * as Y from 'yjs';
 
 import { lineBelow, lineStart, moveLine, removeLine } from '../src/lines.ts';
 
@@ -66,4 +70,33 @@ test('"+" puts an empty line below and the caret in it', () => {
   assert.deepEqual(lines(next), ['Open points', '', 'First', 'Second']);
   assert.equal(next.selection.$from.parent.textContent, '');
   assert.equal(next.selection.$from.index(0), 1);
+});
+
+// The live document carries a moved line whole, and a line written below it after (the binding
+// writes each state into the document as `updateYFragment` does, keeping its mapping between).
+test('a moved line keeps its words in the live document while writing goes on below it', () => {
+  const full = getSchema([StarterKit]);
+  const ydoc = new Y.Doc();
+  const fragment = ydoc.getXmlFragment('default');
+  const meta = { mapping: new Map(), isOMark: new Map() };
+  let state = EditorState.create({
+    schema: full,
+    doc: full.node('doc', null, [
+      full.node('paragraph', null, [full.text('Welcome', [full.marks['bold']!.create()])]),
+      full.node('paragraph', null, [full.text('Next line')]),
+    ]),
+  });
+  const write = () => ydoc.transact(() => updateYFragment(ydoc, fragment, state.doc, meta as never));
+  write();
+  state = state.apply(moveLine(state, 0, 1)!);
+  write();
+  state = state.apply(state.tr.setSelection(TextSelection.create(state.doc, state.selection.$from.end())));
+  state = state.apply(state.tr.split(state.selection.from));
+  write();
+  for (const letter of 'Below') {
+    state = state.apply(state.tr.insertText(letter));
+    write();
+  }
+  const read = yXmlFragmentToProseMirrorRootNode(fragment, full);
+  assert.deepEqual(read.children.map((each) => each.textContent), ['Next line', 'Welcome', 'Below']);
 });

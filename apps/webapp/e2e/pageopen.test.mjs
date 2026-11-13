@@ -25,6 +25,11 @@ const varUint = (n) => {
 /** The server's answer to a new document: sync step 2 with an empty update, then its step 1. */
 const EMPTY_DOCUMENT = Buffer.from([0, 1, ...varUint(2), 0, 0]);
 const ASK_STATE = Buffer.from([0, 0, ...varUint(1), 0]);
+// A text's own keys: on macOS End and Home scroll the document and leave the caret, and Shift+Home
+// selects to the document's start - an Enter then replaces what is selected.
+const MAC = process.platform === 'darwin';
+const LINE_END = MAC ? 'Meta+ArrowRight' : 'End';
+const SELECT_TO_LINE_START = MAC ? 'Shift+Meta+ArrowLeft' : 'Shift+Home';
 
 test('the first writer opens a page without saving it; typing saves', async (t) => {
   const browser = await chromium.launch();
@@ -51,7 +56,7 @@ test('the first writer opens a page without saving it; typing saves', async (t) 
   assert.deepEqual(saves, [], 'opening the page saved it');
 
   await body.click();
-  await page.keyboard.press('End');
+  await page.keyboard.press(LINE_END);
   await page.keyboard.type(' Glad you are here.');
   await page.waitForTimeout(2_500);
   assert.equal(saves.length, 1, 'an edit is saved');
@@ -88,8 +93,8 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   assert.ok(column && handle.x >= column.x, 'the handle stands in the column\'s own gutter, not over the frame\'s edge');
 
   // Selected words: the bar above them; Bold makes them bold and keeps them selected.
-  await page.keyboard.press('End');
-  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press(LINE_END);
+  await page.keyboard.press(SELECT_TO_LINE_START);
   const bar = page.locator('[data-floating-toolbar]');
   await bar.waitFor({ timeout: 5_000 });
   const barBox = await bar.boundingBox();
@@ -101,17 +106,23 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await body.locator('strong', { hasText: 'Welcome to the team.' }).waitFor({ timeout: 5_000 });
 
   // The handle's menu moves the line without dragging (WCAG 2.5.7).
-  await page.keyboard.press('End');
+  await page.keyboard.press(LINE_END);
   await page.keyboard.press('Enter');
   await page.keyboard.type('Next line');
   await page.keyboard.press('ArrowUp');
   await page.locator('[data-block-grip]').click();
   await page.getByRole('menuitem', { name: 'Move down' }).click();
   await body.locator(':scope > :first-child', { hasText: 'Next line' }).waitFor({ timeout: 5_000 });
+  // Writing goes on below the moved line, which keeps its words.
+  await page.keyboard.press(LINE_END);
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Below the moved');
+  await body.locator(':scope > :nth-child(3)', { hasText: 'Below the moved' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual((await body.locator(':scope > *').allInnerTexts()).slice(0, 3), ['Next line', 'Welcome to the team.', 'Below the moved']);
   // The menu acts on its own line, though the pointer crosses other lines on its way through it.
   await body.getByText('Next line').click();
   for (const more of ['Third line', 'Fourth line', 'Fifth line']) {
-    await page.keyboard.press('End');
+    await page.keyboard.press(LINE_END);
     await page.keyboard.press('Enter');
     await page.keyboard.type(more);
   }
@@ -128,7 +139,7 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await body.getByText('Fifth line').click();
 
   // A checklist line offers *task from it* at its end; the collections open under the line (S-4).
-  await page.keyboard.press('End');
+  await page.keyboard.press(LINE_END);
   await page.keyboard.press('Enter');
   await page.keyboard.type('[ ] Book the train');
   const taskFrom = page.locator('[data-page-task-from]');
@@ -141,12 +152,12 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await page.keyboard.press('Escape');
   await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
   await body.locator('li p', { hasText: 'Book the train' }).click();
-  await page.keyboard.press('End');
+  await page.keyboard.press(LINE_END);
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
 
   // "/" on an empty line opens what can be inserted at that line; a block's fields come after the choice.
-  await page.keyboard.press('End');
+  await page.keyboard.press(LINE_END);
   await page.keyboard.press('Enter');
   await page.keyboard.type('/');
   const panel = page.locator('[data-box-popover] [data-page-blocks]');
@@ -170,7 +181,7 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await page.locator('[data-box-popover]').waitFor({ state: 'detached', timeout: 5_000 });
   // A file among the choices opens the system's file choice.
   await body.locator(':scope > :last-child').click();
-  await page.keyboard.press('End');
+  await page.keyboard.press(LINE_END);
   await page.keyboard.press('Enter');
   await page.keyboard.type('/');
   await panel.waitFor({ timeout: 5_000 });

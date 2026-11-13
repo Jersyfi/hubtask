@@ -27,6 +27,7 @@ import { EmojiShortcodes } from './emoji.ts';
 import { MathBlock } from './math.ts';
 import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { lineBelow, lineStart, moveLine, removeLine } from './lines.ts';
+import { readSelectionFirst } from './selection.ts';
 import { MIRROR_META, linkLine, mirrorTicks, taskLineAt, tickedEntries, type TaskLine } from './tasks.ts';
 
 /** How the application draws a reference: its label, kept current as the resolver answers. */
@@ -433,9 +434,17 @@ export interface PageEditorOptions {
 }
 
 /** Builds the editor. The caller destroys it with the screen. */
+/** Before every keymap: a key acts on the selection the browser holds (`selection.ts`). */
+const SelectionFirst = Extension.create({
+  name: 'selectionFirst',
+  priority: 10_000,
+  addProseMirrorPlugins: () => [readSelectionFirst],
+});
+
 export function createPageEditor(options: PageEditorOptions): Editor {
   const fallback = options.fallback ?? '…';
   const extensions = [
+    SelectionFirst,
     StarterKit.configure({
       // The live document keeps its own history; a second one would undo another writer's typing.
       undoRedo: options.live ? false : {},
