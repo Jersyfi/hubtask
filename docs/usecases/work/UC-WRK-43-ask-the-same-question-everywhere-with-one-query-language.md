@@ -5,9 +5,9 @@ context: work
 actors: [PE-member, PE-admin, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-19]
-state: verified
+state: built
 tasks: []
-checked_by: [test/querylanguage/lines_test.go, core/domain/model/view/Query_test.go, core/application/service/work/QueryItems_test.go, core/application/service/work/SearchItems_test.go, core/application/service/work/AggregateItems_test.go, packages/query/test/lines.test.ts, packages/query/test/language.test.ts, apps/webapp/e2e/viewpanel.test.mjs]
+checked_by: [apps/webapp/src/lib/search/queryline.test.ts, apps/webapp/e2e/search.test.mjs, test/querylanguage/lines_test.go, core/domain/model/view/Query_test.go, core/application/service/work/QueryItems_test.go, core/application/service/work/SearchItems_test.go, core/application/service/work/AggregateItems_test.go, packages/query/test/lines.test.ts, packages/query/test/language.test.ts, apps/webapp/e2e/viewpanel.test.mjs]
 ---
 
 # Ask the same question everywhere with one query language
@@ -29,7 +29,7 @@ In `D1` and `D2` a person mostly uses the line on their own lists; in `D4`–`D7
 3. `POST /items:query` reads `q` in both spellings; a key or value it cannot read is refused with `query.field_unknown` or `query.value_unknown`, the character it stops at and a suggestion.
 4. `POST /search` takes the search as one `query`: its free words are ranked, the rest narrows; sent beside `q` it is refused with `query.line_with_filter`.
 5. The count of a line while it is typed and a key's values with their counts are `POST /items:aggregate` with `q` over the reader's own readable scope, so a member never sees a count or a value of an entry they may not read; the line travels in the body, never in an address.
-6. A line is one row of chips: a term is a chip, a group or a word a text chip, and a refused term carries the problem and its suggestion.
+6. A line is one row of chips: a term is a chip, a group or a word a text chip, and a refused term carries the problem and its suggestion; the search page draws it as its one line, with no switch to a second editor, and a `word:` that names no key is searched as words and said so at the line.
 
 ## Where it ends
 

@@ -21,12 +21,14 @@ test('the line travels in the body, whole; nothing is asked without it (Q-5)', (
   assert.deepEqual(requestOf('passkey type: task', ['ENTRY', 'PAGE'], { hubId: 'h', size: 3 }), { q: 'passkey type: task', kinds: ['ENTRY', 'PAGE'], hub_id: 'h', size: 3 });
 });
 
+// UC-WRK-27 check 6. The scopes over the hits, with their counts.
 test('the scopes: all with the sum, each kind that found something, here where one stands (§6.11)', () => {
   const scopes = scopesOf([{ kind: 'ENTRY', count: 9, more: false }, { kind: 'PAGE', count: 0, more: false }, { kind: 'FILE', count: 2, more: true }], ['ENTRY', 'PAGE', 'FILE'], true);
   assert.deepEqual(scopes.map((each) => [each.id, each.count]), [['ALL', 11], ['ENTRY', 9], ['FILE', 2], ['HERE', undefined]]);
   assert.equal(scopes[0]?.more, true);
 });
 
+// UC-WRK-27 check 6. The best hits first, one of each other kind after them.
 test('the best hits are the first of three kinds, the other kinds one each; narrowed, one kind only', () => {
   const hits = [hit('ENTRY', 'e1'), hit('ENTRY', 'e2'), hit('PAGE', 'p1'), hit('WHITEBOARD', 'w1'), hit('PERSON', 'u1'), hit('FILE', 'f1')];
   const { best, more } = arrange(hits, BAR_KINDS);
@@ -47,6 +49,7 @@ test('found words are marked, in a snippet by its « » and in a title by the wo
   assert.deepEqual(markWords('Passkey-Anmeldung', 'passkey type: task').filter((each) => each.isFound).map((each) => each.text), ['Passkey']);
 });
 
+// UC-WRK-27 check 7. A typed key names its entry.
 test('a typed key jumps; words are no key', () => {
   assert.equal(keyIn(' sa-12 '), 'SA-12');
   assert.equal(keyIn('TAMA-18'), 'TAMA-18');

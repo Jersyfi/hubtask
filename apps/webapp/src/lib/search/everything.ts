@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * One search over every kind (work-surface concept §6.11, E-11): what the header search and the
+ * One search over every kind (UC-WRK-18 check 9): what the header search and the
  * search page draw from `POST /search:all`. Pure, so the scopes, the best hits, the way a hit
  * opens and the hint for a `word:` that names no field are tested without mounting anything.
  *

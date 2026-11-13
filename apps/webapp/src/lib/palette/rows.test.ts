@@ -49,6 +49,7 @@ test('a keyword finds a row in the reader\'s words, but below one that says them
   assert.deepEqual(rank([capture, create], 'create').map((each) => each.id), ['create', 'capture']);
 });
 
+// UC-WRK-27 check 8. Before anything is typed, what was opened recently comes first.
 test('the places opened last are offered with an empty field only, before the actions', () => {
   const recent: Candidate = { kind: 'recent', id: 'collection:c1', label: 'Kitchen' };
   assert.deepEqual(rank([recent, board, kitchen], '').map((each) => each.id), ['collection:c1', 'open-as:c1:KANBAN']);

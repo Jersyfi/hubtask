@@ -22,7 +22,7 @@ On the board of "Client A" the person presses `Q`, types "Call the electrician t
 
 ## How to check
 
-1. `Q` (outside text fields) and the *Capture* button in the bar open the capture field on every page; on a phone the centre of the bottom bar does.
+1. `Q` or `C` (outside text fields) and *Erstellen* in the bar open *Erstellen* on every page, whose first line is the capture field; on a phone the centre of the bottom bar does (work surface C-1, C-5).
 2. As the person types, the field shows what it recognised as chips — date, time, person (`+`), hub (`#`), collection (`@`), priority label (`!`), amount — and keeps the rest as the title; a chip can be removed to keep its text in the title.
 3. What the capture recognises follows the target collection's settings: in a list it recognises amounts and lines, in a collection without dates it does not take a date.
 4. Without a target it goes to the current collection, else the jumble; Enter creates the entry and a status message names the place with a link and an undo.
