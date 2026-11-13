@@ -120,14 +120,18 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
 
   await page.goto(`${served.origin}/time`);
   await page.getByText(ENTRY.title).first().waitFor({ timeout: 5_000 });
+  // The band opens the home (E-1) with the timer beside its act; the grid's last row is the
+  // capacity, each weekday measured against eight hours (scene time).
+  await page.locator('.band[data-product="time"]').locator('[data-timer]').waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-capacity="480"]').count(), 5, 'each weekday says its capacity');
-  await page.locator('[data-capacity]').first().getByText('of 8:00').waitFor();
+  assert.match((await page.locator('[data-capacity]').first().getAttribute('aria-label')) ?? '', / of 8:00$/u);
+  assert.equal(await page.getByRole('row').filter({ hasText: 'Capacity' }).count(), 1, 'the capacity is a row of the grid');
   // Handing in says what happens next, under the week.
   await page.locator('[data-hand-in]').getByText(/sends the week for approval/u).waitFor();
   await page.getByRole('button', { name: 'Hand in the week' }).click();
   await page.getByRole('button', { name: 'Take back' }).waitFor({ timeout: 5_000 });
 
-  await page.getByText(/^0:25 of 40:00 · Handed in$/).waitFor({ timeout: 5_000 });
+  await page.locator('.band .figures').filter({ hasText: /^\s*0:25 of 40:00\s*·.*·\s*Handed in\s*$/u }).waitFor({ timeout: 5_000 });
   assert.equal(await page.locator('[data-page-kind="work"]').count(), 1, 'the time is no work page');
   await page.getByRole('link', { name: 'To decide' }).click();
   await page.getByRole('button', { name: 'Approve' }).first().click();
@@ -233,8 +237,11 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 
-  // A day of the strip records on that day.
-  await page.getByRole('button', { name: /^Record time on / }).first().click();
+  // The timer is a card above the week; a day of the strip is chosen, and records on that day.
+  await page.locator('section[data-timer="idle"]').getByRole('button', { name: 'Start timer' }).waitFor();
+  await page.getByRole('list', { name: /^The days of / }).getByRole('button').first().click();
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).getByRole('button').first().getAttribute('aria-pressed'), 'true');
+  await page.locator('[data-day-records]').getByRole('button', { name: /^Record time on / }).click();
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('dialog').getByLabel('Day').inputValue(), MONDAY);
   await page.keyboard.press('Escape');
