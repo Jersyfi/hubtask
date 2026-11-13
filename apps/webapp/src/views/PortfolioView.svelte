@@ -400,7 +400,8 @@
   .note { margin-inline-start: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); }
   .number { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .over { color: var(--text-danger); }
-  .progress { display: block; min-width: var(--layout-board-column); }
+  /* Wide enough to read the bar, narrow enough that the row's act and ⋯ stay inside the frame at 1280. */
+  .progress { display: block; min-width: var(--sp-1600); }
   .clip { display: block; max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
 </style>

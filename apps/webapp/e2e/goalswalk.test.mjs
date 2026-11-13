@@ -417,7 +417,12 @@ test('chromium: 1280 px - a portfolio\'s project rows change the project, and no
   const project = (name, status, progress) => ({ container_id: COLLECTION.id, kind: 'COLLECTION', name, archived: false, start_on: '2026-08-15', end_on: '2027-01-12', status, entries: 44, done: 9, progress });
   const folio = {
     id: '01a0e2e0-0000-7000-8000-00000000a50a', parent_id: null, name: 'Strategic projects 2026', description: '', owner_id: ACCOUNT.id, status: 'AT_RISK', progress: null, version: 1,
-    items: [project('Product development', 'ON_TRACK', 0.2), { ...project('New logistics centre Hamburg-Billbrook', 'OFF_TRACK', 0.18), container_id: '01a0e2e0-0000-7000-8000-00000000c0f1' }],
+    items: [
+      project('Product development', 'ON_TRACK', 0.2),
+      { ...project('Neubau Logistikzentrum Hamburg-Billbrook', 'OFF_TRACK', 0.18), container_id: '01a0e2e0-0000-7000-8000-00000000c0f1' },
+      { ...project('IT-Service-Desk', 'ON_TRACK', 0.13), container_id: '01a0e2e0-0000-7000-8000-00000000c0f2' },
+      { ...project('Marketing & Kommunikation', 'AT_RISK', 0.12), container_id: '01a0e2e0-0000-7000-8000-00000000c0f3' },
+    ],
   };
   const backend = goalsBackend({ seed: { portfolios: [folio] } });
   // In German, whose words run longest.
@@ -448,4 +453,12 @@ test('chromium: 1280 px - a portfolio\'s project rows change the project, and no
     return out;
   });
   assert.deepEqual(clipped, [], 'a row\'s act is clipped');
+  // The table fits its frame: nothing of it scrolls sideways, the page neither.
+  const table = await page.locator('main table').evaluate((node) => {
+    const frame = node.parentElement.getBoundingClientRect();
+    return { table: Math.round(node.getBoundingClientRect().width), frame: Math.round(frame.width), menus: [...node.querySelectorAll('button')].filter((button) => button.getBoundingClientRect().right > frame.right + 1).length };
+  });
+  assert.ok(table.table <= table.frame + 1 && table.menus === 0, `the projects table runs past its frame: ${JSON.stringify(table)}`);
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(wide <= 0, `the page scrolls sideways: ${wide}`);
 });
