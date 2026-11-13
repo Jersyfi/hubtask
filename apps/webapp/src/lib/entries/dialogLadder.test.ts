@@ -44,13 +44,39 @@ const LADDER: readonly (readonly [string, string])[] = [
   ['views/HubDeskView.svelte', 'app.hub_desk.delete_title'],
   ['views/TrashView.svelte', 'app.trash.purge_title'],
   ['views/TrashView.svelte', 'app.trash.empty_title'],
+  ['lib/entries/ViewsPanel.svelte', 'app.views.save_title'],
+  ['lib/entries/ViewsPanel.svelte', 'app.views.delete_title'],
+  ['lib/entries/FeedsDialog.svelte', 'app.feeds.title'],
+  ['lib/workspace/CollectionMoveDialog.svelte', 'app.move.title'],
 ];
 
 for (const [file, title] of LADDER) {
   test(`${file} · ${title}: the primary is the dialog's, none in its body`, () => {
     const { tag, body } = dialogOf(read(file), title);
-    assert.match(tag, /\bprimary=\{\{ ?label: /u, 'the primary is not handed to the dialog');
+    assert.match(tag, /\bprimary=\{[^]*?\{ ?label: /u, 'the primary is not handed to the dialog');
     assert.doesNotMatch(body, /<Button\b[^>]*tone="(primary|danger)"/u, 'a primary stays in the body');
     assert.doesNotMatch(body, /<Button\b(?![^>]*tone=)(?![^>]*size="sm")[^>]*>/u, 'a button without a tone - a primary - stays in the body');
   });
 }
+
+test('lib/entries/TemplatesDialog.svelte: each step hands its primary to the dialog, none in its body', () => {
+  const source = read('lib/entries/TemplatesDialog.svelte');
+  const start = source.indexOf('<PanelOrDialog');
+  const tagEnd = source.indexOf('\n>', start);
+  const tag = source.slice(start, tagEnd);
+  for (const verb of ['app.templates.go', 'app.templates.generate', 'app.templates.save']) assert.match(tag, new RegExp(`label: t\\('${verb}'\\)`, 'u'), `${verb} is not the dialog's primary`);
+  const body = source.slice(tagEnd, source.indexOf('</PanelOrDialog>'));
+  assert.doesNotMatch(body, /<Button\b(?![^>]*tone=)(?![^>]*size="sm")[^>]*>/u, 'a primary stays in the body');
+});
+
+test('lib/workspace/CollectionMoveDialog.svelte: a Dialog M on every width, no sheet with its own buttons (§5.1)', () => {
+  assert.doesNotMatch(read('lib/workspace/CollectionMoveDialog.svelte'), /<Sheet\b/u);
+});
+
+test('lib/entries/EntryList.svelte: a row\'s labels are a popover, a bottom sheet on a phone; a category is a choice, no primary', () => {
+  const source = read('lib/entries/EntryList.svelte');
+  assert.match(source, /viewport\.isCompact\}\s*<IconButton icon="tag"[^>]*onclick=\{\(\) => \(labelling = row\.item\)\}/u, 'the phone opens no sheet for labels');
+  assert.match(source, /<Sheet title=\{t\('app\.labels\.on_entry'/u);
+  const { body } = dialogOf(source, 'app.entries.choose_category');
+  assert.doesNotMatch(body, /tone=\{[^}]*'primary'/u, 'the chosen category is told by a primary');
+});

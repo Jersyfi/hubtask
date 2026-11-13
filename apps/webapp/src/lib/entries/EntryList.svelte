@@ -33,6 +33,7 @@
     LoadMore,
     Popover,
     ProgressBar,
+    Sheet,
     provideReasonGroup,
     rankIntent,
     rankTarget,
@@ -721,6 +722,8 @@
   let draftAmount = $state('');
   /** The row whose category is being chosen from its menu. */
   let categorising = $state<Row | undefined>(undefined);
+  /** The entry whose labels are chosen in a bottom sheet on a phone (page-system §5.1: a popover's phone form). */
+  let labelling = $state<WorkItem | undefined>(undefined);
 
   // In the collection's list only an open row's level is read; a subtree arrived whole, so a
   // closed row there already knows what it hides and nothing more is read.
@@ -1724,6 +1727,9 @@
             {/if}
             {#if supports(row.item.type, 'LABELS').status === 'permitted' && !isFrozen(row) && !isSimple}
               <span class="on-hover">
+                {#if viewport.isCompact}
+                  <IconButton icon="tag" size="sm" label={t('app.labels.on_entry', { title: row.item.title })} onclick={() => (labelling = row.item)} />
+                {:else}
                 <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
                   {#snippet trigger(props)}
                     <IconButton icon="tag" size="sm" label={t('app.labels.on_entry', { title: row.item.title })} {...props} />
@@ -1739,6 +1745,7 @@
                     onToggle={(labelId) => toggleLabel(row.item, labelId)}
                   />
                 </Popover>
+                {/if}
               </span>
             {/if}
             {#if row.archival === 'active' && mayCreate && row.takesChildren}
@@ -1840,6 +1847,22 @@
   </Dialog>
 {/if}
 
+{#if labelling}
+  {@const entry = items.find(labelling.id) ?? labelling}
+  <Sheet title={t('app.labels.on_entry', { title: entry.title })} closeLabel={t('app.sheet_close')} isOpen={true} onClose={() => (labelling = undefined)}>
+    <LabelPicker
+      label={t('app.labels.on_entry', { title: entry.title })}
+      labels={available}
+      selected={entry.label_ids ?? []}
+      filterLabel={t('app.labels.filter')}
+      locale={messages.locale}
+      emptyLabel={t('app.labels.none_yet')}
+      noMatchLabel={t('app.labels.no_match')}
+      onToggle={(labelId) => toggleLabel(entry, labelId)}
+    />
+  </Sheet>
+{/if}
+
 {#if categorising}
   {@const row = categorising}
   <Dialog size="s"
@@ -1850,8 +1873,11 @@
   >
     <Stack gap="100">
       {#each categories.filter((each) => available.some((label) => label.id === each)) as category (category)}
+        <!-- One value from a short set, saved at once: choices, none of them a primary (§5.1); the
+             chosen one carries a check, not a tint (rule 3). -->
         <Button
-          tone={(row.item.label_ids ?? []).includes(category) ? 'primary' : 'secondary'}
+          tone="secondary"
+          icon={(row.item.label_ids ?? []).includes(category) ? 'check' : undefined}
           onclick={() => chooseCategory(row, category)}
         >
           {categoryName(category)}

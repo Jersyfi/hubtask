@@ -248,7 +248,23 @@
   }
 </script>
 
-<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.templates.title')} dismissLabel={t('app.workspace.cancel')}>
+<!-- The ladder (page-system §5.1): each step's one primary is the dialog's - use, generate, save;
+     the list of templates has none. -->
+<PanelOrDialog
+  {isEmbedded}
+  bind:isOpen
+  title={t('app.templates.title')}
+  dismissLabel={t('app.workspace.cancel')}
+  primary={using
+    ? madeRoot
+      ? { label: t('app.templates.open_root'), onclick: () => madeRoot && onopened(madeRoot) }
+      : { label: t('app.templates.go'), onclick: instantiate, isBusy: isSaving, busyLabel: t('app.workspace.saving') }
+    : isGenerating
+      ? { label: t('app.templates.generate'), onclick: generate, isBusy: isSaving, busyLabel: t('app.templates.generating') }
+      : isDefining
+        ? { label: t('app.templates.save'), onclick: save, isBusy: isSaving, busyLabel: t('app.workspace.saving') }
+        : undefined}
+>
   <Stack gap="200">
     {#if using}
       <Stack gap="150">
@@ -277,20 +293,7 @@
           </div>
         {/if}
 
-        <Inline gap="100">
-          {#if madeRoot}
-            <Button onclick={() => onopened(madeRoot!)}>{t('app.templates.open_root')}</Button>
-          {:else}
-            <Button
-              isBusy={isSaving}
-              busyLabel={t('app.workspace.saving')}
-              onclick={instantiate}
-            >
-              {t('app.templates.go')}
-            </Button>
-          {/if}
-          <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
-        </Inline>
+        <div><Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button></div>
       </Stack>
     {:else if isGenerating}
       <div bind:this={dialogBody}>
@@ -305,17 +308,7 @@
         />
         <p class="quiet">{t('app.templates.generate_note')}</p>
         {#if failure && !failure.fields.get('/description')}<p class="failure" role="alert">{failure.message}</p>{/if}
-        <Inline gap="100">
-          <Button
-            icon="sparkles"
-            isBusy={isSaving}
-            busyLabel={t('app.templates.generating')}
-            onclick={generate}
-          >
-            {t('app.templates.generate')}
-          </Button>
-          <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
-        </Inline>
+        <div><Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button></div>
       </Stack>
       </div>
     {:else if isDefining}
@@ -343,16 +336,7 @@
 
         {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-        <Inline gap="100">
-          <Button
-            isBusy={isSaving}
-            busyLabel={t('app.workspace.saving')}
-            onclick={save}
-          >
-            {t('app.templates.save')}
-          </Button>
-          <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
-        </Inline>
+        <div><Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button></div>
       </Stack>
     {:else}
       {#if held.length === 0}
