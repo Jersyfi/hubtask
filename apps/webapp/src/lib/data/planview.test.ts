@@ -13,6 +13,11 @@ test('a plan view saved and read back is the same setup (UC-PLN-08)', () => {
   assert.deepEqual(planSetupOf({ grouping, visible_fields: setup.columns }), setup);
 });
 
+test('a plan view grouped by release reads back so (scene planview)', () => {
+  const setup = { ...planViewDefault(), groupBy: 'release' as const };
+  assert.equal(planSetupOf({ grouping: planGroupingOf(setup), visible_fields: setup.columns }).groupBy, 'release');
+});
+
 test('a view that is no plan view is not taken for one, and an unknown value falls back', () => {
   assert.equal(isPlanView({ layout: 'TIMELINE', grouping: { field: 'status' } }), false);
   assert.equal(isPlanView({ layout: 'KANBAN', grouping: { plan: {} } }), false);

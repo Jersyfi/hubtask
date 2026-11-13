@@ -10,7 +10,7 @@
  */
 
 export type PlanPresentation = 'timeline' | 'gantt';
-export const PLAN_GROUPINGS = ['outline', 'collection', 'assignee', 'none'] as const;
+export const PLAN_GROUPINGS = ['outline', 'collection', 'assignee', 'release', 'none'] as const;
 export const PLAN_SORTS = ['start', 'finish', 'manual'] as const;
 export const PLAN_COLOURS = ['status', 'collection', 'assignee'] as const;
 export const PLAN_BARS = ['dependencies', 'critical', 'slack', 'progress', 'milestones', 'weekends'] as const;

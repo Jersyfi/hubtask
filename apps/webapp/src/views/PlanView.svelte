@@ -236,7 +236,7 @@
   const planned = planNames(() => ({
     hubId: place?.type === 'HUB' ? planId : (place?.parent_id ?? undefined),
     collectionIds: place?.type === 'COLLECTION' ? [planId] : containers.collectionsOf(planId).map((each) => each.id),
-    wanted: namesPlan(setup.line),
+    wanted: namesPlan(setup.line) || setup.groupBy === 'release',
   }));
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
   /** Names typed into the line, looked up among the plan's people, releases and sprints (ADR-0102). */
@@ -333,12 +333,14 @@
     if (setup.groupBy === 'outline') return setup.sortBy === 'manual' ? kept : kept;
     const keyOf = (row: (typeof kept)[number]) =>
       setup.groupBy === 'collection' ? (containers.find(row.entry.collection_id)?.name ?? '')
-        : setup.groupBy === 'assignee' ? (accounts.nameOf(assigneeOf.get(row.id) ?? '') ?? '~')
+        : setup.groupBy === 'assignee' ? (accounts.nameOf(assigneeOf.get(row.id) ?? '') ?? '')
+          : setup.groupBy === 'release' ? (planned.releaseName(row.entry.release_id) ?? '')
             : '';
     return kept
       .filter((row) => row.kind !== 'summary')
       .map((row) => ({ ...row, depth: 0 }))
-      .sort((a, b) => keyOf(a).localeCompare(keyOf(b)) || (setup.sortBy === 'manual' ? 0 : byStart(a, b)));
+      // A row in no group - nobody's, no release - comes after the named ones.
+      .sort((a, b) => Number(keyOf(a) === '') - Number(keyOf(b) === '') || keyOf(a).localeCompare(keyOf(b)) || (setup.sortBy === 'manual' ? 0 : byStart(a, b)));
   });
   const tones = $derived(
     setup.colourBy === 'collection' ? tonesOf(rows.map((row) => row.entry.collection_id))

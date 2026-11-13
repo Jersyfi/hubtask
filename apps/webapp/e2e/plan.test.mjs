@@ -481,8 +481,8 @@ test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is 
 });
 
 // §6.11 Q-2, ADR-0102 (scene planview): a view saved with a release's id shows the release's name
-// on its chip over the chart and sends the id.
-test('chromium: 1280 px — the plan\'s query line says the release by name over the chart', async (t) => {
+// on its chip and in the panel, sends the id, and groups the rows by release.
+test('chromium: 1280 px — the plan\'s query line says the release by name over the chart, and the rows group by release', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const SPRING = '01a0e2e0-0000-7000-8000-0000000f1d01';
@@ -491,7 +491,7 @@ test('chromium: 1280 px — the plan\'s query line says the release by name over
   const view = {
     id: VIEW, name: 'Spring work', layout: 'TIMELINE', version: 1, scope_type: 'COLLECTION', scope_id: COLLECTION.id, sharing: 'PRIVATE', visible_fields: ['start', 'finish', 'duration', 'assignee'],
     query: { filter: { field: 'release_id', op: 'EQ', value: SPRING }, line: `plan.release: ${SPRING}` },
-    grouping: { plan: { presentation: 'gantt' } },
+    grouping: { plan: { presentation: 'gantt', group_by: 'release' } },
   };
   const { page, failures, written, close, unstubbed } = await plan(browser, 1280, released, {
     at: `/collections/${COLLECTION.id}/timeline?view=${VIEW}`,
@@ -508,9 +508,12 @@ test('chromium: 1280 px — the plan\'s query line says the release by name over
   assert.doesNotMatch(await page.locator('[data-plan-query]').textContent(), new RegExp(SPRING, 'u'), 'a chip shows the release\'s id');
   const asked = written.filter((each) => each.path === '/items:query').map((each) => JSON.stringify(each.body));
   assert.ok(asked.some((body) => body.includes(SPRING)), `the read did not send the release's id: ${asked.join(' | ')}`);
-  // *Filter* opens the panel.
+  // Grouped by release: the entry in Spring first, those in none after it.
+  assert.equal(await page.locator('.timeline .rows [data-row]').first().getAttribute('data-row'), THIRD.id);
+  // *Filter* opens the panel, which offers Release among the groupings, pressed.
   await page.locator('[data-plan-query]').getByRole('button', { name: 'Filter' }).click();
-  await page.locator('[data-plan-view-panel]').waitFor({ timeout: 5_000 });
+  const panel = page.locator('[data-plan-view-panel]');
+  assert.equal(await panel.locator('[data-plan-chip="group:release"]').getAttribute('aria-pressed'), 'true');
   // Taking the chip away takes the condition out of the line.
   await chips.getByRole('button', { name: 'Remove plan.release: Spring' }).click();
   assert.equal(await page.locator('[data-plan-query] [data-query-chips]').count(), 0);

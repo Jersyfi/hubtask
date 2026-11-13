@@ -12689,6 +12689,7 @@
   "app.planview.group_outline": "Outline",
   "app.planview.group_collection": "Collection",
   "app.planview.group_assignee": "Assignee",
+  "app.planview.group_release": "Release",
   "app.planview.group_none": "None",
   "app.planview.sort_start": "Start",
   "app.planview.sort_finish": "End",

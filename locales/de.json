@@ -12689,6 +12689,7 @@
   "app.planview.group_outline": "Gliederung",
   "app.planview.group_collection": "Sammlung",
   "app.planview.group_assignee": "Zuständig",
+  "app.planview.group_release": "Release",
   "app.planview.group_none": "Keine",
   "app.planview.sort_start": "Beginn",
   "app.planview.sort_finish": "Ende",
