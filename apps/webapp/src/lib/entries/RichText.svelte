@@ -205,7 +205,9 @@
   .rich[data-editable] :global(.page-body:focus-visible) { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-050); }
   .rich :global(.page-body > :first-child) { margin-block-start: 0; }
   .rich :global(.page-body > :last-child) { margin-block-end: 0; }
-  .rich :global(.page-body p) { margin-block: 0 var(--sp-100); }
+  /* The column is the measure here, as in the scene: the global 60ch of a lone paragraph would wrap
+     a comment or the notes at two thirds of the section. */
+  .rich :global(.page-body p) { margin-block: 0 var(--sp-100); max-width: none; }
   .rich :global(.page-body h1),
   .rich :global(.page-body h2),
   .rich :global(.page-body h3) { margin-block: var(--sp-150) var(--sp-050); font-family: var(--font-display); font-size: var(--fs-200); line-height: var(--lh-tight); }
