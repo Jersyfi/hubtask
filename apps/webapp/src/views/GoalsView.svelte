@@ -15,6 +15,7 @@
   // **The server computes every number**: progress is what it answers for this reader (P-05), and
   // a refusal is said where it happened, in its words.
 
+  import { create } from '../lib/create/create.svelte.ts';
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
@@ -198,6 +199,10 @@
     ...(holdsHere('WRITE_ITEMS') === true ? [{ value: '', label: t('app.goals.workspace') }] : []),
     ...containers.hubs.map((each) => ({ value: each.id, label: each.name })),
   ]);
+  // *Erstellen* › goal opens this screen's own dialog (C-3), once the period is known.
+  $effect(() => {
+    if (create.wished === 'goal' && chosen && untrack(() => create.take('goal'))) untrack(() => openSetting());
+  });
   function openSetting() {
     goalDraft.title = '';
     goalDraft.place = hub ?? placeChoices[0]?.value ?? '';

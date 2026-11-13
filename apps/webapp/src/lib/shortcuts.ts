@@ -38,7 +38,7 @@ export interface Shortcut {
 export const SHORTCUTS: readonly Shortcut[] = [
   { id: 'palette', scope: 'everywhere', code: 'app.shortcuts.palette', drawn: ['⌘K', 'Ctrl K', '/'], aria: ['Meta+K', 'Control+K', '/'] },
   { id: 'help', scope: 'everywhere', code: 'app.shortcuts.help', drawn: ['?'], aria: ['Shift+?'] },
-  { id: 'capture', scope: 'everywhere', code: 'app.shortcuts.capture', drawn: ['Q'], aria: ['Q'] },
+  { id: 'capture', scope: 'everywhere', code: 'app.shortcuts.capture', drawn: ['C', 'Q'], aria: ['C', 'Q'] },
   { id: 'star', scope: 'everywhere', code: 'app.shortcuts.star', drawn: ['S'], aria: ['S'] },
   { id: 'sidebar', scope: 'everywhere', code: 'app.shortcuts.sidebar', drawn: ['Ctrl ['], aria: ['Control+['] },
   { id: 'palette-move', scope: 'palette', code: 'app.shortcuts.palette_move', drawn: ['↑', '↓'], aria: ['ArrowUp', 'ArrowDown'] },
@@ -123,7 +123,7 @@ export function intentOf(press: Press, where: Where): Intent | null {
   if (where.isTextField || where.isInWidget || where.isLayerOpen || where.isPaletteOpen) return null;
   if (press.key === '/') return 'palette';
   if (press.key === '?' || press.key === '؟') return 'help';
-  if (isLetter(press, 'q')) return 'capture';
+  if (isLetter(press, 'q') || isLetter(press, 'c')) return 'capture';
   if (isLetter(press, 's')) return 'star';
   return null;
 }

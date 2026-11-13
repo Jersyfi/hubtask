@@ -29,6 +29,8 @@
   import AppWorkspaces from './AppWorkspaces.svelte';
   import SwitchWorkspace from './SwitchWorkspace.svelte';
   import AreaNav from './AreaNav.svelte';
+  import CreateMenu from '../create/CreateMenu.svelte';
+  import { create } from '../create/create.svelte.ts';
   import Palette from '../palette/Palette.svelte';
   import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
@@ -269,6 +271,7 @@
   // it is adopted when the account arrives and dropped when it changes — two people sharing a
   // browser never read each other's (`lib/recents.svelte.ts`).
   $effect(() => recents.adopt(actor.account?.id));
+  $effect(() => create.adopt(actor.account?.id));
 
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());
@@ -281,9 +284,8 @@
       palette: () => palette.summon(),
       help: () => (isHelpOpen = true),
       // `Q`, where the reader may capture at all; elsewhere it is no shortcut (P-05).
-      capture: () => {
-        if (mayCaptureHere()) capture.summon();
-      },
+      // `C` or `Q` opens *Erstellen* (C-5), which holds capture's line on top.
+      capture: () => create.summon(),
       // `S` stars or unstars the place on screen, as its head's ☆ does (UC-WRK-37 check 5).
       star: () => {
         const place = starOf(route);
@@ -512,7 +514,7 @@
   /** Hidden where the screen is the work's own canvas: a whiteboard (§9). */
   const isBottomBarShown = $derived(route.name !== 'whiteboard' && !page.isWriting);
   function choosePhoneTab(id: string) {
-    if (id === 'capture') return capture.summon();
+    if (id === 'capture') return create.summon();
     // Search opens the palette, the bar having no field to type in: its *All results* and *Open
     // search* are the way to the search screen (UC-WRK-27 check 1).
     if (id === 'search') return palette.summon();
@@ -770,7 +772,7 @@
           <span class="seek-word">{t('app.palette.placeholder')}</span>
         </button>
         {#if isCaptureOffered}
-          <IconButton icon="plus" size="sm" tone="primary" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
+          <IconButton icon="plus" size="sm" tone="primary" label={t('app.create.open')} data-tour="capture" aria-keyshortcuts="C Q" aria-haspopup="dialog" onclick={() => create.summon()} />
         {/if}
       </div>
     {:else}
@@ -780,7 +782,7 @@
         <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
         {#if isCaptureOffered}
           <span class="beside">
-            <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
+            <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="C Q" aria-haspopup="dialog" onclick={() => create.summon()}>{t('app.create.open')}</Button>
           </span>
         {/if}
       </div>
@@ -1015,6 +1017,10 @@
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
+  <!-- *Erstellen*: C, Q, the bar's button and the bottom bar's ＋ (C-5); capture is its line. -->
+  {#if isCaptureOffered && create.isOpen}
+    <CreateMenu here={captureHere} onnavigate={go} />
+  {/if}
   {#if isCaptureOffered && capture.isOpen}
     <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} onnavigate={go} />
   {/if}

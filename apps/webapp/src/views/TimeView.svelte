@@ -22,6 +22,7 @@
   // **The server decides every rule**: who sees whose week, what is locked, what may change. A
   // refusal is said where it happened, in the server's words.
 
+  import { create } from '../lib/create/create.svelte.ts';
   import { homeTabs } from '../lib/product/home.ts';
   import { untrack } from 'svelte';
 
@@ -173,6 +174,10 @@
   let editing = $state<PlacedTimeRecord | undefined>(undefined);
   const draft = $state({ day: '', entry: '', kind: '', minutes: '', note: '', billable: true, isBillableTouched: false });
   let draftError = $state<string | undefined>(undefined);
+  // *Erstellen* › time opens this screen's own dialog (C-3).
+  $effect(() => {
+    if (create.wished === 'time' && untrack(() => create.take('time'))) untrack(() => openRecord(undefined));
+  });
   function openRecord(record: PlacedTimeRecord | undefined, day?: string) {
     editing = record;
     draft.day = record?.day ?? day ?? (days.includes(today) ? today : monday);

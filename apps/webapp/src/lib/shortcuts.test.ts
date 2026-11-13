@@ -72,9 +72,17 @@ test('both ways to open the palette are drawn and declared', () => {
   assert.deepEqual(drawnKeysOf('nothing'), []);
 });
 
-test('capture is listed, on the key that opens it, everywhere (UC-WRK-26 check 1)', () => {
+test('Erstellen is listed, on the keys that open it, everywhere (UC-WRK-26 check 1, C-5)', () => {
   const capture = SHORTCUTS.find((each) => each.id === 'capture');
   assert.equal(capture?.scope, 'everywhere');
-  assert.deepEqual(drawnKeysOf('capture'), ['Q']);
-  assert.deepEqual(ariaKeysOf('capture'), ['Q']);
+  assert.deepEqual(drawnKeysOf('capture'), ['C', 'Q']);
+  assert.deepEqual(ariaKeysOf('capture'), ['C', 'Q']);
+});
+
+test('C and Q both open Erstellen, never inside a field (C-5)', () => {
+  const where = { isTextField: false, isInWidget: false, isLayerOpen: false, isPaletteOpen: false };
+  const press = (key: string) => ({ key, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false });
+  assert.equal(intentOf(press('c'), where), 'capture');
+  assert.equal(intentOf(press('q'), where), 'capture');
+  assert.equal(intentOf(press('c'), { ...where, isTextField: true }), null);
 });
