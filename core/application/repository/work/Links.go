@@ -71,6 +71,8 @@ type EntrySummary struct {
 	StartAt   *time.Time
 	DueAt     *time.Time
 	Archived  bool
+	// AssigneeID is the account the entry is on; zero where nobody is.
+	AssigneeID shared.ID
 	// Status is the key of the entry's workflow status, empty where none runs.
 	Status string
 	// StatusName and StatusCategory are the status as the workflow in force names it, filled by

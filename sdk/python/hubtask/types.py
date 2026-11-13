@@ -2680,6 +2680,7 @@ class ReferenceTarget(TypedDict, total=False):
     status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     archived: bool
     collection_id: str
+    assignee_id: str | None
     start_at: str | None
     due_at: str | None
     layout: str

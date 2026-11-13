@@ -165,7 +165,10 @@ func EntrySummaryOutput(s repository.EntrySummary, anchor string) usecase.Output
 		"available": true, "title": s.Title, "level": string(s.Level), "entry_type": entryType,
 		"completed": s.Completed, "archived": s.Archived, "collection_id": s.CollectionID.String(),
 		"number": nil, "key": nil, "start_at": timeOrNil(s.StartAt), "due_at": timeOrNil(s.DueAt),
-		"status_name": nil, "status_category": nil,
+		"status_name": nil, "status_category": nil, "assignee_id": nil,
+	}
+	if !s.AssigneeID.IsZero() {
+		out["assignee_id"] = s.AssigneeID.String()
 	}
 	if s.StatusCategory != "" {
 		out["status_category"] = s.StatusCategory

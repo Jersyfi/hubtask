@@ -32460,6 +32460,7 @@ components:
           description: An entry's status's category; null where no workflow runs, where `completed` says done or to do.
         archived: { type: boolean }
         collection_id: { type: string, format: uuid }
+        assignee_id: { type: [string, "null"], format: uuid, description: "The account an entry is on; null where nobody is." }
         start_at: { type: [string, "null"], format: date-time }
         due_at: { type: [string, "null"], format: date-time }
         layout: { type: string, description: "A view's layout." }

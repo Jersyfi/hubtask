@@ -51596,6 +51596,14 @@
             "type": "string",
             "format": "uuid"
           },
+          "assignee_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The account an entry is on; null where nobody is."
+          },
           "start_at": {
             "type": [
               "string",

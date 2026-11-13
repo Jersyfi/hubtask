@@ -690,3 +690,26 @@ func TestARequesterReadsNoLinkTypes(t *testing.T) {
 		t.Errorf("asked %+v, want any member", asked)
 	}
 }
+
+// A card on a board shows the person an entry is on (UC-CNV-05): the summary names the account,
+// and an entry nobody is on reads null.
+func TestAnEntrySummaryNamesThePersonItIsOn(t *testing.T) {
+	person := shared.MustParseID("0192f000-0000-7000-8000-0000000005aa")
+	for _, tc := range []struct {
+		name     string
+		assignee shared.ID
+		want     any
+	}{
+		{"on a person", person, person.String()},
+		{"on nobody", "", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out := EntrySummaryOutput(repository.EntrySummary{
+				ID: shared.MustParseID("0192f000-0000-7000-8000-0000000005ab"), Level: domain.ItemTask, AssigneeID: tc.assignee,
+			}, "")
+			if out["assignee_id"] != tc.want {
+				t.Errorf("assignee_id = %v, want %v", out["assignee_id"], tc.want)
+			}
+		})
+	}
+}

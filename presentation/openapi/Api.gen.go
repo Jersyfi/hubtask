@@ -23689,9 +23689,12 @@ type ReferenceStrength string
 
 // ReferenceTarget What a reference shows the reader. Where the reader may not see the object, or it is not there, only `kind`, `id`, `anchor` and `available: false` are present.
 type ReferenceTarget struct {
-	Anchor    *string `json:"anchor"`
-	Archived  *bool   `json:"archived,omitempty"`
-	Available bool    `json:"available"`
+	Anchor   *string `json:"anchor"`
+	Archived *bool   `json:"archived,omitempty"`
+
+	// AssigneeId The account an entry is on; null where nobody is.
+	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
+	Available  bool                `json:"available"`
 
 	// CiClass A configuration item's class.
 	CiClass      *string             `json:"ci_class,omitempty"`
