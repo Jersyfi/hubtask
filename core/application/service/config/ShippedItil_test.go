@@ -41,7 +41,7 @@ func itilTemplate(t *testing.T) domain.Template {
 // every block one the use cases that apply it accept, and every section one the document has.
 func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 	template := itilTemplate(t)
-	if template.Origin != domain.OriginHubtask || template.Version != 16 || !reservedKey(template.Key) {
+	if template.Origin != domain.OriginHubtask || template.Version != 17 || !reservedKey(template.Key) {
 		t.Fatalf("the template is %v %d %v", template.Origin, template.Version, template.Key)
 	}
 	// Its hub part (configuration.md §6): the hub's switches and which of the template's workflows
@@ -130,6 +130,14 @@ func TestTheItilTemplateIsAWholeDesk(t *testing.T) {
 				t.Error("the desk defines no responding group")
 			}
 			kept = automationmodel.Trigger{Kind: automationmodel.TriggerEvent, EventType: event.ItemUpdated, ChangedFields: []string{"custom_fields.priority"}}
+		} else if key == "priority_on_create" || key == "priority_on_change" {
+			// The priority from impact × urgency (UC-SVC-02 check 14), the matrix proven against
+			// CEL in infrastructure/expression.
+			kept = automationmodel.Trigger{Kind: automationmodel.TriggerEvent, EventType: event.ItemCreated}
+			if key == "priority_on_change" {
+				kept = automationmodel.Trigger{Kind: automationmodel.TriggerEvent, EventType: event.ItemUpdated,
+					ChangedFields: []string{"custom_fields.impact", "custom_fields.urgency"}}
+			}
 		} else if eventType, escalates := escalation[key]; escalates {
 			if trigger["kind"] != "EVENT" || trigger["event_type"] != eventType {
 				t.Errorf("the escalation %s is not on %s: %v", key, eventType, trigger)

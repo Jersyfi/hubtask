@@ -14597,5 +14597,7 @@
   "containers.move_takes_structure": "It takes the fields, views and rules of the destination hub.",
   "containers.move_loses_access": "{count} people will no longer see it.",
   "containers.move_keeps_releases": "{count} entries stay in releases of the hub it leaves.",
-  "containers.move_keeps_sla_policies": "{count} running SLA clocks keep the policies of the hub it leaves."
+  "containers.move_keeps_sla_policies": "{count} running SLA clocks keep the policies of the hub it leaves.",
+  "templates.text.69261aa6": "Set the priority from impact and urgency when a request comes in",
+  "templates.text.1da2492d": "Set the priority again when impact or urgency changes"
 }

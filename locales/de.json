@@ -14597,5 +14597,7 @@
   "containers.move_takes_structure": "Es übernimmt die Felder, Ansichten und Regeln des Ziel-Hubs.",
   "containers.move_loses_access": "{count} Personen sehen es danach nicht mehr.",
   "containers.move_keeps_releases": "{count} Einträge bleiben in Releases des Hubs, den es verlässt.",
-  "containers.move_keeps_sla_policies": "{count} laufende SLA-Uhren behalten die Richtlinien des Hubs, den es verlässt."
+  "containers.move_keeps_sla_policies": "{count} laufende SLA-Uhren behalten die Richtlinien des Hubs, den es verlässt.",
+  "templates.text.69261aa6": "Priorität aus Auswirkung und Dringlichkeit setzen, wenn eine Anfrage eingeht",
+  "templates.text.1da2492d": "Priorität neu setzen, wenn sich Auswirkung oder Dringlichkeit ändert"
 }
