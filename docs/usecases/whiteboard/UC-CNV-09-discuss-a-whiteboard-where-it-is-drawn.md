@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/whiteboard/Comment_test.go, core/application/service/whiteboard/Comments_test.go, core/application/service/notification/RecordWhiteboardMention_test.go, test/integration/whiteboard_repository_test.go, apps/webapp/src/lib/data/whiteboards.test.ts]
+checked_by: [core/domain/model/whiteboard/Comment_test.go, core/application/service/whiteboard/Comments_test.go, core/application/service/notification/RecordWhiteboardMention_test.go, test/integration/whiteboard_repository_test.go, apps/webapp/src/lib/data/whiteboards.test.ts, apps/webapp/e2e/whiteboardwork.test.mjs]
 ---
 
 # Discuss a whiteboard where it is drawn
@@ -26,6 +26,7 @@ After the retro, Emil pins a comment to the sticky note "Deploys take too long" 
 2. A person the comment names who may read the board is told by a notification naming the board and the writer, which their preferences for comments decide; the writer is not told of their own words, a rewrite tells only the people it adds, and somebody who may not read the board is told nothing.
 3. Whoever may draw on the board resolves or reopens a thread; only a comment's author rewrites it or takes it back, and a comment taken back keeps its place in the thread without its words. Somebody who may only read the board writes no comment.
 4. Another workspace neither finds nor changes a board's comments, and the comments travel with the board in the workspace's archive and a person's copy of their data.
+5. The whiteboards' home lists the open threads in which someone else names the reader, each with the object it is pinned to, and opens its board at the thread.
 
 ## Where it ends
 

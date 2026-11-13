@@ -691,7 +691,7 @@ func TestARequesterReadsNoLinkTypes(t *testing.T) {
 	}
 }
 
-// A card on a board shows the person an entry is on (UC-CNV-05): the summary names the account,
+// A card on a board shows the person an entry is on (UC-CNV-02 check 9): the summary names the account,
 // and an entry nobody is on reads null.
 func TestAnEntrySummaryNamesThePersonItIsOn(t *testing.T) {
 	person := shared.MustParseID("0192f000-0000-7000-8000-0000000005aa")

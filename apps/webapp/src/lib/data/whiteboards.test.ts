@@ -143,7 +143,7 @@ test('a web link is kept as an address the server takes: a space in it encoded, 
 });
 
 
-test('the home lists the open threads in which someone else names you, the newest first (scene whome 4)', () => {
+test('the home lists the open threads in which someone else names you, the newest first (UC-CNV-09 check 5)', () => {
   const me = '0192F000-0000-7000-8000-0000000000A1';
   const a1 = '0192f000-0000-7000-8000-0000000000a1';
   const other = '0192f000-0000-7000-8000-0000000000b2';

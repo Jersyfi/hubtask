@@ -117,7 +117,7 @@ func TestAWorkspacesLinksAreItsOwn(t *testing.T) {
 		return nil
 	})
 	// A summary carries the entry's status, which the sprint board's In progress lane reads, and
-	// the person it is on, whom a board's task card shows.
+	// the person it is on, whom a board's task card shows (UC-CNV-02 check 9).
 	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE work_item SET status = 'in_progress', assignee_id = $2 WHERE id = $1`, one.String(), authorA.String()); err != nil {
 		t.Fatalf("setting one's status: %v", err)
 	}
