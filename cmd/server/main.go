@@ -3462,6 +3462,7 @@ func run() error {
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 			Structure: structures, Figures: figures, HubFigures: hubFigures, Milestones: milestones,
+			Levels: work.StateModes{Boards: boards, Workflow: workflowGate, EntryTypes: entryTypes, Entries: entryGate},
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
