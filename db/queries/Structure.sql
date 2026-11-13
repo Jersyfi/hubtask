@@ -378,3 +378,32 @@ SELECT b.tenant_id, b.collection_id, b.id, sqlc.arg('status')::text
 FROM bucket b
 WHERE b.id = sqlc.arg('bucket_id')::uuid AND b.collection_id = sqlc.arg('collection_id')::uuid
   AND b.deleted_at IS NULL;
+
+-- name: PlaceWorkItemsByStatus :many
+-- The column follows the status under a workflow (domain-model.md §3.5a): the top-level tasks of a
+-- collection in one status go into the column showing it - null for *Ohne Spalte*. Only rows whose
+-- column changes are written, so a second pass spends no version.
+UPDATE work_item wi SET
+  bucket_id  = sqlc.narg('bucket_id')::uuid,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+  AND wi.status = sqlc.arg('status')::text
+  AND wi.bucket_id IS DISTINCT FROM sqlc.narg('bucket_id')::uuid
+RETURNING wi.id, wi.version;
+
+-- name: PlaceWorkItemsByCompletion :many
+-- Without a workflow the column follows completion (domain-model.md §3.5a): the top-level tasks of
+-- a collection that carry no status, of one completion and - where from_bucket is given - in that
+-- column, go into a column. Only rows whose column changes are written.
+UPDATE work_item wi SET
+  bucket_id  = sqlc.narg('bucket_id')::uuid,
+  updated_at = sqlc.arg('updated_at'),
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND wi.is_completed = sqlc.arg('is_completed')::boolean
+  AND (sqlc.narg('from_bucket')::uuid IS NULL OR wi.bucket_id = sqlc.narg('from_bucket')::uuid)
+  AND wi.bucket_id IS DISTINCT FROM sqlc.narg('bucket_id')::uuid
+RETURNING wi.id, wi.version;

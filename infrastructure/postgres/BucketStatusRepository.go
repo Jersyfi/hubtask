@@ -6,6 +6,9 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -81,4 +84,75 @@ func (r BucketStatusRepository) Replace(ctx context.Context, collectionID shared
 		}
 	}
 	return nil
+}
+
+// PlaceByStatus puts a collection's top-level tasks in one status into a column.
+func (r BucketStatusRepository) PlaceByStatus(
+	ctx context.Context, collectionID shared.ID, status string, column shared.ID, at time.Time,
+) ([]repository.MovedEntry, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+	bucket, err := optionalUUID(column)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PlaceWorkItemsByStatus(ctx, sqlc.PlaceWorkItemsByStatusParams{
+		BucketID: bucket, UpdatedAt: timestampOf(at), CollectionID: collection, Status: status,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("placing entries by status: %w", err))
+	}
+	return placedEntries(len(rows), func(i int) (pgtype.UUID, int32) { return rows[i].ID, rows[i].Version })
+}
+
+// PlaceByCompletion puts a collection's top-level tasks without a status, of one completion, into
+// a column.
+func (r BucketStatusRepository) PlaceByCompletion(
+	ctx context.Context, collectionID shared.ID, completed bool, from, column shared.ID, at time.Time,
+) ([]repository.MovedEntry, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+	bucket, err := optionalUUID(column)
+	if err != nil {
+		return nil, err
+	}
+	source, err := optionalUUID(from)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PlaceWorkItemsByCompletion(ctx, sqlc.PlaceWorkItemsByCompletionParams{
+		BucketID: bucket, UpdatedAt: timestampOf(at), CollectionID: collection,
+		IsCompleted: completed, FromBucket: source,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("placing entries by completion: %w", err))
+	}
+	return placedEntries(len(rows), func(i int) (pgtype.UUID, int32) { return rows[i].ID, rows[i].Version })
+}
+
+func placedEntries(n int, row func(int) (pgtype.UUID, int32)) ([]repository.MovedEntry, error) {
+	out := make([]repository.MovedEntry, 0, n)
+	for i := range n {
+		raw, version := row(i)
+		id, err := idFrom(raw)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, repository.MovedEntry{ID: id, Version: int(version)})
+	}
+	return out, nil
 }

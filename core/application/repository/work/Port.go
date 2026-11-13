@@ -826,6 +826,14 @@ type BucketStatuses interface {
 	// Replace writes a board's whole mapping in place of the one it had; an empty mapping
 	// clears it. A row naming a column of another board is refused as buckets.not_found.
 	Replace(ctx context.Context, collectionID shared.ID, mapping []work.ColumnStatus) error
+
+	// PlaceByStatus puts a collection's top-level tasks in one status into a column - zero for
+	// none - and answers those whose column changed, each with its new version.
+	PlaceByStatus(ctx context.Context, collectionID shared.ID, status string, column shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// PlaceByCompletion puts a collection's top-level tasks without a status, of one completion
+	// and - where from is given - in that column, into a column, and answers those it moved.
+	PlaceByCompletion(ctx context.Context, collectionID shared.ID, completed bool, from, column shared.ID, at time.Time) ([]MovedEntry, error)
 }
 
 // Labels stores a collection's vocabulary.

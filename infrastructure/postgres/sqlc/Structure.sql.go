@@ -722,6 +722,113 @@ func (q *Queries) MoveItemsBetweenBuckets(ctx context.Context, arg MoveItemsBetw
 	return result.RowsAffected(), nil
 }
 
+const placeWorkItemsByCompletion = `-- name: PlaceWorkItemsByCompletion :many
+UPDATE work_item wi SET
+  bucket_id  = $1::uuid,
+  updated_at = $2,
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL
+  AND wi.is_completed = $4::boolean
+  AND ($5::uuid IS NULL OR wi.bucket_id = $5::uuid)
+  AND wi.bucket_id IS DISTINCT FROM $1::uuid
+RETURNING wi.id, wi.version
+`
+
+type PlaceWorkItemsByCompletionParams struct {
+	BucketID     pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+	IsCompleted  bool
+	FromBucket   pgtype.UUID
+}
+
+type PlaceWorkItemsByCompletionRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// Without a workflow the column follows completion (domain-model.md §3.5a): the top-level tasks of
+// a collection that carry no status, of one completion and - where from_bucket is given - in that
+// column, go into a column. Only rows whose column changes are written.
+func (q *Queries) PlaceWorkItemsByCompletion(ctx context.Context, arg PlaceWorkItemsByCompletionParams) ([]PlaceWorkItemsByCompletionRow, error) {
+	rows, err := q.db.Query(ctx, placeWorkItemsByCompletion,
+		arg.BucketID,
+		arg.UpdatedAt,
+		arg.CollectionID,
+		arg.IsCompleted,
+		arg.FromBucket,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlaceWorkItemsByCompletionRow{}
+	for rows.Next() {
+		var i PlaceWorkItemsByCompletionRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const placeWorkItemsByStatus = `-- name: PlaceWorkItemsByStatus :many
+UPDATE work_item wi SET
+  bucket_id  = $1::uuid,
+  updated_at = $2,
+  version    = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL
+  AND wi.status = $4::text
+  AND wi.bucket_id IS DISTINCT FROM $1::uuid
+RETURNING wi.id, wi.version
+`
+
+type PlaceWorkItemsByStatusParams struct {
+	BucketID     pgtype.UUID
+	UpdatedAt    pgtype.Timestamptz
+	CollectionID pgtype.UUID
+	Status       string
+}
+
+type PlaceWorkItemsByStatusRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// The column follows the status under a workflow (domain-model.md §3.5a): the top-level tasks of a
+// collection in one status go into the column showing it - null for *Ohne Spalte*. Only rows whose
+// column changes are written, so a second pass spends no version.
+func (q *Queries) PlaceWorkItemsByStatus(ctx context.Context, arg PlaceWorkItemsByStatusParams) ([]PlaceWorkItemsByStatusRow, error) {
+	rows, err := q.db.Query(ctx, placeWorkItemsByStatus,
+		arg.BucketID,
+		arg.UpdatedAt,
+		arg.CollectionID,
+		arg.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PlaceWorkItemsByStatusRow{}
+	for rows.Next() {
+		var i PlaceWorkItemsByStatusRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordSetElementAdded = `-- name: RecordSetElementAdded :exec
 INSERT INTO set_element (tenant_id, item_id, set_name, element_id, add_tag, remove_tag)
 VALUES (current_tenant_id(), $1, $2, $3,
