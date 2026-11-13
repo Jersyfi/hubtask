@@ -32,9 +32,10 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, DataTable, Dialog, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, WorkPage,
-    type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineDependency, type TimelineLink,
+    Banner, Button, Checkbox, DataTable, Dialog, Icon, IconButton, Inline, Input, Popover, Select, Sheet, Skeleton, Stack, Timeline, VisuallyHidden, WorkPage,
+    type DataColumn, type DataRowMenu, type PageAction, type TimelineCarry, type TimelineColumn, type TimelineDependency, type TimelineLink,
   } from '@hubtask/design-system/components';
+  import type { QueryKey } from '@hubtask/query';
   import type { BaselineComparison, PlanBaselineList, PlanSchedule, PlanTolerance } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -66,6 +67,15 @@
   import { drawPlan, pngOf, printPicture } from '../lib/planning/planPicture.ts';
   import ToolHead from '../lib/workspace/ToolHead.svelte';
   import CollectionHead from '../lib/workspace/CollectionHead.svelte';
+  import PlanViewPanel from '../lib/planning/PlanViewPanel.svelte';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { items } from '../lib/data/items.svelte.ts';
+  import { views as savedViews } from '../lib/data/views.svelte.ts';
+  import { VIEW_SCOPES, queryDocumentOf, scopeIdOf, type ViewScope } from '../lib/data/views.ts';
+  import { readQuery, type Names } from '../lib/data/viewquery.ts';
+  import {
+    headParts, isPlanView, keptRows, planChanges, planGroupingOf, planSetupOf, planViewDefault, slackEnd, tonesOf, type PlanViewSetup,
+  } from '../lib/data/planview.ts';
 
   interface Props {
     /** The hub or collection the plan is. */
@@ -144,7 +154,32 @@
     }
   }
 
-  let baselineId = $state('');
+  // The plan's view (E-20): the presentation, what is seen, rows, bars, baseline and columns,
+  // saved as a view of the plan's place; `base` is the view it opened with, counted against.
+  let viewId = $state('');
+  let base = $state<PlanViewSetup>(planViewDefault());
+  let setup = $state<PlanViewSetup>(planViewDefault());
+  let isPanelOpen = $state(false);
+  const changed = $derived(planChanges(setup, base));
+  const isGantt = $derived(setup.presentation === 'gantt');
+  $effect(() => {
+    const at = planId;
+    return untrack(() => savedViews.open(at));
+  });
+  const planViews = $derived(savedViews.of(planId).filter(isPlanView));
+  function openView(id: string) {
+    const view = planViews.find((each) => each.id === id);
+    viewId = view?.id ?? '';
+    const line = view ? (readLine(view.query) ?? '') : '';
+    base = view ? planSetupOf(view, line) : planViewDefault();
+    setup = { ...base };
+  }
+  /** The line a stored plan view keeps beside its tree, so it reads back as typed. */
+  const readLine = (query: unknown): string | undefined => {
+    const line = (query as Record<string, unknown> | undefined)?.['line'];
+    return typeof line === 'string' ? line : undefined;
+  };
+  const baselineId = $derived(setup.baselineId);
   let comparison = $state<BaselineComparison | undefined>(undefined);
   $effect(() => {
     const chosen = baselineId;
@@ -158,6 +193,62 @@
 
   const rows = $derived(schedule ? ganttRows(schedule, comparison, (instant) => dateIn(instant, zone)) : []);
   const byId = $derived(new Map(rows.map((row) => [row.id, row])));
+
+  /** Names typed into the line, looked up among the plan's people (ADR-0102). */
+  const names: Names = {
+    person: (name) => (rolePath ? people.candidates(rolePath) : []).find((each) => accounts.nameOf(each)?.toLowerCase() === name.toLowerCase()),
+    label: () => undefined,
+    collection: (name) => containers.collectionsOf(place?.type === 'HUB' ? planId : (place?.parent_id ?? '')).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
+    nameOf: (field, value) => (field === 'collection_id' ? containers.find(value)?.name : accounts.nameOf(value)),
+  };
+  const lineRead = $derived(setup.line.trim() === '' ? undefined : readQuery(setup.line, names));
+  // The entries of the plan as the item read answers them: who works on each, and what the line finds.
+  $effect(() => {
+    const read = lineRead;
+    const at = planId;
+    if (read && !read.ok) return;
+    return untrack(() => items.openTimeline(at, read?.ok ? read.query : {}));
+  });
+  const found = $derived(lineRead?.ok ? new Set(items.onTimeline(planId).map((each) => each.id)) : undefined);
+  const assigneeOf = $derived(new Map(items.onTimeline(planId).map((each) => [each.id, each.assignee_id ?? undefined])));
+  const shownRows = $derived.by(() => {
+    const kept = keptRows(rows.map((row) => ({ ...row, parentId: row.entry.parent_id ?? undefined, isDone: row.entry.done })), found, setup.done);
+    const byStart = (a: (typeof kept)[number], b: (typeof kept)[number]) =>
+      setup.sortBy === 'finish' ? String(a.due ?? '').localeCompare(String(b.due ?? '')) : String(a.start ?? '').localeCompare(String(b.start ?? ''));
+    if (setup.groupBy === 'outline') return setup.sortBy === 'manual' ? kept : kept;
+    const keyOf = (row: (typeof kept)[number]) => setup.groupBy === 'collection' ? (containers.find(row.entry.collection_id)?.name ?? '') : setup.groupBy === 'assignee' ? (accounts.nameOf(assigneeOf.get(row.id) ?? '') ?? '~') : '';
+    return kept
+      .filter((row) => row.kind !== 'summary')
+      .map((row) => ({ ...row, depth: 0 }))
+      .sort((a, b) => keyOf(a).localeCompare(keyOf(b)) || (setup.sortBy === 'manual' ? 0 : byStart(a, b)));
+  });
+  const tones = $derived(
+    setup.colourBy === 'collection' ? tonesOf(rows.map((row) => row.entry.collection_id))
+      : setup.colourBy === 'assignee' ? tonesOf(rows.map((row) => assigneeOf.get(row.id)))
+        : new Map<string, number>(),
+  );
+  const toneOf = (row: (typeof rows)[number]) =>
+    setup.colourBy === 'collection' ? tones.get(row.entry.collection_id) : setup.colourBy === 'assignee' ? tones.get(assigneeOf.get(row.id) ?? '') : undefined;
+  const shortDay = (day: string | undefined, month: 'numeric' | 'short' = 'numeric') =>
+    day ? new Intl.DateTimeFormat(messages.locale, { day: 'numeric', month, timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`)) : '';
+  /** The few words after a bar: done, critical and late, a milestone's date, the slack. */
+  function noteOf(row: (typeof rows)[number]): string | undefined {
+    const slip = slipOf(row.id) ?? 0;
+    if (setup.bars.progress && row.entry.done && row.kind !== 'milestone') return t('app.planning.note_done');
+    if (row.kind === 'milestone') return slip > 0 ? t('app.planning.note_milestone_late', { date: shortDay(row.due, 'short'), days: String(slip) }) : shortDay(row.due, 'short');
+    if (!isGantt) return undefined;
+    if (setup.bars.critical && row.isCritical) return slip > 0 ? t('app.planning.note_critical_late', { days: String(slip) }) : t('app.planning.critical_named');
+    if (setup.bars.slack && row.entry.total_float_days > 0 && row.kind !== 'summary') return t('app.planning.note_slack', { days: String(row.entry.total_float_days) });
+    return undefined;
+  }
+  const initialsOf = (id: string | undefined) => (accounts.nameOf(id ?? '') ?? '').split(/\s+/u).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
+  const outline = $derived<TimelineColumn[]>(
+    isGantt
+      ? setup.columns
+          .filter((id) => id !== 'slip' || comparison)
+          .map((id) => ({ id, label: id === 'assignee' ? '' : t(`app.planview.head_${id}`), isNarrow: id === 'assignee' }))
+      : [{ id: 'assignee', label: '', isNarrow: true }],
+  );
   const titleOf = (id: string) => byId.get(id)?.title ?? t('app.planning.unseen');
   const proposed = $derived(schedule ? proposedMoves(schedule) : []);
   let accepted = $state<string[]>([]);
@@ -168,16 +259,20 @@
   const undated = $derived(schedule?.undated ?? []);
   const undatedIds = $derived(new Set(undated.map((each) => each.item_id)));
   const timelineRows = $derived([
-    ...rows.map((row) => ({
+    ...shownRows.map((row) => ({
       id: row.id,
       title: row.title,
       start: row.entry.due_only ? undefined : row.start,
       due: row.due,
-      kind: row.kind,
-      isCritical: row.isCritical,
+      kind: row.kind === 'milestone' && !setup.bars.milestones ? undefined : row.kind,
+      isCritical: isGantt && setup.bars.critical && row.isCritical,
       depth: row.depth,
-      baseline: row.baseline,
+      baseline: isGantt ? row.baseline : undefined,
       isLocked: !mayWrite || row.entry.external || row.entry.summary || row.entry.done,
+      isDone: setup.bars.progress && row.entry.done,
+      slack: isGantt && setup.bars.slack && !row.isCritical ? slackEnd(row.due, row.entry.total_float_days) : undefined,
+      note: noteOf(row),
+      tone: toneOf(row),
     })),
     ...undated.map((each) => ({ id: each.item_id, title: each.title, isLocked: true })),
   ]);
@@ -356,7 +451,7 @@
   /** A baseline deleted softly: gone from the screen now, from the server when *Undo* has run out. */
   function deleteBaseline(id: string, name: string) {
     leaving = [...leaving, id];
-    if (baselineId === id) baselineId = '';
+    if (setup.baselineId === id) setup = { ...setup, baselineId: '' };
     // The dialog closes, so its message - and *Undo* - are not behind a modal.
     isSetting = false;
     const back = () => {
@@ -459,18 +554,6 @@
   const undatedSaid = $derived(t('app.planning.figure_undated', { count: String(undated.length) }));
   let isUndatedOpen = $state(false);
   const titleOfUndated = (id: string) => undated.find((each) => each.item_id === id)?.title ?? '';
-  // The head's figure (§5.1): when the plan ends, how much is on the critical chain, what has no
-  // dates; the standing against the tolerance where it is kept and not exceeded.
-  const figureText = $derived.by(() => {
-    if (!schedule || (rows.length === 0 && undated.length === 0)) return undefined;
-    const parts = [
-      schedule.finish ? t('app.planning.figure_ends', { date: dayLabel(schedule.finish) }) : t('app.planning.no_dates'),
-      criticalCount > 0 ? t('app.planning.figure_critical', { count: String(criticalCount) }) : undefined,
-      undated.length > 0 ? t('app.planning.figure_undated', { count: String(undated.length) }) : undefined,
-      tolerance?.exception && !tolerance.exception.exceeded ? t('app.planning.figure_within') : undefined,
-    ];
-    return parts.filter((part) => part !== undefined).join(' · ');
-  });
   const slipOf = (id: string) => comparison?.entries.find((each) => each.item_id === id)?.finish_variance_days;
   const headSecondary = $derived<readonly [] | readonly [PageAction]>(
     mayWrite && rows.length > 0 ? [{ label: t('app.planning.take_baseline'), icon: 'flag', onclick: () => (isTaking = true) }] : [],
@@ -487,16 +570,88 @@
     ],
     onselect: (id: string) => void exportAs(id),
   });
+
+  // The head sentence (scenes plan, gantt): end, critical path, slip, tolerance, undated.
+  const planSlip = $derived(
+    tolerance?.exception?.slip_days ?? (comparison ? Math.max(0, ...comparison.entries.map((each) => each.finish_variance_days ?? 0)) : undefined),
+  );
+  const head = $derived(
+    !schedule || (rows.length === 0 && undated.length === 0)
+      ? []
+      : headParts({
+          finish: schedule.finish ? dayLabel(schedule.finish) : undefined,
+          critical: criticalCount,
+          slipDays: planSlip,
+          baselineName: kept.find((each) => each.id === setup.baselineId)?.name ?? (tolerance?.exception ? kept[0]?.name : undefined),
+          toleranceDays: tolerance?.time_tolerance_days,
+          undated: undated.length,
+        }),
+  );
+
+  /** What is proposed is drawn as a band while the switch is on (scene gantt 2). */
+  let showsProposals = $state(true);
+  /** The table's *review one by one*: the column of moves to choose appears. */
+  let isReviewing = $state(false);
+
+  const queryKeys = $derived<readonly QueryKey[]>(
+    ((manifest.value as { query_keys?: readonly QueryKey[] } | undefined)?.query_keys ?? []).filter((key) => !['asset', 'page', 'goal'].includes(key.product ?? '')),
+  );
+  const hubOf = $derived(place?.type === 'HUB' ? planId : (place?.parent_id ?? undefined));
+  const saveScopes = $derived(
+    VIEW_SCOPES.filter((scope) => scope === 'ACCOUNT' || (scope === 'COLLECTION' ? place?.type === 'COLLECTION' : scope === 'HUB') && mayShape)
+      .map((scope) => ({ value: scope, label: t(`app.views.scope_${scope}`) })),
+  );
+  let isSavingView = $state(false);
+  let saveFailure = $state<string | undefined>(undefined);
+  const documentOf = (now: PlanViewSetup) => ({ ...queryDocumentOf(lineRead?.ok ? lineRead.query : undefined, planId), line: now.line });
+  async function savingView(work: () => Promise<{ id: string } | unknown>) {
+    isSavingView = true;
+    saveFailure = undefined;
+    try {
+      const saved = await work();
+      announcer.say(t('app.views.saved_announced'));
+      base = { ...setup };
+      if (saved && typeof saved === 'object' && 'id' in saved) viewId = String(saved.id);
+    } catch (error) {
+      saveFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isSavingView = false;
+    }
+  }
+  function saveView(name: string, scope: string, sharing: 'PRIVATE' | 'SCOPE') {
+    const scopeId = scopeIdOf(scope as ViewScope, { collectionId: planId, hubId: hubOf });
+    void savingView(() => savedViews.create(
+      {
+        scope_type: scope as never,
+        ...(scopeId ? { scope_id: scopeId } : {}),
+        name,
+        layout: 'TIMELINE',
+        query: documentOf(setup),
+        grouping: planGroupingOf(setup),
+        visible_fields: [...setup.columns],
+        ...(sharing === 'SCOPE' && scope !== 'ACCOUNT' ? { sharing } : {}),
+      } as never,
+      crypto.randomUUID(),
+    ));
+  }
+  const currentView = $derived(planViews.find((each) => each.id === viewId));
+  function overwriteView() {
+    const view = currentView;
+    if (!view) return;
+    void savingView(() => savedViews.update(view.id, { layout: 'TIMELINE', query: documentOf(setup), grouping: planGroupingOf(setup), visible_fields: [...setup.columns] } as never, view.version));
+  }
+  const viewOptions = $derived([{ value: '', label: t('app.planview.default_name') }, ...planViews.map((each) => ({ value: each.id, label: each.name }))]);
+  const panelOpener = $derived(changed > 0 ? t('app.planning.view_changed', { count: String(changed) }) : t('app.viewcfg.button'));
 </script>
 
-{#snippet headFigure()}<span data-head-figure>{figureText}</span>{/snippet}
+{#snippet headFigure()}<span data-head-figure>{#each head as part, index (part.code)}{#if index > 0} · {/if}<span class={part.isWarning ? 'warn' : undefined} data-head-part={part.code}>{t(part.code, part.params)}</span>{/each}</span>{/snippet}
 <WorkPage toolbar={schedule && !refusal && (rows.length > 0 || undated.length > 0) ? toolbar : undefined}>
   {#snippet top()}
   {#if place?.type === 'COLLECTION'}
     <!-- A collection's *Timeline* is one of its views: its head is the collection's (CollectionHead). -->
-    <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+    <CollectionHead collectionId={planId} current="timeline" {onnavigate} figure={head.length > 0 ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
   {:else if place}
-    <ToolHead hubId={planId} tool="plan" current={part} {onnavigate} figure={figureText ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
+    <ToolHead hubId={planId} tool="plan" current={part} {onnavigate} figure={head.length > 0 ? headFigure : undefined} secondary={headSecondary} menu={headMenu} />
   {/if}
   {/snippet}
 
@@ -521,15 +676,16 @@
       </Banner>
     {/if}
 
-    {#if proposed.length > 0}
-      <Banner tone="info" title={t('app.planning.proposes', { count: String(proposed.length) })}>
-        {t('app.planning.proposes_hint')}
-        {#snippet action()}
-          {#if mayWrite}
-            <Button size="sm" onclick={() => applyMoves(proposed)}>{t('app.planning.accept_all')}</Button>
-          {/if}
-        {/snippet}
-      </Banner>
+    {#if proposed.length > 0 && showsProposals && part !== 'dependencies'}
+      <!-- What the scheduler proposes, as a band with *accept all* and *review* (scene plantable 3). -->
+      <div class="band" role="region" aria-label={t('app.planning.proposes', { count: String(proposed.length) })} data-proposals>
+        <span class="band-mark" aria-hidden="true">✦</span>
+        <p class="band-text"><strong>{t('app.planning.proposes', { count: String(proposed.length) })}</strong> {t('app.planning.proposes_hint')}</p>
+        {#if mayWrite}
+          <Button size="sm" tone="subtle" aria-pressed={isReviewing} data-review onclick={() => { isReviewing = !isReviewing; if (isHub && part !== 'table') onnavigate(`/hubs/${planId}/plan/table`); }}>{t('app.planning.review')}</Button>
+          <Button size="sm" aria-label={t('app.planning.accept_all')} onclick={() => applyMoves(proposed)}>{t('app.planning.accept_all_count', { count: String(proposed.length) })}</Button>
+        {/if}
+      </div>
     {/if}
 
     {#if schedule.conflicts.length > 0}
@@ -558,6 +714,11 @@
           to={current.to}
           {scale}
           rows={chartRows}
+          look={isGantt ? 'gantt' : 'light'}
+          titleHead={t(isGantt ? 'app.planview.head_task' : 'app.planview.head_entry')}
+          {outline}
+          {outlineCell}
+          weekends={setup.bars.weekends}
           {gridlines}
           {today}
           todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
@@ -566,7 +727,7 @@
           dueHandleLabel={t('app.timeline.move_due')}
           onSelect={(id) => onnavigate(`/items/${id}`)}
           onCarry={carried}
-          dependencies={dependencies}
+          dependencies={setup.bars.dependencies ? dependencies : dependencies.filter((each) => each.isEarly)}
           dependenciesLabel={t('app.timeline.dependencies')}
           onLink={mayWrite ? linked : undefined}
           linkHandleLabel={t('app.planning.draw_dependency')}
@@ -576,9 +737,7 @@
           isTrayFolded
           rowAction={undated.length > 0 ? giveDates : undefined}
         />
-        {#if viewport.isCompact && undated.length > 0}
-          <Button size="sm" tone="subtle" icon="chevron-right" data-undated-open onclick={() => (isUndatedOpen = true)}>{undatedSaid}</Button>
-        {/if}
+
       </div>
     {/if}
     {#if showsTable}
@@ -620,35 +779,91 @@
 
 {#snippet toolbar()}
   {#if showsChart}
-    <div class="controls" role="group" aria-label={t('app.planning.chart')}>
-      <Inline gap="050">
-        <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
-        <Button size="sm" tone="secondary" onclick={() => { anchor = today; shown = undefined; }}>{t('app.timeline.today')}</Button>
-        <IconButton size="sm" icon="chevron-right" label={t('app.timeline.next')} onclick={() => move(1)} />
-        <Button size="sm" tone="secondary" icon="maximize-2" data-fit onclick={fit}>{t('app.planning.fit')}</Button>
-      </Inline>
-      <Select
-        label={t('app.planning.zoom')}
-        size="sm"
-        value={scale}
-        options={scales}
-        onchange={(event: Event) => { scale = scaleOf((event.currentTarget as HTMLSelectElement).value); anchor = current.from; shown = undefined; }}
-      />
-      {#if kept.length > 0}
-        <Select
-          label={t('app.planning.baseline')}
-          size="sm"
-          value={baselineId}
-          options={[{ value: '', label: t('app.planning.baseline_none') }, ...kept.map((each) => ({ value: each.id, label: each.name }))]}
-          onchange={(event: Event) => (baselineId = (event.currentTarget as HTMLSelectElement).value)}
-        />
-      {/if}
-      <span class="quiet window-said">{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</span>
+    <div class="bars">
+      <div class="controls" role="group" aria-label={t('app.planning.chart')}>
+        {#if isHub || place?.type === 'COLLECTION'}
+          <div class="segments" role="group" aria-label={t('app.planning.presentation')}>
+            {#each ['timeline', 'gantt'] as const as each (each)}
+              <button type="button" aria-pressed={setup.presentation === each} data-plan-presentation={each} onclick={() => (setup = { ...setup, presentation: each })}>
+                <Icon name={each === 'gantt' ? 'list' : 'clock'} size="sm" />{t(`app.planning.presentation_${each}`)}
+              </button>
+            {/each}
+          </div>
+        {/if}
+        <div class="segments quiet-segments">
+          <IconButton size="sm" icon="chevron-left" label={t('app.timeline.previous')} onclick={() => move(-1)} />
+          <button type="button" onclick={() => { anchor = today; shown = undefined; }}>{t('app.timeline.today')}</button>
+          <IconButton size="sm" icon="chevron-right" label={t('app.timeline.next')} onclick={() => move(1)} />
+        </div>
+        <div class="segments quiet-segments" role="group" aria-label={t('app.planning.zoom')} data-zoom>
+          {#each scales as each (each.value)}
+            <button type="button" aria-pressed={scale === each.value} data-scale={each.value} onclick={() => { scale = scaleOf(each.value); anchor = current.from; shown = undefined; }}>{each.label}</button>
+          {/each}
+        </div>
+        <Button size="sm" tone="subtle" icon="maximize-2" data-fit onclick={fit}>{t('app.planning.fit')}</Button>
+        <span class="grow-bar"></span>
+        <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
+      </div>
+      <div class="controls second" role="group" aria-label={t('app.planning.chart_options')}>
+        {#if isGantt}
+          <Button size="sm" tone="secondary" icon="zap" aria-pressed={setup.bars.critical} data-critical-switch onclick={() => (setup = { ...setup, bars: { ...setup.bars, critical: !setup.bars.critical } })}>{t('app.planning.critical_path')}</Button>
+          {#if kept.length > 0}
+            <Select
+              label={t('app.planning.baseline')}
+              isLabelHidden
+              size="sm"
+              value={baselineId}
+              options={[{ value: '', label: t('app.planning.baseline_none') }, ...kept.map((each) => ({ value: each.id, label: t('app.planning.baseline_named', { name: each.name }) }))]}
+              onchange={(event: Event) => (setup = { ...setup, baselineId: (event.currentTarget as HTMLSelectElement).value })}
+            />
+          {/if}
+          {#if proposed.length > 0}
+            <Button size="sm" tone="secondary" icon="sparkles" aria-pressed={showsProposals} data-proposals-switch onclick={() => (showsProposals = !showsProposals)}>{t('app.planning.proposals_count', { count: String(proposed.length) })}</Button>
+          {/if}
+          <Button size="sm" tone="subtle" icon="columns-3" onclick={() => (isPanelOpen = true)}>{t('app.planning.columns')}</Button>
+          <span class="quiet legend">{t('app.planning.legend_gantt')}</span>
+          {#if viewport.isCompact && undated.length > 0}
+            <Button size="sm" tone="secondary" icon="calendar" data-undated-open onclick={() => (isUndatedOpen = true)}>{t('app.planning.undated_button', { count: String(undated.length) })}</Button>
+          {/if}
+        {:else}
+          <Button size="sm" tone="subtle" icon="layout-grid" onclick={() => (isPanelOpen = true)}>{t('app.planning.group_named', { name: t(`app.planview.group_${setup.groupBy}`) })}</Button>
+          <Button size="sm" tone="subtle" icon="funnel" onclick={() => (isPanelOpen = true)}>{t('app.planning.filter')}</Button>
+          <span class="quiet legend">{t('app.planning.legend_timeline')}</span>
+          {#if undated.length > 0}
+            <Button size="sm" tone="secondary" icon="calendar" data-undated-open onclick={() => (isUndatedOpen = true)}>{t('app.planning.undated_button', { count: String(undated.length) })}</Button>
+          {/if}
+        {/if}
+      </div>
+      <span class="window-said"><VisuallyHidden>{t('app.timeline.window', { from: dayLabel(current.from), to: dayLabel(current.to) })}</VisuallyHidden></span>
     </div>
   {:else if part === 'table'}
-    {@render acceptChosen()}
+    <div class="controls">
+      <Button size="sm" tone="secondary" icon="funnel" onclick={() => (isPanelOpen = true)}>{setup.line.trim() ? setup.line : t('app.planning.filter')}</Button>
+      {#if kept.length > 0}
+        <Select label={t('app.planning.baseline')} isLabelHidden size="sm" value={baselineId}
+          options={[{ value: '', label: t('app.planning.baseline_none') }, ...kept.map((each) => ({ value: each.id, label: t('app.planning.baseline_named', { name: each.name }) }))]}
+          onchange={(event: Event) => (setup = { ...setup, baselineId: (event.currentTarget as HTMLSelectElement).value })} />
+      {/if}
+      <span class="grow-bar"></span>
+      <Button size="sm" tone="subtle" icon="download" onclick={() => void exportAs('csv')}>{t('app.planning.export')}</Button>
+      <Button size="sm" tone="secondary" icon="sliders-horizontal" data-plan-view-open onclick={() => (isPanelOpen = true)}>{panelOpener}</Button>
+      {@render acceptChosen()}
+    </div>
   {:else if part === 'dependencies'}
     {@render addOpener()}
+  {/if}
+{/snippet}
+
+{#snippet outlineCell(id: string, column: string)}
+  {@const row = byId.get(id)}
+  {#if row}
+    {#if column === 'start'}{row.kind === 'milestone' ? shortDay(row.due) : shortDay(row.start)}
+    {:else if column === 'finish'}{row.kind === 'milestone' ? '' : shortDay(row.due)}
+    {:else if column === 'duration'}{row.kind === 'milestone' ? '' : t('app.planning.days_short', { days: String(row.entry.duration_days) })}
+    {:else if column === 'float'}{row.kind === 'summary' ? '' : t('app.planning.days_short', { days: String(row.entry.total_float_days) })}
+    {:else if column === 'slip'}{@const slip = slipOf(id)}{slip ? (slip > 0 ? `+${slip}` : String(slip)) : '–'}
+    {:else if column === 'assignee'}{@const who = assigneeOf.get(id)}{#if who && row.kind !== 'summary'}<span class="initials" title={accounts.nameOf(who)}>{initialsOf(who)}</span>{/if}
+    {/if}
   {/if}
 {/snippet}
 
@@ -893,9 +1108,41 @@
   </Dialog>
 {/if}
 
+<PlanViewPanel
+  bind:isOpen={isPanelOpen}
+  bind:setup
+  {base}
+  baseName={currentView?.name ?? t('app.planview.default_name')}
+  {changed}
+  keys={queryKeys}
+  baselines={kept.map((each) => ({ value: each.id, label: t('app.planning.baseline_named', { name: each.name }) }))}
+  views={viewOptions}
+  {viewId}
+  onview={openView}
+  scopes={saveScopes}
+  mayShare={mayShape}
+  overwritable={currentView?.name}
+  isSaving={isSavingView}
+  failure={saveFailure}
+  onsave={saveView}
+  onoverwrite={overwriteView}
+/>
+
 <style>
-  .controls { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-100) var(--sp-200); }
-  .window-said { align-self: center; }
+  .bars { display: flex; flex-direction: column; gap: var(--sp-150); inline-size: 100%; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-150); }
+  .grow-bar { flex: 1; }
+  .legend { margin-inline-start: auto; }
+  .segments { display: inline-flex; align-items: center; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); overflow: hidden; background: var(--bg-surface); }
+  .segments button { display: inline-flex; align-items: center; gap: var(--sp-050); min-block-size: var(--layout-target); padding-inline: var(--sp-150); font: inherit; font-size: var(--fs-075); color: var(--text-primary); background: transparent; border: none; cursor: pointer; }
+  .segments button[aria-pressed='true'] { color: var(--text-inverse); background: var(--accent-primary); }
+  .quiet-segments { background: var(--bg-surface-sunken); border-color: transparent; }
+  .quiet-segments button[aria-pressed='true'] { color: var(--text-primary); background: var(--bg-surface); font-weight: var(--fw-semibold); }
+  .initials { display: inline-flex; align-items: center; justify-content: center; inline-size: var(--sp-300); block-size: var(--sp-300); border-radius: var(--r-full); font-size: var(--fs-065); font-weight: var(--fw-semibold); color: var(--text-brand); background: var(--accent-primary-subtle); }
+  .warn { color: var(--text-danger); }
+  .band { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); padding: var(--sp-200); border-radius: var(--r-md); background: var(--status-warning-surface); border: var(--bw-hairline) solid var(--status-warning-border); }
+  .band-text { flex: 1; min-inline-size: 0; margin: 0; font-size: var(--fs-075); }
+  .band-mark { color: var(--text-secondary); }
   .baseline { display: flex; align-items: center; gap: var(--sp-100); }
   .grow { display: flex; flex: 1; flex-direction: column; min-inline-size: 0; }
   .window { min-width: 0; }

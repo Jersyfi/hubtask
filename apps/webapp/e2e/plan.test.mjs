@@ -102,7 +102,7 @@ async function plan(browser, width = 1280) {
   });
   await page.goto(`${served.origin}/collections/${COLLECTION.id}/plan`);
   await page.locator('.timeline .scroller').waitFor({ timeout: 15_000 });
-  await page.getByLabel('Zoom').selectOption('day');
+  await page.getByRole('group', { name: 'Zoom' }).getByRole('button', { name: 'Days' }).click();
   await page.waitForTimeout(200);
   return { page, failures, written, close: () => context.close(), unstubbed };
 }
