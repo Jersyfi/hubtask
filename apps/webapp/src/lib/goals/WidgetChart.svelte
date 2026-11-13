@@ -158,7 +158,7 @@
         <span data-state={standing ?? 'none'}>{t(figure.change > 0 ? 'app.dashboards.change_up' : figure.change < 0 ? 'app.dashboards.change_down' : 'app.dashboards.change_same', { by: format(Math.abs(figure.change)) })}</span>
       {/if}
       {#if target !== null && target !== undefined}
-        <span class="aim">{t(lowerIsBetter ? 'app.dashboards.target_at_most' : 'app.dashboards.target_at_least', { target: format(target) })}{#if warnAt !== null && warnAt !== undefined} · {t('app.dashboards.warn_from', { warn: format(warnAt) })}{/if}</span>
+        <span class="aim">{t(lowerIsBetter ? 'app.dashboards.target_at_most' : 'app.dashboards.target_at_least', { target: format(target) })}{#if warnAt !== null && warnAt !== undefined}{' · '}{t('app.dashboards.warn_from', { warn: format(warnAt) })}{/if}</span>
         {#if standing}<span class="word" data-state={standing}>{t(`app.dashboards.target_${standing}`)}</span>{/if}
       {/if}
     </p>

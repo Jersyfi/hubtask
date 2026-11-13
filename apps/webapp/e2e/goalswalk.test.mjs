@@ -548,6 +548,8 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
   assert.ok(puts[0].widgets.find((each) => each.title === 'Late').w > 3, 'the corner widened the widget');
   assert.equal(puts[0].widgets.find((each) => each.chart === 'TEXT')?.text, 'This week **SA-7** first.');
   assert.deepEqual([open.target, open.warn_at], [30, 40], 'the figure carries its target and warning line');
+  // The dashboard is read again after the save, so the figure draws its target and warning line.
+  await page.getByText('Target ≤ 30 · warning from 40').waitFor({ timeout: 5_000 });
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
 });
