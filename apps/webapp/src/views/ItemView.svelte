@@ -1288,7 +1288,7 @@
             {#if hasAi}
               <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable && !isCollectionArchived} onclose={closeProposal} />
             {/if}
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} rowLimit={8} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </FoldingSection>
         </div>
       {/if}

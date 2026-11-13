@@ -114,6 +114,8 @@
      * rows as they arrive rather than reading a subtree the reader has not asked for.
      */
     isExpanded?: boolean;
+    /** A subtree folded to its first rows (ET-3); *Show all* draws the rest. */
+    rowLimit?: number;
     /**
      * What the last bulk did, by entry.
      *
@@ -201,12 +203,15 @@
     sortDir = 'ASC',
     onsort,
     sortable = [],
+    rowLimit,
   }: Props = $props();
+  let isAllRowsShown = $state(false);
 
   /** The columns beside each title: the view's, or for a subtree what an entry carries. */
   // The collection the keys are read from (ticket.ts); a list is always one collection's.
   const keyedCollection = $derived(containers.find(collectionId));
-  const fields = $derived<readonly ListField[]>(arrangement?.fields ?? ['due', 'people', 'labels', 'progress']);
+  // A subtree is the parts' table (UC-WRK-03): type, due, person, progress beside each title.
+  const fields = $derived<readonly ListField[]>(arrangement?.fields ?? (root ? ['type', 'due', 'people', 'progress'] : ['due', 'people', 'labels', 'progress']));
   /** The sort key a field's column head orders by, where the installation can order by it. */
   const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id' };
   const sortOf = (field: ListField | 'title') => {
@@ -1274,7 +1279,7 @@
       <!-- The column heads (L2): what each column beside the titles is, the sortable ones as
            buttons that order by it. From `expanded` up, where the fields stand in columns. -->
       <div class="columns">
-      {#if arrangement && !root && fields.length > 0}
+      {#if (arrangement || root) && fields.length > 0}
         <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
           {#if sortOf('title') && onsort}
             <button type="button" class="col-head title-head" onclick={() => onsort(sortOf('title') ?? '')}>{t('app.list.col_title')}{#if sortField === sortOf('title')}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
@@ -1372,12 +1377,17 @@
             {/if}
           {/if}
         {:else}
-          {#each rows as row (row.item.id)}
+          {#each rowLimit && !isAllRowsShown ? rows.slice(0, rowLimit) : rows as row (row.item.id)}
             {@render entryRow(row)}
           {/each}
         {/if}
       </div>
       </div>
+      {#if rowLimit && rows.length > rowLimit}
+        <button type="button" class="all-rows" aria-expanded={isAllRowsShown} onclick={() => (isAllRowsShown = !isAllRowsShown)}>
+          <Icon name={isAllRowsShown ? 'chevron-up' : 'chevron-down'} size="sm" />{isAllRowsShown ? t('app.entry.show_less') : t('app.entry.show_all', { count: String(rows.length) })}
+        </button>
+      {/if}
 
       <!-- The collection's list is read a page at a time: what is not on the first page is said
            and offered, never silently left out. -->
@@ -1676,6 +1686,21 @@
 {/if}
 
 <style>
+
+  .all-rows {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    gap: var(--sp-050);
+    padding: var(--sp-050) 0;
+    border: none;
+    background: none;
+    color: var(--text-brand);
+    font: inherit;
+    font-size: var(--fs-075);
+    cursor: pointer;
+  }
+  .all-rows:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
   .sub-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
   .sub-none { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); flex-basis: 100%; }
 
