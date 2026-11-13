@@ -1154,15 +1154,21 @@
 {/snippet}
 
 {#if isAdding}
-  <Dialog bind:isOpen={isAdding} title={t('app.planning.add_dependency')} dismissLabel={t('app.links.cancel')} size="s">
+  <Dialog bind:isOpen={isAdding} title={t('app.planning.add_dependency')} dismissLabel={t('app.links.cancel')} size="s" primary={{ label: t('app.planning.add_dependency'), onclick: addDependency }}>
     <div class="fields" data-add-dependency>
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Select label={t('app.planning.new_waiting')} placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />
       <Select label={t('app.planning.new_waited')} placeholder={t('app.planning.choose_entry')} bind:value={newWaited} options={linkable.filter((each) => each.value !== newWaiting)} />
-      <Select label={t('app.planning.col_kind')} bind:value={newKind} options={kinds} />
-      <Input label={t('app.planning.col_lag')} bind:value={newLag} inputmode="numeric" error={newLagError} />
-      <Inline justify="end"><Button data-list-add icon="plus" onclick={addDependency}>{t('app.planning.add_dependency')}</Button></Inline>
+      <!-- The time relation as the chip's popover asks it: the kind as four choices, the lag typed. -->
+      <p class="label-quiet">{t('app.planning.timing')}</p>
+      <div class="kinds" role="radiogroup" aria-label={t('app.planning.col_kind')}>
+        {#each kinds as kind (kind.value)}
+          <button type="button" role="radio" class="kind" aria-checked={newKind === kind.value} data-kind={kind.value} onclick={() => (newKind = kind.value)}>{kind.label}</button>
+        {/each}
+      </div>
+      <Input label={t('app.planning.lag_days')} bind:value={newLag} inputmode="numeric" hint={t('app.planning.lag_hint')} error={newLagError} />
     </div>
+    {#snippet actions()}<Button tone="secondary" onclick={() => (isAdding = false)}>{t('app.links.cancel')}</Button>{/snippet}
   </Dialog>
 {/if}
 
@@ -1186,17 +1192,18 @@
 {/if}
 
 {#if isTaking}
-  <Dialog bind:isOpen={isTaking} title={t('app.planning.take_baseline')} dismissLabel={t('app.links.cancel')} size="s">
+  <Dialog bind:isOpen={isTaking} title={t('app.planning.take_baseline')} dismissLabel={t('app.links.cancel')} size="s" primary={{ label: t('app.planning.take'), onclick: take }}>
     <Stack gap="150">
       <p class="quiet">{t('app.planning.take_baseline_hint')}</p>
       <Input label={t('app.planning.baseline_name')} bind:value={baselineName} maxlength={120} />
-      <Inline justify="end"><Button onclick={take}>{t('app.planning.take')}</Button></Inline>
     </Stack>
+    {#snippet actions()}<Button tone="secondary" onclick={() => (isTaking = false)}>{t('app.links.cancel')}</Button>{/snippet}
   </Dialog>
 {/if}
 
 {#if isSetting}
-  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')} size="m">
+  <Dialog bind:isOpen={isSetting} title={t('app.planning.settings')} dismissLabel={t('app.links.cancel')} size="m"
+    primary={tolerance && mayShape && !lockedAbove ? { label: t('app.planning.tolerance_set'), onclick: () => void saveTolerance(false) } : undefined}>
     <Stack gap="300">
       <section class="block" aria-labelledby="plan-tolerance" data-plan-tolerance>
         <h2 id="plan-tolerance" class="heading">{t('app.planning.tolerance')}</h2>
@@ -1210,12 +1217,10 @@
             <p class="quiet">{t('app.planning.within_tolerance', { forecast: dayLabel(tolerance.exception.forecast_finish), agreed: dayLabel(tolerance.exception.agreed_finish) })}</p>
           {/if}
           {#if mayShape && !lockedAbove}
-            <Inline gap="100" align="end">
-              <Input label={t('app.planning.tolerance_in_days')} size="sm" type="number" min="0" max="365" bind:value={toleranceDraft} />
+            <div class="fields">
+              <Input label={t('app.planning.tolerance_in_days')} type="number" min="0" max="365" bind:value={toleranceDraft} />
               {#if place?.type === 'HUB'}<Checkbox label={t('app.planning.tolerance_lock')} bind:checked={toleranceLock} />{/if}
-              <Button size="sm" onclick={() => void saveTolerance(false)}>{t('app.planning.tolerance_set')}</Button>
-              <Button size="sm" tone="subtle" onclick={() => void saveTolerance(true)}>{t('app.planning.tolerance_inherit')}</Button>
-            </Inline>
+            </div>
           {/if}
         {:else}
           <Skeleton lines={2} />
@@ -1242,6 +1247,10 @@
         {/if}
       </section>
     </Stack>
+    {#snippet actions()}
+      {#if tolerance && mayShape && !lockedAbove}<Button tone="subtle" onclick={() => void saveTolerance(true)}>{t('app.planning.tolerance_inherit')}</Button>{/if}
+      <Button tone="secondary" onclick={() => (isSetting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

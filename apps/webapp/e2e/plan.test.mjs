@@ -268,9 +268,13 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
   const adding = page.locator('[data-add-dependency]');
   await adding.getByLabel('Waiting entry').selectOption(THIRD.id);
   await adding.getByLabel('Waits for').selectOption(FIRST.id);
-  await adding.getByLabel('Kind').selectOption('SS');
-  await adding.getByLabel('Lag (working days)').fill('2');
-  await adding.getByRole('button', { name: 'Add a dependency' }).focus();
+  await adding.getByRole('radio', { name: 'Start to start' }).focus();
+  await page.keyboard.press('Enter');
+  await adding.getByLabel('Lag in working days').fill('2');
+  // The dialog's primary stands in its foot, Cancel beside it (the page system's dialog ladder).
+  const dialog = page.getByRole('dialog', { name: 'Add a dependency' });
+  assert.deepEqual((await dialog.locator('footer.actions').getByRole('button').allInnerTexts()).map((each) => each.trim()), ['Cancel', 'Add a dependency']);
+  await dialog.locator('footer.actions').getByRole('button', { name: 'Add a dependency' }).focus();
   await page.keyboard.press('Enter');
   await page.waitForTimeout(400);
 
