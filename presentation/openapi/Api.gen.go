@@ -4196,11 +4196,13 @@ func (e DashboardDigestWriteCadence) Valid() bool {
 const (
 	DashboardWidgetChartBAR      DashboardWidgetChart = "BAR"
 	DashboardWidgetChartLINE     DashboardWidgetChart = "LINE"
+	DashboardWidgetChartLIST     DashboardWidgetChart = "LIST"
 	DashboardWidgetChartMATRIX   DashboardWidgetChart = "MATRIX"
 	DashboardWidgetChartNUMBER   DashboardWidgetChart = "NUMBER"
 	DashboardWidgetChartPIE      DashboardWidgetChart = "PIE"
 	DashboardWidgetChartPROGRESS DashboardWidgetChart = "PROGRESS"
 	DashboardWidgetChartTABLE    DashboardWidgetChart = "TABLE"
+	DashboardWidgetChartTEXT     DashboardWidgetChart = "TEXT"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetChart enum.
@@ -4209,6 +4211,8 @@ func (e DashboardWidgetChart) Valid() bool {
 	case DashboardWidgetChartBAR:
 		return true
 	case DashboardWidgetChartLINE:
+		return true
+	case DashboardWidgetChartLIST:
 		return true
 	case DashboardWidgetChartMATRIX:
 		return true
@@ -4220,6 +4224,8 @@ func (e DashboardWidgetChart) Valid() bool {
 		return true
 	case DashboardWidgetChartTABLE:
 		return true
+	case DashboardWidgetChartTEXT:
+		return true
 	default:
 		return false
 	}
@@ -4229,6 +4235,7 @@ func (e DashboardWidgetChart) Valid() bool {
 const (
 	DashboardWidgetSourceGOALS DashboardWidgetSource = "GOALS"
 	DashboardWidgetSourceQUERY DashboardWidgetSource = "QUERY"
+	DashboardWidgetSourceTEXT  DashboardWidgetSource = "TEXT"
 	DashboardWidgetSourceVIEW  DashboardWidgetSource = "VIEW"
 )
 
@@ -4238,6 +4245,8 @@ func (e DashboardWidgetSource) Valid() bool {
 	case DashboardWidgetSourceGOALS:
 		return true
 	case DashboardWidgetSourceQUERY:
+		return true
+	case DashboardWidgetSourceTEXT:
 		return true
 	case DashboardWidgetSourceVIEW:
 		return true
@@ -4250,11 +4259,13 @@ func (e DashboardWidgetSource) Valid() bool {
 const (
 	DashboardWidgetWriteChartBAR      DashboardWidgetWriteChart = "BAR"
 	DashboardWidgetWriteChartLINE     DashboardWidgetWriteChart = "LINE"
+	DashboardWidgetWriteChartLIST     DashboardWidgetWriteChart = "LIST"
 	DashboardWidgetWriteChartMATRIX   DashboardWidgetWriteChart = "MATRIX"
 	DashboardWidgetWriteChartNUMBER   DashboardWidgetWriteChart = "NUMBER"
 	DashboardWidgetWriteChartPIE      DashboardWidgetWriteChart = "PIE"
 	DashboardWidgetWriteChartPROGRESS DashboardWidgetWriteChart = "PROGRESS"
 	DashboardWidgetWriteChartTABLE    DashboardWidgetWriteChart = "TABLE"
+	DashboardWidgetWriteChartTEXT     DashboardWidgetWriteChart = "TEXT"
 )
 
 // Valid indicates whether the value is a known member of the DashboardWidgetWriteChart enum.
@@ -4263,6 +4274,8 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 	case DashboardWidgetWriteChartBAR:
 		return true
 	case DashboardWidgetWriteChartLINE:
+		return true
+	case DashboardWidgetWriteChartLIST:
 		return true
 	case DashboardWidgetWriteChartMATRIX:
 		return true
@@ -4274,6 +4287,8 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 		return true
 	case DashboardWidgetWriteChartTABLE:
 		return true
+	case DashboardWidgetWriteChartTEXT:
+		return true
 	default:
 		return false
 	}
@@ -4283,6 +4298,7 @@ func (e DashboardWidgetWriteChart) Valid() bool {
 const (
 	DashboardWidgetWriteSourceGOALS DashboardWidgetWriteSource = "GOALS"
 	DashboardWidgetWriteSourceQUERY DashboardWidgetWriteSource = "QUERY"
+	DashboardWidgetWriteSourceTEXT  DashboardWidgetWriteSource = "TEXT"
 	DashboardWidgetWriteSourceVIEW  DashboardWidgetWriteSource = "VIEW"
 )
 
@@ -4292,6 +4308,8 @@ func (e DashboardWidgetWriteSource) Valid() bool {
 	case DashboardWidgetWriteSourceGOALS:
 		return true
 	case DashboardWidgetWriteSourceQUERY:
+		return true
+	case DashboardWidgetWriteSourceTEXT:
 		return true
 	case DashboardWidgetWriteSourceVIEW:
 		return true
@@ -17010,6 +17028,9 @@ type DailyNoteOpen struct {
 
 // Dashboard defines model for Dashboard.
 type Dashboard struct {
+	// Filter The dashboard's filter as a Hubtask query; empty without one.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 	HubId    *openapi_types.UUID   `json:"hub_id"`
@@ -17026,6 +17047,9 @@ type DashboardSharing string
 
 // DashboardCreate defines model for DashboardCreate.
 type DashboardCreate struct {
+	// Filter The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 
@@ -17088,7 +17112,7 @@ type DashboardFigures struct {
 			Truncated bool                     `json:"truncated"`
 		} `json:"compare"`
 
-		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
+		// Data A summary's rows (count, group, period, value, and running for a cumulative widget), a GOALS widget's goals (goal_id, title, status, progress), or a LIST widget's first entries as POST /items:query answers them; empty for TEXT.
 		Data []map[string]interface{} `json:"data"`
 
 		// Error The error code of a widget the caller cannot run.
@@ -17114,19 +17138,28 @@ type DashboardList struct {
 
 // DashboardWidget defines model for DashboardWidget.
 type DashboardWidget struct {
-	Chart      DashboardWidgetChart    `json:"chart"`
+	Chart DashboardWidgetChart `json:"chart"`
+
+	// Column A LIST widget's column; empty for any other.
+	Column     *string                 `json:"column,omitempty"`
 	Compare    *DashboardWidgetCompare `json:"compare"`
 	Cumulative bool                    `json:"cumulative"`
 	GoalIds    []openapi_types.UUID    `json:"goal_ids"`
 	H          int                     `json:"h"`
 	Id         openapi_types.UUID      `json:"id"`
 	Query      *map[string]interface{} `json:"query"`
-	Source     DashboardWidgetSource   `json:"source"`
-	Title      string                  `json:"title"`
-	ViewId     *openapi_types.UUID     `json:"view_id"`
-	W          int                     `json:"w"`
-	X          int                     `json:"x"`
-	Y          int                     `json:"y"`
+
+	// Released The dashboard filter's fields this widget does not inherit.
+	Released *[]string             `json:"released,omitempty"`
+	Source   DashboardWidgetSource `json:"source"`
+
+	// Text A TEXT widget's words; empty for any other.
+	Text   *string             `json:"text,omitempty"`
+	Title  string              `json:"title"`
+	ViewId *openapi_types.UUID `json:"view_id"`
+	W      int                 `json:"w"`
+	X      int                 `json:"x"`
+	Y      int                 `json:"y"`
 }
 
 // DashboardWidgetChart defines model for DashboardWidget.Chart.
@@ -17149,7 +17182,11 @@ type DashboardWidgetCompare struct {
 
 // DashboardWidgetWrite defines model for DashboardWidgetWrite.
 type DashboardWidgetWrite struct {
+	// Chart LIST shows a query's first entries, TEXT a short text with links.
 	Chart DashboardWidgetWriteChart `json:"chart"`
+
+	// Column The one field a LIST widget shows beside key and title, e.g. due_at, status, assignee_id.
+	Column *string `json:"column,omitempty"`
 
 	// Compare A second series beside the widget's own - resolved beside created -, for BAR, LINE and TABLE.
 	Compare *DashboardWidgetCompare `json:"compare,omitempty"`
@@ -17162,10 +17199,18 @@ type DashboardWidgetWrite struct {
 	H       *int                  `json:"h,omitempty"`
 	Id      *openapi_types.UUID   `json:"id,omitempty"`
 
-	// Query A POST /items:aggregate document, for QUERY.
-	Query  *map[string]interface{}    `json:"query,omitempty"`
+	// Query A POST /items:aggregate document, for QUERY; for a LIST widget a POST /items:query document (q or filter, scope, sort).
+	Query *map[string]interface{} `json:"query,omitempty"`
+
+	// Released Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at.
+	Released *[]string `json:"released,omitempty"`
+
+	// Source TEXT for a TEXT widget, which runs nothing.
 	Source DashboardWidgetWriteSource `json:"source"`
-	Title  string                     `json:"title"`
+
+	// Text A TEXT widget's words: plain text, **bold** and [links](/path).
+	Text  *string `json:"text,omitempty"`
+	Title string  `json:"title"`
 
 	// ViewId A saved summary view, for VIEW.
 	ViewId *openapi_types.UUID `json:"view_id,omitempty"`
@@ -17174,14 +17219,17 @@ type DashboardWidgetWrite struct {
 	Y      *int                `json:"y,omitempty"`
 }
 
-// DashboardWidgetWriteChart defines model for DashboardWidgetWrite.Chart.
+// DashboardWidgetWriteChart LIST shows a query's first entries, TEXT a short text with links.
 type DashboardWidgetWriteChart string
 
-// DashboardWidgetWriteSource defines model for DashboardWidgetWrite.Source.
+// DashboardWidgetWriteSource TEXT for a TEXT widget, which runs nothing.
 type DashboardWidgetWriteSource string
 
 // DashboardWrite defines model for DashboardWrite.
 type DashboardWrite struct {
+	// Filter The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released.
+	Filter *string `json:"filter,omitempty"`
+
 	// GroupIds For GROUPS: the groups whose members see it, each where they read its place.
 	GroupIds *[]openapi_types.UUID `json:"group_ids,omitempty"`
 	Name     string                `json:"name"`

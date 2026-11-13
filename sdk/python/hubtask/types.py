@@ -2080,10 +2080,13 @@ class PortfolioUpdateList(TypedDict, total=False):
 class DashboardWidgetWrite(TypedDict, total=False):
     id: str
     title: Required[str]
-    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS"]]
-    source: Required[Literal["VIEW", "QUERY", "GOALS"]]
+    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS", "LIST", "TEXT"]]
+    source: Required[Literal["VIEW", "QUERY", "GOALS", "TEXT"]]
     view_id: str
     query: dict[str, Any]
+    text: str
+    column: str
+    released: list[str]
     goal_ids: list[str]
     compare: "DashboardWidgetCompare"
     cumulative: bool
@@ -2101,10 +2104,13 @@ class DashboardWidgetCompare(TypedDict, total=False):
 class DashboardWidget(TypedDict, total=False):
     id: Required[str]
     title: Required[str]
-    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS"]]
-    source: Required[Literal["VIEW", "QUERY", "GOALS"]]
+    chart: Required[Literal["NUMBER", "BAR", "PIE", "LINE", "TABLE", "MATRIX", "PROGRESS", "LIST", "TEXT"]]
+    source: Required[Literal["VIEW", "QUERY", "GOALS", "TEXT"]]
     view_id: Required[str | None]
     query: Required[dict[str, Any] | None]
+    text: str
+    column: str
+    released: list[str]
     goal_ids: Required[list[str]]
     compare: Required["DashboardWidgetCompare" | Any]
     cumulative: Required[bool]
@@ -2117,12 +2123,14 @@ class DashboardWrite(TypedDict, total=False):
     name: Required[str]
     sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]
     group_ids: list[str]
+    filter: str
     widgets: list["DashboardWidgetWrite"]
 
 class DashboardCreate(TypedDict, total=False):
     name: Required[str]
     sharing: Literal["PRIVATE", "SCOPE", "GROUPS"]
     group_ids: list[str]
+    filter: str
     widgets: list["DashboardWidgetWrite"]
     hub_id: str
 
@@ -2133,6 +2141,7 @@ class Dashboard(TypedDict, total=False):
     name: Required[str]
     sharing: Required[Literal["PRIVATE", "SCOPE", "GROUPS"]]
     group_ids: list[str]
+    filter: str
     widgets: Required[list["DashboardWidget"]]
     version: Required[int]
 

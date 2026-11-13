@@ -149,7 +149,7 @@ func (q *Queries) DeletePortfolioPublicLink(ctx context.Context, portfolioID pgt
 }
 
 const findDashboard = `-- name: FindDashboard :one
-SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version, filter
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id = $1::uuid
 `
@@ -163,6 +163,7 @@ type FindDashboardRow struct {
 	GroupIds []pgtype.UUID
 	Widgets  []byte
 	Version  int32
+	Filter   string
 }
 
 func (q *Queries) FindDashboard(ctx context.Context, id pgtype.UUID) (FindDashboardRow, error) {
@@ -177,6 +178,7 @@ func (q *Queries) FindDashboard(ctx context.Context, id pgtype.UUID) (FindDashbo
 		&i.GroupIds,
 		&i.Widgets,
 		&i.Version,
+		&i.Filter,
 	)
 	return i, err
 }
@@ -416,9 +418,9 @@ func (q *Queries) GradeGoal(ctx context.Context, arg GradeGoalParams) (int64, er
 }
 
 const insertDashboard = `-- name: InsertDashboard :exec
-INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, created_at, updated_at, updated_by, version)
+INSERT INTO dashboard (id, tenant_id, hub_id, owner_id, name, sharing, group_ids, widgets, filter, created_at, updated_at, updated_by, version)
 VALUES ($1, current_tenant_id(), $2, $3, $4,
-  $5, coalesce($6::uuid[], '{}'), $7::jsonb, $8, $8, $3, 1)
+  $5, coalesce($6::uuid[], '{}'), $7::jsonb, $8, $9, $9, $3, 1)
 `
 
 type InsertDashboardParams struct {
@@ -429,6 +431,7 @@ type InsertDashboardParams struct {
 	Sharing  string
 	GroupIds []pgtype.UUID
 	Widgets  []byte
+	Filter   string
 	At       pgtype.Timestamptz
 }
 
@@ -441,6 +444,7 @@ func (q *Queries) InsertDashboard(ctx context.Context, arg InsertDashboardParams
 		arg.Sharing,
 		arg.GroupIds,
 		arg.Widgets,
+		arg.Filter,
 		arg.At,
 	)
 	return err
@@ -653,7 +657,7 @@ func (q *Queries) LinkGoalEntry(ctx context.Context, arg LinkGoalEntryParams) er
 }
 
 const listDashboards = `-- name: ListDashboards :many
-SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version, filter
 FROM dashboard
 WHERE tenant_id = current_tenant_id()
 ORDER BY name COLLATE hubtask_name, id
@@ -669,6 +673,7 @@ type ListDashboardsRow struct {
 	GroupIds []pgtype.UUID
 	Widgets  []byte
 	Version  int32
+	Filter   string
 }
 
 func (q *Queries) ListDashboards(ctx context.Context, max int32) ([]ListDashboardsRow, error) {
@@ -689,6 +694,7 @@ func (q *Queries) ListDashboards(ctx context.Context, max int32) ([]ListDashboar
 			&i.GroupIds,
 			&i.Widgets,
 			&i.Version,
+			&i.Filter,
 		); err != nil {
 			return nil, err
 		}
@@ -1258,10 +1264,10 @@ func (q *Queries) UnlinkGoalEntry(ctx context.Context, arg UnlinkGoalEntryParams
 const updateDashboard = `-- name: UpdateDashboard :execrows
 UPDATE dashboard SET
   name = $1, sharing = $2, group_ids = coalesce($3::uuid[], '{}'),
-  widgets = $4::jsonb,
-  updated_at = $5, updated_by = $6, version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = $7::uuid
-  AND version = $8::int
+  widgets = $4::jsonb, filter = $5,
+  updated_at = $6, updated_by = $7, version = version + 1
+WHERE tenant_id = current_tenant_id() AND id = $8::uuid
+  AND version = $9::int
 `
 
 type UpdateDashboardParams struct {
@@ -1269,6 +1275,7 @@ type UpdateDashboardParams struct {
 	Sharing         string
 	GroupIds        []pgtype.UUID
 	Widgets         []byte
+	Filter          string
 	At              pgtype.Timestamptz
 	By              pgtype.UUID
 	ID              pgtype.UUID
@@ -1281,6 +1288,7 @@ func (q *Queries) UpdateDashboard(ctx context.Context, arg UpdateDashboardParams
 		arg.Sharing,
 		arg.GroupIds,
 		arg.Widgets,
+		arg.Filter,
 		arg.At,
 		arg.By,
 		arg.ID,

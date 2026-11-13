@@ -2197,6 +2197,7 @@ func run() error {
 	steward := goalservice.Steward{
 		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers,
 		Summaries: goalSummaries.Descriptor().Handler,
+		Items:     goalSummaries.Query.Descriptor().Handler,
 		ViewSummaries: work.AggregateView{
 			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
 			Aggregate: goalSummaries,

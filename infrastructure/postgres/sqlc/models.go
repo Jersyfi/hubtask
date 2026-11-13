@@ -1622,6 +1622,7 @@ type Dashboard struct {
 	UpdatedBy pgtype.UUID
 	Version   int32
 	GroupIds  []pgtype.UUID
+	Filter    string
 }
 
 type DashboardDigest struct {

@@ -31203,10 +31203,17 @@ components:
       properties:
         id: { type: string, format: uuid }
         title: { type: string, minLength: 1, maxLength: 200 }
-        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
-        source: { type: string, enum: [VIEW, QUERY, GOALS] }
+        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT], description: "LIST shows a query's first entries, TEXT a short text with links." }
+        source: { type: string, enum: [VIEW, QUERY, GOALS, TEXT], description: "TEXT for a TEXT widget, which runs nothing." }
         view_id: { type: string, format: uuid, description: "A saved summary view, for VIEW." }
-        query: { type: object, additionalProperties: true, description: "A POST /items:aggregate document, for QUERY." }
+        query: { type: object, additionalProperties: true, description: "A POST /items:aggregate document, for QUERY; for a LIST widget a POST /items:query document (q or filter, scope, sort)." }
+        text: { type: string, maxLength: 2000, description: "A TEXT widget's words: plain text, **bold** and [links](/path)." }
+        column: { type: string, maxLength: 64, description: "The one field a LIST widget shows beside key and title, e.g. due_at, status, assignee_id." }
+        released:
+          type: array
+          maxItems: 20
+          items: { type: string, maxLength: 64 }
+          description: "Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at."
         goal_ids: { type: array, maxItems: 20, items: { type: string, format: uuid }, description: "For GOALS." }
         compare: { $ref: "#/components/schemas/DashboardWidgetCompare" }
         cumulative: { type: boolean, description: "Each period drawn as the running total of the periods up to it, for BAR, LINE and TABLE over COUNT or SUM; with compare, the work left between the two series as well." }
@@ -31230,10 +31237,13 @@ components:
       properties:
         id: { type: string, format: uuid }
         title: { type: string }
-        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS] }
-        source: { type: string, enum: [VIEW, QUERY, GOALS] }
+        chart: { type: string, enum: [NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT] }
+        source: { type: string, enum: [VIEW, QUERY, GOALS, TEXT] }
         view_id: { type: [string, "null"], format: uuid }
         query: { type: [object, "null"], additionalProperties: true }
+        text: { type: string, description: "A TEXT widget's words; empty for any other." }
+        column: { type: string, description: "A LIST widget's column; empty for any other." }
+        released: { type: array, items: { type: string }, description: "The dashboard filter's fields this widget does not inherit." }
         goal_ids: { type: array, items: { type: string, format: uuid } }
         compare:
           anyOf: [{ $ref: "#/components/schemas/DashboardWidgetCompare" }, { type: "null" }]
@@ -31258,6 +31268,7 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
+        filter: { type: string, maxLength: 2000, description: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released." }
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
 
     DashboardCreate:
@@ -31275,6 +31286,7 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
+        filter: { type: string, maxLength: 2000, description: "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released." }
         widgets: { type: array, maxItems: 24, items: { $ref: "#/components/schemas/DashboardWidgetWrite" } }
         hub_id: { type: string, format: uuid, description: "The hub it belongs to; the workspace's without." }
 
@@ -31293,6 +31305,7 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
           description: "For GROUPS: the groups whose members see it, each where they read its place."
+        filter: { type: string, description: "The dashboard's filter as a Hubtask query; empty without one." }
         widgets: { type: array, items: { $ref: "#/components/schemas/DashboardWidget" } }
         version: { type: integer }
 
@@ -31337,7 +31350,7 @@ components:
               id: { type: string, format: uuid }
               data:
                 type: array
-                description: A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).
+                description: A summary's rows (count, group, period, value, and running for a cumulative widget), a GOALS widget's goals (goal_id, title, status, progress), or a LIST widget's first entries as POST /items:query answers them; empty for TEXT.
                 items: { type: object, additionalProperties: true }
               truncated: { type: boolean }
               error: { type: [string, "null"], description: "The error code of a widget the caller cannot run." }

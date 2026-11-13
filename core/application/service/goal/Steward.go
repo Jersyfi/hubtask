@@ -109,6 +109,8 @@ type Steward struct {
 	// of the module is one of theirs, run as the reader.
 	Summaries     usecase.Handler
 	ViewSummaries usecase.Handler
+	// Items is POST /items:query's use case: a LIST widget's first entries, run as the reader.
+	Items usecase.Handler
 	// Budgets is the time module's ReadBudget, run as the reader for a portfolio's budget roll-up
 	// (UC-GOL-03); nil rolls up none.
 	Budgets usecase.Handler

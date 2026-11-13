@@ -1749,7 +1749,7 @@ func (q *Queries) SnapshotCustomRoles(ctx context.Context, arg SnapshotCustomRol
 }
 
 const snapshotDashboards = `-- name: SnapshotDashboards :many
-SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version
+SELECT id, hub_id, owner_id, name, sharing, group_ids, widgets, version, filter
 FROM dashboard
 WHERE tenant_id = current_tenant_id() AND id > $1
 ORDER BY id
@@ -1770,6 +1770,7 @@ type SnapshotDashboardsRow struct {
 	GroupIds []pgtype.UUID
 	Widgets  []byte
 	Version  int32
+	Filter   string
 }
 
 // The workspace's dashboards as their widgets' queries, each filed under its hub; a private one
@@ -1792,6 +1793,7 @@ func (q *Queries) SnapshotDashboards(ctx context.Context, arg SnapshotDashboards
 			&i.GroupIds,
 			&i.Widgets,
 			&i.Version,
+			&i.Filter,
 		); err != nil {
 			return nil, err
 		}

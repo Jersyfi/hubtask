@@ -46,7 +46,7 @@ func DashboardOutput(d domain.Dashboard) usecase.Output {
 		widgets = append(widgets, usecase.Output{
 			"id": w.ID.String(), "title": w.Title, "chart": string(w.Chart), "source": string(w.Source),
 			"view_id": idText(w.ViewID), "query": query, "goal_ids": goals, "compare": compare, "cumulative": w.Cumulative,
-			"x": w.X, "y": w.Y, "w": w.W, "h": w.H,
+			"text": w.Text, "column": w.Column, "released": releasedOut(w.Released), "x": w.X, "y": w.Y, "w": w.W, "h": w.H,
 		})
 	}
 	groups := make([]string, 0, len(d.GroupIDs))
@@ -55,8 +55,15 @@ func DashboardOutput(d domain.Dashboard) usecase.Output {
 	}
 	return usecase.Output{
 		"id": d.ID.String(), "hub_id": idText(d.HubID), "owner_id": idText(d.OwnerID), "name": d.Name,
-		"sharing": string(d.Sharing), "group_ids": groups, "widgets": widgets, "version": d.Version,
+		"sharing": string(d.Sharing), "group_ids": groups, "filter": d.Filter, "widgets": widgets, "version": d.Version,
 	}
+}
+
+func releasedOut(fields []string) []string {
+	if fields == nil {
+		return []string{}
+	}
+	return fields
 }
 
 // visible reports whether a reader sees a dashboard: its owner always, anybody else when it is
@@ -152,7 +159,7 @@ func (s Steward) mayShape(ctx context.Context, actor appshared.ActorContext, d d
 // dashboardFields reads a dashboard's name, sharing and widgets; a QUERY widget's document is
 // held to POST /items:aggregate's grammar.
 func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
-	d := domain.Dashboard{Name: in.String("name"), Sharing: domain.Sharing(in.String("sharing"))}
+	d := domain.Dashboard{Name: in.String("name"), Sharing: domain.Sharing(in.String("sharing")), Filter: in.String("filter")}
 	groups, err := in.IDList("group_ids")
 	if err != nil {
 		return domain.Dashboard{}, err
@@ -213,7 +220,17 @@ func (s Steward) dashboardFields(in usecase.Input) (domain.Dashboard, error) {
 			w.Compare = &domain.Compare{FirstTitle: stringOf(compare["first_title"]), Title: stringOf(compare["title"]), Query: query}
 		}
 		w.Cumulative, _ = doc["cumulative"].(bool)
-		if w.Source == domain.WidgetQuery && w.Query != nil {
+		w.Text, w.Column = stringOf(doc["text"]), stringOf(doc["column"])
+		if fields, ok := doc["released"].([]any); ok {
+			for _, f := range fields {
+				w.Released = append(w.Released, stringOf(f))
+			}
+		}
+		if w.Chart == domain.ChartList && w.Source == domain.WidgetQuery && w.Query != nil {
+			if _, err := work.SpecOfView(view.SavedView{Query: w.Query}); err != nil {
+				return domain.Dashboard{}, err
+			}
+		} else if w.Source == domain.WidgetQuery && w.Query != nil {
 			if err := summaryFits(w.Query, w.Cumulative, at+"/query"); err != nil {
 				return domain.Dashboard{}, err
 			}
@@ -273,7 +290,8 @@ var dashboardInput = []usecase.Field{
 	{Name: "name", Kind: usecase.KindString, Required: true, Description: "The dashboard's name."},
 	{Name: "sharing", Kind: usecase.KindString, Enum: []string{"PRIVATE", "SCOPE", "GROUPS"}, Description: "PRIVATE, the default, for its owner alone; SCOPE for everybody who reads its place; GROUPS for the members of group_ids who read it - each then sees the numbers their own reading allows."},
 	{Name: "group_ids", Kind: usecase.KindList, Description: "For GROUPS: one to 20 groups whose members see it."},
-	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document; GOALS with goal_ids), x, y, w, h; id to keep one. A BAR, LINE or TABLE widget may carry compare (first_title, title, query: a second series, resolved beside created) and cumulative (each period as the running total up to it, over a COUNT or SUM by period; with compare also what is left between the two)."},
+	{Name: "filter", Kind: usecase.KindString, Description: "The dashboard's filter as a Hubtask query without an order (is: open hub: <id> created: -6w..), names as identifiers; every QUERY widget inherits it but for the fields it lists in released."},
+	{Name: "widgets", Kind: usecase.KindList, Description: "At most 24 tiles on a twelve-column grid: title, chart (NUMBER, BAR, PIE, LINE, TABLE, MATRIX, PROGRESS, LIST, TEXT), source (VIEW with view_id, a saved summary view; QUERY with query, a POST /items:aggregate document - for LIST a POST /items:query document and column, the field shown beside key and title; GOALS with goal_ids; TEXT with text), released (the filter's fields it does not inherit), x, y, w, h; id to keep one. A BAR, LINE or TABLE widget may carry compare (first_title, title, query: a second series, resolved beside created) and cumulative (each period as the running total up to it, over a COUNT or SUM by period; with compare also what is left between the two)."},
 }
 
 // ListDashboards answers the dashboards a reader sees: their own and the shared ones of places
@@ -562,7 +580,17 @@ func (s Steward) figures(ctx context.Context, actor appshared.ActorContext, d do
 		case domain.WidgetView:
 			out, err = s.run(ctx, actor, s.ViewSummaries, usecase.Input{"view_id": w.ViewID.String()})
 		case domain.WidgetQuery:
-			out, err = s.run(ctx, actor, s.Summaries, summaryInput(w.Query))
+			in, inheritErr := inherited(summaryInput(w.Query), d, w)
+			switch {
+			case inheritErr != nil:
+				err = inheritErr
+			case w.Chart == domain.ChartList:
+				out, err = s.firstEntries(ctx, actor, in)
+			default:
+				out, err = s.run(ctx, actor, s.Summaries, in)
+			}
+		case domain.WidgetText:
+			out = usecase.Output{"data": []usecase.Output{}, "truncated": false}
 		case domain.WidgetGoals:
 			data := []usecase.Output{}
 			for _, g := range w.GoalIDs {
@@ -585,8 +613,8 @@ func (s Steward) figures(ctx context.Context, actor appshared.ActorContext, d do
 			continue
 		}
 		row["data"], row["truncated"] = out["data"], out["truncated"]
-		if w.Source != domain.WidgetGoals {
-			if err := s.series(ctx, actor, w, row); err != nil {
+		if w.Source == domain.WidgetQuery && w.Chart != domain.ChartList {
+			if err := s.series(ctx, actor, w, row, d); err != nil {
 				return nil, err
 			}
 		}
@@ -597,11 +625,15 @@ func (s Steward) figures(ctx context.Context, actor appshared.ActorContext, d do
 
 // series adds a widget's second series and running totals to its row: each summary row's running
 // total, and with both, what is left between them - computed here, so every door draws one number.
-func (s Steward) series(ctx context.Context, actor appshared.ActorContext, w domain.Widget, row usecase.Output) error {
+func (s Steward) series(ctx context.Context, actor appshared.ActorContext, w domain.Widget, row usecase.Output, d domain.Dashboard) error {
 	first, _ := row["data"].([]usecase.Output)
 	var second []usecase.Output
 	if w.Compare != nil {
-		out, err := s.run(ctx, actor, s.Summaries, summaryInput(w.Compare.Query))
+		in, err := inherited(summaryInput(w.Compare.Query), d, w)
+		var out usecase.Output
+		if err == nil {
+			out, err = s.run(ctx, actor, s.Summaries, in)
+		}
 		code, err := refusedCode(err)
 		if err != nil {
 			return err
@@ -669,6 +701,29 @@ func refusedCode(err error) (string, error) {
 		return typed.DetailCode, nil
 	}
 	return "", err
+}
+
+// firstEntries runs a LIST widget's query as POST /items:query answers the reader and keeps its
+// first hits; whether there are more is the list's to show.
+func (s Steward) firstEntries(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+	in["size"] = domain.MaxListRows
+	delete(in, "cursor")
+	out, err := s.run(ctx, actor, s.Items, in)
+	if err != nil {
+		return nil, err
+	}
+	data, _ := out["data"].([]usecase.Output)
+	more := false
+	if page, ok := out["page"].(usecase.Output); ok {
+		more = stringOf(page["next_cursor"]) != ""
+	}
+	if len(data) > domain.MaxListRows {
+		data, more = data[:domain.MaxListRows], true
+	}
+	if data == nil {
+		data = []usecase.Output{}
+	}
+	return usecase.Output{"data": data, "truncated": more}, nil
 }
 
 func (s Steward) run(ctx context.Context, actor appshared.ActorContext, handler usecase.Handler, in usecase.Input) (usecase.Output, error) {

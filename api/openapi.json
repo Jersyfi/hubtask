@@ -47798,16 +47798,21 @@
               "LINE",
               "TABLE",
               "MATRIX",
-              "PROGRESS"
-            ]
+              "PROGRESS",
+              "LIST",
+              "TEXT"
+            ],
+            "description": "LIST shows a query's first entries, TEXT a short text with links."
           },
           "source": {
             "type": "string",
             "enum": [
               "VIEW",
               "QUERY",
-              "GOALS"
-            ]
+              "GOALS",
+              "TEXT"
+            ],
+            "description": "TEXT for a TEXT widget, which runs nothing."
           },
           "view_id": {
             "type": "string",
@@ -47817,7 +47822,26 @@
           "query": {
             "type": "object",
             "additionalProperties": true,
-            "description": "A POST /items:aggregate document, for QUERY."
+            "description": "A POST /items:aggregate document, for QUERY; for a LIST widget a POST /items:query document (q or filter, scope, sort)."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "A TEXT widget's words: plain text, **bold** and [links](/path)."
+          },
+          "column": {
+            "type": "string",
+            "maxLength": 64,
+            "description": "The one field a LIST widget shows beside key and title, e.g. due_at, status, assignee_id."
+          },
+          "released": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "description": "Fields of the dashboard's filter this QUERY widget does not inherit, e.g. created_at."
           },
           "goal_ids": {
             "type": "array",
@@ -47918,7 +47942,9 @@
               "LINE",
               "TABLE",
               "MATRIX",
-              "PROGRESS"
+              "PROGRESS",
+              "LIST",
+              "TEXT"
             ]
           },
           "source": {
@@ -47926,7 +47952,8 @@
             "enum": [
               "VIEW",
               "QUERY",
-              "GOALS"
+              "GOALS",
+              "TEXT"
             ]
           },
           "view_id": {
@@ -47942,6 +47969,21 @@
               "null"
             ],
             "additionalProperties": true
+          },
+          "text": {
+            "type": "string",
+            "description": "A TEXT widget's words; empty for any other."
+          },
+          "column": {
+            "type": "string",
+            "description": "A LIST widget's column; empty for any other."
+          },
+          "released": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The dashboard filter's fields this widget does not inherit."
           },
           "goal_ids": {
             "type": "array",
@@ -48007,6 +48049,11 @@
             },
             "description": "For GROUPS: the groups whose members see it, each where they read its place."
           },
+          "filter": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released."
+          },
           "widgets": {
             "type": "array",
             "maxItems": 24,
@@ -48045,6 +48092,11 @@
               "format": "uuid"
             },
             "description": "For GROUPS: the groups whose members see it, each where they read its place."
+          },
+          "filter": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "The dashboard's filter as a Hubtask query without an order, names as identifiers: every QUERY widget inherits it but for the fields it released."
           },
           "widgets": {
             "type": "array",
@@ -48110,6 +48162,10 @@
               "format": "uuid"
             },
             "description": "For GROUPS: the groups whose members see it, each where they read its place."
+          },
+          "filter": {
+            "type": "string",
+            "description": "The dashboard's filter as a Hubtask query; empty without one."
           },
           "widgets": {
             "type": "array",
@@ -48259,7 +48315,7 @@
                 },
                 "data": {
                   "type": "array",
-                  "description": "A summary's rows (count, group, period, value, and running for a cumulative widget), or a GOALS widget's goals (goal_id, title, status, progress).",
+                  "description": "A summary's rows (count, group, period, value, and running for a cumulative widget), a GOALS widget's goals (goal_id, title, status, progress), or a LIST widget's first entries as POST /items:query answers them; empty for TEXT.",
                   "items": {
                     "type": "object",
                     "additionalProperties": true
