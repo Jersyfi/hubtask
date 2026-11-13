@@ -180,6 +180,8 @@ function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = fal
       const phase = (id, title, start, finish, done) => ({ item_id: id, title, parent_id: null, collection_id: SCRUM.id, start, finish, duration_days: 5, moved: false, total_float_days: 0, free_float_days: 0, critical: false, summary: true, external: false, mode: 'AUTOMATIC', milestone: false, done });
       return route.fulfill({ json: { zone: 'UTC', finish: '2026-12-05', entries: [phase('p1', 'Groundwork', '2026-10-01', '2026-10-31', true), phase('p2', 'Shell', '2026-11-01', '2026-12-05', false)], dependencies: [], conflicts: [], unscheduled: [], critical_path: [] } });
     }
+    // The reader holds three entries in the running sprint (scene homeplans: "Team · 3 of your entries").
+    if (path.endsWith('/api/v1/sprints')) return route.fulfill({ json: { data: [{ sprint: SPRINTS[0], my_entries: 3 }] } });
     if (/\/api\/v1\/sprints\/[^/]+$/.test(path)) {
       return route.fulfill({ json: { sprint: SPRINTS[0], entries: [], burndown: [{ day: '2026-11-02', remaining: 21, scope: 21, ideal: 21 }, { day: '2026-11-03', remaining: 12, scope: 21, ideal: 14 }] } });
     }
@@ -690,7 +692,7 @@ test('chromium 1280 px: the plans\' home lists the sprints running and says each
   assert.match(await card.innerText(), /Running: Sprint Kranich/u);
   assert.match(await card.innerText(), /(Its last day has passed|\d+ days? left)/u);
   assert.match(await card.innerText(), /9 of 21 points done/u);
-  assert.match(await card.innerText(), new RegExp(`${HUB.name} › ${SCRUM.name}`));
+  await page.waitForFunction((want) => document.querySelector('[data-sprint-line]')?.textContent === want, `${SCRUM.name} · 3 of your entries`, { timeout: 10_000 });
   await card.getByRole('button', { name: 'Open' }).click();
   await page.waitForFunction((id) => location.pathname.startsWith(`/collections/${id}`), SCRUM.id, { timeout: 10_000 });
   // The sprints' own tab lists them whole.

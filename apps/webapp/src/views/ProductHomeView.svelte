@@ -34,7 +34,7 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, ItemAggregateResult, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, ItemAggregateResult, MySprintList, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
   import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
   import BoardTemplates, { type BoardStart, type RetroFormat } from '../lib/whiteboards/BoardTemplates.svelte';
   import { config } from '../lib/data/config.svelte.ts';
@@ -196,6 +196,16 @@
       if (next.status === 'ready' && next.data.sprint) firstDetail = next.data;
     }));
   });
+  /** The reader's own entries in the sprint card's sprint: its second line says how many (scene homeplans). */
+  let mySprints = $state<MySprintList['data']>([]);
+  const isSprintCard = $derived(!!firstSprint);
+  $effect(() => {
+    if (!isSprintCard) return;
+    return untrack(() => engine.subscribe<MySprintList>({ path: '/sprints' }, (next) => {
+      if (next.status === 'ready') mySprints = next.data.data;
+    }));
+  });
+  const myEntriesIn = (sprint: string) => mySprints.find((each) => each.sprint.id === sprint)?.my_entries ?? 0;
   /** Each hub's plan as the scheduler places it, for its phases. */
   let scheduleAt = $state<Record<string, PlanSchedule>>({});
   eachHub<PlanSchedule>('PLANNING', (hubId) => `/plans/${hubId}/schedule?zone=${encodeURIComponent(actor.zone)}`, (hubId, data) => { if (Array.isArray(data.entries)) scheduleAt = { ...scheduleAt, [hubId]: data }; });
@@ -594,7 +604,7 @@
               line={last ? t('app.sprints.done_of', { done: String(last.scope - last.remaining), scope: String(last.scope), unit: t(`app.sprints.unit_${firstSprint.unit}`) }) : undefined}
               act={{ label: t('app.today.card_open'), onclick: () => onnavigate(`/collections/${firstSprint.collection_id}/sprints`) }}>
               {#if firstDetail?.sprint.id === firstSprint.id}<SprintBurndown detail={firstDetail} />{/if}
-              {#if where}<span class="card-from">{hubName(where.parent_id ?? '')} › {where.name}</span>{/if}
+              <span class="card-from" data-sprint-line>{[where?.name, t('app.today.sprint_mine', { count: myEntriesIn(firstSprint.id) })].filter(Boolean).join(' · ')}</span>
             </Widget>
           </div>
         {/if}
