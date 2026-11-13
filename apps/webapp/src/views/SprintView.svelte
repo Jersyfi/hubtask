@@ -357,7 +357,7 @@
        burndown small, and its one act. -->
   <section class="sprint-bar" aria-label={t('app.sprints.bar')} data-sprint-bar>
     {#if list && list.length > 1}
-      <Select label={t('app.sprints.sprint')} size="sm" value={sprint.id} options={states}
+      <Select label={t('app.sprints.sprint')} isLabelHidden size="sm" value={sprint.id} options={states}
         onchange={(event: Event) => { chosenId = (event.currentTarget as HTMLSelectElement).value; }} />
     {:else}
       <b class="sprint-name">{sprint.name}</b>
@@ -524,15 +524,24 @@
   .card-foot { display: flex; align-items: start; justify-content: space-between; gap: var(--sp-100); }
   .card-foot :global(input) { inline-size: var(--sp-1000); }
   .chip { padding: 0 var(--sp-050); border-radius: var(--r-sm); background: var(--bg-surface-sunken); color: var(--text-secondary); font-size: var(--fs-075); }
-  .sprint-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-200); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .sprint-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-200); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .sprint-name { font-weight: var(--fw-semibold); }
   .state { padding: 0 var(--sp-100); border-radius: var(--r-sm); font-size: var(--fs-075); color: var(--text-brand); background: var(--accent-primary-subtle); }
-  .facts { display: flex; flex-wrap: wrap; gap: var(--sp-300); flex: 1; min-inline-size: 0; margin: 0; }
-  .fact { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
+  /* One bar (scene sprint 2): the facts side by side beside the chooser, the goal giving way first. */
+  .facts { display: flex; flex-wrap: nowrap; gap: var(--sp-300); flex: 1 1 auto; min-inline-size: 0; margin: 0; }
+  .fact { display: flex; flex: none; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
+  .fact :is(dt, dd > *) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fact dt { font-size: var(--fs-075); color: var(--text-secondary); }
   .fact dd { display: flex; flex-direction: column; margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
   .fact dd b { color: var(--text-primary); font-weight: var(--fw-semibold); }
-  .fact.goal { flex: 1 1 var(--sp-1600); }
+  .fact.goal { flex: 1 1 0; min-inline-size: 0; overflow: hidden; }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .sprint-bar, .facts { flex-wrap: wrap; }
+  }
+  .sprint-bar > :global(*) { flex-shrink: 0; }
+  .sprint-bar > .facts { flex-shrink: 1; }
+  .sprint-bar > :global(:first-child) { flex-shrink: 1; min-inline-size: 0; max-inline-size: calc(var(--sp-1000) * 2.5); }
   .fact.goal dd { display: block; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .points { font-size: var(--fs-075); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
   .hint { display: flex; align-items: center; gap: var(--sp-050); }
