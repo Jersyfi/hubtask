@@ -781,7 +781,7 @@
       <div class="ways">
         <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
         {#if isCaptureOffered}
-          <span class="beside">
+          <span class="beside" {@attach (element) => { create.button = element; return () => { if (create.button === element) create.button = undefined; }; }}>
             <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="C Q" aria-haspopup="dialog" onclick={() => create.summon()}>{t('app.create.open')}</Button>
           </span>
         {/if}

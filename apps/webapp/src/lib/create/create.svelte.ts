@@ -29,9 +29,19 @@ class Create {
   #account: string | undefined;
   #wish = $state<CreateKind | undefined>(undefined);
   #place = $state<Place>({});
+  #button = $state<HTMLElement | undefined>(undefined);
 
   get isOpen(): boolean {
     return this.#isOpen;
+  }
+
+  /** The bar's *Erstellen* where it stands with its word: the panel hangs from it (create d). */
+  get button(): HTMLElement | undefined {
+    return this.#button;
+  }
+
+  set button(element: HTMLElement | undefined) {
+    this.#button = element;
   }
 
   get last(): readonly CreateKind[] {

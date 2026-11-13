@@ -305,7 +305,8 @@
     {@render body()}
   </Sheet>
 {:else}
-  <Dialog size="l" title={t('app.create.title')} dismissLabel={t('app.create.close')} isOpen={isOpen} onClose={() => create.close()}>
+  <!-- Wide, it hangs from the bar's *Erstellen*, as the scene draws it (create d). -->
+  <Dialog size="l" title={t('app.create.title')} dismissLabel={t('app.create.close')} isOpen={isOpen} onClose={() => create.close()} hangsFrom={viewport.isBelowExpanded ? undefined : create.button}>
     {@render body()}
   </Dialog>
 {/if}
