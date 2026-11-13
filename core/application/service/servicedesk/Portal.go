@@ -85,6 +85,52 @@ type Portal struct {
 	// Forms answers whether a collection has a public form, for the catalogue of whoever manages
 	// its members; nil says nothing about it.
 	Forms repository.PublicForms
+	// Workflow names a request's status as the desk's workflow does (P-12); unwired, a request
+	// carries its status key alone.
+	Workflow work.WorkflowGate
+}
+
+// RequestStatuses are the requests' statuses as their workflows name them, by entry; an entry
+// where no workflow runs is absent.
+type RequestStatuses map[shared.ID]workdomain.WorkflowStatus
+
+// statuses names the requests' statuses, inside the caller's transaction: the workflow is asked
+// once per collection and type, not once per request.
+func (p Portal) statuses(ctx context.Context, items ...workdomain.WorkItem) (RequestStatuses, error) {
+	named := RequestStatuses{}
+	if !p.Workflow.Wired() {
+		return named, nil
+	}
+	type kind struct {
+		collection shared.ID
+		entryType  string
+	}
+	shapes := map[kind]*workdomain.WorkflowShape{}
+	for _, item := range items {
+		at := kind{item.CollectionID, workdomain.EntryTypeKeyOf(item)}
+		shape, asked := shapes[at]
+		if !asked {
+			collection, err := p.Containers.Find(ctx, item.CollectionID)
+			if err != nil {
+				return nil, err
+			}
+			workflow, found, err := p.Workflow.InForce(ctx, collection, at.entryType)
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				shape = &workflow.Published
+			}
+			shapes[at] = shape
+		}
+		if shape == nil {
+			continue
+		}
+		if status, found := shape.Status(work.StatusOf(*shape, item)); found {
+			named[item.ID] = status
+		}
+	}
+	return named, nil
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
@@ -249,18 +295,25 @@ func (p Portal) catalogueOf(ctx context.Context, actor appshared.ActorContext, c
 
 // RequestOutput is a request as its requester reads it (api/openapi.yaml, schema PortalRequest):
 // what they asked and where it stands, never the team's fields.
-func RequestOutput(item workdomain.WorkItem) usecase.Output {
-	return requestOutputFor(item, item.CreatedBy)
+func RequestOutput(item workdomain.WorkItem, statuses RequestStatuses) usecase.Output {
+	return requestOutputFor(item, item.CreatedBy, statuses)
 }
 
 // requestOutputFor is RequestOutput saying whether the reader raised it.
-func requestOutputFor(item workdomain.WorkItem, reader shared.ID) usecase.Output {
+func requestOutputFor(item workdomain.WorkItem, reader shared.ID, statuses RequestStatuses) usecase.Output {
 	out := usecase.Output{
 		"is_own": item.CreatedBy == reader,
 		"id":     item.ID.String(), "number": item.Number, "collection_id": item.CollectionID.String(),
 		"entry_type": item.EntryType, "title": item.Title, "notes": nil, "status": nil,
+		"status_name": nil, "status_category": nil,
 		"is_completed": item.Completion.IsCompleted, "completed_at": nil,
 		"created_at": item.CreatedAt.UTC(), "updated_at": item.UpdatedAt.UTC(),
+	}
+	if status, named := statuses[item.ID]; named {
+		out["status_category"] = string(status.Category)
+		if status.Name != "" {
+			out["status_name"] = status.Name
+		}
 	}
 	if item.EntryType == "" {
 		out["entry_type"] = workdomain.SystemEntryTypeKey(item.Type)
@@ -478,9 +531,15 @@ func (h RaiseRequest) Execute(ctx context.Context, actor appshared.ActorContext,
 	if err != nil {
 		return nil, err
 	}
-	var item workdomain.WorkItem
+	var (
+		item     workdomain.WorkItem
+		statuses RequestStatuses
+	)
 	err = h.Portal.Desk.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if item, err = h.Portal.Items.Find(ctx, id); err != nil {
+			return err
+		}
+		if statuses, err = h.Portal.statuses(ctx, item); err != nil {
 			return err
 		}
 		return h.Portal.Desk.record(ctx, actor, RequestRaisedAction, requestTarget, id, h.Portal.Desk.Clock.Now(),
@@ -489,7 +548,7 @@ func (h RaiseRequest) Execute(ctx context.Context, actor appshared.ActorContext,
 	if err != nil {
 		return nil, err
 	}
-	return RequestOutput(item), nil
+	return RequestOutput(item, statuses), nil
 }
 
 // Descriptor is the catalogue entry. The entry use case audits and announces the creation.
@@ -535,6 +594,7 @@ const (
 type MyRequests struct {
 	workrepo.ItemQueryResult
 	Organisation *domain.Organisation
+	Statuses     RequestStatuses
 }
 
 // ListMyRequests answers the requests the actor raised in a collection, newest first
@@ -583,7 +643,10 @@ func (h ListMyRequests) Execute(
 		} else if search.Spec.Filter, err = view.ParseFilter(raisedBy(actor.AccountID), "/filter"); err != nil {
 			return err
 		}
-		answer.ItemQueryResult, err = h.Portal.Items.Query(ctx, search)
+		if answer.ItemQueryResult, err = h.Portal.Items.Query(ctx, search); err != nil {
+			return err
+		}
+		answer.Statuses, err = h.Portal.statuses(ctx, answer.Items...)
 		return err
 	})
 	return answer, err
@@ -619,7 +682,7 @@ func (h ListMyRequests) Descriptor() usecase.Descriptor {
 			}
 			data := make([]usecase.Output, 0, len(result.Items))
 			for _, item := range result.Items {
-				data = append(data, requestOutputFor(item, actor.AccountID))
+				data = append(data, requestOutputFor(item, actor.AccountID, result.Statuses))
 			}
 			out := usecase.Output{"data": data, "page_info": usecase.Output{
 				"has_more": result.Info.HasMore, "next_cursor": result.Info.NextCursor,
@@ -643,6 +706,7 @@ type MyRequest struct {
 	Rating *domain.Rating
 	// MergedInto is the request this one was merged into, nil when it was not.
 	MergedInto *MergedRequest
+	Statuses   RequestStatuses
 }
 
 // MergedRequest is the surviving request of a merge as the merged request's requester reads it:
@@ -669,6 +733,9 @@ func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 	var survivor shared.ID
 	err = h.Portal.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if answer.Comments, answer.Goals, err = h.Portal.publicView(ctx, itemID); err != nil {
+			return err
+		}
+		if answer.Statuses, err = h.Portal.statuses(ctx, item); err != nil {
 			return err
 		}
 		if survivor, err = h.Portal.mergedInto(ctx, itemID); err != nil {
@@ -823,7 +890,7 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			out := requestOutputFor(answer.Item, actor.AccountID)
+			out := requestOutputFor(answer.Item, actor.AccountID, answer.Statuses)
 			out["comments"] = repliesOutput(answer.Comments, actor.AccountID, answer.Item.CreatedBy)
 			out["sla"] = goalsOutput(answer.Goals)
 			out["merged_into"] = mergedOutput(answer.MergedInto, actor.AccountID)
