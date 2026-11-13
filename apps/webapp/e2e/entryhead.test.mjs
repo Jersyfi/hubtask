@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ITEMS, MANIFEST, PERMISSIONS, signedIn, stub } from './fixture.mjs';
+import { ACCOUNT, ITEMS, MANIFEST, OTHER, PERMISSIONS, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -44,7 +44,7 @@ const BOARD = [
   { id: '00000000-0000-4000-8000-00000000c003', name: 'Shipped', completes: true },
 ];
 
-async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, title, board, patches = [] }) {
+async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, title, board, patches = [], extra }) {
   const browser = await chromium.launch();
   const { context, page } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
@@ -54,6 +54,8 @@ async function open(width, { runs, asks = false, path = `/items/${ENTRY.id}`, ti
     if (runs && read === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, modules_on: [...(MANIFEST.modules_on ?? []), 'WORKFLOWS'], workspace_permissions: PERMISSIONS.OWNER } });
     }
+    const answered = extra?.(read, request.method());
+    if (answered) return route.fulfill({ json: answered });
     if (title && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, title } });
     if (runs && /\/containers\/[^/]+\/modules$/.test(read)) return route.fulfill({ json: { modules_on: ['WORKFLOWS'] } });
     if (runs && read === `/items/${ENTRY.id}`) return route.fulfill({ json: { ...ENTRY, entry_type: 'incident', status: 'new' } });
@@ -147,6 +149,32 @@ test('chromium 1280x800: the head\'s menu of a workflow entry fits or scrolls to
     assert.ok(box && box.y >= 0 && box.y + box.height <= 800, `the trash is out of reach: ${JSON.stringify(box)}`);
     const surface = await menu.evaluate((list) => { const r = list.parentElement.getBoundingClientRect(); return { bottom: r.bottom }; });
     assert.ok(surface.bottom <= 800, `the menu runs past the screen: ${surface.bottom}`);
+  } finally {
+    await close();
+  }
+});
+
+test('chromium: All mixes the history between the posts by time, the reader\'s own steps in the second person', { timeout: 60_000 }, async () => {
+  const comment = (id, at, body, author) => ({ id, item_id: ENTRY.id, author_id: author, body, parent_comment_id: null, internal: false, created_at: at, edited_at: null, deleted_at: null, version: 1 });
+  // The comments in UTC, the history in another zone: an hour later as text, the same morning as instants.
+  const comments = [comment('01a0e2e0-0000-7000-8000-00000000cc01', '2026-11-10T08:00:00Z', 'First post', OTHER.id), comment('01a0e2e0-0000-7000-8000-00000000cc02', '2026-11-10T10:00:00Z', 'Second post', OTHER.id)];
+  const history = [{ id: '01a0e2e0-0000-7000-8000-00000000ac01', code: 'activity.item_updated', occurred_at: '2026-11-10T10:00:00+01:00', actor: { type: 'USER', id: ACCOUNT.id }, change_set: {} }];
+  const { page, close } = await open(1280, {
+    runs: false,
+    extra: (read, method) => {
+      if (method !== 'GET') return undefined;
+      if (read === '/accounts/me') return { ...ACCOUNT, locale: 'de' };
+      if (read === `/items/${ENTRY.id}/comments`) return { data: comments, page: { has_more: false, next_cursor: null } };
+      if (read === `/items/${ENTRY.id}/activity`) return { data: history, page: { has_more: false, next_cursor: null } };
+      return undefined;
+    },
+  });
+  try {
+    const thread = page.locator('#entry-conversation');
+    await thread.locator('[data-thread-event]').first().waitFor({ timeout: 10_000 });
+    const order = await thread.evaluate((root) => [...root.querySelectorAll('[data-thread-event], .entry')].map((row) => (row.matches('[data-thread-event]') ? 'event' : row.textContent.includes('First post') ? 'first' : 'second')));
+    assert.deepEqual(order, ['first', 'event', 'second'], 'the history row stands between the posts it happened between');
+    assert.match(await thread.locator('[data-thread-event]').first().innerText(), /^Du hast diesen Eintrag bearbeitet/, 'the reader\'s own step in the second person');
   } finally {
     await close();
   }

@@ -835,7 +835,11 @@
       id: step.id,
       // The verb is the server's code and the actor is a parameter of it. An unrecognised verb
       // renders as `humanise` makes of it — readable, never a key and never a blank.
-      sentence: t(step.code, { actor: name ?? t(who ?? 'app.activity.actor_someone') }),
+      // The reader's own step in the second person ("Du hast …"): German conjugates the verb by
+      // its subject, so "you" cannot be one more value of `{actor}`.
+      sentence: who === 'app.activity.actor_you' && messages.has(`${step.code}_you`)
+        ? t(`${step.code}_you`)
+        : t(step.code, { actor: name ?? t(who ?? 'app.activity.actor_someone') }),
       when: formatDateTime(step.occurred_at, messages.locale),
       at: step.occurred_at,
       changes: changesOf(step.change_set as Record<string, unknown>).map((change, _, all) => ({

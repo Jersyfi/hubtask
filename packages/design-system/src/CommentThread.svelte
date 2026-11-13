@@ -127,12 +127,14 @@
   type Row = { kind: 'comment'; comment: ThreadComment } | { kind: 'event'; event: ThreadEvent };
 
   // Comments keep their own order (oldest first); an event goes before the first comment written
-  // after it. Instants are ISO strings in one zone, so they compare as text.
+  // after it. Compared as instants: the history and the comments name them in different zones,
+  // and as text every event of a later hour sorted after every post.
+  const instant = (at: string): number => Date.parse(at);
   const rows = $derived.by((): Row[] => {
-    const pending = [...events].sort((a, b) => a.at.localeCompare(b.at));
+    const pending = [...events].sort((a, b) => instant(a.at) - instant(b.at));
     const out: Row[] = [];
     for (const comment of comments) {
-      while (pending.length > 0 && (pending[0]?.at ?? '') < comment.at) out.push({ kind: 'event', event: pending.shift() as ThreadEvent });
+      while (pending.length > 0 && instant(pending[0]?.at ?? '') < instant(comment.at)) out.push({ kind: 'event', event: pending.shift() as ThreadEvent });
       out.push({ kind: 'comment', comment });
     }
     for (const event of pending) out.push({ kind: 'event', event });
