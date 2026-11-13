@@ -44,6 +44,44 @@ type StepGroups interface {
 // Wired reports whether the gate has what it needs.
 func (g WorkflowGate) Wired() bool { return g.Workflows != nil }
 
+// NameStatuses names each entry's status as the workflow in force for its collection and type
+// does, inside the caller's transaction: the schemes and workflows are read once for all. Unwired,
+// it names none.
+func (g WorkflowGate) NameStatuses(ctx context.Context, summaries []repository.EntrySummary) error {
+	if !g.Wired() || len(summaries) == 0 {
+		return nil
+	}
+	schemes, err := g.Workflows.Schemes(ctx)
+	if err != nil || len(schemes) == 0 {
+		return err
+	}
+	rows, err := g.Workflows.List(ctx)
+	if err != nil {
+		return err
+	}
+	workflows := domain.NewWorkflows(rows)
+	for i := range summaries {
+		s := &summaries[i]
+		entryType := s.EntryType
+		if entryType == "" {
+			entryType = domain.SystemEntryTypeKey(s.Level)
+		}
+		key, found := domain.ResolveWorkflow(schemes, s.CollectionID, s.HubID, entryType)
+		if !found {
+			continue
+		}
+		workflow, found := workflows.Find(key)
+		if !found {
+			continue
+		}
+		shape := workflow.Published
+		if status, found := shape.Status(shape.Entering(s.Status, s.Completed)); found {
+			s.StatusName, s.StatusCategory = status.Name, string(status.Category)
+		}
+	}
+	return nil
+}
+
 // InForce answers the workflow in force for an entry type in a collection, and false where none
 // runs.
 func (g WorkflowGate) InForce(ctx context.Context, collection domain.Container, entryType string) (domain.Workflow, bool, error) {
