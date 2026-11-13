@@ -197,6 +197,74 @@ func (q *Queries) ClearForeignSubtreeLabels(ctx context.Context, arg ClearForeig
 	return items, nil
 }
 
+const completeWorkItemsInColumn = `-- name: CompleteWorkItemsInColumn :many
+UPDATE work_item wi SET
+  completion_count = wi.completion_count + 1,
+  is_completed = true,
+  completed_at = $1,
+  completed_by = $2::uuid,
+  updated_at   = $1,
+  version      = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $3::uuid
+  AND wi.bucket_id = $4::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND NOT wi.is_completed
+RETURNING wi.id, wi.version
+`
+
+type CompleteWorkItemsInColumnParams struct {
+	At           pgtype.Timestamptz
+	CompletedBy  pgtype.UUID
+	CollectionID pgtype.UUID
+	BucketID     pgtype.UUID
+}
+
+type CompleteWorkItemsInColumnRow struct {
+	ID      pgtype.UUID
+	Version int32
+}
+
+// The board repair (domain-model.md §3.5a): open top-level tasks without a status standing in a
+// board's done column are completed - the owner's answer for entries the coupling did not hold.
+func (q *Queries) CompleteWorkItemsInColumn(ctx context.Context, arg CompleteWorkItemsInColumnParams) ([]CompleteWorkItemsInColumnRow, error) {
+	rows, err := q.db.Query(ctx, completeWorkItemsInColumn,
+		arg.At,
+		arg.CompletedBy,
+		arg.CollectionID,
+		arg.BucketID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CompleteWorkItemsInColumnRow{}
+	for rows.Next() {
+		var i CompleteWorkItemsInColumnRow
+		if err := rows.Scan(&i.ID, &i.Version); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const countWorkItemsOnBoard = `-- name: CountWorkItemsOnBoard :one
+SELECT count(*) FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid
+  AND wi.bucket_id IS NOT NULL
+`
+
+// How many entries of a collection stand in any column, trashed ones included: a board whose
+// columns hold none is unused.
+func (q *Queries) CountWorkItemsOnBoard(ctx context.Context, collectionID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkItemsOnBoard, collectionID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const findBucket = `-- name: FindBucket :one
 
 SELECT
@@ -407,6 +475,33 @@ func (q *Queries) LastBucketOrderKey(ctx context.Context, collectionID pgtype.UU
 	var order_key string
 	err := row.Scan(&order_key)
 	return order_key, err
+}
+
+const listBoardCollections = `-- name: ListBoardCollections :many
+SELECT DISTINCT b.collection_id FROM bucket b
+WHERE b.tenant_id = current_tenant_id() AND b.deleted_at IS NULL
+ORDER BY b.collection_id
+`
+
+// The collections whose board has a live column, for the board repair.
+func (q *Queries) ListBoardCollections(ctx context.Context) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listBoardCollections)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var collection_id pgtype.UUID
+		if err := rows.Scan(&collection_id); err != nil {
+			return nil, err
+		}
+		items = append(items, collection_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listBucketStatuses = `-- name: ListBucketStatuses :many

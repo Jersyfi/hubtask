@@ -407,3 +407,31 @@ WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collec
   AND (sqlc.narg('from_bucket')::uuid IS NULL OR wi.bucket_id = sqlc.narg('from_bucket')::uuid)
   AND wi.bucket_id IS DISTINCT FROM sqlc.narg('bucket_id')::uuid
 RETURNING wi.id, wi.version;
+
+-- name: ListBoardCollections :many
+-- The collections whose board has a live column, for the board repair.
+SELECT DISTINCT b.collection_id FROM bucket b
+WHERE b.tenant_id = current_tenant_id() AND b.deleted_at IS NULL
+ORDER BY b.collection_id;
+
+-- name: CompleteWorkItemsInColumn :many
+-- The board repair (domain-model.md §3.5a): open top-level tasks without a status standing in a
+-- board's done column are completed - the owner's answer for entries the coupling did not hold.
+UPDATE work_item wi SET
+  completion_count = wi.completion_count + 1,
+  is_completed = true,
+  completed_at = sqlc.arg('at'),
+  completed_by = sqlc.arg('completed_by')::uuid,
+  updated_at   = sqlc.arg('at'),
+  version      = wi.version + 1
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.bucket_id = sqlc.arg('bucket_id')::uuid
+  AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND NOT wi.is_completed
+RETURNING wi.id, wi.version;
+
+-- name: CountWorkItemsOnBoard :one
+-- How many entries of a collection stand in any column, trashed ones included: a board whose
+-- columns hold none is unused.
+SELECT count(*) FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
+  AND wi.bucket_id IS NOT NULL;

@@ -834,6 +834,16 @@ type BucketStatuses interface {
 	// PlaceByCompletion puts a collection's top-level tasks without a status, of one completion
 	// and - where from is given - in that column, into a column, and answers those it moved.
 	PlaceByCompletion(ctx context.Context, collectionID shared.ID, completed bool, from, column shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// Collections answers the workspace's collections whose board has a live column.
+	Collections(ctx context.Context) ([]shared.ID, error)
+
+	// CompleteInColumn completes the open top-level tasks without a status standing in a column,
+	// by the account and at the moment given, and answers those it completed.
+	CompleteInColumn(ctx context.Context, collectionID, column, by shared.ID, at time.Time) ([]MovedEntry, error)
+
+	// EntriesOnBoard counts a collection's entries standing in any column, trashed ones included.
+	EntriesOnBoard(ctx context.Context, collectionID shared.ID) (int, error)
 }
 
 // Labels stores a collection's vocabulary.
