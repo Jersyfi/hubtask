@@ -790,6 +790,14 @@ three levels, **derived from what the collection has and never stored** (`work.S
 | L1 | `COLUMNS` | The board's columns (tasks only, I-W6). **Exactly one done column**, and the server keeps column and completion together through every door: entering the done column completes, leaving it reopens; completing moves into it, reopening out of it into the first column (`Board.Coupled`). An entry without a column reads as the first column when open and the done column when completed. Deleting the done column names its successor. |
 | L2 | `WORKFLOW` | The status (D-02). Each column shows one or more statuses (`bucket_status`), a status at most one column per board; a column is done iff all its statuses are DONE. A status no column shows stands in the virtual column *Ohne Spalte*. The column follows the status on every step and is never set by hand (`board.step_required`). |
 
+**A board whose entry types run their own workflows** - a hub running one workflow for stories and
+another for bugs - shows the statuses of all of them: the board's shape is the workflows in force
+for every task-level type on it, joined by status key (`work.BoardShape`, `Workflows.OnBoard`), so
+a status key stands in at most one column whichever workflow it comes from, and where two
+workflows share a key the first one's category decides. A change of the scheme for one type
+therefore reaches the boards that type stands on and takes their `columns`, and the repair maps
+such a board as it maps one under a single workflow.
+
 A **drop** onto a column (`Board.PlanDrop`) moves at L1; at L2 it takes the one step the person may
 take into a status of the column, offers the choice among several, or is refused with a reason
 (`board.no_step`, `board.step_blocked`, `board.column_without_status`). A mapping is proposed by
@@ -834,7 +842,8 @@ left as the suggestion (`Board.ChooseDoneSuccessor`); the deleted column's entri
 open entries are completed. Under a mapping the suggestion is taken and the entries go to *Ohne
 Spalte*; an open column's go to the first open column (`Board.TargetAfterDeleting`). A board made
 before this model is brought to it once by an administrator's repair (`RepairBoards`,
-`POST /boards:repair`).
+`POST /boards:repair`); under a workflow a board that maps no status is first given the proposal
+(`DefaultMapping`), then a column for each status still unmapped.
 
 A **completion in bulk** - the mark moving, the repair - writes each entry's history
 (`item.completed`, by the person who moved the mark or ran the repair, its `cause`

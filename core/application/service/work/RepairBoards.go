@@ -31,7 +31,8 @@ const (
 
 // RepairBoards brings every board of the workspace to the model of domain-model.md §3.5a once:
 // without a workflow exactly one done column, completed entries in it and the entries in it
-// completed; under a workflow a column for each status no column shows; and the unused starting
+// completed; under a workflow - every workflow the board's entry types run - a board mapping no
+// status given the proposed mapping, then a column for each status no column shows; and the unused starting
 // columns of a collection whose default view is not the board taken off, the done column last.
 // An administrator's one-off (the pattern of ReindexSearch): a dry run counts and writes nothing,
 // and a second run finds nothing to do.
@@ -41,6 +42,9 @@ type RepairBoards struct {
 	Structure StructureResolver
 	// Columns writes the columns' changes and records them for offline clients.
 	Columns BucketWriter
+	// Types is the registry, which tells the entry types standing on a board; nil takes the types
+	// the scheme names.
+	Types repository.EntryTypes
 }
 
 // BoardRepair is what a run found and, unless it was a dry run, did.
@@ -53,6 +57,7 @@ type BoardRepair struct {
 	ColumnsAdded   int
 	PlacedByStatus int
 	ColumnsRemoved int
+	StatusesMapped int
 }
 
 // errDryRun rolls a dry run's transaction back once it has counted.
@@ -103,12 +108,12 @@ func (h RepairBoards) repair(ctx context.Context, actor appshared.ActorContext, 
 		return err
 	}
 	report.Boards++
-	workflow, inForce, err := h.Workflow.InForce(ctx, collection, domain.EntryTypeKeyOf(domain.WorkItem{Type: domain.ItemTask}))
+	shape, err := h.Workflow.OnBoard(ctx, collection, h.Types)
 	if err != nil {
 		return err
 	}
-	if inForce {
-		return h.repairMapped(ctx, actor, collection, board, workflow.Published, now, report)
+	if shape != nil {
+		return h.repairMapped(ctx, actor, collection, board, *shape, now, report)
 	}
 	unused, err := h.unusedStartingColumns(ctx, collection, board)
 	if err != nil {
@@ -162,14 +167,21 @@ func (h RepairBoards) repairColumns(
 	return h.Columns.recordCompleted(ctx, actor, collection.ID, completed, causeBoardRepair, now)
 }
 
-// repairMapped gives each status no column shows a column of its own, at the right end, and puts
-// every entry into the column showing its status. Statuses carry no work-in-progress limit, so
-// the new columns carry none.
+// repairMapped maps a board that maps no status by the proposal (domain.DefaultMapping), gives
+// each status still no column shows a column of its own, at the right end, and puts every entry
+// into the column showing its status. The shape is every workflow the board's types run
+// (domain.BoardShape). Statuses carry no work-in-progress limit, so the new columns carry none.
 func (h RepairBoards) repairMapped(
 	ctx context.Context, actor appshared.ActorContext, collection domain.Container, board domain.Board,
 	shape domain.WorkflowShape, now time.Time, report *BoardRepair,
 ) error {
 	w := h.Columns
+	proposed := 0
+	if len(board.Mapping) == 0 {
+		board.Mapping, _ = domain.DefaultMapping(board.Columns, shape)
+		proposed = len(board.Mapping)
+		report.StatusesMapped += proposed
+	}
 	unmapped := board.Unmapped(shape)
 	mapping := append([]domain.ColumnStatus{}, board.Mapping...)
 	last := board.Columns[len(board.Columns)-1].OrderKey
@@ -207,7 +219,7 @@ func (h RepairBoards) repairMapped(
 		mapping = append(mapping, domain.ColumnStatus{BucketID: column.ID, Status: key})
 		report.ColumnsAdded++
 	}
-	if len(unmapped) > 0 {
+	if len(unmapped) > 0 || proposed > 0 {
 		if err := h.Boards.Statuses.Replace(ctx, collection.ID, mapping); err != nil {
 			return err
 		}
@@ -309,6 +321,7 @@ func (h RepairBoards) recordAudit(ctx context.Context, actor appshared.ActorCont
 			count("moved_into_done", report.MovedIntoDone), count("completed", report.Completed),
 			count("columns_added", report.ColumnsAdded), count("placed_by_status", report.PlacedByStatus),
 			count("columns_removed", report.ColumnsRemoved),
+			count("statuses_mapped", report.StatusesMapped),
 		),
 	})
 }
@@ -320,8 +333,9 @@ func (h RepairBoards) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionStructure,
 		Summary: "Brings every board of the workspace to one model, once: without a workflow " +
 			"exactly one done column, the completed entries in it and the open entries in it " +
-			"completed; under a workflow a column for each status no column shows and every entry " +
-			"in the column of its status; the unused starting columns of a collection whose default " +
+			"completed; under a workflow - every workflow the board's entry types run - a board " +
+			"mapping no status given the proposed mapping, a column for each status no column shows " +
+			"and every entry in the column of its status; the unused starting columns of a collection whose default " +
 			"view is not the board taken off, the done column last. A dry run counts and writes " +
 			"nothing; a second run finds nothing to do.",
 		SideEffects: "Writes the columns and entries it repairs, records them for offline clients, " +
@@ -346,7 +360,7 @@ func (h RepairBoards) Descriptor() usecase.Descriptor {
 				"dry_run": report.DryRun, "boards": report.Boards, "done_marked": report.DoneMarked,
 				"moved_into_done": report.MovedIntoDone, "completed": report.Completed,
 				"columns_added": report.ColumnsAdded, "placed_by_status": report.PlacedByStatus,
-				"columns_removed": report.ColumnsRemoved,
+				"columns_removed": report.ColumnsRemoved, "statuses_mapped": report.StatusesMapped,
 			}, nil
 		}),
 	}

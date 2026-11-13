@@ -203,6 +203,7 @@ func TestTheBoardRepair(t *testing.T) {
 	if report != (work.BoardRepair{
 		Boards: dry.Boards, DoneMarked: dry.DoneMarked, MovedIntoDone: dry.MovedIntoDone, Completed: dry.Completed,
 		ColumnsAdded: dry.ColumnsAdded, PlacedByStatus: dry.PlacedByStatus, ColumnsRemoved: dry.ColumnsRemoved,
+		StatusesMapped: dry.StatusesMapped,
 	}) {
 		t.Errorf("the run did %+v, the dry run counted %+v", report, dry)
 	}
@@ -253,7 +254,7 @@ func TestTheBoardRepair(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if again.DoneMarked+again.MovedIntoDone+again.Completed+again.ColumnsAdded+again.PlacedByStatus+again.ColumnsRemoved != 0 {
+		if again.DoneMarked+again.MovedIntoDone+again.Completed+again.ColumnsAdded+again.PlacedByStatus+again.ColumnsRemoved+again.StatusesMapped != 0 {
 			t.Errorf("the second run did %+v", again)
 		}
 	})

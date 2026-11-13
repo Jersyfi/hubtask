@@ -2030,7 +2030,7 @@ func run() error {
 		Gate:  workflowGate, Compiler: celexpression.New(), Authorizer: authorizer, Changes: changes,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
 		Roles: customRoles.Store, Groups: groups, Visibility: authorizer,
-		Boards: work.SchemeBoards{Columns: bucketWriter},
+		Boards: work.SchemeBoards{Columns: bucketWriter, Types: entryTypes},
 	}
 	linkTypeRegistry := work.LinkTypeRegistry{
 		Types: postgres.NewLinkTypeRepository(), Authorizer: authorizer, Audit: auditSink,
@@ -3579,7 +3579,7 @@ func run() error {
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		// Every board brought to one model once, at an administrator's request (domain-model.md §3.5a).
-		work.RepairBoards{Boards: boards, Workflow: workflowGate, Structure: structures, Columns: bucketWriter}.Descriptor(),
+		work.RepairBoards{Boards: boards, Workflow: workflowGate, Structure: structures, Columns: bucketWriter, Types: entryTypes}.Descriptor(),
 		work.SwitchBoard{
 			Columns: bucketWriter, Workflow: workflowGate,
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), Renderer: renderer,

@@ -2783,6 +2783,7 @@ class BoardRepair(TypedDict, total=False):
     columns_added: Required[int]
     placed_by_status: Required[int]
     columns_removed: Required[int]
+    statuses_mapped: int
 
 class DropAnswer(TypedDict, total=False):
     outcome: Required[Literal["MOVED", "STEP_TAKEN", "CHOOSE"]]

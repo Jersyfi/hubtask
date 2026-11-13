@@ -4,6 +4,7 @@
 package work
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -616,4 +617,75 @@ func (b Board) PlanDrop(mode StateMode, item WorkItem, target shared.ID, shape W
 	default:
 		return DropPlan{Outcome: DropRefused, Reason: "board.no_step"}
 	}
+}
+
+// BoardTypes answers the entry types whose entries stand on a board (I-W6: tasks): the task's
+// system type, every task-level type of the registry, and every type a scheme names that the
+// registry does not place at another level.
+func BoardTypes(registry EntryTypes, schemes []WorkflowScheme) []string {
+	types := []string{SystemEntryTypeKey(ItemTask)}
+	add := func(key string) {
+		if key != "" && !slices.Contains(types, key) {
+			types = append(types, key)
+		}
+	}
+	for _, t := range registry {
+		if t.Level == ItemTask {
+			add(t.Key)
+		}
+	}
+	for _, scheme := range schemes {
+		if known, found := registry.Find(scheme.EntryType); found && known.Level != ItemTask {
+			continue
+		}
+		if scheme.EntryType == SystemEntryTypeKey(ItemWorkPackage) || scheme.EntryType == SystemEntryTypeKey(ItemActivity) {
+			continue
+		}
+		add(scheme.EntryType)
+	}
+	return types
+}
+
+// OnBoard answers what a collection's board shows under the schemes: the workflows in force for
+// the types on it, as one shape (BoardShape), and their keys joined in order to tell one union from
+// another; nil and "" where none runs.
+func (ws Workflows) OnBoard(schemes []WorkflowScheme, collectionID, hubID shared.ID, types []string) (*WorkflowShape, string) {
+	var keys []string
+	var shapes []WorkflowShape
+	for _, entryType := range types {
+		key, found := ResolveWorkflow(schemes, collectionID, hubID, entryType)
+		if !found || slices.Contains(keys, key) {
+			continue
+		}
+		workflow, found := ws.Find(key)
+		if !found {
+			continue
+		}
+		keys = append(keys, key)
+		shapes = append(shapes, workflow.Published)
+	}
+	if len(shapes) == 0 {
+		return nil, ""
+	}
+	shape := BoardShape(shapes)
+	return &shape, strings.Join(keys, ",")
+}
+
+// BoardShape answers what a board shows when its entry types run several workflows: their statuses
+// in one shape, each key once - the first workflow's where two share a key -, so that a status key
+// stands in at most one column. The first workflow's initial status is the board's; the shape
+// carries no steps, which stay each workflow's own.
+func BoardShape(shapes []WorkflowShape) WorkflowShape {
+	if len(shapes) == 0 {
+		return WorkflowShape{}
+	}
+	out := WorkflowShape{Initial: shapes[0].Initial}
+	for _, shape := range shapes {
+		for _, status := range shape.Statuses {
+			if _, known := out.Status(status.Key); !known {
+				out.Statuses = append(out.Statuses, status)
+			}
+		}
+	}
+	return out
 }

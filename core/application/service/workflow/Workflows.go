@@ -1202,8 +1202,10 @@ func (d Desk) schemePlan(ctx context.Context, change SchemeChange) (schemeOutcom
 	return schemeOutcome{moves: moves, boards: boards}, err
 }
 
-// boardsReached plans each board whose tasks run another workflow after the change; a row of the
-// mapping chosen that names no column of these boards is refused as buckets.not_found.
+// boardsReached plans each board that shows another union of workflows after the change - the
+// workflows of every entry type on it (domain.BoardShape), so a change for one type reaches the
+// boards its type stands on; a row of the mapping chosen that names no column of these boards is
+// refused as buckets.not_found.
 func (d Desk) boardsReached(
 	ctx context.Context, collections []domain.Container, before, after []domain.WorkflowScheme,
 	set domain.Workflows, chosen []domain.ColumnStatus,
@@ -1211,17 +1213,13 @@ func (d Desk) boardsReached(
 	if !d.Boards.Wired() {
 		return nil, nil
 	}
-	tasks := domain.EntryTypeKeyOf(domain.WorkItem{Type: domain.ItemTask})
+	types, err := workservice.BoardTypesOf(ctx, d.Boards.Types, append(append([]domain.WorkflowScheme{}, before...), after...))
+	if err != nil {
+		return nil, err
+	}
 	shapeOf := func(schemes []domain.WorkflowScheme, collection domain.Container) (string, *domain.WorkflowShape) {
-		key, found := domain.ResolveWorkflow(schemes, collection.ID, collection.ParentID, tasks)
-		if !found {
-			return "", nil
-		}
-		workflow, found := set.Find(key)
-		if !found {
-			return "", nil
-		}
-		return key, &workflow.Published
+		shape, key := set.OnBoard(schemes, collection.ID, collection.ParentID, types)
+		return key, shape
 	}
 	used := map[shared.ID]bool{}
 	var out []boardOutcome

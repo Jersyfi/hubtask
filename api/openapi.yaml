@@ -20569,8 +20569,11 @@ paths:
         Once, for a workspace whose boards were made before columns, completion and statuses were
         kept together: on a board without a workflow exactly one done column (the rightmost marked
         one, else the rightmost column), every completed entry moved into it and every open entry
-        standing in it completed; on a board under a workflow a column for each status no column
-        shows, and every entry in the column of its status; the unused starting columns of a
+        standing in it completed; on a board under a workflow - the workflows in force for the
+        board's entry types together, a status key in one column at most - a board that maps no
+        status first given the proposed mapping (the same name, the done column the done statuses,
+        the first column the initial one), then a column for each status no column shows, and every
+        entry in the column of its status; the unused starting columns of a
         collection whose default view is not the board taken off, the done column last.
 
         Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -32667,9 +32670,11 @@ components:
         columns:
           type: array
           description: >
-            The statuses each board column shows under the workflow. A board one of whose columns
-            is named here takes exactly this mapping; every other board the proposal of the preview
-            (`boards`). Ignored where the workflow leaves.
+            The statuses each board column shows under the workflow. A board shows the statuses of
+            every workflow its entry types run, so a change for one type reaches the boards whose
+            types it touches and takes their columns too. A board one of whose columns is named here
+            takes exactly this mapping; every other board the proposal of the preview (`boards`).
+            Ignored where the workflow leaves.
           items:
             type: object
             required: [bucket_id, statuses]
@@ -32725,6 +32730,7 @@ components:
         columns_added: { type: integer, description: Columns added for statuses no column showed. }
         placed_by_status: { type: integer, description: Entries put into the column of their status. }
         columns_removed: { type: integer, description: Unused starting columns taken off. }
+        statuses_mapped: { type: integer, description: Statuses given an existing column on a board that mapped none. }
     DropAnswer:
       type: object
       required: [outcome, steps, item]

@@ -14268,6 +14268,9 @@ type BoardRepair struct {
 
 	// PlacedByStatus Entries put into the column of their status.
 	PlacedByStatus int `json:"placed_by_status"`
+
+	// StatusesMapped Statuses given an existing column on a board that mapped none.
+	StatusesMapped *int `json:"statuses_mapped,omitempty"`
 }
 
 // BoardSwitch defines model for BoardSwitch.
@@ -27383,7 +27386,7 @@ type WorkflowPublishPreview struct {
 
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
-	// Columns The statuses each board column shows under the workflow. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
+	// Columns The statuses each board column shows under the workflow. A board shows the statuses of every workflow its entry types run, so a change for one type reaches the boards whose types it touches and takes their columns too. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
 	Columns *[]struct {
 		BucketId openapi_types.UUID `json:"bucket_id"`
 		Statuses []string           `json:"statuses"`
@@ -36270,8 +36273,11 @@ type ClientInterface interface {
 	// Once, for a workspace whose boards were made before columns, completion and statuses were
 	// kept together: on a board without a workflow exactly one done column (the rightmost marked
 	// one, else the rightmost column), every completed entry moved into it and every open entry
-	// standing in it completed; on a board under a workflow a column for each status no column
-	// shows, and every entry in the column of its status; the unused starting columns of a
+	// standing in it completed; on a board under a workflow - the workflows in force for the
+	// board's entry types together, a status key in one column at most - a board that maps no
+	// status first given the proposed mapping (the same name, the done column the done statuses,
+	// the first column the initial one), then a column for each status no column shows, and every
+	// entry in the column of its status; the unused starting columns of a
 	// collection whose default view is not the board taken off, the done column last.
 	//
 	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -36287,8 +36293,11 @@ type ClientInterface interface {
 	// Once, for a workspace whose boards were made before columns, completion and statuses were
 	// kept together: on a board without a workflow exactly one done column (the rightmost marked
 	// one, else the rightmost column), every completed entry moved into it and every open entry
-	// standing in it completed; on a board under a workflow a column for each status no column
-	// shows, and every entry in the column of its status; the unused starting columns of a
+	// standing in it completed; on a board under a workflow - the workflows in force for the
+	// board's entry types together, a status key in one column at most - a board that maps no
+	// status first given the proposed mapping (the same name, the done column the done statuses,
+	// the first column the initial one), then a column for each status no column shows, and every
+	// entry in the column of its status; the unused starting columns of a
 	// collection whose default view is not the board taken off, the done column last.
 	//
 	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -51230,8 +51239,11 @@ func (c *Client) CompareBaseline(ctx context.Context, baselineId openapi_types.U
 // Once, for a workspace whose boards were made before columns, completion and statuses were
 // kept together: on a board without a workflow exactly one done column (the rightmost marked
 // one, else the rightmost column), every completed entry moved into it and every open entry
-// standing in it completed; on a board under a workflow a column for each status no column
-// shows, and every entry in the column of its status; the unused starting columns of a
+// standing in it completed; on a board under a workflow - the workflows in force for the
+// board's entry types together, a status key in one column at most - a board that maps no
+// status first given the proposed mapping (the same name, the done column the done statuses,
+// the first column the initial one), then a column for each status no column shows, and every
+// entry in the column of its status; the unused starting columns of a
 // collection whose default view is not the board taken off, the done column last.
 //
 // Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -51257,8 +51269,11 @@ func (c *Client) RepairBoardsWithBody(ctx context.Context, contentType string, b
 // Once, for a workspace whose boards were made before columns, completion and statuses were
 // kept together: on a board without a workflow exactly one done column (the rightmost marked
 // one, else the rightmost column), every completed entry moved into it and every open entry
-// standing in it completed; on a board under a workflow a column for each status no column
-// shows, and every entry in the column of its status; the unused starting columns of a
+// standing in it completed; on a board under a workflow - the workflows in force for the
+// board's entry types together, a status key in one column at most - a board that maps no
+// status first given the proposed mapping (the same name, the done column the done statuses,
+// the first column the initial one), then a column for each status no column shows, and every
+// entry in the column of its status; the unused starting columns of a
 // collection whose default view is not the board taken off, the done column last.
 //
 // Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -113017,8 +113032,11 @@ type ClientWithResponsesInterface interface {
 	// Once, for a workspace whose boards were made before columns, completion and statuses were
 	// kept together: on a board without a workflow exactly one done column (the rightmost marked
 	// one, else the rightmost column), every completed entry moved into it and every open entry
-	// standing in it completed; on a board under a workflow a column for each status no column
-	// shows, and every entry in the column of its status; the unused starting columns of a
+	// standing in it completed; on a board under a workflow - the workflows in force for the
+	// board's entry types together, a status key in one column at most - a board that maps no
+	// status first given the proposed mapping (the same name, the done column the done statuses,
+	// the first column the initial one), then a column for each status no column shows, and every
+	// entry in the column of its status; the unused starting columns of a
 	// collection whose default view is not the board taken off, the done column last.
 	//
 	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -113034,8 +113052,11 @@ type ClientWithResponsesInterface interface {
 	// Once, for a workspace whose boards were made before columns, completion and statuses were
 	// kept together: on a board without a workflow exactly one done column (the rightmost marked
 	// one, else the rightmost column), every completed entry moved into it and every open entry
-	// standing in it completed; on a board under a workflow a column for each status no column
-	// shows, and every entry in the column of its status; the unused starting columns of a
+	// standing in it completed; on a board under a workflow - the workflows in force for the
+	// board's entry types together, a status key in one column at most - a board that maps no
+	// status first given the proposed mapping (the same name, the done column the done statuses,
+	// the first column the initial one), then a column for each status no column shows, and every
+	// entry in the column of its status; the unused starting columns of a
 	// collection whose default view is not the board taken off, the done column last.
 	//
 	// Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -169509,8 +169530,11 @@ func (c *ClientWithResponses) CompareBaselineWithResponse(ctx context.Context, b
 // Once, for a workspace whose boards were made before columns, completion and statuses were
 // kept together: on a board without a workflow exactly one done column (the rightmost marked
 // one, else the rightmost column), every completed entry moved into it and every open entry
-// standing in it completed; on a board under a workflow a column for each status no column
-// shows, and every entry in the column of its status; the unused starting columns of a
+// standing in it completed; on a board under a workflow - the workflows in force for the
+// board's entry types together, a status key in one column at most - a board that maps no
+// status first given the proposed mapping (the same name, the done column the done statuses,
+// the first column the initial one), then a column for each status no column shows, and every
+// entry in the column of its status; the unused starting columns of a
 // collection whose default view is not the board taken off, the done column last.
 //
 // Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
@@ -169532,8 +169556,11 @@ func (c *ClientWithResponses) RepairBoardsWithBodyWithResponse(ctx context.Conte
 // Once, for a workspace whose boards were made before columns, completion and statuses were
 // kept together: on a board without a workflow exactly one done column (the rightmost marked
 // one, else the rightmost column), every completed entry moved into it and every open entry
-// standing in it completed; on a board under a workflow a column for each status no column
-// shows, and every entry in the column of its status; the unused starting columns of a
+// standing in it completed; on a board under a workflow - the workflows in force for the
+// board's entry types together, a status key in one column at most - a board that maps no
+// status first given the proposed mapping (the same name, the done column the done statuses,
+// the first column the initial one), then a column for each status no column shows, and every
+// entry in the column of its status; the unused starting columns of a
 // collection whose default view is not the board taken off, the done column last.
 //
 // Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts

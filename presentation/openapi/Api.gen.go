@@ -14262,6 +14262,9 @@ type BoardRepair struct {
 
 	// PlacedByStatus Entries put into the column of their status.
 	PlacedByStatus int `json:"placed_by_status"`
+
+	// StatusesMapped Statuses given an existing column on a board that mapped none.
+	StatusesMapped *int `json:"statuses_mapped,omitempty"`
 }
 
 // BoardSwitch defines model for BoardSwitch.
@@ -27377,7 +27380,7 @@ type WorkflowPublishPreview struct {
 
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
-	// Columns The statuses each board column shows under the workflow. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
+	// Columns The statuses each board column shows under the workflow. A board shows the statuses of every workflow its entry types run, so a change for one type reaches the boards whose types it touches and takes their columns too. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
 	Columns *[]struct {
 		BucketId openapi_types.UUID `json:"bucket_id"`
 		Statuses []string           `json:"statuses"`

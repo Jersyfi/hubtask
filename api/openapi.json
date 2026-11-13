@@ -29941,7 +29941,7 @@
         "x-hubtask-cli": "board repair",
         "x-hubtask-rest": "generated",
         "summary": "Bring every board of the workspace to one model",
-        "description": "Once, for a workspace whose boards were made before columns, completion and statuses were\nkept together: on a board without a workflow exactly one done column (the rightmost marked\none, else the rightmost column), every completed entry moved into it and every open entry\nstanding in it completed; on a board under a workflow a column for each status no column\nshows, and every entry in the column of its status; the unused starting columns of a\ncollection whose default view is not the board taken off, the done column last.\n\nRequires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts\nand writes nothing; a second run answers zeros. Auditable, with the counts only.\n",
+        "description": "Once, for a workspace whose boards were made before columns, completion and statuses were\nkept together: on a board without a workflow exactly one done column (the rightmost marked\none, else the rightmost column), every completed entry moved into it and every open entry\nstanding in it completed; on a board under a workflow - the workflows in force for the\nboard's entry types together, a status key in one column at most - a board that maps no\nstatus first given the proposed mapping (the same name, the done column the done statuses,\nthe first column the initial one), then a column for each status no column shows, and every\nentry in the column of its status; the unused starting columns of a\ncollection whose default view is not the board taken off, the done column last.\n\nRequires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts\nand writes nothing; a second run answers zeros. Auditable, with the counts only.\n",
         "requestBody": {
           "required": false,
           "content": {
@@ -52166,7 +52166,7 @@
           },
           "columns": {
             "type": "array",
-            "description": "The statuses each board column shows under the workflow. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.\n",
+            "description": "The statuses each board column shows under the workflow. A board shows the statuses of every workflow its entry types run, so a change for one type reaches the boards whose types it touches and takes their columns too. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.\n",
             "items": {
               "type": "object",
               "required": [
@@ -52368,6 +52368,10 @@
           "columns_removed": {
             "type": "integer",
             "description": "Unused starting columns taken off."
+          },
+          "statuses_mapped": {
+            "type": "integer",
+            "description": "Statuses given an existing column on a board that mapped none."
           }
         }
       },

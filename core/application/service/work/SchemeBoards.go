@@ -7,16 +7,20 @@ import (
 	"context"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
-// SchemeBoards is what a change of the workflow in force for tasks does to a collection's board
+// SchemeBoards is what a change of the workflows in force for a board's entry types does to a collection's board
 // (domain-model.md §3.5a, UC-FLW-02 check 4): planned for the preview, then the mapping written
 // before the statuses move and the entries placed after.
 type SchemeBoards struct {
 	Columns BucketWriter
+	// Types is the registry, which tells the entry types standing on a board; nil takes the types
+	// the scheme names.
+	Types repository.EntryTypes
 }
 
 // Wired reports whether the build reads boards and their mapping.
