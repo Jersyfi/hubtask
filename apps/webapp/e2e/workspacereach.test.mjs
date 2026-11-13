@@ -176,7 +176,7 @@ for (const role of ['AUDITOR', 'BELOW']) {
 
     await page.goto(`${served.origin}/`);
     // Today has settled: its first card, whichever the reader's day draws.
-    await page.locator('main section.panel').first().waitFor();
+    await page.locator('main [data-card]').first().waitFor();
     assert.equal(await page.locator('aside.sidenav').getByText('Inbox', { exact: true }).count(), 0, 'the jumble row is drawn');
     assert.equal(await page.getByRole('heading', { name: 'In the inbox' }).count(), 0, 'Today draws the jumble');
 
