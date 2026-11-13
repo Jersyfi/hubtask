@@ -1549,8 +1549,11 @@ export const newInHead = (page) => page.locator('header.head').getByRole('button
 /** Opens the new-collection dialog from the hub head's *New ▾ → Collection*. */
 export async function openNewCollection(page) {
   await newInHead(page).first().click({ timeout: 15_000 });
-  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  await createKind(page, 'collection').click({ timeout: 10_000 });
 }
+
+/** A kind in *Create*, which the hub's *New* opens preset to the hub (§6.12, C-1). */
+export const createKind = (page, kind) => page.getByRole('group', { name: 'Create' }).locator(`[data-kind="${kind}"]`).first();
 
 /** A kind's toggle card in the new-collection dialog (the navigation concept's *New collection*), by its name. */
 export const kindChoice = (dialog, name) => dialog.locator('[data-collection-kinds]').getByRole('button', { name, exact: true });

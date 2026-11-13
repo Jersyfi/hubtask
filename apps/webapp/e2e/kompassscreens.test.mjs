@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 import { ALL, DESK, IT, PD, PD_PAGES, QUEUES, WEB, id, open, served, side, texts } from './kompassstub.mjs';
-import { MANIFEST, PERMISSIONS, PRESETS, ROLES, kindChoice, newInHead } from './fixture.mjs';
+import { MANIFEST, PERMISSIONS, PRESETS, ROLES, kindChoice, openNewCollection } from './fixture.mjs';
 
 const SHOTS = process.env.SHOTS;
 test.after(() => served.close());
@@ -272,8 +272,7 @@ test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub ha
   };
   const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { extra: making });
   t.after(close);
-  await newInHead(page).first().click({ timeout: 15_000 });
-  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
   await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
   const card = dialog.locator('[data-collection-kind="desk"]');
@@ -302,8 +301,7 @@ test('UC-WRK-36 check 18: without a portal type in the hub the Desk kind says wh
   };
   const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { extra: noPortal });
   t.after(close);
-  await newInHead(page).first().click({ timeout: 15_000 });
-  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
   await kindChoice(dialog, 'Desk').waitFor({ timeout: 10_000 });
   assert.ok((await dialog.locator('[data-collection-kind="desk"]').textContent()).includes('Needs a portal type in the hub'));
@@ -327,8 +325,7 @@ test('a new collection of the kind Scrum starts from Project and opens on its sp
   };
   const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`, { extra: making });
   t.after(close);
-  await newInHead(page).first().click({ timeout: 15_000 });
-  await page.getByRole('menuitem', { name: 'Collection', exact: true }).click();
+  await openNewCollection(page);
   const dialog = page.locator('dialog[open]');
   await dialog.getByRole('heading', { name: `New collection in ${PD.name}` }).waitFor({ timeout: 10_000 });
   await kindChoice(dialog, 'Scrum').waitFor({ timeout: 10_000 });

@@ -117,6 +117,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import { capture } from '../lib/capture/capture.svelte.ts';
+  import { create } from '../lib/create/create.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -829,37 +830,17 @@
   let isCreatingCollection = $state(false);
 
   /**
-   * *New ▾* in a hub's head (the navigation concept's mockup): what can be made here - a
-   * collection for whoever shapes the hub, a page or a whiteboard where their product is on and the
-   * reader writes. Nothing offered, no button (P-05).
+   * *New* in a hub's head opens *Create* preset to the hub (§6.12, C-1, C-2): one way to create,
+   * whose kinds follow the reader's role and the modules on here. Drawn where *Create* offers this
+   * reader something to make here - a collection for whoever shapes the hub, a page or a whiteboard
+   * where their product is on and the reader writes; nothing offered, no button (P-05).
    */
   const mayWriteHere = $derived(holds(structureRole, 'WRITE_ITEMS').status === 'permitted');
-  const newItems = $derived(
-    container?.type !== 'HUB' || readOnlyReason
-      ? []
-      : [
-          ...(mayShape ? [{ id: 'collection', label: t('app.nav.create_collection_kind'), icon: 'collection' as const }] : []),
-          ...(mayWriteHere && modulesOn.includes('KNOWLEDGE') ? [{ id: 'page', label: t('app.nav.create_page'), icon: 'file-text' as const }] : []),
-          ...(mayWriteHere && modulesOn.includes('WHITEBOARD') ? [{ id: 'whiteboard', label: t('app.nav.create_whiteboard'), icon: 'layout-template' as const }] : []),
-        ],
+  const offersNew = $derived(
+    container?.type === 'HUB' && !readOnlyReason && (mayShape || (mayWriteHere && (modulesOn.includes('KNOWLEDGE') || modulesOn.includes('WHITEBOARD')))),
   );
   const newMenu = $derived(
-    newItems.length === 0 || !container
-      ? undefined
-      : {
-          label: t('app.nav.new'),
-          icon: 'plus' as const,
-          opener: 'new-in-hub',
-          menu: {
-            label: t('app.nav.new_in', { name: container.name }),
-            items: newItems,
-            onselect: (kind: string) => {
-              if (kind === 'collection') isCreatingCollection = true;
-              else if (kind === 'page') onnavigate(`/hubs/${id}/pages?new=1`);
-              else onnavigate(`/hubs/${id}/contents?new=whiteboard`);
-            },
-          },
-        },
+    offersNew ? { label: t('app.nav.new'), icon: 'plus' as const, opener: 'new-in-hub', onclick: () => create.summon() } : undefined,
   );
 
 

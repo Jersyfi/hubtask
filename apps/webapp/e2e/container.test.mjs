@@ -271,9 +271,17 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
-  // Creating a collection is the head's *New ▾* (the navigation concept's mockup); importing is the
+  // Creating a collection is the head's *New*, which opens *Create*; importing is the
   // place's menu, as on a collection.
   assert.equal(await newInHead(page).count(), 1);
+  // *New* opens *Create* preset to the hub - one way to create (§6.12, C-1, C-2) - and no menu.
+  await newInHead(page).click();
+  const made = page.getByRole('group', { name: 'Create' });
+  await made.locator('[data-kind="collection"]').first().waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByRole('menu').count(), 0, 'a menu of its own beside Create');
+  assert.equal(await made.getByRole('combobox', { name: 'Where it is made' }).inputValue(), `h:${HUB.id}`);
+  await page.keyboard.press('Escape');
+  await made.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(await page.getByRole('main').getByRole('button', { name: /Import/ }).count(), 0, 'import beside the head as well as in its menu');
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
   // No *Change position* in a hub's own head: the hubs are ordered where they are all listed.

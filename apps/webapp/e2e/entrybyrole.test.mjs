@@ -22,6 +22,8 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub, chooseView, newInHead } from './fixture.mjs';
+
+const createOf = (page) => page.getByRole('group', { name: 'Create' });
 import { serve } from './serve.mjs';
 import { reveal, unfoldFields } from './reveal.mjs';
 
@@ -200,11 +202,14 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.goto(`${served.origin}/hubs/${HUB.id}`);
     await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor();
     await page.waitForTimeout(600);
-    // A collection is made from the head's *New ▾*, offered only to whoever shapes the hub (P-05).
+    // A collection is made from the head's *New*, which opens *Create* in the hub; offered only to
+    // whoever shapes the hub (P-05).
     let offersCollection = false;
     if (await newInHead(page).count() > 0) {
       await newInHead(page).first().click();
-      offersCollection = await page.getByRole('menuitem', { name: 'Collection', exact: true }).count() > 0;
+      await createOf(page).locator('[data-kind]').first().waitFor({ timeout: 5_000 });
+      await page.waitForTimeout(300);
+      offersCollection = await createOf(page).locator('[data-kind="collection"]').count() > 0;
       await page.keyboard.press('Escape');
     }
     assert.equal(offersCollection, shapes, 'Create collection');
