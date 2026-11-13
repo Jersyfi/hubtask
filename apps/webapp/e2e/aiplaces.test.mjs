@@ -104,7 +104,7 @@ async function reachEntry(browser, { width = 1280, ai = true, role = 'OWNER', st
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByText(CHILDREN[ENTRY.id][0].title).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   // The role and the manifest arrive with their reads; give the screen the moment to draw them.
   await page.waitForTimeout(600);
   return { page, failures, asked, close: () => context.close() };
@@ -144,13 +144,13 @@ for (const width of [375, 768, 1280]) {
         const placeOf = (text) => page.getByText(text, { exact: false }).first().evaluate((node) => {
           const row = node.closest('.with-ai');
           if (row) return row.querySelector('[data-detail]')?.getAttribute('data-detail') ?? 'row';
-          return node.closest('[role="tabpanel"]') ? 'comments' : node.closest('.columns > .main') ? 'steps' : 'head';
+          return node.closest('[role="tabpanel"]') ? 'comments' : node.closest('#entry-parts') ? 'steps' : 'head';
         });
         assert.equal(await placeOf('Book the tiler for Thursday'), 'head');
         assert.equal(await placeOf('Pick the grout'), 'steps');
         assert.equal(await placeOf('We agreed on white tiles.'), 'comments');
-        // The details fold opens on a phone while a proposal stands in it.
-        assert.equal(await page.locator('details.details-fold').evaluate((node) => node.open), true);
+        // The fields with nothing set unfold while a proposal stands among them.
+        assert.equal(await page.locator('[data-details] .rows').first().getAttribute('data-folded'), null);
         assert.equal(await placeOf('Doing'), 'labels');
         // Named by title, read from the entry; one that cannot be read is said to be one.
         await page.getByRole('link', { name: NEIGHBOUR.title }).first().waitFor({ timeout: 5_000 });

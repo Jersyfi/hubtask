@@ -74,10 +74,10 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
 
   // The entry's own values are there — they are the entry's, not the type's.
-  assert.equal(await page.getByRole('textbox', { name: 'Title' }).first().inputValue(), ENTRY.title);
+  assert.equal(await page.getByRole('heading', { level: 1, name: ENTRY.title }).count(), 1);
 
   // **Nothing is claimed about the type.** Not one row, and not the language row either: the
   // picker's own list of languages comes out of the same manifest, so a row offered here would be
@@ -146,7 +146,7 @@ test('chromium: a manifest that declares no profile for the type says so, once',
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
 
   await page.getByText('This workspace does not offer tasks.', { exact: false }).waitFor({ timeout: 5_000 })
     .catch(() => assert.fail('a type the installation does not declare is drawn as a type that carries nothing'));
@@ -209,7 +209,7 @@ test('chromium: a stale bearer signs the reader out, and the sign-in reads the m
   // Back where the reader was, and **whole**. Before this the manifest stayed `failed` for the
   // life of the page: the sign-in succeeded, every other read worked with the new token, and the
   // entry drew as though its type carried nothing until somebody reloaded.
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   assert.equal(new URL(page.url()).pathname, `/items/${ENTRY.id}`, 'the reader was not returned to the entry');
   await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('the manifest was not read again as the signed-in actor'));

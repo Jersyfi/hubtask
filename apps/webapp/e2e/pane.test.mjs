@@ -46,7 +46,7 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   assert.equal(await row.getAttribute('href'), `/items/${ENTRY.id}`);
 
   // The entry's own form is inside: the title in place, the chips, the details rows, the tabs.
-  assert.equal(await pane.getByRole('textbox', { name: 'Title' }).inputValue(), ENTRY.title);
+  assert.equal(await pane.getByRole('heading', { name: ENTRY.title }).count(), 1);
   assert.equal(await pane.locator('[data-detail="due"]').count(), 1);
   assert.equal(await pane.getByRole('tab', { name: /Comments/ }).count(), 1);
   await pane.locator('[data-detail="labels"]').click();
@@ -98,7 +98,7 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
   await page.goto(`${served.origin}/collections/${COLLECTION.id}?item=${ENTRY.id}`);
   await page.waitForURL(`**/items/${ENTRY.id}`, { timeout: 10_000 });
   assert.equal(await page.getByRole('complementary', { name: ENTRY.title }).count(), 0);
-  assert.equal(await page.getByRole('textbox', { name: 'Title' }).first().inputValue(), ENTRY.title);
+  assert.equal(await page.getByRole('heading', { level: 1, name: ENTRY.title }).count(), 1);
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).

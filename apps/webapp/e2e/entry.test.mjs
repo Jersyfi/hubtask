@@ -53,7 +53,7 @@ async function openEntry(browser, width, written) {
     });
   }
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   return { page, failures, close: () => context.close(), unstubbed };
 }
 
@@ -324,7 +324,7 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
     await context.route(`**/api/v1/containers?parent_id=${HUB.id}*`, (route) =>
       route.fulfill({ json: { data: [{ ...COLLECTION, policies }], page: { next_cursor: null, has_more: false } } }));
     await page.goto(`${served.origin}/items/${itemId}`);
-    await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
     await unfoldFields(page);
     await page.locator('[data-detail="assignee"]').click();
     const editor = page.getByRole('dialog', { name: 'Assignee' });
@@ -393,7 +393,7 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 
   const rowsOf = async (id) => {
     await page.goto(`${served.origin}/items/${id}`);
-    await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
     return page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail')));
   };
 
@@ -502,20 +502,20 @@ test('chromium: the history announces a page only after the reader asked for it'
     return stub(route);
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
-  await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab', { name: 'History' }).click();
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('tablist', { name: 'Conversation' }).getByRole('tab', { name: /^History/ }).click();
 
   const more = page.getByRole('button', { name: 'Show more history' });
   await more.waitFor({ timeout: 5_000 });
   // The live region is there and empty: nobody asked for the first page, so nothing is said about it.
-  const status = page.locator('.load-more [role="status"]');
+  const status = page.locator('#entry-conversation .load-more [role="status"]');
   assert.equal(await status.count(), 1);
   assert.equal((await status.textContent()).trim(), '', 'the history announced a page nobody asked for');
 
   // Asked for, the page is said - and by the same region, which stays when the last page has
   // taken the button away: a region removed with the button is one whose sentence nobody hears.
   await more.click();
-  await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
+  await page.waitForFunction(() => (document.querySelector('#entry-conversation .load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
   assert.equal((await status.textContent()).trim(), 'History loaded: 3.');
   assert.equal(await more.count(), 0, 'the button stayed after the last page');
   assert.deepEqual(failures, []);
@@ -548,18 +548,18 @@ test('chromium: the attachments announce a page only after the reader asked for 
     return stub(route);
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
-  await page.locator('[data-detail="attachments"]').click();
+  // The attachments stand in the files section (ET-4): no tab to open first.
 
   const more = page.getByRole('button', { name: 'Older attachments' });
   await more.waitFor({ timeout: 5_000 });
-  const status = page.locator('.load-more [role="status"]');
+  const status = page.locator('[data-entry-attachments] .load-more [role="status"]');
   assert.equal(await status.count(), 1);
   assert.equal((await status.textContent()).trim(), '', 'the attachments announced a page nobody asked for');
 
   await more.click();
-  await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
+  await page.waitForFunction(() => (document.querySelector('[data-entry-attachments] .load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
   assert.equal((await status.textContent()).trim(), '3 attachments are listed.');
   assert.equal(await more.count(), 0, 'the button stayed after the last page');
   assert.deepEqual(failures, []);
@@ -598,16 +598,16 @@ test('chromium: a page of history that did not arrive is said beside the button,
     return stub(route);
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
-  await page.getByRole('tablist', { name: "The entry's history" }).getByRole('tab', { name: 'History' }).click();
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('tablist', { name: 'Conversation' }).getByRole('tab', { name: /^History/ }).click();
 
   const more = page.getByRole('button', { name: 'Show more history' });
   await more.waitFor({ timeout: 5_000 });
-  const alert = page.locator('.load-more [role="alert"]');
+  const alert = page.locator('#entry-conversation .load-more [role="alert"]');
   // Mounted empty, so that what fills it later is announced.
   assert.equal(await alert.count(), 1, 'there is no alert region beside the button');
   assert.equal((await alert.textContent()).trim(), '');
-  const shown = () => page.locator('.load-more').locator('xpath=..').locator('li').count();
+  const shown = () => page.locator('#entry-conversation .load-more').locator('xpath=..').locator('li').count();
   const before = await shown();
 
   await more.click();
@@ -621,7 +621,7 @@ test('chromium: a page of history that did not arrive is said beside the button,
   await more.click();
   await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
   assert.equal((await alert.textContent()).trim(), '');
-  assert.equal((await page.locator('.load-more [role="status"]').textContent()).trim(), 'History loaded: 3.');
+  assert.equal((await page.locator('#entry-conversation .load-more [role="status"]').textContent()).trim(), 'History loaded: 3.');
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });

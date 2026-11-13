@@ -41,7 +41,7 @@ async function composeFor(browser, assignee) {
     return stub(route);
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
   await page.locator('[data-detail="reminders"]').click();
   const editor = page.getByRole('dialog', { name: 'Reminders' });

@@ -34,7 +34,7 @@ test('offline, a reminder is kept and sent when the network returns (check 6)', 
   // the part after it means the reminder panel is in this tab; a loaded machine gets there late.
   const precached = page.waitForRequest((request) => /\/assets\/CoverPanel-[^/]*\.js$/.test(new URL(request.url()).pathname), { timeout: 60_000 });
   await page.goto(`${served.origin}/items/${DATED.id}`);
-  await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
   const row = page.locator('button[data-detail="reminders"]');
   await row.waitFor({ timeout: 15_000 });

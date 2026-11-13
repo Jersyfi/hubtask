@@ -66,7 +66,7 @@ test('1280 px: in the pane, the entry menu stands at the end of the title line',
   const pane = page.getByRole('complementary');
   const menu = pane.locator('[data-opener="entry-menu"]');
   await menu.waitFor();
-  const title = await pane.getByRole('textbox', { name: 'Title' }).boundingBox();
+  const title = await pane.getByRole('heading').first().boundingBox();
   const opener = await menu.boundingBox();
   const middle = (each) => each.y + each.height / 2;
   assert.ok(Math.abs(middle(title) - middle(opener)) <= 12, `the menu at ${middle(opener)}, the title at ${middle(title)}`);

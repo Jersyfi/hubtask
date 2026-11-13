@@ -75,7 +75,8 @@ async function offered(page) {
   await unfoldFields(page);
   const count = (locator) => locator.count();
   return {
-    complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
+    // The status is the way to done (E-23): a button where the role may move it, a word where not.
+    complete: (await count(page.getByRole('button', { name: /^Status: .*Change status$/ }))) === 1,
     comment: (await count(page.getByLabel('Say something'))) === 1,
     addInside: (await count(page.getByRole('button', { name: `Add an activity inside ${CHILD.title}`, exact: true }))) === 1,
     childMenu: (await count(page.getByRole('button', { name: `Actions for ${CHILD.title}` }))) === 1,
@@ -237,13 +238,13 @@ test('chromium: a viewer sees no details card on an entry with nothing set, and 
   await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
   await page.locator('main [role="note"]', { hasText: 'Your role can read entries here but not change them.' }).first().waitFor();
   await page.waitForTimeout(600);
-  assert.equal(await page.locator('aside.details').count(), 0, 'an empty details card is drawn');
+  assert.equal(await page.locator('[data-details]').count(), 0, 'an empty details card is drawn');
 
   // The first entry carries a label: the card is there, with that one row and nothing to add.
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.locator('[data-detail="labels"]').waitFor();
-  assert.equal(await page.locator('aside.details').count(), 1);
-  assert.equal(await page.locator('aside.details button.detail-row').count(), 0, 'a row the viewer may not fill in is offered');
+  assert.equal(await page.locator('[data-details]').count(), 1);
+  assert.equal(await page.locator('[data-details] button.detail-row').count(), 0, 'a row the viewer may not fill in is offered');
   assert.deepEqual(failures, []);
 });
 
@@ -257,9 +258,9 @@ test('chromium: a member sees the details card on an entry with nothing set, bec
   // Nothing is set, so the fields wait behind *Add a field*; it is drawn once the type is read.
   await page.locator('.more-fields').first().waitFor({ timeout: 15_000 });
   await unfoldFields(page);
-  await page.locator('aside.details [data-detail="language"]').waitFor();
-  assert.equal(await page.locator('aside.details').count(), 1);
-  assert.ok(await page.locator('aside.details button.detail-row').count() > 0, 'no row to fill in');
+  await page.locator('[data-details] [data-detail="language"]').waitFor();
+  assert.equal(await page.locator('[data-details]').count(), 1);
+  assert.ok(await page.locator('[data-details] button.detail-row').count() > 0, 'no row to fill in');
   assert.deepEqual(failures, []);
 });
 
@@ -287,7 +288,7 @@ test('chromium: a read-only details row stays inside its card', async (t) => {
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   const row = page.locator('div.detail-row[data-detail="labels"]');
   await row.waitFor();
-  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), page.locator('aside.details .details-fold').boundingBox()]);
+  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), page.locator('[data-details]').boundingBox()]);
   assert.ok(rowBox.x + rowBox.width <= cardBox.x + cardBox.width, `the row ends at ${rowBox.x + rowBox.width}, past the card's ${cardBox.x + cardBox.width}`);
   assert.deepEqual(failures, []);
 });
