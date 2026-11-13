@@ -647,4 +647,9 @@ export type {
   ChatBot,
   ChatBotList,
   ChatLinkCode,
+  StateMode,
+  DropAnswer,
+  BoardSwitch,
+  BoardWorkflow,
+  BoardPreview,
 } from './schema.ts';

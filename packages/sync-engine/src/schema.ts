@@ -579,6 +579,16 @@ export type WorkItem = components['schemas']['WorkItem'];
 export type Problem = components['schemas']['Problem'];
 export type Label = components['schemas']['Label'];
 export type Bucket = components['schemas']['Bucket'];
+/** A collection's level for its tasks: a list (NONE), board columns (COLUMNS), a workflow (WORKFLOW). */
+export type StateMode = components['schemas']['StateMode'];
+/** What a drop on a board's column did: moved, the one step taken, or the steps to choose among. */
+export type DropAnswer = components['schemas']['DropAnswer'];
+/** A list shown as a board, or a board as a list again - or what that would do. */
+export type BoardSwitch = components['schemas']['BoardSwitch'];
+/** A workflow made from a board's columns - or what it would be. */
+export type BoardWorkflow = components['schemas']['BoardWorkflow'];
+/** One board's columns before and after a workflow changes, with their statuses. */
+export type BoardPreview = components['schemas']['BoardPreview'];
 /**
  * One comment, including a removed one: `body` is null exactly when `deleted_at` is set, so a
  * tombstone still carries who wrote it and when — which is what keeps a reply from dangling.
