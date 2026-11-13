@@ -59,7 +59,6 @@ const STORIES = [
   { id: 'wave-1-forms-icon-button--in-row', kind: 'reason' },
   { id: 'wave-1-forms-icon-button--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-icon-button--busy', kind: 'busy' },
-  { id: 'wave-3-domain-comment-thread--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-input--in-row', kind: 'reason' },
   { id: 'wave-1-forms-input--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-input--range', kind: 'range' },
