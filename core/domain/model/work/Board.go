@@ -150,6 +150,107 @@ func (b Board) Coupled(before, after WorkItem, by shared.ID, at time.Time) WorkI
 	return after
 }
 
+// Arrived answers an entry that came onto this board from elsewhere - moved in, imported - with
+// its column agreeing (domain-model.md §3.5a): under a workflow the column showing its status; at
+// L1 a column it was put in decides its completion, and a completed one without a column goes
+// into the done column.
+func (b Board) Arrived(item WorkItem, by shared.ID, at time.Time) WorkItem {
+	if item.Type != ItemTask || len(b.Columns) == 0 {
+		return item
+	}
+	if item.Status != "" {
+		item.BucketID, _ = b.ColumnOfStatus(item.Status)
+		return item
+	}
+	if _, live := b.Column(item.BucketID); !live {
+		item.BucketID = ""
+	}
+	if item.BucketID.IsZero() {
+		if done, found := b.DoneColumn(); found && item.Completion.IsCompleted {
+			item.BucketID = done.ID
+		}
+		return item
+	}
+	before := item
+	before.BucketID = ""
+	return b.Coupled(before, item, by, at)
+}
+
+// Copied answers a copy - open, as every copy and every entry from a template is - in a column
+// that agrees: under a workflow the one showing its status, else out of the done column into the
+// first.
+func (b Board) Copied(item WorkItem) WorkItem {
+	if item.Type != ItemTask || len(b.Columns) == 0 {
+		return item
+	}
+	if item.Status != "" {
+		item.BucketID, _ = b.ColumnOfStatus(item.Status)
+		return item
+	}
+	if done, found := b.DoneColumn(); found && item.BucketID == done.ID {
+		item.BucketID = ""
+		if first, found := b.FirstColumn(); found {
+			item.BucketID = first.ID
+		}
+	}
+	return item
+}
+
+// MarkDone answers the other columns whose mark changes when column is marked done or cleared:
+// marking takes the mark off the others, and clearing the only done column of a board is refused
+// as buckets.done_column_required (one done column per board, §3.5a).
+func (b Board) MarkDone(column shared.ID, done bool) ([]Bucket, error) {
+	current, hasDone := b.DoneColumn()
+	if !done {
+		if hasDone && current.ID == column {
+			return nil, shared.ErrConflict.WithDetail("buckets.done_column_required").
+				WithFields(shared.FieldError{Path: "/is_done_bucket", Code: "buckets.done_column_required"})
+		}
+		return nil, nil
+	}
+	var changed []Bucket
+	for _, other := range b.Columns {
+		if other.IsDoneBucket && other.ID != column {
+			other.IsDoneBucket = false
+			changed = append(changed, other)
+		}
+	}
+	return changed, nil
+}
+
+// DoneSuccessor answers the column that takes the done mark when the done column deleted goes:
+// the rightmost column left. False where deleted is not the done column or nothing is left.
+func (b Board) DoneSuccessor(deleted shared.ID) (Bucket, bool) {
+	if done, found := b.DoneColumn(); !found || done.ID != deleted {
+		return Bucket{}, false
+	}
+	for i := len(b.Columns) - 1; i >= 0; i-- {
+		if b.Columns[i].ID != deleted {
+			return b.Columns[i], true
+		}
+	}
+	return Bucket{}, false
+}
+
+// TargetAfterDeleting answers where the entries of a deleted column go: under a mapped workflow
+// none - their statuses are unmapped now, *Ohne Spalte* -; the done column's to its successor,
+// where they stay completed; an open column's to the first open column left. Zero where nothing
+// fits.
+func (b Board) TargetAfterDeleting(deleted shared.ID) shared.ID {
+	if len(b.Mapping) > 0 {
+		return ""
+	}
+	if successor, found := b.DoneSuccessor(deleted); found {
+		return successor.ID
+	}
+	for _, column := range b.Columns {
+		if column.ID != deleted && !column.IsDoneBucket {
+			return column.ID
+		}
+	}
+	return ""
+}
+
 // StatusesOf answers the statuses a column shows (L2), in mapping order.
 func (b Board) StatusesOf(column shared.ID) []string {
 	var out []string

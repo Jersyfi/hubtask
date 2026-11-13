@@ -275,3 +275,103 @@ func TestADropResolvesToOneStepSeveralOrNone(t *testing.T) {
 		})
 	}
 }
+
+func TestAnEntryArrivingOnABoardTakesTheStateOfItsColumn(t *testing.T) {
+	board := threeColumns()
+	board.Mapping = []ColumnStatus{{BucketID: colDoing, Status: "doing"}}
+	open := func(column shared.ID) WorkItem { return WorkItem{Type: ItemTask, BucketID: column} }
+	done := func(column shared.ID) WorkItem { return open(column).Completed(boardBy, boardAt) }
+	withStatus := func(status string) WorkItem { item := open(colTodo); item.Status = status; return item }
+
+	cases := []struct {
+		name       string
+		item       WorkItem
+		wantColumn shared.ID
+		wantDone   bool
+	}{
+		{"put into the done column it completes", open(colDone), colDone, true},
+		{"put into an open column it reopens", done(colDoing), colDoing, false},
+		{"completed without a column it goes into the done column", done(""), colDone, true},
+		{"open without a column it stays without", open(""), "", false},
+		{"a column of another board counts as none", done(boardBy), colDone, true},
+		{"under a workflow the status decides the column", withStatus("doing"), colDoing, false},
+		{"an unmapped status stands in no column", withStatus("review"), "", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := board.Arrived(c.item, boardBy, boardAt)
+			if got.BucketID != c.wantColumn || got.Completion.IsCompleted != c.wantDone {
+				t.Errorf("arrived in %s, done %v; want %s, %v", got.BucketID, got.Completion.IsCompleted, c.wantColumn, c.wantDone)
+			}
+		})
+	}
+	if got := (Board{}).Arrived(done(colDone), boardBy, boardAt); got.BucketID != colDone {
+		t.Error("a collection without a board changed the entry")
+	}
+}
+
+func TestACopyArrivesOpenOutsideTheDoneColumn(t *testing.T) {
+	board := threeColumns()
+	board.Mapping = []ColumnStatus{{BucketID: colTodo, Status: "open"}}
+	cases := []struct {
+		name string
+		item WorkItem
+		want shared.ID
+	}{
+		{"from the done column into the first", WorkItem{Type: ItemTask, BucketID: colDone}, colTodo},
+		{"an open column is kept", WorkItem{Type: ItemTask, BucketID: colDoing}, colDoing},
+		{"under a workflow by status", WorkItem{Type: ItemTask, BucketID: colDone, Status: "open"}, colTodo},
+		{"an unmapped status in no column", WorkItem{Type: ItemTask, BucketID: colDone, Status: "doing"}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := board.Copied(c.item); got.BucketID != c.want || got.Completion.IsCompleted {
+				t.Errorf("copied into %s, done %v; want %s", got.BucketID, got.Completion.IsCompleted, c.want)
+			}
+		})
+	}
+}
+
+func TestOneDoneColumnWhenTheMarkMoves(t *testing.T) {
+	board := threeColumns()
+	changed, err := board.MarkDone(colDoing, true)
+	if err != nil {
+		t.Fatalf("marking: %v", err)
+	}
+	if len(changed) != 1 || changed[0].ID != colDone || changed[0].IsDoneBucket {
+		t.Errorf("the other done column kept its mark: %+v", changed)
+	}
+	if changed, err := board.MarkDone(colDone, true); err != nil || len(changed) != 0 {
+		t.Errorf("marking the done column again: %+v, %v", changed, err)
+	}
+	if _, err := board.MarkDone(colDone, false); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("clearing the only done column: %v", err)
+	}
+	if changed, err := board.MarkDone(colTodo, false); err != nil || len(changed) != 0 {
+		t.Errorf("clearing a column that has no mark: %+v, %v", changed, err)
+	}
+}
+
+func TestDeletingAColumnPlacesItsEntries(t *testing.T) {
+	board := threeColumns()
+	if successor, found := board.DoneSuccessor(colDone); !found || successor.ID != colDoing {
+		t.Errorf("the done column's successor is %s, want the rightmost column left", successor.ID)
+	}
+	if _, found := board.DoneSuccessor(colTodo); found {
+		t.Error("deleting an open column named a done successor")
+	}
+	if target := board.TargetAfterDeleting(colTodo); target != colDoing {
+		t.Errorf("an open column's entries go to %s, want the first open column left", target)
+	}
+	if target := board.TargetAfterDeleting(colDone); target != colDoing {
+		t.Errorf("the done column's entries go to %s, want its successor", target)
+	}
+	board.Mapping = []ColumnStatus{{BucketID: colTodo, Status: "open"}}
+	if target := board.TargetAfterDeleting(colTodo); !target.IsZero() {
+		t.Errorf("under a mapped workflow the entries go to %s, want *Ohne Spalte*", target)
+	}
+	alone := Board{Columns: []Bucket{{ID: colDone, IsDoneBucket: true}}}
+	if _, found := alone.DoneSuccessor(colDone); found {
+		t.Error("the last column named a successor")
+	}
+}
