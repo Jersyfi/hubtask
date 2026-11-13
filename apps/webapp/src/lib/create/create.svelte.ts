@@ -14,6 +14,13 @@
 import { noteLast, type CreateKind } from './kinds.ts';
 
 const KEY = 'hubtask.create.last.';
+const PLACE = 'hubtask.create.place.';
+
+/** Where something was made last: a hub, and a collection in it. */
+export interface Place {
+  readonly hub?: string;
+  readonly collection?: string;
+}
 
 class Create {
   #isOpen = $state(false);
@@ -21,6 +28,7 @@ class Create {
   #last = $state<readonly CreateKind[]>([]);
   #account: string | undefined;
   #wish = $state<CreateKind | undefined>(undefined);
+  #place = $state<Place>({});
 
   get isOpen(): boolean {
     return this.#isOpen;
@@ -28,6 +36,20 @@ class Create {
 
   get last(): readonly CreateKind[] {
     return this.#last;
+  }
+
+  /** Where something was made last on this device: the place preset where one stands nowhere (C-2). */
+  get place(): Place {
+    return this.#place;
+  }
+
+  notePlace(place: Place): void {
+    this.#place = place;
+    try {
+      if (this.#account) localStorage.setItem(PLACE + this.#account, JSON.stringify(place));
+    } catch {
+      // Not remembered; the next opening asks the place again.
+    }
   }
 
   /** Reads the last kinds of the account signed in. */
@@ -39,6 +61,16 @@ class Create {
       this.#last = Array.isArray(parsed) ? (parsed.filter((each) => typeof each === 'string') as CreateKind[]) : [];
     } catch {
       this.#last = [];
+    }
+    try {
+      const written = accountId ? localStorage.getItem(PLACE + accountId) : null;
+      const parsed = (written ? JSON.parse(written) : {}) as Record<string, unknown>;
+      this.#place = {
+        ...(typeof parsed.hub === 'string' ? { hub: parsed.hub } : {}),
+        ...(typeof parsed.collection === 'string' ? { collection: parsed.collection } : {}),
+      };
+    } catch {
+      this.#place = {};
     }
   }
 

@@ -51,10 +51,33 @@
   let collectionHub = $state<string | undefined>(undefined);
 
   const isOpen = $derived(create.isOpen);
-  const collection = $derived(here.collection ? containers.find(here.collection) : undefined);
+  /**
+   * The place every kind is made in (C-2): chosen at the chip, else where one stands, else where
+   * something was made last on this device.
+   */
+  let chosen = $state<{ hub?: string; collection?: string } | undefined>(undefined);
+  const place = $derived(chosen ?? (here.hub || here.collection ? here : create.place));
+  const collection = $derived(place.collection ? containers.find(place.collection) : undefined);
   const hub = $derived.by(() => {
-    const id = here.hub ?? collection?.parent_id ?? undefined;
+    const id = place.hub ?? collection?.parent_id ?? undefined;
     return id ? containers.find(id) : undefined;
+  });
+  const placeValue = $derived(collection ? `c:${collection.id}` : hub ? `h:${hub.id}` : '');
+  const placeOptions = $derived(
+    containers.hubs.flatMap((each) => [
+      { value: `h:${each.id}`, label: each.name },
+      ...(each.id === hub?.id ? containers.collectionsOf(each.id).map((c) => ({ value: `c:${c.id}`, label: `${each.name} › ${c.name}` })) : []),
+    ]),
+  );
+  function choosePlace(value: string) {
+    const id = value.slice(2);
+    chosen = value.startsWith('c:') ? { hub: containers.find(id)?.parent_id ?? undefined, collection: id } : { hub: id };
+  }
+  // The hub's collections are read while it is open, so the chip can offer them.
+  $effect(() => {
+    const id = isOpen ? hub?.id : undefined;
+    if (!id) return;
+    return untrack(() => containers.openLevel(id));
   });
 
   // The role at the hub and the modules on there, read while it is open - the questions the hub's
@@ -98,12 +121,13 @@
     });
   });
 
-  // A new opening starts with an empty line and no failure.
+  // A new opening starts with an empty line, no failure and the place it stands in.
   $effect(() => {
     if (!isOpen) return;
     untrack(() => {
       line = '';
       failure = undefined;
+      chosen = undefined;
     });
   });
 
@@ -127,6 +151,7 @@
   async function choose(kind: CreateKind) {
     if (isBusy) return;
     create.note(kind);
+    create.notePlace({ ...(hub ? { hub: hub.id } : {}), ...(collection ? { collection: collection.id } : {}) });
     if (AT_ONCE.has(kind) && hub) {
       isBusy = true;
       failure = undefined;
@@ -192,7 +217,18 @@
         <Icon name="plus" />
         <!-- svelte-ignore a11y_autofocus -->
         <input class="field" type="text" bind:value={line} placeholder={t('app.create.line')} aria-label={t('app.create.line_label')} autocomplete="off" autofocus />
-        {#if placeName}<span class="place"><Icon name="hub" size="sm" />{t('app.create.in', { name: placeName })}</span>{/if}
+        {#if placeOptions.length > 0}
+          <!-- The place as a chip one changes (C-2): a native list, so a phone and a keyboard both pick. -->
+          <label class="place">
+            <Icon name="hub" size="sm" />
+            <span>{placeName ? t('app.create.in', { name: placeName }) : t('app.create.place_none')}</span>
+            <Icon name="chevron-down" size="sm" />
+            <select aria-label={t('app.create.place')} value={placeValue} onchange={(event) => choosePlace((event.currentTarget as HTMLSelectElement).value)}>
+              {#if placeValue === ''}<option value="" disabled>{t('app.create.place_none')}</option>{/if}
+              {#each placeOptions as option (option.value)}<option value={option.value}>{option.label}</option>{/each}
+            </select>
+          </label>
+        {/if}
       </form>
     {/if}
     {#if failure}<FailureNote problem={failure} />{/if}
@@ -293,10 +329,17 @@
     flex: none;
     padding: var(--sp-025) var(--sp-100);
     border-radius: var(--r-md);
+    position: relative;
     background: var(--accent-primary-subtle);
     color: var(--text-primary);
     font-size: var(--fs-075);
+    cursor: pointer;
   }
+
+  /* The list lies over the chip, unseen: the chip is what is drawn, the list what is pressed. */
+  .place select { position: absolute; inset: 0; inline-size: 100%; opacity: 0; font: inherit; cursor: pointer; }
+
+  .place:focus-within { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   .head { margin: 0 0 var(--sp-050); color: var(--text-secondary); font-size: var(--fs-065); font-weight: var(--fw-medium); text-transform: uppercase; }
 

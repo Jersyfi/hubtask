@@ -10176,6 +10176,8 @@
   "app.create.close": "Close",
   "app.create.line": "A sentence makes an entry · “tomorrow offer +Mehmet”",
   "app.create.line_label": "A new entry in one sentence",
+  "app.create.place": "Where it is made",
+  "app.create.place_none": "Choose a place",
   "app.create.in": "in {name}",
   "app.create.kinds": "What to create",
   "app.create.last": "Created last",

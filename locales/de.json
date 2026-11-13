@@ -10176,6 +10176,8 @@
   "app.create.close": "Schließen",
   "app.create.line": "Ein Satz legt einen Eintrag an · „morgen Angebot +Mehmet“",
   "app.create.line_label": "Ein neuer Eintrag in einem Satz",
+  "app.create.place": "Wo es entsteht",
+  "app.create.place_none": "Ort wählen",
   "app.create.in": "in {name}",
   "app.create.kinds": "Was erstellt wird",
   "app.create.last": "Zuletzt erstellt",
