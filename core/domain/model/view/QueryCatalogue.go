@@ -29,8 +29,8 @@ type QueryKey struct {
 var entryObjects = []string{"task", "workpackage", "activity", "ticket"}
 
 // QueryKeys is the catalogue the doors serve (GET /query/keys): only keys the server answers, so
-// a client never offers what the server refuses (api-guidelines.md §3.1). A product prefix with no
-// key here - asset., page., post., goal., time. - has none the server answers yet.
+// a client never offers what the server refuses (api-guidelines.md §3.1). post. has no key: no
+// post is stored yet.
 func QueryKeys() []QueryKey {
 	isValues := []string{"open", "done", "blocked", "blocking", "archived", "trashed"}
 	times := []string{"due: <today", "updated: -7d", "due: this-week", "created: 2026-10-01..2026-10-31"}
@@ -38,9 +38,9 @@ func QueryKeys() []QueryKey {
 		{Key: "is", Value: "state", Objects: entryObjects, Values: isValues, Examples: []string{"is: open", "-is: done"}},
 		{Key: "type", Value: "kind", Objects: ObjectKinds, Values: ObjectKinds, Examples: []string{"type: task, workpackage", "type: page"}},
 		{Key: "status", Field: FieldStatus, Value: "choice", Objects: entryObjects, Examples: []string{"status: in_progress, review"}},
-		{Key: "who", Field: FieldAssigneeID, Value: "person", Objects: entryObjects, Values: []string{"me", "none"}, Examples: []string{"who: me, none"}},
-		{Key: "with", Field: FieldMembers, Value: "person", Objects: entryObjects, Values: []string{"me"}, Examples: []string{"with: me"}},
-		{Key: "by", Field: FieldCreatedBy, Value: "person", Objects: entryObjects, Values: []string{"me"}, Examples: []string{"by: me"}},
+		{Key: "who", Field: FieldAssigneeID, Value: "person", Objects: entryObjects, Values: []string{"me", "none", "my-groups"}, Examples: []string{"who: me, none", "who: my-groups", `who: members("Support")`}},
+		{Key: "with", Field: FieldMembers, Value: "person", Objects: entryObjects, Values: []string{"me", "my-groups"}, Examples: []string{"with: me"}},
+		{Key: "by", Field: FieldCreatedBy, Value: "person", Objects: entryObjects, Values: []string{"me", "my-groups"}, Examples: []string{"by: me"}},
 		{Key: "in", Field: FieldCollection, Value: "place", Objects: entryObjects, Examples: []string{"in: here"}},
 		{Key: "parent", Field: FieldParentID, Value: "relation", Objects: entryObjects, Values: []string{"none"}, Examples: []string{"parent: none"}},
 		{Key: "linked", Field: FieldLinkedTo, Value: "relation", Objects: entryObjects},
@@ -63,6 +63,8 @@ func QueryKeys() []QueryKey {
 		{Key: "plan.sprint", Field: FieldSprint, Value: "relation", Product: "plan", Objects: entryObjects, Values: []string{"none"}, Examples: []string{"plan.sprint: none"}},
 		{Key: "plan.release", Field: FieldRelease, Value: "relation", Product: "plan", Objects: entryObjects, Values: []string{"none"}, Examples: []string{"plan.release: none"}},
 		{Key: "plan.slip", Field: FieldSlip, Value: "number", Product: "plan", Objects: entryObjects, Examples: []string{"plan.slip: >0", "plan.slip: >=5"}},
+		{Key: "plan.critical", Field: FieldCritical, Value: "flag", Product: "plan", Objects: entryObjects, Values: []string{"true", "false"}, Examples: []string{"plan.critical: true"}},
+		{Key: "time.logged", Field: FieldTimeLogged, Value: "number", Product: "time", Objects: entryObjects, Examples: []string{"time.logged: >0", "time.logged: >=480"}},
 		{Key: CustomKeyPrefix, Field: CustomFieldPrefix, Value: "custom", Product: "cf", Objects: entryObjects, Examples: []string{"cf.priority: >=3"}},
 		{Key: "sort", Value: "sort", Objects: entryObjects, Examples: []string{"sort: -updated", "sort: due"}},
 	}

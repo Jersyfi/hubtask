@@ -49,6 +49,7 @@ var readerKeys = map[string]string{
 	"parent": FieldParentID, "desk.sla": FieldSLADue, "desk.standing": FieldSLAStanding,
 	"desk.satisfaction": FieldSatisfaction, "hub": FieldHub, "under": FieldUnder, "blocks": FieldBlocks,
 	"affects": FieldAffects, "plan.sprint": FieldSprint, "plan.release": FieldRelease, "plan.slip": FieldSlip,
+	"plan.critical": FieldCritical, "time.logged": FieldTimeLogged,
 }
 
 // fieldKeys is readerKeys turned round, for the formatter.
@@ -436,11 +437,36 @@ func (p *queryParser) unary(nesting int, top bool) (item, error) {
 // phrase writes a quoted text as websearch reads a phrase; a quote inside has no spelling there.
 func phrase(text string) string { return `"` + strings.ReplaceAll(text, `"`, "") + `"` }
 
-// raw is one value as typed, with where it starts.
+// raw is one value as typed, with where it starts; group is set for `members("…")`, whose
+// argument text is.
 type raw struct {
 	text   string
 	quoted bool
 	at     int
+	group  bool
+}
+
+// membersFunction is the one function value: the people of a group, `members("Support")`.
+const membersFunction = "members"
+
+// atJoinedSymbol reports whether the next token is the symbol, written against the word before.
+func (p *queryParser) atJoinedSymbol(symbol string) bool {
+	return p.atSymbol(symbol) && p.tokens[p.pos].joined
+}
+
+// groupArgument reads `("name")` or `(name)` after `members`.
+func (p *queryParser) groupArgument(at int) (raw, error) {
+	p.pos++
+	if p.done() || p.peek().kind == tokenSymbol {
+		return raw{}, p.fail(at, "query.group_required", nil)
+	}
+	arg := p.tokens[p.pos]
+	p.pos++
+	if !p.atSymbol(")") {
+		return raw{}, p.fail(at, "query.group_required", nil)
+	}
+	p.pos++
+	return raw{text: arg.text, at: at, group: true}, nil
 }
 
 // term reads `[-]key: value[, value…]`.
@@ -456,6 +482,13 @@ func (p *queryParser) term(marker []string, top bool) (item, error) {
 	if rest != "" {
 		values = append(values, raw{text: rest, at: t.at + len(marker[0])})
 		expect = false
+		if rest == membersFunction && p.atJoinedSymbol("(") {
+			group, err := p.groupArgument(t.at + len(marker[0]))
+			if err != nil {
+				return item{}, err
+			}
+			values[0] = group
+		}
 	}
 	for {
 		if expect {
@@ -468,6 +501,12 @@ func (p *queryParser) term(marker []string, top bool) (item, error) {
 				next := p.tokens[p.pos]
 				p.pos++
 				values = append(values, raw{text: v.text + next.text, at: v.at})
+			} else if v.kind == tokenWord && v.text == membersFunction && p.atJoinedSymbol("(") {
+				group, err := p.groupArgument(v.at)
+				if err != nil {
+					return item{}, err
+				}
+				values = append(values, group)
 			} else {
 				values = append(values, raw{text: v.text, quoted: v.kind == tokenText, at: v.at})
 			}
@@ -773,6 +812,12 @@ func offsetPlaceholder(m []string) string {
 
 // value types one value for the tree as the document would hold it; ParseFilter checks it.
 func (p *queryParser) value(target Field, v raw, bound string) (any, error) {
+	if v.group {
+		if target.Kind != KindID && target.Kind != KindIDSet {
+			return nil, p.fail(v.at, "query.value_unknown", map[string]string{"field": target.Name})
+		}
+		return string(PlaceholderGroup) + ":" + v.text, nil
+	}
 	if v.quoted {
 		return v.text, nil
 	}
@@ -782,6 +827,8 @@ func (p *queryParser) value(target Field, v raw, bound string) (any, error) {
 		switch word {
 		case "me":
 			return "@me", nil
+		case "my-groups":
+			return string(PlaceholderMyGroups), nil
 		case "here":
 			return nil, p.fail(v.at, "query.value_needs_place", map[string]string{"field": target.Name})
 		}
@@ -1338,7 +1385,7 @@ func bareSafe(value string, target Field) bool {
 		return false
 	}
 	switch value {
-	case "none", "me", "here", "OR", "AND", "NOT", "+":
+	case "none", "me", "my-groups", "here", "OR", "AND", "NOT", "+":
 		return false
 	}
 	if target.Kind == KindCustom {
@@ -1362,6 +1409,12 @@ func plainWord(word string) bool {
 func formatPlaceholder(value string) string {
 	if value == "@me" {
 		return "me"
+	}
+	if value == string(PlaceholderMyGroups) {
+		return "my-groups"
+	}
+	if group, isGroup := strings.CutPrefix(value, string(PlaceholderGroup)+":"); isGroup {
+		return membersFunction + `("` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(group) + `")`
 	}
 	for word, anchor := range anchors {
 		if anchor == value {

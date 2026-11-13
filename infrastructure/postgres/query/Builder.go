@@ -511,6 +511,14 @@ func errFieldNotCompilable(field view.Field) error {
 		WithParams(map[string]string{"field": field.Name})
 }
 
+// errNotAnswered refuses a key only the use case can answer - whose time, which plan - where the
+// use case did not: a door that does not ask it says so rather than guessing.
+func errNotAnswered(field view.Field) error {
+	return shared.ErrValidation.
+		WithDetail("query.key_not_here").
+		WithParams(map[string]string{"field": field.Name})
+}
+
 func errOperatorNotCompilable(op view.Operator) error {
 	return shared.ErrInternal.
 		WithDetail("query.operator_not_compilable").

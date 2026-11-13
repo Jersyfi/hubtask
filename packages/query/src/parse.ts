@@ -60,6 +60,7 @@ const FIELDS: readonly Field[] = [
   { name: 'satisfaction', kind: 'integer' }, { name: 'hub_id', kind: 'id' }, { name: 'under', kind: 'id' },
   { name: 'blocks', kind: 'id' }, { name: 'affects', kind: 'id' }, { name: 'sprint_id', kind: 'id' },
   { name: 'release_id', kind: 'id' }, { name: 'slip_days', kind: 'integer' },
+  { name: 'critical', kind: 'boolean' }, { name: 'time_logged', kind: 'integer' },
 ];
 
 export const READER_KEYS: Readonly<Record<string, string>> = {
@@ -68,7 +69,7 @@ export const READER_KEYS: Readonly<Record<string, string>> = {
   done: 'completed_at', title: 'title', text: 'text', note: 'notes', linked: 'linked_to', parent: 'parent_id',
   'desk.sla': 'sla_due', 'desk.standing': 'sla_standing', 'desk.satisfaction': 'satisfaction',
   hub: 'hub_id', under: 'under', blocks: 'blocks', affects: 'affects', 'plan.sprint': 'sprint_id',
-  'plan.release': 'release_id', 'plan.slip': 'slip_days',
+  'plan.release': 'release_id', 'plan.slip': 'slip_days', 'plan.critical': 'critical', 'time.logged': 'time_logged',
 };
 const FIELD_KEYS: Record<string, string> = Object.fromEntries(Object.entries(READER_KEYS).map(([k, v]) => [v, k]));
 
@@ -218,7 +219,11 @@ export function lexQuery(text: string): Token[] {
 }
 
 type Item = { node?: FilterNode; piece?: string };
-interface Raw { text: string; quoted: boolean; at: number }
+// group is set for `members("…")`, whose argument text is.
+interface Raw { text: string; quoted: boolean; at: number; group?: boolean }
+
+/** The one function value: the people of a group, `members("Support")`. */
+const MEMBERS_FUNCTION = 'members';
 
 const matches = (piece: string): FilterNode => ({ field: 'text', op: 'MATCHES', value: piece });
 const not = (node: FilterNode): FilterNode => ({ op: 'NOT', nodes: [node] });
@@ -252,6 +257,18 @@ class QueryParser {
   peek = (): Token => this.tokens[this.pos] ?? { kind: 'symbol', text: '', at: this.text.length, joined: false };
   atWord = (word: string) => !this.done() && this.peek().kind === 'word' && this.peek().text === word;
   atSymbol = (symbol: string) => !this.done() && this.peek().kind === 'symbol' && this.peek().text === symbol;
+  atJoinedSymbol = (symbol: string) => this.atSymbol(symbol) && this.peek().joined;
+
+  /** Reads `("name")` or `(name)` after `members`. */
+  groupArgument(at: number): Raw {
+    this.pos += 1;
+    if (this.done() || this.peek().kind === 'symbol') refuse(this.text, at, 'query.group_required');
+    const arg = this.peek();
+    this.pos += 1;
+    if (!this.atSymbol(')')) refuse(this.text, at, 'query.group_required');
+    this.pos += 1;
+    return { text: arg.text, quoted: false, at, group: true };
+  }
 
   query(): Query {
     const items = this.and(0, true);
@@ -349,6 +366,7 @@ class QueryParser {
     if (rest !== '') {
       values.push({ text: rest, quoted: false, at: t.at + marker[0].length });
       expect = false;
+      if (rest === MEMBERS_FUNCTION && this.atJoinedSymbol('(')) values[0] = this.groupArgument(t.at + marker[0].length);
     }
     for (;;) {
       if (expect) {
@@ -361,6 +379,8 @@ class QueryParser {
           const operand = this.peek();
           this.pos += 1;
           values.push({ text: v.text + operand.text, quoted: false, at: v.at });
+        } else if (v.kind === 'word' && v.text === MEMBERS_FUNCTION && this.atJoinedSymbol('(')) {
+          values.push(this.groupArgument(v.at));
         } else {
           values.push({ text: v.text, quoted: v.kind === 'text', at: v.at });
         }
@@ -494,12 +514,17 @@ class QueryParser {
   }
 
   value(field: Field, v: Raw, bound: string): unknown {
+    if (v.group) {
+      if (field.kind !== 'id' && field.kind !== 'id_set') refuse(this.text, v.at, 'query.value_unknown', { field: field.name });
+      return `@group:${v.text}`;
+    }
     if (v.quoted) return v.text;
     const word = v.text;
     switch (field.kind) {
       case 'id':
       case 'id_set':
         if (word === 'me') return '@me';
+        if (word === 'my-groups') return '@my_groups';
         if (word === 'here') refuse(this.text, v.at, 'query.value_needs_place', { field: field.name });
         break;
       case 'timestamp': {
@@ -984,13 +1009,15 @@ function formatValue(raw: unknown, field: Field, bound: string, inRange: boolean
 
 function bareSafe(value: string, field: Field): boolean {
   if (!plainWord(value) || value.includes('..') || value.endsWith('*') || '<>=~-+@'.includes(value[0] ?? '') || FIELD_MARKER.test(value)) return false;
-  if (['none', 'me', 'here', 'OR', 'AND', 'NOT', '+'].includes(value)) return false;
+  if (['none', 'me', 'my-groups', 'here', 'OR', 'AND', 'NOT', '+'].includes(value)) return false;
   if (field.kind === 'custom' && typeof bareCustom(value) !== 'string') return false;
   return field.kind !== 'integer';
 }
 
 function formatPlaceholder(value: string): string {
   if (value === '@me') return 'me';
+  if (value === '@my_groups') return 'my-groups';
+  if (value.startsWith('@group:')) return `${MEMBERS_FUNCTION}("${value.slice(7).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}")`;
   const word = Object.entries(ANCHORS).find(([, anchor]) => anchor === value)?.[0];
   if (word) return word;
   const m = TODAY_OFFSET.exec(value);

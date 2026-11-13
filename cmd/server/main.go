@@ -2176,10 +2176,16 @@ func run() error {
 		// The installation and the plan decide the time policy above the workspace's row.
 		Settings: postgres.SettingRepository{},
 	}
+	// The query's keys only a use case answers (UC-WRK-43): the group words with the asker's right
+	// to read groups, time.logged by the time module's reach, plan.critical by the scheduler.
+	queryGroups := identity.GroupPeople{Members: authorizer, Groups: postgres.GroupPeopleRepository{}, UnitOfWork: unitOfWork}
+	queryTime := timeservice.TimeReach{Keeper: keeper, Modules: modules}
+	queryCritical := planningservice.CriticalEntries{Planner: planner}
 	// The goals and insight module (M8): every number it shows is POST /items:aggregate's or a
 	// saved view's summary, run as the reader.
 	goalSummaries := work.AggregateItems{
 		Query: work.QueryItems{
+			Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 			Gate:  entryGate,
 			Items: items, Containers: containers, Fields: customFields,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -2265,6 +2271,7 @@ func run() error {
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{
+					Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 					Gate:  entryGate,
 					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -2506,6 +2513,7 @@ func run() error {
 		servicedeskservice.ListHubQueues{
 			Desk: serviceDesk, Views: savedViews, EntryTypes: entryTypes, Gate: entryGate,
 			Query: work.QueryItems{
+				Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 				Gate: entryGate, Items: items, Containers: containers, Fields: customFields, Counter: items,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
@@ -3509,12 +3517,14 @@ func run() error {
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.QueryItems{
+			Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 			Gate:  entryGate,
 			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers, Fields: customFields,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		work.AggregateItems{
 			Query: work.QueryItems{
+				Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 				Gate:  entryGate,
 				Items: items, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -3527,6 +3537,7 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer, UnitOfWork: unitOfWork,
 			Aggregate: work.AggregateItems{
 				Query: work.QueryItems{
+					Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 					Gate:  entryGate,
 					Items: items, Containers: containers, Fields: customFields,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -3540,6 +3551,7 @@ func run() error {
 		// shapes: about a hub the client named, about how far the caller reaches into a collection,
 		// and about each row of an unanchored page (SearchItems.reach).
 		work.SearchItems{
+			Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 			Gate:     entryGate,
 			Searcher: items, Containers: containers, Fields: customFields,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
@@ -3752,6 +3764,7 @@ func run() error {
 		work.ExportView{
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			Query: work.QueryItems{
+				Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 				Gate:  entryGate,
 				Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -3761,6 +3774,7 @@ func run() error {
 		}.Descriptor(),
 		work.ExportItems{
 			Query: work.QueryItems{
+				Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 				Gate:  entryGate,
 				Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -4075,6 +4089,7 @@ func run() error {
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{
+					Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 					Gate:  entryGate,
 					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -4091,6 +4106,7 @@ func run() error {
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{
+					Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 					Gate:  entryGate,
 					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -4307,6 +4323,7 @@ func run() error {
 				Views: work.ExportView{
 					Views: savedViews, Containers: containers, Permits: authorizer,
 					Query: work.QueryItems{
+						Groups: queryGroups, Time: queryTime, Critical: queryCritical,
 						Gate:  entryGate,
 						Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 						Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},

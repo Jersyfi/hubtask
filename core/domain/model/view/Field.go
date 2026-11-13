@@ -156,6 +156,14 @@ const (
 	// FieldSlip is how many days the entry's due date lies after the one its latest baseline
 	// kept, negative when earlier, absent without a baseline or a due date - `plan.slip`.
 	FieldSlip = "slip_days"
+	// FieldTimeLogged is the minutes of time recorded on the entry that the asker may see: their
+	// own, and other people's only where the time module shows them (UC-TIM-04) - `time.logged`.
+	// The use case decides whose time that is (Node.Asked); the statement only binds it.
+	FieldTimeLogged = "time_logged"
+	// FieldCritical is whether the entry lies on the critical path of the plan the query reaches,
+	// as the scheduler computes it for the asker (PLN-03) - `plan.critical`. Computed by the use
+	// case, never stored.
+	FieldCritical = "critical"
 
 	// CustomFieldPrefix names the family (api-guidelines.md §3). The one field name in the
 	// grammar that carries a value: everything after the dot is a key, which is why it is a
@@ -403,6 +411,14 @@ var catalogue = []Field{
 		Name: FieldSlip, Kind: KindInt,
 		Operators: []Operator{OpEq, OpNeq, OpLt, OpLte, OpGt, OpGte, OpBetween, OpIsNull},
 		Nullable:  true,
+	},
+	{
+		Name: FieldTimeLogged, Kind: KindInt,
+		Operators: []Operator{OpEq, OpNeq, OpLt, OpLte, OpGt, OpGte, OpBetween},
+	},
+	{
+		Name: FieldCritical, Kind: KindBool,
+		Operators: []Operator{OpEq, OpNeq},
 	},
 }
 

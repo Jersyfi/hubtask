@@ -922,6 +922,12 @@ func (b *builder) leaf(node view.Node) {
 	case view.FieldAffects:
 		b.affects(node)
 		return
+	case view.FieldTimeLogged:
+		b.timeLogged(node)
+		return
+	case view.FieldCritical:
+		b.critical(node)
+		return
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
@@ -1067,6 +1073,68 @@ func (b *builder) affects(node view.Node) {
 	b.write(` AND ca.ci_id = ANY(`)
 	b.array(node.Field, node.Values)
 	b.write(`))`)
+}
+
+// timeLogged writes the minutes on the entry the asker may see, compared with the value: the
+// asker's own records, and other people's only on entries of the collections the use case found
+// the time module shows them in (rule 2) - where the workspace shows only sums, only on an entry
+// three or more people worked on, as a time summary withholds a smaller group (UC-TIM-04).
+func (b *builder) timeLogged(node view.Node) {
+	if node.Asked == nil {
+		b.fail(errNotAnswered(node.Field))
+		return
+	}
+	sight := node.Asked.Sight
+	b.write(`(SELECT coalesce(sum(tl.minutes), 0) FROM time_record tl`)
+	b.write(` WHERE tl.tenant_id = wi.tenant_id AND tl.entry_id = wi.id AND (tl.account_id = `)
+	b.param(sight.Reader.String())
+	b.write(`::uuid OR (wi.collection_id = ANY(`)
+	b.param(identifiers(sight.Shown))
+	b.write(`::uuid[])`)
+	if sight.Withhold {
+		b.write(` AND (SELECT count(DISTINCT tp.account_id) FROM time_record tp`)
+		b.write(` WHERE tp.tenant_id = wi.tenant_id AND tp.entry_id = wi.id) >= 3`)
+	}
+	b.write(`)))`)
+	switch node.Op {
+	case view.OpEq:
+		b.write(` = `)
+	case view.OpNeq:
+		b.write(` <> `)
+	case view.OpLt:
+		b.write(` < `)
+	case view.OpLte:
+		b.write(` <= `)
+	case view.OpGt:
+		b.write(` > `)
+	case view.OpGte:
+		b.write(` >= `)
+	case view.OpBetween:
+		b.write(` BETWEEN `)
+		b.value(node.Field, node.Values[0])
+		b.write(` AND `)
+		b.value(node.Field, node.Values[1])
+		return
+	default:
+		b.fail(errOperatorNotCompilable(node.Op))
+		return
+	}
+	b.value(node.Field, node.Values[0])
+}
+
+// critical writes whether the entry is among those the use case found on the critical path.
+func (b *builder) critical(node view.Node) {
+	if node.Asked == nil {
+		b.fail(errNotAnswered(node.Field))
+		return
+	}
+	if node.CriticalWanted() {
+		b.write(`wi.id = ANY(`)
+	} else {
+		b.write(`wi.id <> ALL(`)
+	}
+	b.param(identifiers(node.Asked.Critical))
+	b.write(`::uuid[])`)
 }
 
 // groupQueue writes whether the entry's collection has an auto-assign policy naming, as a GROUP

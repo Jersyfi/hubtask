@@ -306,7 +306,17 @@ bounds and price hold. The keys, the time words and the people words are a close
 domain: `who` names `assignee_id`, `today` names `@today`, `-7d` names `@today-P7D`; a value is a
 bound parameter as every value is. Free words are a `MATCHES` leaf, read by
 `websearch_to_tsquery` as a parameter. `/meta/capabilities` serves the keys under `query_keys`, only
-those the parser reads. The browser's twin (`packages/query`) is held to the parser by
+those the parser reads.
+
+Three kinds of value only the use case can answer, each as the reader and before the statement is
+built (rule 2): the group words `my-groups` and `members("…")` (placeholders `@my_groups` and
+`@group:<identifier or name>`) become the group's people, read with the reader's right to read
+groups and bound as one array; `time.logged` binds whose time counts - the reader's own and others'
+only in the collections the time module shows them (UC-TIM-04), withheld below three people where
+only sums are shown -; `plan.critical` binds the entries the scheduler puts on the critical path of
+the hub or collection the query reaches, computed on asking. A door that cannot ask - a search of the
+whole workspace, the system acting as nobody - refuses the key (`query.key_needs_place`,
+`query.key_needs_reader`, `query.key_not_here`) rather than answering it as nobody. The browser's twin (`packages/query`) is held to the parser by
 `test/querylanguage/lines.json`; the server reads every text again.
 
 ## 4. Pagination, sorting, partial responses

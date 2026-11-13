@@ -30,6 +30,12 @@ const (
 	// PlaceholderMe is the acting account. The one placeholder that is not a moment.
 	PlaceholderMe PlaceholderKind = "@me"
 
+	// PlaceholderMyGroups is the people of every group the actor is in, PlaceholderGroup the people
+	// of one group, written `@group:<identifier or name>`. Both are lists the use case reads with
+	// the actor's rights (Resolution.Groups); the statement only binds the identifiers.
+	PlaceholderMyGroups PlaceholderKind = "@my_groups"
+	PlaceholderGroup    PlaceholderKind = "@group"
+
 	PlaceholderNow          PlaceholderKind = "@now"
 	PlaceholderToday        PlaceholderKind = "@today"
 	PlaceholderEndOfDay     PlaceholderKind = "@end_of_day"
@@ -43,7 +49,25 @@ const (
 type Placeholder struct {
 	Kind   PlaceholderKind
 	Offset Offset
+	// Group is the group a PlaceholderGroup names, as written.
+	Group string
 }
+
+// GroupKey is the key Resolution.Groups answers a group placeholder under.
+func (p Placeholder) GroupKey() string {
+	if p.Kind == PlaceholderGroup {
+		return string(PlaceholderGroup) + ":" + p.Group
+	}
+	return string(p.Kind)
+}
+
+// people reports whether the placeholder stands for accounts.
+func (k PlaceholderKind) people() bool {
+	return k == PlaceholderMe || k == PlaceholderMyGroups || k == PlaceholderGroup
+}
+
+// maxGroupName bounds a group named in a placeholder; a group's name is no longer.
+const maxGroupName = 200
 
 // Offset is the ISO 8601 duration a placeholder may carry, split the way it has to be applied.
 //
@@ -76,6 +100,9 @@ type Resolution struct {
 	Now      time.Time
 	Location *time.Location
 	ActorID  shared.ID
+	// Groups are the people of each group placeholder the filter names (GroupKey), read by the
+	// use case with the actor's rights. Nil when the use case read none.
+	Groups map[string][]shared.ID
 	// WeekStart is the first day of the week the anchors are computed for: the account's own
 	// preference, otherwise the locale's, resolved onto the actor by authentication (i18n-l10n.md
 	// §7). The zero value is Sunday, which is time.Weekday's zero - so a caller that says nothing
@@ -111,6 +138,17 @@ func (r Resolution) weekStart() time.Weekday {
 // parsePlaceholder reads `@anchor`, `@anchor+P3D` or `@anchor-P1W`, and refuses an anchor that
 // does not fit the field it was written on.
 func parsePlaceholder(raw string, kind Kind, path string) (Placeholder, error) {
+	if group, isGroup := strings.CutPrefix(raw, string(PlaceholderGroup)+":"); isGroup {
+		if kind != KindID && kind != KindIDSet {
+			return Placeholder{}, fieldError(path, "query.placeholder_not_applicable", map[string]string{
+				"placeholder": string(PlaceholderGroup), "kind": string(kind),
+			})
+		}
+		if strings.TrimSpace(group) == "" || len(group) > maxGroupName {
+			return Placeholder{}, fieldError(path, "query.group_required", nil)
+		}
+		return Placeholder{Kind: PlaceholderGroup, Group: group}, nil
+	}
 	anchor, offsetText := raw, ""
 	if cut := strings.IndexAny(raw, "+-"); cut > 0 {
 		anchor, offsetText = raw[:cut], raw[cut:]
@@ -129,7 +167,7 @@ func parsePlaceholder(raw string, kind Kind, path string) (Placeholder, error) {
 	// api-guidelines.md §3 writes out in its own example, and the kind says "an identifier" rather
 	// than "an account" - the same latitude `parent_id` already has, where `@me` parses and then
 	// matches nothing.
-	if (placeholder.Kind == PlaceholderMe) != (kind == KindID || kind == KindIDSet) {
+	if placeholder.Kind.people() != (kind == KindID || kind == KindIDSet) {
 		return Placeholder{}, fieldError(path, "query.placeholder_not_applicable", map[string]string{
 			"placeholder": anchor, "kind": string(kind),
 		})
@@ -138,7 +176,7 @@ func parsePlaceholder(raw string, kind Kind, path string) (Placeholder, error) {
 	if offsetText == "" {
 		return placeholder, nil
 	}
-	if placeholder.Kind == PlaceholderMe {
+	if placeholder.Kind.people() {
 		return Placeholder{}, fieldError(path, "query.placeholder_offset_not_allowed", map[string]string{
 			"placeholder": anchor,
 		})
@@ -154,7 +192,7 @@ func parsePlaceholder(raw string, kind Kind, path string) (Placeholder, error) {
 
 func (k PlaceholderKind) valid() bool {
 	switch k {
-	case PlaceholderMe, PlaceholderNow, PlaceholderToday, PlaceholderEndOfDay,
+	case PlaceholderMe, PlaceholderMyGroups, PlaceholderNow, PlaceholderToday, PlaceholderEndOfDay,
 		PlaceholderStartOfWeek, PlaceholderEndOfWeek, PlaceholderStartOfMonth, PlaceholderEndOfMonth:
 		return true
 	}
@@ -377,8 +415,22 @@ func (n Node) Resolve(at Resolution, path string) (Node, error) {
 		return resolved, nil
 	}
 
+	if (n.Field.Name == FieldTimeLogged || n.Field.Name == FieldCritical) && at.ActorID.IsZero() {
+		// Whose time and whose plan are the asker's questions; the system asks as nobody.
+		return Node{}, fieldError(path, "query.key_needs_reader", map[string]string{"field": n.Field.Name})
+	}
 	resolved := Node{Op: n.Op, Field: n.Field, Values: make([]Value, 0, len(n.Values))}
+	expanded := false
 	for index, value := range n.Values {
+		if value.IsPlaceholder() && (value.Placeholder.Kind == PlaceholderMyGroups || value.Placeholder.Kind == PlaceholderGroup) {
+			people, err := at.people(value.Placeholder, path+"/value/"+strconv.Itoa(index))
+			if err != nil {
+				return Node{}, err
+			}
+			resolved.Values = append(resolved.Values, people...)
+			expanded = true
+			continue
+		}
 		if value.IsPlaceholder() {
 			computed, err := value.Placeholder.Resolve(at, path+"/value/"+strconv.Itoa(index))
 			if err != nil {
@@ -391,5 +443,53 @@ func (n Node) Resolve(at Resolution, path string) (Node, error) {
 		}
 		resolved.Values = append(resolved.Values, value)
 	}
+	if expanded {
+		resolved = asList(resolved)
+	}
 	return resolved, nil
+}
+
+// people answers a group placeholder as the identifiers of its people, each once.
+func (r Resolution) people(p Placeholder, path string) ([]Value, error) {
+	if r.ActorID.IsZero() {
+		return nil, fieldError(path, "query.placeholder_needs_actor", map[string]string{"placeholder": string(p.Kind)})
+	}
+	ids, read := r.Groups[p.GroupKey()]
+	if !read {
+		return nil, fieldError(path, "query.groups_not_here", map[string]string{"placeholder": string(p.Kind)})
+	}
+	values := make([]Value, 0, len(ids))
+	for _, id := range ids {
+		values = append(values, Value{Kind: KindID, ID: id})
+	}
+	return values, nil
+}
+
+// noAccount stands in for a group with nobody in it, so the list stays a list and matches no one.
+const noAccount = shared.ID("00000000-0000-0000-0000-000000000000")
+
+// asList turns a comparison whose group became people into its list form, each person once: EQ
+// asks IN, NEQ asks NOT_IN, CONTAINS asks CONTAINS_ANY.
+func asList(n Node) Node {
+	switch n.Op {
+	case OpEq:
+		n.Op = OpIn
+	case OpNeq:
+		n.Op = OpNotIn
+	case OpContains:
+		n.Op = OpContainsAny
+	}
+	seen := map[shared.ID]bool{}
+	values := n.Values[:0:0]
+	for _, v := range n.Values {
+		if !seen[v.ID] {
+			seen[v.ID] = true
+			values = append(values, v)
+		}
+	}
+	if len(values) == 0 {
+		values = append(values, Value{Kind: KindID, ID: noAccount})
+	}
+	n.Values = values
+	return n
 }

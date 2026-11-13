@@ -49,6 +49,12 @@ type QueryItems struct {
 	Gate EntryGate
 	// Counter answers CountWithin; nil where nothing asks it.
 	Counter repository.ItemCounter
+	// Groups reads the people of `my-groups` and `members("…")`; unwired, both are refused.
+	Groups GroupPeople
+	// Time decides whose time `time.logged` counts; unwired, the reader's own alone.
+	Time TimeReach
+	// Critical answers `plan.critical`; unwired, it is refused.
+	Critical CriticalPath
 }
 
 // Execute answers the query.
@@ -111,7 +117,7 @@ func (h QueryItems) CountWithin(
 func (h QueryItems) admitted(
 	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
 ) (view.Spec, repository.Anchor, *FieldLens, error) {
-	resolved, err := h.resolvePlaceholders(actor, spec)
+	resolved, err := h.resolvePlaceholders(ctx, actor, spec)
 	if err != nil {
 		return view.Spec{}, repository.Anchor{}, nil, err
 	}
@@ -129,6 +135,10 @@ func (h QueryItems) admitted(
 		TargetType: containerTarget,
 		TargetID:   container.ID,
 	}); err != nil {
+		return view.Spec{}, repository.Anchor{}, nil, err
+	}
+	// Asked only once READ is granted: the time module and the scheduler are asked as the reader.
+	if resolved.Filter, err = h.askedKeys(ctx, actor, resolved.Filter, anchor, container); err != nil {
 		return view.Spec{}, repository.Anchor{}, nil, err
 	}
 	lens, err := h.lens(ctx, actor, container, resolved)
@@ -201,11 +211,15 @@ func (h QueryItems) narrowed(
 	return result, nil
 }
 
-// resolvePlaceholders replaces `@me` and the date anchors in the query's filter.
+// resolvePlaceholders replaces `@me`, the date anchors and the group words in the query's filter.
 func (h QueryItems) resolvePlaceholders(
-	actor appshared.ActorContext, spec view.Spec,
+	ctx context.Context, actor appshared.ActorContext, spec view.Spec,
 ) (view.Spec, error) {
-	resolved, err := resolveFilter(h.Clock, actor, spec.Filter, "/filter")
+	groups, err := askGroups(ctx, actor, h.Groups, spec.Filter)
+	if err != nil {
+		return view.Spec{}, err
+	}
+	resolved, err := resolveFilter(h.Clock, actor, spec.Filter, "/filter", groups)
 	if err != nil {
 		return view.Spec{}, err
 	}
@@ -229,7 +243,7 @@ func (h QueryItems) resolvePlaceholders(
 //
 // A nil filter is nothing to resolve, which is what a search with words and no narrowing is.
 func resolveFilter(
-	source clock.Clock, actor appshared.ActorContext, filter *view.Node, path string,
+	source clock.Clock, actor appshared.ActorContext, filter *view.Node, path string, groups map[string][]shared.ID,
 ) (*view.Node, error) {
 	if filter == nil {
 		return nil, nil
@@ -246,6 +260,7 @@ func resolveFilter(
 		Now:      source.Now(),
 		Location: location,
 		ActorID:  actor.AccountID,
+		Groups:   groups,
 	}.WithWeekStart(actor.WeekStart), path)
 	if err != nil {
 		return nil, err

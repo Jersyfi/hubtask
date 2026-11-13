@@ -926,6 +926,19 @@ func (q *Queries) GroupMembers(ctx context.Context, groupID pgtype.UUID) ([]pgty
 	return items, nil
 }
 
+const groupNamed = `-- name: GroupNamed :one
+SELECT id FROM account_group WHERE tenant_id = current_tenant_id() AND lower(name) = lower($1::text)
+`
+
+// The group a query names by its name, case-insensitive (`members("Support")`); the name is a
+// bound value, compared with the unique index's own expression.
+func (q *Queries) GroupNamed(ctx context.Context, name string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, groupNamed, name)
+	var id pgtype.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const hasManagedAccounts = `-- name: HasManagedAccounts :one
 SELECT EXISTS (
   SELECT 1 FROM account
@@ -1555,6 +1568,41 @@ func (q *Queries) PageDirectoryGroups(ctx context.Context, arg PageDirectoryGrou
 			return nil, err
 		}
 		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const peopleOfGroupsOf = `-- name: PeopleOfGroupsOf :many
+SELECT DISTINCT other.account_id
+FROM account_group_member mine
+JOIN account_group_member other ON other.tenant_id = mine.tenant_id AND other.group_id = mine.group_id
+WHERE mine.tenant_id = current_tenant_id() AND mine.account_id = $1
+ORDER BY other.account_id
+LIMIT $2
+`
+
+type PeopleOfGroupsOfParams struct {
+	AccountID pgtype.UUID
+	MaxRows   int32
+}
+
+// Everybody in a group the account is in, the account among them: the query's `my-groups`.
+func (q *Queries) PeopleOfGroupsOf(ctx context.Context, arg PeopleOfGroupsOfParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, peopleOfGroupsOf, arg.AccountID, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

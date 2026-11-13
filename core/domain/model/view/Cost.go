@@ -64,7 +64,8 @@ func Cost(node *Node) int {
 		node.Field.Name == FieldSatisfaction || node.Field.Name == FieldGroupQueueOf ||
 		node.Field.Name == FieldHub || node.Field.Name == FieldUnder ||
 		node.Field.Name == FieldBlocks || node.Field.Name == FieldAffects ||
-		node.Field.Name == FieldSprint || node.Field.Name == FieldRelease || node.Field.Name == FieldSlip:
+		node.Field.Name == FieldSprint || node.Field.Name == FieldRelease || node.Field.Name == FieldSlip ||
+		node.Field.Name == FieldTimeLogged || node.Field.Name == FieldCritical:
 		return costTraversal
 	case node.Op == OpContains || node.Op == OpMatches:
 		return costText

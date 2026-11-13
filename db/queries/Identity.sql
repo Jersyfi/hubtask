@@ -474,6 +474,20 @@ WHERE group_id = sqlc.arg('group_id') AND account_id = sqlc.arg('account_id');
 -- name: GroupMembers :many
 SELECT account_id FROM account_group_member WHERE group_id = sqlc.arg('group_id');
 
+-- name: PeopleOfGroupsOf :many
+-- Everybody in a group the account is in, the account among them: the query's `my-groups`.
+SELECT DISTINCT other.account_id
+FROM account_group_member mine
+JOIN account_group_member other ON other.tenant_id = mine.tenant_id AND other.group_id = mine.group_id
+WHERE mine.tenant_id = current_tenant_id() AND mine.account_id = sqlc.arg('account_id')
+ORDER BY other.account_id
+LIMIT sqlc.arg('max_rows');
+
+-- name: GroupNamed :one
+-- The group a query names by its name, case-insensitive (`members("Support")`); the name is a
+-- bound value, compared with the unique index's own expression.
+SELECT id FROM account_group WHERE tenant_id = current_tenant_id() AND lower(name) = lower(sqlc.arg('name')::text);
+
 -- ============================= Directory ==============================
 -- What a directory provisions over SCIM (UC-ID-28): the identifier it knows a person or a group
 -- by, and the people it switches off and on. The workspace's own rules - who may, the last owner,

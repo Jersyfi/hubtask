@@ -265,3 +265,17 @@ func (h ApplyPlanSchedule) Descriptor() usecase.Descriptor {
 		}),
 	}, planTarget)
 }
+
+// CriticalEntries answers `plan.critical` (work.CriticalPath): the plan scheduled for the asker as
+// ReadPlanSchedule schedules it - its own calendar, the entries the asker may read - and its
+// critical path. Computed on asking and never stored, so the answer is the schedule of the moment.
+type CriticalEntries struct{ Planner Planner }
+
+// Critical answers the entries on the critical path of a hub or a collection.
+func (c CriticalEntries) Critical(ctx context.Context, actor appshared.ActorContext, planID shared.ID) ([]shared.ID, error) {
+	scheduled, err := ReadPlanSchedule(c).Execute(ctx, actor, ScheduleQuery{PlanID: planID})
+	if err != nil {
+		return nil, err
+	}
+	return scheduled.Result.CriticalPath, nil
+}
