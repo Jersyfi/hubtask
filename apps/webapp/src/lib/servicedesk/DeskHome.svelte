@@ -8,11 +8,12 @@
   // are a settings page of their own (ServiceDeskView, page-system §9.6).
 
   import { untrack } from 'svelte';
+  import type { HubQueueList, ResourceState } from '@hubtask/sync-engine';
   import { Icon, ListRow, PageHeader, Skeleton, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { entryTypes } from '../data/entrytypes.svelte.ts';
+  import { engine } from '../data/engine.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { homeTabs } from '../product/home.ts';
@@ -20,7 +21,7 @@
   import ProductEmpty from '../product/ProductEmpty.svelte';
   import { markOf } from '../workspace/look.ts';
   import DeskQueues from './DeskQueues.svelte';
-  import { desksOf, type DeskQueue } from './queues.ts';
+  import { desksAnswered, type DeskQueue } from './queues.ts';
 
   interface Props {
     /** The hubs where the desk is on, once each answered. */
@@ -42,18 +43,23 @@
   const current = $derived(homeViews.some((each) => each.id === tab) ? (tab as string) : 'foryou');
 
   const hubKey = $derived(hubs.map((hub) => hub.id).join(','));
+  // Which collections are desks is the server's answer (`desks` of a hub's queues), not this
+  // client's reading of the entry types (concept §10, "no desk takes requests").
+  let queueAnswers = $state<Record<string, ResourceState<HubQueueList>>>({});
   $effect(() => {
     const ids = hubKey === '' ? [] : hubKey.split(',');
     return untrack(() => {
-      const stops = [...ids.map((hubId) => containers.openLevel(hubId)), ...(ids.length > 0 ? [entryTypes.open()] : [])];
+      const stops = [
+        ...ids.map((hubId) => containers.openLevel(hubId)),
+        ...ids.map((hubId) => engine.subscribe<HubQueueList>({ path: `/hubs/${hubId}/queues` }, (next) => {
+          queueAnswers = { ...queueAnswers, [hubId]: next };
+        })),
+      ];
       return () => stops.forEach((stop) => stop());
     });
   });
-  const typesReady = $derived(entryTypes.state !== undefined && entryTypes.state.status !== 'idle' && entryTypes.state.status !== 'loading');
   const desksAt = $derived(
-    !isReading && typesReady && hubs.every((hub) => !containers.isLevelLoading(hub.id))
-      ? Object.fromEntries(hubs.map((hub) => [hub.id, desksOf(containers.collectionsOf(hub.id), entryTypes.all)]))
-      : undefined,
+    !isReading && hubs.every((hub) => !containers.isLevelLoading(hub.id)) ? desksAnswered(queueAnswers, hubs.map((hub) => hub.id)) : undefined,
   );
   const desks = $derived(
     desksAt === undefined

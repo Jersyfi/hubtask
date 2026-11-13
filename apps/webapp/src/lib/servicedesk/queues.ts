@@ -9,7 +9,7 @@
  * order and the count of, and a hub the reader may not read is refused rather than left out.
  */
 
-import type { EntryType } from '@hubtask/sync-engine';
+import type { EntryType, HubQueueList, ResourceState } from '@hubtask/sync-engine';
 
 import { entryTypesOffered } from '../data/entrytypes.ts';
 import { actsAsDesk } from '../portal/portal.ts';
@@ -57,6 +57,25 @@ export function queueTotal(totals: Readonly<Record<string, number | null | undef
     sum += total;
   }
   return sum;
+}
+
+/**
+ * The desks of each hub as the server names them (`desks` of `GET /hubs/{id}/queues`); undefined
+ * until every hub has answered. The home asks the server rather than its own reading of the entry
+ * types, which said "no desk takes requests" beside a desk with open requests (concept §10). A hub
+ * that refused the read names none.
+ */
+export function desksAnswered(
+  answers: Readonly<Record<string, ResourceState<HubQueueList> | undefined>>,
+  hubIds: readonly string[],
+): Record<string, string[]> | undefined {
+  const out: Record<string, string[]> = {};
+  for (const hubId of hubIds) {
+    const answer = answers[hubId];
+    if (answer === undefined || answer.status === 'idle' || answer.status === 'loading') return undefined;
+    out[hubId] = answer.status === 'ready' ? [...(answer.data.desks ?? [])] : [];
+  }
+  return out;
 }
 
 /** A hub's collections that act as a desk (UC-SVC-05): those offering a type the portal takes. */
