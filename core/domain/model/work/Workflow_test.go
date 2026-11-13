@@ -312,9 +312,10 @@ func TestAnApprovalStepIsHeldToItsShape(t *testing.T) {
 	}
 }
 
-// How done is reached (UC-FLW-06 check 3): the fewest steps from a status into one of the DONE
-// category, in the workflow's order where two routes are as short; none from a done status or
-// where no step leads there.
+// How done is reached (UC-FLW-06 check 3): the fewest steps from a status into the workflow's done
+// status, the first of the DONE category - a shorter way into another done status, such as a
+// discard from any status, is not the route; another done status only where the first is out of
+// reach; none from a done status or where no step leads there.
 func TestRouteToDone(t *testing.T) {
 	shape := work.WorkflowShape{
 		Statuses: []work.WorkflowStatus{
@@ -323,6 +324,7 @@ func TestRouteToDone(t *testing.T) {
 			{Key: "review", Category: work.CategoryInProgress},
 			{Key: "done", Category: work.CategoryDone},
 			{Key: "stuck", Category: work.CategoryTodo},
+			{Key: "dropped", Category: work.CategoryDone},
 		},
 		Initial: "todo",
 		Steps: []work.WorkflowStep{
@@ -330,6 +332,7 @@ func TestRouteToDone(t *testing.T) {
 			{Key: "submit", From: []string{"doing"}, To: "review"},
 			{Key: "approve", From: []string{"review"}, To: "done"},
 			{Key: "park", From: []string{"todo", "doing"}, To: "stuck"},
+			{Key: "drop", From: []string{}, To: "dropped"},
 		},
 	}
 	keys := func(steps []work.WorkflowStep) []string {
@@ -346,7 +349,8 @@ func TestRouteToDone(t *testing.T) {
 		{"todo", []string{"start", "submit", "approve"}},
 		{"review", []string{"approve"}},
 		{"done", []string{}},
-		{"stuck", []string{}},
+		{"dropped", []string{}},
+		{"stuck", []string{"drop"}},
 	} {
 		if got := keys(shape.RouteToDone(tc.from)); !slices.Equal(got, tc.want) {
 			t.Errorf("from %s: %v, want %v", tc.from, got, tc.want)
