@@ -815,6 +815,12 @@ suggestion. Switching levels always previews:
   columns, the done column last, and keeps completion. Both are refused while a workflow runs for
   tasks (`board.workflow_runs`) and where the tasks already stand so (`board.level_unchanged`).
 
+A **template** says the same two things apart. A type's `workflow` flag says a workflow *runs* for
+it, and then the hub's scheme must name one; a workflow the template brings without a scheme is
+*offered*: installed, the workflows module on, chosen later by somebody. *Einkaufen* (`shopping@3`)
+is the case: its three statuses are offered, its type's flag is off, and a new shopping hub is a
+list (L0).
+
 An entry **arriving** on a board - moved from another collection, imported - takes the state of the
 column it is put in, and a completed one put in none goes into the done column (`Board.Arrived`); a
 **copy** or an entry from a template is open, so it stands outside the done column (`Board.Copied`);

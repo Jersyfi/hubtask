@@ -158,6 +158,8 @@ func TestEveryShippedTemplateIsOneAWorkspaceCanTake(t *testing.T) {
 					t.Errorf("%s: %s is not carried by %s's level %s", key, custom, entryType, level)
 				}
 			}
+			// The flag says a workflow runs, not that one is installed: a workflow brought without a
+			// scheme is offered, and the type stands at L0 (domain-model.md §3.5a).
 			runs := block["workflow"] == true
 			if runs != (template.Hub[sectionScheme][entryType] != nil) {
 				t.Errorf("%s: %s runs a workflow %v, the hub's scheme names it %v", key, entryType, runs, !runs)
