@@ -730,7 +730,7 @@
 {/snippet}
 
 {#snippet list()}
-  <div class="menu" data-host={host} role="listbox" aria-label={t('app.searchmenu.label')} id="search-menu">
+  <div class="menu" data-host={host} data-phone={host === 'dialog' && viewport.isCompact ? '' : undefined} role="listbox" aria-label={t('app.searchmenu.label')} id="search-menu">
     {#if words !== '' && !isCommandsOnly && scopes.length > 1}
       <!-- The scopes with their counts (§6.11): Tab moves through them from the field. -->
       <div class="scopes" role="group" aria-label={t('app.palette.scopes')}>
@@ -1041,6 +1041,10 @@
 
   .hit .title { flex: 0 1 auto; }
   .hit .context { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  /* A phone's hit is two lines, as palette m draws it: the whole title, its place under it. */
+  .menu[data-phone] .hit { flex-wrap: wrap; row-gap: 0; padding-block: var(--sp-050); }
+  .menu[data-phone] .hit .title { flex: 1 1 0; white-space: normal; }
+  .menu[data-phone] .hit .context { flex: 1 0 100%; padding-inline-start: calc(var(--sp-200) + var(--sp-100)); }
   .hitkey { flex: none; color: var(--text-secondary); font-family: var(--font-mono); font-size: var(--fs-075); }
   mark { border-radius: var(--r-sm); background: var(--status-warning-surface); color: inherit; }
 
