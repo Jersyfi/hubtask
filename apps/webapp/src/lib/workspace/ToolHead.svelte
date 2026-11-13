@@ -9,6 +9,7 @@
   import type { MenuItem, PageAction } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { HUB_TOOLS, toolPath, type HubTool } from '../navigation.ts';
   import PlaceHead from './PlaceHead.svelte';
@@ -42,6 +43,9 @@
   ]);
 </script>
 
+<!-- On a phone the title stands in the bar and the figure alone fills the head's row: it keeps to
+     that row's one line, so a long sentence never moves the tool's bar from tab to tab. -->
+{#snippet oneLine()}<span class="figure" data-compact={viewport.isCompact ? '' : undefined}>{@render figure?.()}</span>{/snippet}
 <PlaceHead
   kind="tool"
   title={title ?? name}
@@ -50,7 +54,7 @@
   expandLabel={t('app.admin.expand_trail')}
   oncrumb={(crumbId) => onnavigate(crumbId === hubId ? `/hubs/${hubId}` : toolPath(hubId, tool))}
   {titleEnd}
-  {figure}
+  figure={figure ? oneLine : undefined}
   {primary}
   {secondary}
   {menu}
@@ -60,3 +64,12 @@
     {#if bar}{@render bar()}{:else}<PlaceViews placeId={hubId} {tool} {current} {onnavigate} />{/if}
   {/snippet}
 </PlaceHead>
+
+<style>
+  .figure { min-width: 0; }
+  .figure[data-compact] {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+</style>
