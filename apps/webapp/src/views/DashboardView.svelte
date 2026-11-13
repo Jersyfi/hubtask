@@ -30,7 +30,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { ticketKeyOf } from '../lib/data/ticket.ts';
-  import { lineOf, readQuery, type Names } from '../lib/data/viewquery.ts';
+  import { lineOf, personNamed, readQuery, type Names } from '../lib/data/viewquery.ts';
   import QueryStrip from '../lib/entries/QueryStrip.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { entryTypes, typeNameOf } from '../lib/data/entrytypes.svelte.ts';
@@ -42,6 +42,7 @@
   } from '../lib/data/goals.svelte.ts';
   import { SPREADSHEET_TYPE, xlsxOf } from '../lib/data/xlsx.ts';
   import { views } from '../lib/data/views.svelte.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -430,9 +431,14 @@
 
   // --- The filter every widget inherits (§6.5) --------------------------------------------------
 
-  /** Names for the line: a place by its name, a person by theirs; what names nobody the server refuses. */
+  /** Names for the line as the collections read them (ADR-0102): a place, a person among those of the dashboard's place. */
+  const peoplePath = $derived(placeHub ? { hubId: placeHub } : {});
+  $effect(() => {
+    const path = peoplePath;
+    return untrack(() => people.open(path));
+  });
   const names: Names = {
-    person: () => undefined,
+    person: (name) => personNamed(name, people.candidates(peoplePath), (id) => accounts.nameOf(id)),
     label: () => undefined,
     collection: (name) => {
       const wanted = name.toLowerCase();

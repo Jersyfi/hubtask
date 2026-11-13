@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { asWords, changedParts, groupingOf, lanesOf, lineOf, monthGrid, readQuery, spokenPiece, type Names, type ViewSetup } from './viewquery.ts';
+import { asWords, changedParts, groupingOf, lanesOf, lineOf, monthGrid, personNamed, readQuery, spokenPiece, type Names, type ViewSetup } from './viewquery.ts';
 
 const AMELIA = '0192f000-0000-7000-8000-0000000000a1';
 const LABEL = '0192f000-0000-7000-8000-0000000000b1';
@@ -121,4 +121,18 @@ test('a chip shows the name where its piece holds an id, and the piece itself ot
   assert.equal(spokenPiece('plan.release: Spring', planned), 'plan.release: Spring');
   assert.equal(spokenPiece('is: open', planned), 'is: open');
   assert.equal(spokenPiece('passkey', planned), 'passkey');
+});
+
+// UC-GOL-04 check 18: a dashboard's filter names people as a collection's line does - "who: Amelia"
+// is the person of that name among those who may be named there, whatever the case typed.
+test('a person is named in a dashboard filter as in a collection', () => {
+  const nameOf = (id: string) => ({ [AMELIA]: 'Amelia', [LABEL]: 'Ben' })[id];
+  const dashboard: Names = { person: (name) => personNamed(name, [LABEL, AMELIA], nameOf), label: () => undefined, collection: () => undefined };
+  const read = readQuery('who: amelia', dashboard);
+  assert.ok(read.ok);
+  assert.deepEqual(read.query.filter, { field: 'assignee_id', op: 'EQ', value: AMELIA });
+  assert.deepEqual(read.unknown, []);
+  const carla = readQuery('who: Carla', dashboard);
+  assert.ok(carla.ok);
+  assert.deepEqual(carla.unknown, ['Carla']);
 });

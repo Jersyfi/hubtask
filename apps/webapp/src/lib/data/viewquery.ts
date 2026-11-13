@@ -29,6 +29,12 @@ export interface Names {
   nameOf?(field: string, id: string): string | undefined;
 }
 
+/** The person a typed name means among the ones who may be named here, by their name in any case. */
+export function personNamed(name: string, candidates: readonly string[], nameOf: (id: string) => string | undefined): string | undefined {
+  const wanted = name.toLowerCase();
+  return candidates.find((each) => nameOf(each)?.toLowerCase() === wanted);
+}
+
 const NAMED: Readonly<Record<string, 'person' | 'label' | 'collection' | 'release' | 'sprint'>> = {
   assignee_id: 'person',
   members: 'person',

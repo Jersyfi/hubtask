@@ -51,7 +51,7 @@
   import QueryChips from '../lib/entries/QueryChips.svelte';
   import { namesPlan, planNames } from '../lib/data/planNames.svelte.ts';
   import CalendarView from '../lib/entries/CalendarView.svelte';
-  import { changedParts, groupingOf, lineOf, readQuery, type Names, type ViewSetup } from '../lib/data/viewquery.ts';
+  import { changedParts, groupingOf, lineOf, personNamed, readQuery, type Names, type ViewSetup } from '../lib/data/viewquery.ts';
   import { labels as labelStore } from '../lib/data/labels.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { READER_KEYS, segments, valuesRequest, type CountedValue, type QueryKey } from '@hubtask/query';
@@ -1109,10 +1109,7 @@
   const names: Names = {
     release: planned.release,
     sprint: planned.sprint,
-    person: (name) => {
-      const wanted = name.toLowerCase();
-      return people.candidates(containerPath).find((each) => accounts.nameOf(each)?.toLowerCase() === wanted);
-    },
+    person: (name) => personNamed(name, people.candidates(containerPath), (id) => accounts.nameOf(id)),
     label: (name) => labelStore.of(id).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
     collection: (name) => (container?.parent_id ? containers.collectionsOf(container.parent_id) : []).find((each) => each.name.toLowerCase() === name.toLowerCase())?.id,
     nameOf: (field, value) =>
