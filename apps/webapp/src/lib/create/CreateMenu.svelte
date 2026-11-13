@@ -13,7 +13,8 @@
   // On a phone the same content is a sheet over the bottom bar (§7); the ＋ that opens it stays
   // in its place, and a long press on it makes the last kind (`AppFrame`).
   import { untrack } from 'svelte';
-  import { Banner, Dialog, Icon, Kbd, ProductTile, Sheet, type IconName } from '@hubtask/design-system/components';
+  import { Dialog, Icon, Kbd, ProductTile, Sheet, type IconName } from '@hubtask/design-system/components';
+  import FailureNote from '../frame/FailureNote.svelte';
   import type { TransportError } from '@hubtask/sync-engine';
 
   import { create } from './create.svelte.ts';
@@ -185,7 +186,7 @@
         {#if placeName}<span class="place"><Icon name="hub" size="sm" />{t('app.create.in', { name: placeName })}</span>{/if}
       </form>
     {/if}
-    {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
+    {#if failure}<FailureNote problem={failure} />{/if}
 
     {#if viewport.isCompact}
       <div class="grid phone" role="group" aria-label={t('app.create.kinds')}>
