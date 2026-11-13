@@ -615,7 +615,12 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
   await files.waitFor({ timeout: 5_000 });
   assert.equal(await files.getAttribute('data-view'), 'grid', 'files open as the scene\'s grid');
   assert.equal((await page.locator('[data-attachment] .ending').textContent()).trim(), 'PDF');
+  // The grid's last cell is the dashed tile to add one; a list has the button under it instead.
+  const tile = files.locator('li.add:last-child');
+  assert.equal(await tile.getByRole('button', { name: 'Choose a file' }).count(), 1, 'no add tile as the grid\'s last cell');
   await page.getByRole('button', { name: 'Files as a list' }).click();
+  assert.equal(await files.locator('li.add').count(), 0, 'the list kept the tile');
+  assert.equal(await page.locator('[data-entry-attachments]').getByRole('button', { name: 'Choose a file' }).count(), 1);
   assert.equal(await files.getAttribute('data-view'), 'list');
   assert.equal(await page.evaluate(() => localStorage.getItem('hubtask.entry.files_view')), 'list');
   assert.equal(await page.getByRole('button', { name: 'Files as a list' }).getAttribute('aria-pressed'), 'true');
@@ -634,6 +639,35 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
   await page.waitForTimeout(500);
   assert.ok(uploads.length >= 1, 'the dropped file was not sent');
   assert.deepEqual(failures.filter((each) => !/503|Unavailable/.test(each)), []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+// ET-3: from twenty files on the section is a list cut to its first twenty, *Show all* the rest.
+test('chromium: 1280 px — more than twenty files fold to a list of twenty', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  const many = Array.from({ length: 25 }, (_, n) => ({ id: `01a0e2e0-0000-7000-8000-${String(n + 1).padStart(12, '0')}`, file_name: `scan-${n + 1}.pdf`, content_type: 'application/pdf', size: 2048, status: 'READY', created_at: '2026-10-01T08:00:00Z' }));
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname.endsWith(`/items/${ENTRY.id}/attachments`) && request.method() === 'GET') {
+      return route.fulfill({ json: { data: many, page: { next_cursor: null, has_more: false } } });
+    }
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  const files = page.locator('[data-entry-attachments] .files');
+  await files.waitFor({ timeout: 5_000 });
+  assert.equal(await files.getAttribute('data-view'), 'list', 'twenty-five files stayed a grid');
+  assert.equal(await files.locator('[data-attachment]').count(), 20);
+  assert.equal(await page.getByRole('button', { name: 'Files as a list' }).count(), 0, 'the switch stayed on a folded list');
+  await page.locator('#entry-files').getByRole('button', { name: 'Show all 25' }).click();
+  assert.equal(await files.locator('[data-attachment]').count(), 25);
+  assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
 

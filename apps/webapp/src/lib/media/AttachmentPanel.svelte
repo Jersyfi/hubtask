@@ -48,9 +48,11 @@
     isChangeable: boolean;
     /** A grid of cards or a list of rows (ET-4); the entry keeps the reader's choice. */
     view?: 'grid' | 'list';
+    /** How many rows to draw: the entry's section folds its files (ET-3); absent, all of them. */
+    shownRows?: number;
   }
 
-  const { item, isChangeable, view = 'list' }: Props = $props();
+  const { item, isChangeable, view = 'list', shownRows }: Props = $props();
 
   /**
    * A card's picture is its kind - a mark and the name's ending - never the file's content: an
@@ -200,6 +202,24 @@
   }
 </script>
 
+{#snippet upload(variant: 'button' | 'tile')}
+      <UploadField
+        {variant}
+        label={t('app.media.attachments')}
+        chooseLabel={t('app.media.attach_choose')}
+        dropLabel={t('app.media.drop')}
+        cancelLabel={t('app.media.cancel')}
+        accept={acceptFor('ATTACHMENT')}
+        file={chosen ?? null}
+        {sizeLabel}
+        overLimitLabel={overLimit ? t('app.media.over_limit') : undefined}
+        progress={isUploading ? percent : undefined}
+        progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
+        onChoose={(file) => void choose(file)}
+        onCancel={() => controller?.abort()}
+      />
+{/snippet}
+
 <!-- No gate here: the entry page draws this panel only where the type carries the capability
      (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
      row, not a dead one (design-system.md §11.8). -->
@@ -210,7 +230,7 @@
       {#if !isChangeable}<p class="quiet">{t('app.media.attachments_none')}</p>{/if}
     {:else}
       <ul class="files" data-view={view}>
-        {#each rows as object (object.id)}
+        {#each rows.slice(0, shownRows ?? rows.length) as object (object.id)}
           <li data-attachment={object.id}>
             {#if view === 'grid'}
               {@const kind = kindOf(object)}
@@ -246,6 +266,7 @@
             {/if}
           </li>
         {/each}
+        {#if isChangeable && view === 'grid'}<li class="add">{@render upload('tile')}</li>{/if}
       </ul>
       {#if hasMore || arrived}
         <LoadMore
@@ -258,23 +279,8 @@
       {/if}
     {/if}
 
-    {#if isChangeable}
-      <UploadField
-        variant="button"
-        label={t('app.media.attachments')}
-        chooseLabel={t('app.media.attach_choose')}
-        dropLabel={t('app.media.drop')}
-        cancelLabel={t('app.media.cancel')}
-        accept={acceptFor('ATTACHMENT')}
-        file={chosen ?? null}
-        {sizeLabel}
-        overLimitLabel={overLimit ? t('app.media.over_limit') : undefined}
-        progress={isUploading ? percent : undefined}
-        progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
-        onChoose={(file) => void choose(file)}
-        onCancel={() => controller?.abort()}
-      />
-    {/if}
+    <!-- In a grid the drop area is the last card (the scene's dashed tile); otherwise a button. -->
+    {#if isChangeable && (view !== 'grid' || rows.length === 0)}{@render upload('button')}{/if}
 
     {#if notice}<p class="quiet">{notice}</p>{/if}
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -297,6 +303,8 @@
   .detail { display: block; color: var(--text-secondary); font-size: var(--fs-075); }
 
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+
+  .add { display: grid; }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

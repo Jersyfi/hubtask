@@ -359,6 +359,10 @@
   }
 
   const attachmentCount = $derived(attachments.state.status === 'ready' ? (attachments.state.data.data ?? []).length : undefined);
+  /** From this many files on, the section is a list cut to its first rows (ET-3). */
+  const FILES_FOLD_AT = 20;
+  const isFilesFolding = $derived((attachmentCount ?? 0) > FILES_FOLD_AT);
+  const filesShown = $derived<'grid' | 'list'>(isFilesFolding ? 'list' : filesView);
   const commentCount = $derived(thread.state.status === 'ready' ? (thread.state.data.data ?? []).length : undefined);
   const reminderCount = $derived(reminders.of(id).length);
   const rule = $derived(series.of(id));
@@ -1355,11 +1359,15 @@
       {/if}
       <!-- One place for files (ET-4): uploaded and linked together - the store's files by address
            (UC-INT-14 checks 1, 2), the attachments readable by whoever reads the entry. -->
-      <FoldingSection id="entry-files" title={t('app.entry.mark_files')} count={attachmentCount ? String(attachmentCount) : undefined} actions={filesActions}>
-        {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} view={filesView} />{/key}
-        {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
-          <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} isChangeable={isWritable} view={filesView} /></div>
-        {/if}
+      <FoldingSection id="entry-files" title={t('app.entry.mark_files')} count={attachmentCount ? String(attachmentCount) : undefined} actions={isFilesFolding ? undefined : filesActions}
+        fold={isFilesFolding ? { kind: 'rows', total: attachmentCount ?? 0, limit: FILES_FOLD_AT } : undefined}
+        showAllLabel={t('app.entry.show_all', { count: String(attachmentCount ?? 0) })} showLessLabel={t('app.entry.show_less')}>
+        {#snippet children(shown)}
+          {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} view={filesShown} />{/key}
+          {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
+            <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} isChangeable={isWritable} view={filesShown} shownRows={shown.hidden > 0 ? shown.end : undefined} /></div>
+          {/if}
+        {/snippet}
       </FoldingSection>
 
       <!-- The conversation (§6.9): *All* first - the posts with what happened between them as quiet
