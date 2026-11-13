@@ -336,6 +336,12 @@
   }
 </script>
 
+{#snippet sprintFigure()}
+  <!-- The sprint's days in the collection's figure's place (R-11, scene sprint 1); the bar below
+       holds the rest. -->
+  {#if chosen}<span data-sprint-figure>{chosen.state === 'ACTIVE' ? `${chosen.name} · ${t('app.sprints.days_left', { count: String(daysLeft) })}` : `${chosen.name} · ${spanText}`}</span>{/if}
+{/snippet}
+
 {#snippet burndownPicture(size: 'small' | 'large')}
   {#if chosen && detail && detail.burndown.length > 0}
     <svg class={size === 'large' ? 'chart' : 'spark'} viewBox="0 0 400 100" preserveAspectRatio="none" role="img"
@@ -436,7 +442,7 @@
 
 <WorkPage>
   {#snippet top()}
-  <CollectionHead {collectionId} current="sprint" {onnavigate} />
+  <CollectionHead {collectionId} current="sprint" {onnavigate} figure={chosen ? sprintFigure : undefined} />
   {/snippet}
 
   {#if refusal}
