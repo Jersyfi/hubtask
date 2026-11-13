@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BAR_KINDS, arrange, countBy, keyIn, ordered, kindsOn, marked, markWords, pathOf, requestOf, scopesOf, sinceOf, wordsForUnknownKeys, type Hit } from './everything.ts';
+import { BAR_KINDS, PAGE_KINDS, arrange, countBy, keyIn, ordered, kindsOn, marked, markWords, pathOf, requestOf, saysItsKind, scopesOf, sinceOf, tileOf, wordsForUnknownKeys, type Hit } from './everything.ts';
 
 const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
   kind, id, title: id, hub_id: null, collection_id: null, tile: null, snippet: null, state: null, key: null, updated_at: null, created_at: null, author_id: null, on: null, ...extra,
@@ -13,7 +13,7 @@ const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
 test('a kind whose module is off is never asked (P-17)', () => {
   assert.deepEqual(kindsOn(BAR_KINDS, []), ['ENTRY', 'PERSON', 'FILE']);
   assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), ['ENTRY', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET']);
-  assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), [...BAR_KINDS]);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'WHITEBOARD', 'ASSETS', 'GOALS', 'PLANNING']), [...BAR_KINDS]);
 });
 
 test('the line travels in the body, whole; nothing is asked without it (Q-5)', () => {
@@ -42,6 +42,22 @@ test('a hit opens itself; a file or a comment what it is on; a person has no pag
   assert.equal(pathOf(hit('COMMENT', 'c', { on: { kind: 'PAGE', id: 'p' } })), '/pages/p');
   assert.equal(pathOf(hit('FILE', 'f', { on: { kind: 'ENTRY', id: 'e' } })), '/items/e');
   assert.equal(pathOf(hit('PERSON', 'u')), undefined);
+});
+
+// UC-WRK-18 check 9. Portfolios, releases and sprints are found by both searches again, each
+// opening where its product draws it and saying its kind beside its title.
+test('a portfolio, a release and a sprint are asked where their module is on, and open their place', () => {
+  for (const kinds of [BAR_KINDS, PAGE_KINDS]) {
+    assert.deepEqual(kindsOn(kinds, ['GOALS', 'PLANNING']).filter((kind) => ['PORTFOLIO', 'RELEASE', 'SPRINT'].includes(kind)), ['PORTFOLIO', 'RELEASE', 'SPRINT']);
+    assert.deepEqual(kindsOn(kinds, []).filter((kind) => ['PORTFOLIO', 'RELEASE', 'SPRINT'].includes(kind)), []);
+  }
+  assert.equal(pathOf(hit('PORTFOLIO', 'p')), '/portfolios/p');
+  assert.equal(pathOf(hit('RELEASE', 'r', { hub_id: 'h' })), '/hubs/h/plan/releases');
+  assert.equal(pathOf(hit('SPRINT', 's', { hub_id: 'h', collection_id: 'c' })), '/collections/c/sprint');
+  assert.equal(tileOf(hit('RELEASE', 'r')).product, 'plans');
+  assert.equal(tileOf(hit('SPRINT', 's')).product, 'plans');
+  assert.equal(tileOf(hit('PORTFOLIO', 'p')).product, 'goals');
+  assert.deepEqual(['PORTFOLIO', 'RELEASE', 'SPRINT', 'FILE', 'COMMENT', 'ENTRY', 'GOAL'].map((kind) => saysItsKind(kind as Hit['kind'])), [true, true, true, true, true, false, false]);
 });
 
 test('found words are marked, in a snippet by its « » and in a title by the words typed', () => {

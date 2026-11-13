@@ -104,6 +104,9 @@ const FOUND = [
   found('GOAL', GOAL_ROWS[0].id, GOAL_ROWS[0].title, ['kundinnen'], { hub_id: null }),
   found('ASSET', CIS[0].id, CIS[0].name, ['fortigate']),
   found('DASHBOARD', DASHBOARDS[0].id, DASHBOARDS[0].name, ['morgen'], { hub_id: null }),
+  found('PORTFOLIO', '01a0e2e0-0000-7000-8000-000000000a01', 'Autumn programme', ['programme'], { hub_id: null, state: 'ON_TRACK' }),
+  found('RELEASE', RELEASES[1].id, RELEASES[1].name, ['fixes'], { state: 'PLANNED' }),
+  found('SPRINT', '01a0e2e0-0000-7000-8000-000000000a02', 'Sprint 24', ['sprint 24'], { collection_id: SCRUM.id, state: 'ACTIVE' }),
 ];
 /** The API at the network edge, with the workspace's modules and the hub's own. */
 function stubFor({ modulesOn, hubModules, deskless = false, role, deskFlow = false }) {
@@ -795,6 +798,36 @@ test('chromium 1280 px: the search and the palette find goals, configuration ite
   // The bar's scopes are the concept's (§6.11): inventory, not goals.
   await palette.fill('fortigate');
   await page.locator('#search-menu').getByRole('option', { name: /FortiGate 60F/u }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
+// UC-WRK-18 check 9: portfolios, releases and sprints are found by both searches, each with its
+// facet, saying its kind, and opening where its product draws it.
+test('chromium 1280 px: the search and the palette find portfolios, releases and sprints', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['GOALS', 'PLANNING'] });
+  t.after(close);
+  const cases = [
+    ['programme', 'PORTFOLIO', '/portfolios/01a0e2e0-0000-7000-8000-000000000a01', 'Portfolio'],
+    ['fixes', 'RELEASE', `/hubs/${HUB.id}/plan/releases`, 'Release'],
+    ['sprint 24', 'SPRINT', `/collections/${SCRUM.id}/sprint`, 'Sprint'],
+  ];
+  for (const [words, kind, href, said] of cases) {
+    await page.locator(LINE).fill(words);
+    const hit = page.locator(`main a.hit[data-kind="${kind}"]`);
+    await hit.waitFor({ timeout: 10_000 });
+    assert.equal(await hit.getAttribute('href'), href, kind);
+    assert.match(await hit.locator('.meta').innerText(), new RegExp(said, 'u'), kind);
+    assert.equal(await page.locator(`main [data-facet="${kind}"]`).count(), 1, `no facet for ${kind}`);
+  }
+  const palette = page.getByRole('combobox', { name: 'Search everything', exact: true });
+  for (const [words, title] of [['programme', /Autumn programme/u], ['fixes', /Autumn fixes/u], ['sprint 24', /Sprint 24/u]]) {
+    await palette.click();
+    await palette.fill(words);
+    await page.locator('#search-menu').getByRole('option', { name: title }).waitFor({ timeout: 10_000 });
+    await page.keyboard.press('Escape');
+  }
   assert.deepEqual(failures, []);
 });
 

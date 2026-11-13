@@ -12,7 +12,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { marked, markWords, pathOf, tileOf, type Hit } from './everything.ts';
+  import { marked, markWords, pathOf, saysItsKind, tileOf, type Hit } from './everything.ts';
 
   interface Props {
     hit: Hit;
@@ -39,7 +39,7 @@
       hub?.name && collection?.name ? `${hub.name} › ${collection.name}` : (hub?.name ?? collection?.name),
       hit.updated_at ? formatRelative(hit.updated_at, messages.locale) : undefined,
       hit.author_id && accounts.nameOf(hit.author_id) ? t('app.search.by_name', { name: accounts.nameOf(hit.author_id) ?? '' }) : undefined,
-      hit.kind === 'FILE' || hit.kind === 'COMMENT' || hit.kind === 'PERSON' ? t('app.search.kind_one', { kind: hit.kind }) : undefined,
+      saysItsKind(hit.kind) || hit.kind === 'PERSON' ? t('app.search.kind_one', { kind: hit.kind }) : undefined,
     ].filter(Boolean),
   );
   const initials = (name: string) => name.split(/\s+/u).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
@@ -67,8 +67,8 @@
       </span>
     {/if}
   </span>
-  {#if hit.state && !lozenge && (hit.kind === 'ENTRY' || hit.kind === 'TICKET' || hit.kind === 'GOAL')}
-    <span class="state"><StateLozenge label={t('app.search.state', { state: hit.state })} tone={hit.state === 'DONE' ? 'success' : 'info'} /></span>
+  {#if hit.state && !lozenge && (hit.kind === 'ENTRY' || hit.kind === 'TICKET' || hit.kind === 'GOAL' || hit.kind === 'RELEASE' || hit.kind === 'SPRINT')}
+    <span class="state"><StateLozenge label={t('app.search.state', { state: hit.state })} tone={hit.state === 'DONE' || hit.state === 'RELEASED' ? 'success' : 'info'} /></span>
   {/if}
 {/snippet}
 

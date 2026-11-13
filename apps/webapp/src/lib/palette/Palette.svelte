@@ -60,7 +60,7 @@
   import { content, parse, structural } from '../data/searchquery.ts';
   import { compactLine } from '../search/queryline.ts';
   import { views } from '../data/views.svelte.ts';
-  import { BAR_KINDS, arrange, keyIn, kindsOn, markWords, pathOf as hitPath, personLine, requestOf, scopesOf, tileOf, type Answer, type Hit, type Scope } from '../search/everything.ts';
+  import { BAR_KINDS, arrange, keyIn, kindsOn, markWords, pathOf as hitPath, personLine, requestOf, saysItsKind, scopesOf, tileOf, type Answer, type Hit, type Scope } from '../search/everything.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { DRAWABLE } from '../entries/layouts.ts';
@@ -643,7 +643,7 @@
   function contextOf(hit: Hit): string {
     const place = hit.collection_id ? containers.find(hit.collection_id)?.name : hit.hub_id ? containers.find(hit.hub_id)?.name : undefined;
     const state = hit.state ? t('app.search.state', { state: hit.state }) : undefined;
-    return [hit.kind === 'FILE' || hit.kind === 'COMMENT' ? t('app.search.kind_one', { kind: hit.kind }) : undefined, place, state].filter(Boolean).join(' · ');
+    return [saysItsKind(hit.kind) ? t('app.search.kind_one', { kind: hit.kind }) : undefined, place, state].filter(Boolean).join(' · ');
   }
 </script>
 
