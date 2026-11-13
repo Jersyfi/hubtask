@@ -17,7 +17,7 @@
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS at the collection the
   // screen shows values, not controls.
-  import { tick, untrack } from 'svelte';
+  import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
@@ -38,8 +38,8 @@
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import {
-    burndownLine, burndownTop, carryTargets, entriesToRead, estimateOf, estimateText, sprintColumns, sprintDays, sprintPath,
-    sprints, sprintShown, sprintsPath, valueOf, velocityPath,
+    burndownLine, burndownTop, carryTargets, entriesToRead, sprintColumns, sprintDays, sprintPath,
+    sprints, sprintShown, sprintsPath, valueOf, velocityPath, type EstimateInput,
   } from '../lib/data/sprints.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -51,6 +51,7 @@
   import { ticketKeyOf } from '../lib/data/ticket.ts';
   import CollectionHead from '../lib/workspace/CollectionHead.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
+  import PointsChip from '../lib/planning/PointsChip.svelte';
   import EntryKey from '../lib/entries/EntryKey.svelte';
   import PeopleMarks from '../lib/people/PeopleMarks.svelte';
   import CreateDialog from '../lib/product/CreateDialog.svelte';
@@ -125,33 +126,10 @@
     }
   }
 
-  /** The entry whose points chip is open as a field; one at a time. */
-  let estimating = $state<string | undefined>(undefined);
-  /** The draft of the open field, until it is saved. */
-  let estimateDraft = $state('');
-  /** An estimate the field cannot send, said at the field (§5.10). */
-  let estimateError = $state<string | undefined>(undefined);
-  function openEstimate(entry: SprintEntry) {
-    estimating = entry.item_id;
-    estimateDraft = estimateText(entry.estimate);
-    estimateError = undefined;
-    void tick().then(() => document.querySelector<HTMLInputElement>('[data-estimate-field] input')?.focus());
-  }
-  /** Saved when the field is left or Enter pressed: no per-card *Save* (§7.5). */
-  function saveEstimate(itemId: string, title: string) {
-    if (estimating !== itemId) return;
-    const input = estimateOf(estimateDraft);
-    if (input === undefined) {
-      estimateError = t('estimates.value_out_of_range', { maximum: '10000' });
-      return;
-    }
-    estimating = undefined;
+  /** An estimate saved from a card's points chip (UC-PLN-07 check 5). */
+  function saveEstimate(itemId: string, title: string, input: EstimateInput | null) {
     void act(() => sprints.estimate(collectionId, zone, chosen?.id, itemId, input), t('app.sprints.estimated', { title }));
   }
-  /** The chip's word: *3 P*, *2 h*, a size. */
-  const pointsOf = (estimate: NonNullable<SprintEntry['estimate']>) =>
-    estimate.unit === 'SIZE' ? (estimate.size ?? '') : t('app.sprints.column_value', { value: String(estimate.value), unit: t(`app.sprints.unit_short_${estimate.unit}`) });
-
   /** A card back to the backlog. */
   function toBacklog(itemId: string) {
     const sprint = chosen;
@@ -369,32 +347,6 @@
   {/if}
 {/snippet}
 
-{#snippet pointsChip(entry: SprintEntry)}
-  <!-- The points chip (scene sprint 3): *3 P*, or *estimate* dashed where there is none; a press
-       makes it a field, Enter or leaving it saves (UC-PLN-07 check 5). -->
-  {#if estimating === entry.item_id}
-    <span class="estimate-field" data-estimate-field>
-      <Input
-        label={t('app.sprints.estimate_of', { title: entry.title })}
-        isLabelHidden
-        size="sm"
-        placeholder={t('app.sprints.estimate_placeholder')}
-        value={estimateDraft}
-        error={estimateError}
-        oninput={(event: Event) => (estimateDraft = (event.currentTarget as HTMLInputElement).value)}
-        onchange={() => saveEstimate(entry.item_id, entry.title)}
-        onkeydown={(event: KeyboardEvent) => { if (event.key === 'Escape') estimating = undefined; }}
-      />
-    </span>
-  {:else if mayWrite && chosen?.state !== 'CLOSED'}
-    <button type="button" class="points-chip" data-estimate={entry.estimate ? undefined : 'none'} data-points-chip
-      aria-label={entry.estimate ? t('app.sprints.estimate_change', { title: entry.title, value: pointsOf(entry.estimate) }) : t('app.sprints.estimate_add', { title: entry.title })}
-      onclick={() => openEstimate(entry)}>{entry.estimate ? pointsOf(entry.estimate) : t('app.sprints.estimate_chip')}</button>
-  {:else if entry.estimate}
-    <span class="points-chip" data-points-chip>{pointsOf(entry.estimate)}</span>
-  {/if}
-{/snippet}
-
 {#snippet card(entry: SprintEntry, where: 'sprint' | 'done', note?: string)}
   {@const isMovable = mayWrite && chosen !== undefined && chosen.state !== 'CLOSED' && where !== 'done'}
   {@const item = itemOf(entry.item_id)}
@@ -412,7 +364,7 @@
     {/if}
     <span class="card-foot">
       {#if item}<DueMark {item} />{/if}
-      {@render pointsChip(entry)}
+      <PointsChip title={entry.title} estimate={entry.estimate} isEditable={mayWrite && chosen?.state !== 'CLOSED'} onsave={(input) => saveEstimate(entry.item_id, entry.title, input)} />
       {#if note}<span class="note">{note}</span>{/if}
     </span>
     {#if isMovable}
@@ -645,24 +597,6 @@
   .card-move { position: absolute; inset-block-end: var(--sp-100); inset-inline-end: var(--sp-100); opacity: 0; }
   .card:hover .card-move, .card-move:focus-within { opacity: 1; }
   @media (hover: none) { .card-move { opacity: 1; } }
-  .points-chip {
-    display: inline-flex;
-    align-items: center;
-    min-block-size: var(--sp-300);
-    padding: 0 var(--sp-100);
-    border: var(--bw-hairline) solid transparent;
-    border-radius: var(--r-full);
-    background: var(--bg-surface-sunken);
-    color: var(--text-secondary);
-    font: inherit;
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-  }
-  button.points-chip { cursor: pointer; }
-  button.points-chip:hover { color: var(--text-primary); }
-  .points-chip[data-estimate='none'] { border-color: var(--border-strong); border-style: dashed; background: transparent; }
-  .card-foot:has(.points-chip[data-estimate='none']:only-child) { justify-content: center; }
-  .estimate-field :global(input) { inline-size: var(--sp-1000); }
   .sprint-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--sp-200); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .chooser { display: inline-flex; flex: none; align-items: center; gap: var(--sp-050); padding-inline-start: var(--sp-100); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); }
   /* The chooser's select sits inside the drawn box, with its state chip: no second border. */
