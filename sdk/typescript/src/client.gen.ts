@@ -3723,6 +3723,16 @@ export class HubtaskClient {
     return this.call("POST", "/boards:repair", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Show a collection's tasks as a board, or as a list again */
+  switchBoard(containerId: string, body: NonNullable<operations["switchBoard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["switchBoard"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/board:switch", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Make a workflow from a board's columns */
+  makeBoardWorkflow(containerId: string, body: NonNullable<operations["makeBoardWorkflow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["makeBoardWorkflow"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/board:workflow", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** POST /items/{itemId}:complete */
   completeWorkItem(itemId: string, body: NonNullable<operations["completeWorkItem"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["completeWorkItem"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/items/{itemId}:complete", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
@@ -3869,8 +3879,8 @@ export class HubtaskClient {
   }
 
   /** DELETE /containers/{containerId}/buckets/{bucketId} */
-  deleteBucket(containerId: string, bucketId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["deleteBucket"]['responses'][200]['content']["application/json"]> {
-    return this.call("DELETE", "/containers/{containerId}/buckets/{bucketId}", { "containerId": containerId, "bucketId": bucketId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
+  deleteBucket(containerId: string, bucketId: string, options: CallOptions & { readonly query?: NonNullable<operations["deleteBucket"]['parameters']['query']>; readonly ifMatch?: string } = {}): Promise<operations["deleteBucket"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/containers/{containerId}/buckets/{bucketId}", { "containerId": containerId, "bucketId": bucketId }, options.query, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /containers/{containerId}/buckets/{bucketId}:reorder */

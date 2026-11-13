@@ -2026,6 +2026,27 @@ func (e BlockedStepReason) Valid() bool {
 	}
 }
 
+// Defines values for BoardWorkflowStatusesCategory.
+const (
+	BoardWorkflowStatusesCategoryDONE       BoardWorkflowStatusesCategory = "DONE"
+	BoardWorkflowStatusesCategoryINPROGRESS BoardWorkflowStatusesCategory = "IN_PROGRESS"
+	BoardWorkflowStatusesCategoryTODO       BoardWorkflowStatusesCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the BoardWorkflowStatusesCategory enum.
+func (e BoardWorkflowStatusesCategory) Valid() bool {
+	switch e {
+	case BoardWorkflowStatusesCategoryDONE:
+		return true
+	case BoardWorkflowStatusesCategoryINPROGRESS:
+		return true
+	case BoardWorkflowStatusesCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BulkOperationOp.
 const (
 	ADDLABEL     BulkOperationOp = "ADD_LABEL"
@@ -9850,6 +9871,27 @@ func (e StarterSetHubPreset) Valid() bool {
 	}
 }
 
+// Defines values for StateMode.
+const (
+	StateModeCOLUMNS  StateMode = "COLUMNS"
+	StateModeNONE     StateMode = "NONE"
+	StateModeWORKFLOW StateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the StateMode enum.
+func (e StateMode) Valid() bool {
+	switch e {
+	case StateModeCOLUMNS:
+		return true
+	case StateModeNONE:
+		return true
+	case StateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -11734,6 +11776,24 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	case ListConfigProposalsParamsStateDECLINED:
 		return true
 	case ListConfigProposalsParamsStateWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SwitchBoardJSONBodyTo.
+const (
+	SwitchBoardJSONBodyToCOLUMNS SwitchBoardJSONBodyTo = "COLUMNS"
+	SwitchBoardJSONBodyToNONE    SwitchBoardJSONBodyTo = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SwitchBoardJSONBodyTo enum.
+func (e SwitchBoardJSONBodyTo) Valid() bool {
+	switch e {
+	case SwitchBoardJSONBodyToCOLUMNS:
+		return true
+	case SwitchBoardJSONBodyToNONE:
 		return true
 	default:
 		return false
@@ -14070,6 +14130,43 @@ type BlockedStep struct {
 // BlockedStepReason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
 type BlockedStepReason string
 
+// BoardPreview defines model for BoardPreview.
+type BoardPreview struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColumnOnly Of them, those whose status stays.
+	ColumnOnly int `json:"column_only"`
+	Columns    []struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+
+		// Completes Whether an entry in it is done after.
+		Completes    bool   `json:"completes"`
+		IsDoneBucket bool   `json:"is_done_bucket"`
+		Name         string `json:"name"`
+
+		// Statuses The statuses it shows after.
+		Statuses []string `json:"statuses"`
+	} `json:"columns"`
+
+	// DoneBucketId Without a workflow after, the column that is the done column; null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+
+	// Moved Entries whose column changes.
+	Moved int `json:"moved"`
+
+	// Unmapped The statuses no column shows after (*Ohne Spalte*), each with where it would fit.
+	Unmapped []struct {
+		Status            string              `json:"status"`
+		SuggestedBucketId *openapi_types.UUID `json:"suggested_bucket_id"`
+	} `json:"unmapped"`
+}
+
 // BoardRepair defines model for BoardRepair.
 type BoardRepair struct {
 	// Boards The boards looked at.
@@ -14095,6 +14192,45 @@ type BoardRepair struct {
 	PlacedByStatus int `json:"placed_by_status"`
 }
 
+// BoardSwitch defines model for BoardSwitch.
+type BoardSwitch struct {
+	ColumnsCreated int  `json:"columns_created"`
+	ColumnsRemoved int  `json:"columns_removed"`
+	DryRun         bool `json:"dry_run"`
+
+	// EntriesPlaced Entries put into a column, or out of one.
+	EntriesPlaced int `json:"entries_placed"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+}
+
+// BoardWorkflow defines model for BoardWorkflow.
+type BoardWorkflow struct {
+	DryRun bool `json:"dry_run"`
+
+	// Entries Entries that take a status.
+	Entries  int `json:"entries"`
+	Statuses []struct {
+		BucketId openapi_types.UUID            `json:"bucket_id"`
+		Category BoardWorkflowStatusesCategory `json:"category"`
+
+		// Count Entries that take this status.
+		Count int    `json:"count"`
+		Key   string `json:"key"`
+		Name  string `json:"name"`
+	} `json:"statuses"`
+
+	// Workflow The new workflow's key.
+	Workflow string `json:"workflow"`
+}
+
+// BoardWorkflowStatusesCategory defines model for BoardWorkflow.Statuses.Category.
+type BoardWorkflowStatusesCategory string
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -14107,6 +14243,9 @@ type Bucket struct {
 
 	// OrderKey The rank on the board - a fractional index rather than a number.
 	OrderKey string `json:"order_key"`
+
+	// Statuses Under a workflow, the statuses the column shows; empty without one. Answered where the board is listed.
+	Statuses *[]string `json:"statuses,omitempty"`
 
 	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
 	Version int `json:"version"`
@@ -16383,6 +16522,12 @@ type Container struct {
 
 	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
 	Private *bool `json:"private,omitempty"`
+
+	// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	StateMode *StateMode `json:"state_mode,omitempty"`
+
+	// StateModes A collection's level per entry type it offers; `state_mode` is the tasks'. Answered when one collection is read, left out on a hub and in lists.
+	StateModes *map[string]StateMode `json:"state_modes,omitempty"`
 
 	// Structure How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.
 	Structure *EffectiveStructure `json:"structure,omitempty"`
@@ -25025,6 +25170,9 @@ type StarterSet struct {
 // StarterSetHubPreset The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.
 type StarterSetHubPreset string
 
+// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+type StateMode string
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -27107,8 +27255,10 @@ type WorkflowPicture struct {
 
 // WorkflowPreview defines model for WorkflowPreview.
 type WorkflowPreview struct {
-	ColumnsAfter  []string `json:"columns_after"`
-	ColumnsBefore []string `json:"columns_before"`
+	// Boards Per collection reached that has board columns: its level before and after, its columns with the statuses each would show, the statuses no column would show with a suggested column, and how many entries change column.
+	Boards        *[]BoardPreview `json:"boards,omitempty"`
+	ColumnsAfter  []string        `json:"columns_after"`
+	ColumnsBefore []string        `json:"columns_before"`
 
 	// Entries How many entries move.
 	Entries int `json:"entries"`
@@ -27141,6 +27291,12 @@ type WorkflowPublishPreview struct {
 
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
+	// Columns The statuses each board column shows under the workflow. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
+	Columns *[]struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+		Statuses []string           `json:"statuses"`
+	} `json:"columns,omitempty"`
+
 	// Confirm True once the person has seen the preview.
 	Confirm     *bool              `json:"confirm,omitempty"`
 	ContainerId openapi_types.UUID `json:"container_id"`
@@ -28631,8 +28787,28 @@ type RenameContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SwitchBoardJSONBody defines parameters for SwitchBoard.
+type SwitchBoardJSONBody struct {
+	DryRun *bool                 `json:"dry_run,omitempty"`
+	To     SwitchBoardJSONBodyTo `json:"to"`
+}
+
+// SwitchBoardJSONBodyTo defines parameters for SwitchBoard.
+type SwitchBoardJSONBodyTo string
+
+// MakeBoardWorkflowJSONBody defines parameters for MakeBoardWorkflow.
+type MakeBoardWorkflowJSONBody struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Name The workflow's name; the collection's by default.
+	Name *string `json:"name,omitempty"`
+}
+
 // DeleteBucketParams defines parameters for DeleteBucket.
 type DeleteBucketParams struct {
+	// NewDoneBucketId Where the done column is deleted: the column that takes the done mark and its entries. Its open entries are completed with the mark. Read only when the done column goes.
+	NewDoneBucketId *openapi_types.UUID `form:"new_done_bucket_id,omitempty" json:"new_done_bucket_id,omitempty"`
+
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -31202,6 +31378,12 @@ type CreateContainerJSONRequestBody = ContainerCreate
 // RenameContainerApplicationMergePatchPlusJSONRequestBody defines body for RenameContainer for application/merge-patch+json ContentType.
 type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
 
+// SwitchBoardJSONRequestBody defines body for SwitchBoard for application/json ContentType.
+type SwitchBoardJSONRequestBody SwitchBoardJSONBody
+
+// MakeBoardWorkflowJSONRequestBody defines body for MakeBoardWorkflow for application/json ContentType.
+type MakeBoardWorkflowJSONRequestBody MakeBoardWorkflowJSONBody
+
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
 
@@ -33286,6 +33468,12 @@ type ServerInterface interface {
 
 	// (PATCH /containers/{containerId})
 	RenameContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params RenameContainerParams)
+	// SwitchBoard Show a collection's tasks as a board, or as a list again
+	// (POST /containers/{containerId}/board:switch)
+	SwitchBoard(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	// MakeBoardWorkflow Make a workflow from a board's columns
+	// (POST /containers/{containerId}/board:workflow)
+	MakeBoardWorkflow(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (GET /containers/{containerId}/buckets)
 	ListBuckets(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -44251,6 +44439,58 @@ func (siw *ServerInterfaceWrapper) RenameContainer(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// SwitchBoard operation middleware
+func (siw *ServerInterfaceWrapper) SwitchBoard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SwitchBoard(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MakeBoardWorkflow operation middleware
+func (siw *ServerInterfaceWrapper) MakeBoardWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MakeBoardWorkflow(w, r, containerId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListBuckets operation middleware
 func (siw *ServerInterfaceWrapper) ListBuckets(w http.ResponseWriter, r *http.Request) {
 
@@ -44329,6 +44569,19 @@ func (siw *ServerInterfaceWrapper) DeleteBucket(w http.ResponseWriter, r *http.R
 
 	// Parameter object where we will unmarshal all parameters from the context
 	var params DeleteBucketParams
+
+	// ------------- Optional query parameter "new_done_bucket_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "new_done_bucket_id", r.URL.Query(), &params.NewDoneBucketId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "new_done_bucket_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "new_done_bucket_id", Err: err})
+		}
+		return
+	}
 
 	headers := r.Header
 
@@ -64369,6 +64622,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:all", wrapper.SearchAll)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/boards:repair", wrapper.RepairBoards)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:switch", wrapper.SwitchBoard)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:workflow", wrapper.MakeBoardWorkflow)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:reopen", wrapper.ReopenWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:assign", wrapper.AssignWorkItem)

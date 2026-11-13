@@ -2703,12 +2703,40 @@ class WorkflowPreview(TypedDict, total=False):
     removed: Required[list[dict[str, Any]]]
     columns_before: Required[list[str]]
     columns_after: Required[list[str]]
+    boards: list["BoardPreview"]
+
+StateMode = Literal["NONE", "COLUMNS", "WORKFLOW"]
+
+class BoardPreview(TypedDict, total=False):
+    collection_id: Required[str]
+    level_before: Required["StateMode"]
+    level_after: Required["StateMode"]
+    done_bucket_id: Required[str | None]
+    columns: Required[list[dict[str, Any]]]
+    unmapped: Required[list[dict[str, Any]]]
+    moved: Required[int]
+    column_only: Required[int]
+
+class BoardSwitch(TypedDict, total=False):
+    dry_run: Required[bool]
+    level_before: Required["StateMode"]
+    level_after: Required["StateMode"]
+    columns_created: Required[int]
+    columns_removed: Required[int]
+    entries_placed: Required[int]
+
+class BoardWorkflow(TypedDict, total=False):
+    dry_run: Required[bool]
+    workflow: Required[str]
+    statuses: Required[list[dict[str, Any]]]
+    entries: Required[int]
 
 class WorkflowSchemeChange(TypedDict, total=False):
     container_id: Required[str]
     entry_type: str
     workflow: str
     confirm: bool
+    columns: list[dict[str, Any]]
 
 class WorkflowSchemeResult(TypedDict, total=False):
     container_id: Required[str]
@@ -3718,6 +3746,8 @@ class Container(TypedDict, total=False):
     private: bool
     handle: str | None
     key_prefix: str | None
+    state_mode: "StateMode"
+    state_modes: dict[str, Any]
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
@@ -4959,6 +4989,7 @@ class Bucket(TypedDict, total=False):
     order_key: Required[str]
     wip_limit: Required[int | None]
     is_done_bucket: Required[bool]
+    statuses: list[str]
     color_token: Required[str | None]
     version: Required[int]
 

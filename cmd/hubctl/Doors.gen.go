@@ -640,6 +640,24 @@ var generatedCommands = []door{
 			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"boards", "columns_added", "columns_removed", "completed", "done_marked"}},
+	{Group: "board", Verb: "switch", OperationID: "switchBoard", Method: "POST", Path: "/containers/{containerId}/board:switch", Summary: "Show a collection's tasks as a board, or as a list again",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "to", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"columns_created", "columns_removed", "dry_run", "entries_placed", "level_after"}},
+	{Group: "board", Verb: "workflow", OperationID: "makeBoardWorkflow", Method: "POST", Path: "/containers/{containerId}/board:workflow", Summary: "Make a workflow from a board's columns",
+		PathParams: []doorParam{
+			{Name: "containerId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
+			{Name: "name", Kind: "string", Help: "The workflow's name; the collection's by default", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"dry_run", "entries", "workflow"}},
 	{Group: "business-calendar", Verb: "define", OperationID: "defineBusinessCalendar", Method: "PUT", Path: "/business-calendars/{calendarKey}", Summary: "Add or replace a business calendar",
 		PathParams: []doorParam{
 			{Name: "calendarKey", Kind: "string", Help: "", Required: true},
@@ -3283,6 +3301,7 @@ var generatedCommands = []door{
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "workflow", Verb: "scheme preview", OperationID: "previewWorkflowScheme", Method: "POST", Path: "/workflow-scheme:preview", Summary: "Show what using a workflow would do",
 		Body: []doorParam{
+			{Name: "columns", Kind: "json", Help: "The statuses each board column shows under the workflow", Required: false},
 			{Name: "confirm", Kind: "boolean", Help: "True once the person has seen the preview", Required: false},
 			{Name: "container_id", Kind: "uuid", Help: "", Required: true},
 			{Name: "entry_type", Kind: "string", Help: "The type the row is for; left out for every type", Required: false},
@@ -3291,6 +3310,7 @@ var generatedCommands = []door{
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"entries"}},
 	{Group: "workflow", Verb: "scheme set", OperationID: "setWorkflowScheme", Method: "PUT", Path: "/workflow-scheme", Summary: "Use a workflow in a hub or collection",
 		Body: []doorParam{
+			{Name: "columns", Kind: "json", Help: "The statuses each board column shows under the workflow", Required: false},
 			{Name: "confirm", Kind: "boolean", Help: "True once the person has seen the preview", Required: false},
 			{Name: "container_id", Kind: "uuid", Help: "", Required: true},
 			{Name: "entry_type", Kind: "string", Help: "The type the row is for; left out for every type", Required: false},

@@ -29935,6 +29935,124 @@
         }
       }
     },
+    "/containers/{containerId}/board:switch": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "switchBoard",
+        "x-hubtask-cli": "board switch",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "summary": "Show a collection's tasks as a board, or as a list again",
+        "description": "`COLUMNS` gives a list a board: two columns, open and done (named in the workspace's\nlanguage), the completed entries in the done one and the open ones in the other. `NONE`\ntakes the columns off again, the done column last; completion stays as it is. Refused with\n`board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`\nwhere the collection already stands there. `dry_run` counts and writes nothing. Needs\nSTRUCTURE where the collection is.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "to"
+                ],
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "NONE",
+                      "COLUMNS"
+                    ]
+                  },
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What the switch did, or would do",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardSwitch"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/containers/{containerId}/board:workflow": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "makeBoardWorkflow",
+        "x-hubtask-cli": "board workflow",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "containerId": "collection_id"
+        },
+        "summary": "Make a workflow from a board's columns",
+        "description": "A workflow of the collection's hub with one status per column - the first column's the\ninitial status, the done column's done, the rest in progress, every step free -, run for\nthe collection's tasks with each column showing its own status; every entry takes the\nstatus of the column it stands in. One transaction. Refused with `board.no_columns`\nwithout columns and `board.workflow_runs` where a workflow already runs for tasks.\n`dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the\ncollection is and at its hub.\n",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "description": "The workflow's name; the collection's by default."
+                  },
+                  "dry_run": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workflow made, or what it would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardWorkflow"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}:complete": {
       "parameters": [
         {
@@ -31369,10 +31487,20 @@
         "x-hubtask-rest-path": {
           "containerId": ""
         },
-        "description": "Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.\n",
+        "description": "Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "new_done_bucket_id",
+            "in": "query",
+            "required": false,
+            "description": "Where the done column is deleted: the column that takes the done mark and its entries. Its open entries are completed with the mark. Read only when the done column goes.\n",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -51691,6 +51819,213 @@
             "items": {
               "type": "string"
             }
+          },
+          "boards": {
+            "type": "array",
+            "description": "Per collection reached that has board columns: its level before and after, its columns with the statuses each would show, the statuses no column would show with a suggested column, and how many entries change column.\n",
+            "items": {
+              "$ref": "#/components/schemas/BoardPreview"
+            }
+          }
+        }
+      },
+      "StateMode": {
+        "type": "string",
+        "enum": [
+          "NONE",
+          "COLUMNS",
+          "WORKFLOW"
+        ],
+        "description": "Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.\n"
+      },
+      "BoardPreview": {
+        "type": "object",
+        "required": [
+          "collection_id",
+          "level_before",
+          "level_after",
+          "done_bucket_id",
+          "columns",
+          "unmapped",
+          "moved",
+          "column_only"
+        ],
+        "properties": {
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "level_before": {
+            "$ref": "#/components/schemas/StateMode"
+          },
+          "level_after": {
+            "$ref": "#/components/schemas/StateMode"
+          },
+          "done_bucket_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Without a workflow after, the column that is the done column; null otherwise."
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "bucket_id",
+                "name",
+                "is_done_bucket",
+                "statuses",
+                "completes"
+              ],
+              "properties": {
+                "bucket_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "is_done_bucket": {
+                  "type": "boolean"
+                },
+                "statuses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "The statuses it shows after."
+                },
+                "completes": {
+                  "type": "boolean",
+                  "description": "Whether an entry in it is done after."
+                }
+              }
+            }
+          },
+          "unmapped": {
+            "type": "array",
+            "description": "The statuses no column shows after (*Ohne Spalte*), each with where it would fit.",
+            "items": {
+              "type": "object",
+              "required": [
+                "status",
+                "suggested_bucket_id"
+              ],
+              "properties": {
+                "status": {
+                  "type": "string"
+                },
+                "suggested_bucket_id": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "moved": {
+            "type": "integer",
+            "description": "Entries whose column changes."
+          },
+          "column_only": {
+            "type": "integer",
+            "description": "Of them, those whose status stays."
+          }
+        }
+      },
+      "BoardSwitch": {
+        "type": "object",
+        "required": [
+          "dry_run",
+          "level_before",
+          "level_after",
+          "columns_created",
+          "columns_removed",
+          "entries_placed"
+        ],
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
+          "level_before": {
+            "$ref": "#/components/schemas/StateMode"
+          },
+          "level_after": {
+            "$ref": "#/components/schemas/StateMode"
+          },
+          "columns_created": {
+            "type": "integer"
+          },
+          "columns_removed": {
+            "type": "integer"
+          },
+          "entries_placed": {
+            "type": "integer",
+            "description": "Entries put into a column, or out of one."
+          }
+        }
+      },
+      "BoardWorkflow": {
+        "type": "object",
+        "required": [
+          "dry_run",
+          "workflow",
+          "statuses",
+          "entries"
+        ],
+        "properties": {
+          "dry_run": {
+            "type": "boolean"
+          },
+          "workflow": {
+            "type": "string",
+            "description": "The new workflow's key."
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "key",
+                "name",
+                "category",
+                "bucket_id",
+                "count"
+              ],
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "enum": [
+                    "TODO",
+                    "IN_PROGRESS",
+                    "DONE"
+                  ]
+                },
+                "bucket_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "count": {
+                  "type": "integer",
+                  "description": "Entries that take this status."
+                }
+              }
+            }
+          },
+          "entries": {
+            "type": "integer",
+            "description": "Entries that take a status."
           }
         }
       },
@@ -51715,6 +52050,29 @@
           "confirm": {
             "type": "boolean",
             "description": "True once the person has seen the preview."
+          },
+          "columns": {
+            "type": "array",
+            "description": "The statuses each board column shows under the workflow. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.\n",
+            "items": {
+              "type": "object",
+              "required": [
+                "bucket_id",
+                "statuses"
+              ],
+              "properties": {
+                "bucket_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "statuses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -56851,6 +57209,16 @@
             ],
             "pattern": "^[A-Z][A-Z0-9]{1,4}$",
             "description": "A collection's key prefix: the short word its entries' keys start with, \"INC\" in \"INC-42\". Given when the collection is made, derived from its name - the first three letters of one word, the initials of several - and unique in the workspace, never another collection's handle; a person may change or clear it. An entry's key is the prefix and its number where the collection has one, the handle in capitals and the number otherwise. A key in either form names the entry. Null on a hub.\n"
+          },
+          "state_mode": {
+            "$ref": "#/components/schemas/StateMode"
+          },
+          "state_modes": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StateMode"
+            },
+            "description": "A collection's level per entry type it offers; `state_mode` is the tasks'. Answered when one collection is read, left out on a hub and in lists.\n"
           },
           "structure": {
             "$ref": "#/components/schemas/EffectiveStructure",
@@ -63288,6 +63656,13 @@
           "is_done_bucket": {
             "type": "boolean",
             "default": false
+          },
+          "statuses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Under a workflow, the statuses the column shows; empty without one. Answered where the board is listed.\n"
           },
           "color_token": {
             "type": [

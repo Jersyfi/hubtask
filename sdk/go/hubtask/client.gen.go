@@ -2032,6 +2032,27 @@ func (e BlockedStepReason) Valid() bool {
 	}
 }
 
+// Defines values for BoardWorkflowStatusesCategory.
+const (
+	BoardWorkflowStatusesCategoryDONE       BoardWorkflowStatusesCategory = "DONE"
+	BoardWorkflowStatusesCategoryINPROGRESS BoardWorkflowStatusesCategory = "IN_PROGRESS"
+	BoardWorkflowStatusesCategoryTODO       BoardWorkflowStatusesCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the BoardWorkflowStatusesCategory enum.
+func (e BoardWorkflowStatusesCategory) Valid() bool {
+	switch e {
+	case BoardWorkflowStatusesCategoryDONE:
+		return true
+	case BoardWorkflowStatusesCategoryINPROGRESS:
+		return true
+	case BoardWorkflowStatusesCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for BulkOperationOp.
 const (
 	ADDLABEL     BulkOperationOp = "ADD_LABEL"
@@ -9856,6 +9877,27 @@ func (e StarterSetHubPreset) Valid() bool {
 	}
 }
 
+// Defines values for StateMode.
+const (
+	StateModeCOLUMNS  StateMode = "COLUMNS"
+	StateModeNONE     StateMode = "NONE"
+	StateModeWORKFLOW StateMode = "WORKFLOW"
+)
+
+// Valid indicates whether the value is a known member of the StateMode enum.
+func (e StateMode) Valid() bool {
+	switch e {
+	case StateModeCOLUMNS:
+		return true
+	case StateModeNONE:
+		return true
+	case StateModeWORKFLOW:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StepUpGrantMethod.
 const (
 	StepUpGrantMethodPASSKEY  StepUpGrantMethod = "PASSKEY"
@@ -11740,6 +11782,24 @@ func (e ListConfigProposalsParamsState) Valid() bool {
 	case ListConfigProposalsParamsStateDECLINED:
 		return true
 	case ListConfigProposalsParamsStateWAITING:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SwitchBoardJSONBodyTo.
+const (
+	SwitchBoardJSONBodyToCOLUMNS SwitchBoardJSONBodyTo = "COLUMNS"
+	SwitchBoardJSONBodyToNONE    SwitchBoardJSONBodyTo = "NONE"
+)
+
+// Valid indicates whether the value is a known member of the SwitchBoardJSONBodyTo enum.
+func (e SwitchBoardJSONBodyTo) Valid() bool {
+	switch e {
+	case SwitchBoardJSONBodyToCOLUMNS:
+		return true
+	case SwitchBoardJSONBodyToNONE:
 		return true
 	default:
 		return false
@@ -14076,6 +14136,43 @@ type BlockedStep struct {
 // BlockedStepReason `workflows.step_who_unmet`: the step is limited to roles, people or groups the person is not among; `workflows.step_condition_unmet`: its condition over the entry and the person does not hold.
 type BlockedStepReason string
 
+// BoardPreview defines model for BoardPreview.
+type BoardPreview struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// ColumnOnly Of them, those whose status stays.
+	ColumnOnly int `json:"column_only"`
+	Columns    []struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+
+		// Completes Whether an entry in it is done after.
+		Completes    bool   `json:"completes"`
+		IsDoneBucket bool   `json:"is_done_bucket"`
+		Name         string `json:"name"`
+
+		// Statuses The statuses it shows after.
+		Statuses []string `json:"statuses"`
+	} `json:"columns"`
+
+	// DoneBucketId Without a workflow after, the column that is the done column; null otherwise.
+	DoneBucketId *openapi_types.UUID `json:"done_bucket_id"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+
+	// Moved Entries whose column changes.
+	Moved int `json:"moved"`
+
+	// Unmapped The statuses no column shows after (*Ohne Spalte*), each with where it would fit.
+	Unmapped []struct {
+		Status            string              `json:"status"`
+		SuggestedBucketId *openapi_types.UUID `json:"suggested_bucket_id"`
+	} `json:"unmapped"`
+}
+
 // BoardRepair defines model for BoardRepair.
 type BoardRepair struct {
 	// Boards The boards looked at.
@@ -14101,6 +14198,45 @@ type BoardRepair struct {
 	PlacedByStatus int `json:"placed_by_status"`
 }
 
+// BoardSwitch defines model for BoardSwitch.
+type BoardSwitch struct {
+	ColumnsCreated int  `json:"columns_created"`
+	ColumnsRemoved int  `json:"columns_removed"`
+	DryRun         bool `json:"dry_run"`
+
+	// EntriesPlaced Entries put into a column, or out of one.
+	EntriesPlaced int `json:"entries_placed"`
+
+	// LevelAfter Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelAfter StateMode `json:"level_after"`
+
+	// LevelBefore Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	LevelBefore StateMode `json:"level_before"`
+}
+
+// BoardWorkflow defines model for BoardWorkflow.
+type BoardWorkflow struct {
+	DryRun bool `json:"dry_run"`
+
+	// Entries Entries that take a status.
+	Entries  int `json:"entries"`
+	Statuses []struct {
+		BucketId openapi_types.UUID            `json:"bucket_id"`
+		Category BoardWorkflowStatusesCategory `json:"category"`
+
+		// Count Entries that take this status.
+		Count int    `json:"count"`
+		Key   string `json:"key"`
+		Name  string `json:"name"`
+	} `json:"statuses"`
+
+	// Workflow The new workflow's key.
+	Workflow string `json:"workflow"`
+}
+
+// BoardWorkflowStatusesCategory defines model for BoardWorkflow.Statuses.Category.
+type BoardWorkflowStatusesCategory string
+
 // Bucket A column of a collection's board - the "list" of the requirements. It belongs to exactly one collection, and its name is unique there, compared without regard to case or accents.
 type Bucket struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
@@ -14113,6 +14249,9 @@ type Bucket struct {
 
 	// OrderKey The rank on the board - a fractional index rather than a number.
 	OrderKey string `json:"order_key"`
+
+	// Statuses Under a workflow, the statuses the column shows; empty without one. Answered where the board is listed.
+	Statuses *[]string `json:"statuses,omitempty"`
 
 	// Version The optimistic lock, returned as the ETag and sent back as If-Match.
 	Version int `json:"version"`
@@ -16389,6 +16528,12 @@ type Container struct {
 
 	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
 	Private *bool `json:"private,omitempty"`
+
+	// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+	StateMode *StateMode `json:"state_mode,omitempty"`
+
+	// StateModes A collection's level per entry type it offers; `state_mode` is the tasks'. Answered when one collection is read, left out on a hub and in lists.
+	StateModes *map[string]StateMode `json:"state_modes,omitempty"`
 
 	// Structure How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.
 	Structure *EffectiveStructure `json:"structure,omitempty"`
@@ -25031,6 +25176,9 @@ type StarterSet struct {
 // StarterSetHubPreset The preset the hub starts from; required without `template`. With one and none given, the hub starts from the workspace's default and takes the template's hub part.
 type StarterSetHubPreset string
 
+// StateMode Where an entry of a type stands in a collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - the columns are the states, one of them the done column; `WORKFLOW` the status decides and the columns show statuses.
+type StateMode string
+
 // StepUpGrant defines model for StepUpGrant.
 type StepUpGrant struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -27113,8 +27261,10 @@ type WorkflowPicture struct {
 
 // WorkflowPreview defines model for WorkflowPreview.
 type WorkflowPreview struct {
-	ColumnsAfter  []string `json:"columns_after"`
-	ColumnsBefore []string `json:"columns_before"`
+	// Boards Per collection reached that has board columns: its level before and after, its columns with the statuses each would show, the statuses no column would show with a suggested column, and how many entries change column.
+	Boards        *[]BoardPreview `json:"boards,omitempty"`
+	ColumnsAfter  []string        `json:"columns_after"`
+	ColumnsBefore []string        `json:"columns_before"`
 
 	// Entries How many entries move.
 	Entries int `json:"entries"`
@@ -27147,6 +27297,12 @@ type WorkflowPublishPreview struct {
 
 // WorkflowSchemeChange defines model for WorkflowSchemeChange.
 type WorkflowSchemeChange struct {
+	// Columns The statuses each board column shows under the workflow. A board one of whose columns is named here takes exactly this mapping; every other board the proposal of the preview (`boards`). Ignored where the workflow leaves.
+	Columns *[]struct {
+		BucketId openapi_types.UUID `json:"bucket_id"`
+		Statuses []string           `json:"statuses"`
+	} `json:"columns,omitempty"`
+
 	// Confirm True once the person has seen the preview.
 	Confirm     *bool              `json:"confirm,omitempty"`
 	ContainerId openapi_types.UUID `json:"container_id"`
@@ -28637,8 +28793,28 @@ type RenameContainerParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SwitchBoardJSONBody defines parameters for SwitchBoard.
+type SwitchBoardJSONBody struct {
+	DryRun *bool                 `json:"dry_run,omitempty"`
+	To     SwitchBoardJSONBodyTo `json:"to"`
+}
+
+// SwitchBoardJSONBodyTo defines parameters for SwitchBoard.
+type SwitchBoardJSONBodyTo string
+
+// MakeBoardWorkflowJSONBody defines parameters for MakeBoardWorkflow.
+type MakeBoardWorkflowJSONBody struct {
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Name The workflow's name; the collection's by default.
+	Name *string `json:"name,omitempty"`
+}
+
 // DeleteBucketParams defines parameters for DeleteBucket.
 type DeleteBucketParams struct {
+	// NewDoneBucketId Where the done column is deleted: the column that takes the done mark and its entries. Its open entries are completed with the mark. Read only when the done column goes.
+	NewDoneBucketId *openapi_types.UUID `form:"new_done_bucket_id,omitempty" json:"new_done_bucket_id,omitempty"`
+
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -31207,6 +31383,12 @@ type CreateContainerJSONRequestBody = ContainerCreate
 
 // RenameContainerApplicationMergePatchPlusJSONRequestBody defines body for RenameContainer for application/merge-patch+json ContentType.
 type RenameContainerApplicationMergePatchPlusJSONRequestBody = ContainerUpdate
+
+// SwitchBoardJSONRequestBody defines body for SwitchBoard for application/json ContentType.
+type SwitchBoardJSONRequestBody SwitchBoardJSONBody
+
+// MakeBoardWorkflowJSONRequestBody defines body for MakeBoardWorkflow for application/json ContentType.
+type MakeBoardWorkflowJSONRequestBody MakeBoardWorkflowJSONBody
 
 // CreateBucketJSONRequestBody defines body for CreateBucket for application/json ContentType.
 type CreateBucketJSONRequestBody = BucketCreate
@@ -36903,6 +37085,64 @@ type ClientInterface interface {
 	// Changes a container's own descriptive fields. A field that is not sent is left alone; sending description, icon or color_token as null clears it. The name stays unique among the containers at the same level. The policies are not here - they are their own sub-resource, so that a rename and a change of the way a collection works are two operations with two audit entries.
 	RenameContainerWithApplicationMergePatchPlusJSONBody(ctx context.Context, containerId ContainerId, params *RenameContainerParams, body RenameContainerApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoardWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SwitchBoard Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoard(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeBoardWorkflowWithBody Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflowWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeBoardWorkflow Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflow(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListBuckets performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 	ListBuckets(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
@@ -36916,7 +37156,7 @@ type ClientInterface interface {
 
 	// DeleteBucket performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 	//
-	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 	DeleteBucket(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateBucketWithBody performs a PATCH /containers/{containerId}/buckets/{bucketId} (the `UpdateBucket` operationId) request,
@@ -52887,6 +53127,104 @@ func (c *Client) RenameContainerWithApplicationMergePatchPlusJSONBody(ctx contex
 	return c.Client.Do(req)
 }
 
+// SwitchBoardWithBody Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *Client) SwitchBoardWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBoardRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SwitchBoard Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *Client) SwitchBoard(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBoardRequest(c.Server, containerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeBoardWorkflowWithBody Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *Client) MakeBoardWorkflowWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeBoardWorkflowRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeBoardWorkflow Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *Client) MakeBoardWorkflow(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeBoardWorkflowRequest(c.Server, containerId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListBuckets performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 func (c *Client) ListBuckets(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListBucketsRequest(c.Server, containerId)
@@ -52930,7 +53268,7 @@ func (c *Client) CreateBucket(ctx context.Context, containerId ContainerId, body
 
 // DeleteBucket performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 //
-// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 func (c *Client) DeleteBucket(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteBucketRequest(c.Server, containerId, bucketId, params)
 	if err != nil {
@@ -81822,6 +82160,100 @@ func NewRenameContainerRequestWithBody(server string, containerId ContainerId, p
 	return req, nil
 }
 
+// NewSwitchBoardRequest calls the generic SwitchBoard builder with application/json body
+func NewSwitchBoardRequest(server string, containerId ContainerId, body SwitchBoardJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSwitchBoardRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewSwitchBoardRequestWithBody constructs an http.Request for the SwitchBoard method, with any body, and a specified content type
+func NewSwitchBoardRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/board:switch", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewMakeBoardWorkflowRequest calls the generic MakeBoardWorkflow builder with application/json body
+func NewMakeBoardWorkflowRequest(server string, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMakeBoardWorkflowRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewMakeBoardWorkflowRequestWithBody constructs an http.Request for the MakeBoardWorkflow method, with any body, and a specified content type
+func NewMakeBoardWorkflowRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/board:workflow", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListBucketsRequest constructs an http.Request for the ListBuckets method
 func NewListBucketsRequest(server string, containerId ContainerId) (*http.Request, error) {
 	var err error
@@ -81934,6 +82366,33 @@ func NewDeleteBucketRequest(server string, containerId ContainerId, bucketId Buc
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.NewDoneBucketId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "new_done_bucket_id", *params.NewDoneBucketId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
@@ -113359,6 +113818,64 @@ type ClientWithResponsesInterface interface {
 	// Changes a container's own descriptive fields. A field that is not sent is left alone; sending description, icon or color_token as null clears it. The name stays unique among the containers at the same level. The policies are not here - they are their own sub-resource, so that a rename and a change of the way a collection works are two operations with two audit entries.
 	RenameContainerWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, containerId ContainerId, params *RenameContainerParams, body RenameContainerApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*RenameContainerResult, error)
 
+	// SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoardWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error)
+
+	// SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
+	//
+	// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+	// language), the completed entries in the done one and the open ones in the other. `NONE`
+	// takes the columns off again, the done column last; completion stays as it is. Refused with
+	// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+	// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+	// STRUCTURE where the collection is.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+	SwitchBoardWithResponse(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error)
+
+	// MakeBoardWorkflowWithBodyWithResponse Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflowWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error)
+
+	// MakeBoardWorkflowWithResponse Make a workflow from a board's columns
+	//
+	// A workflow of the collection's hub with one status per column - the first column's the
+	// initial status, the done column's done, the rest in progress, every step free -, run for
+	// the collection's tasks with each column showing its own status; every entry takes the
+	// status of the column it stands in. One transaction. Refused with `board.no_columns`
+	// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+	// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+	// collection is and at its hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+	MakeBoardWorkflowWithResponse(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error)
+
 	// ListBucketsWithResponse performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
@@ -113376,7 +113893,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeleteBucketWithResponse performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 	//
-	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+	// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	DeleteBucketWithResponse(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*DeleteBucketResult, error)
@@ -135630,6 +136147,102 @@ func (r RenameContainerResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RenameContainerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SwitchBoardResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BoardSwitch
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SwitchBoardResult) GetJSON200() *BoardSwitch {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SwitchBoardResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SwitchBoardResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SwitchBoardResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SwitchBoardResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SwitchBoardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MakeBoardWorkflowResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *BoardWorkflow
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MakeBoardWorkflowResult) GetJSON200() *BoardWorkflow {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MakeBoardWorkflowResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MakeBoardWorkflowResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MakeBoardWorkflowResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MakeBoardWorkflowResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MakeBoardWorkflowResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -170284,6 +170897,88 @@ func (c *ClientWithResponses) RenameContainerWithApplicationMergePatchPlusJSONBo
 	return ParseRenameContainerResult(rsp)
 }
 
+// SwitchBoardWithBodyWithResponse Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *ClientWithResponses) SwitchBoardWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error) {
+	rsp, err := c.SwitchBoardWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBoardResult(rsp)
+}
+
+// SwitchBoardWithResponse Show a collection's tasks as a board, or as a list again
+//
+// `COLUMNS` gives a list a board: two columns, open and done (named in the workspace's
+// language), the completed entries in the done one and the open ones in the other. `NONE`
+// takes the columns off again, the done column last; completion stays as it is. Refused with
+// `board.workflow_runs` while a workflow runs for tasks there and with `board.level_unchanged`
+// where the collection already stands there. `dry_run` counts and writes nothing. Needs
+// STRUCTURE where the collection is.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:switch (the `SwitchBoard` operationId).
+func (c *ClientWithResponses) SwitchBoardWithResponse(ctx context.Context, containerId ContainerId, body SwitchBoardJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBoardResult, error) {
+	rsp, err := c.SwitchBoard(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBoardResult(rsp)
+}
+
+// MakeBoardWorkflowWithBodyWithResponse Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *ClientWithResponses) MakeBoardWorkflowWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error) {
+	rsp, err := c.MakeBoardWorkflowWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeBoardWorkflowResult(rsp)
+}
+
+// MakeBoardWorkflowWithResponse Make a workflow from a board's columns
+//
+// A workflow of the collection's hub with one status per column - the first column's the
+// initial status, the done column's done, the rest in progress, every step free -, run for
+// the collection's tasks with each column showing its own status; every entry takes the
+// status of the column it stands in. One transaction. Refused with `board.no_columns`
+// without columns and `board.workflow_runs` where a workflow already runs for tasks.
+// `dry_run` answers the statuses and counts and writes nothing. Needs STRUCTURE where the
+// collection is and at its hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}/board:workflow (the `MakeBoardWorkflow` operationId).
+func (c *ClientWithResponses) MakeBoardWorkflowWithResponse(ctx context.Context, containerId ContainerId, body MakeBoardWorkflowJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeBoardWorkflowResult, error) {
+	rsp, err := c.MakeBoardWorkflow(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeBoardWorkflowResult(rsp)
+}
+
 // ListBucketsWithResponse performs a GET /containers/{containerId}/buckets (the `ListBuckets` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
@@ -170319,7 +171014,7 @@ func (c *ClientWithResponses) CreateBucketWithResponse(ctx context.Context, cont
 
 // DeleteBucketWithResponse performs a DELETE /containers/{containerId}/buckets/{bucketId} (the `DeleteBucket` operationId) request.
 //
-// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered.
+// Takes the column off the board. Its entries are not deleted with it: they move to the leftmost remaining column, or out of any column when this was the last one. What became of them is in the answer rather than left to be discovered. The done column of a board without a workflow is deleted only with `new_done_bucket_id`, the column that means done instead: without it, where other columns are left, the deletion is refused with `buckets.done_successor_required`, the suggested column in its `suggested_bucket_id`.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) DeleteBucketWithResponse(ctx context.Context, containerId ContainerId, bucketId BucketId, params *DeleteBucketParams, reqEditors ...RequestEditorFn) (*DeleteBucketResult, error) {
@@ -193125,6 +193820,72 @@ func ParseRenameContainerResult(rsp *http.Response) (*RenameContainerResult, err
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseSwitchBoardResult parses an HTTP response from a SwitchBoardWithResponse call
+func ParseSwitchBoardResult(rsp *http.Response) (*SwitchBoardResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SwitchBoardResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BoardSwitch
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMakeBoardWorkflowResult parses an HTTP response from a MakeBoardWorkflowWithResponse call
+func ParseMakeBoardWorkflowResult(rsp *http.Response) (*MakeBoardWorkflowResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MakeBoardWorkflowResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest BoardWorkflow
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

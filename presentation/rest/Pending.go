@@ -1204,6 +1204,12 @@ func (pending) SearchItems(w http.ResponseWriter, r *http.Request) { notAvailabl
 
 func (pending) ReindexSearch(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) RepairBoards(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+func (pending) SwitchBoard(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+func (pending) MakeBoardWorkflow(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
 
 // BulkUpdateWorkItems and DuplicateWorkItem are overridden by RestController, for the reason given
 // at CreateContainer.

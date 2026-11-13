@@ -187,7 +187,7 @@ var restDoors = map[string]restDoor{
 	"deleteBackupSchedule":              {UseCase: "DeleteBackupSchedule", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBackupTarget":                {UseCase: "DeleteBackupTarget", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBaseline":                    {UseCase: "DeleteBaseline", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
-	"deleteBucket":                      {UseCase: "DeleteBucket", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteBucket":                      {UseCase: "DeleteBucket", Status: 200, Query: []string{"new_done_bucket_id"}, IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBusinessCalendar":            {UseCase: "DeleteBusinessCalendar", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteChatBot":                     {UseCase: "DeleteChatBot", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteComment":                     {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -450,6 +450,7 @@ var restDoors = map[string]restDoor{
 	"locateConnectorReturn":             {UseCase: "LocateConnectorReturn", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"locateOidcFlow":                    {UseCase: "LocateOidcFlow", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"logTime":                           {UseCase: "LogTime", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"minutes"}},
+	"makeBoardWorkflow":                 {UseCase: "MakeBoardWorkflow", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"makeEntries":                       {UseCase: "MakeEntries", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"markWorkspaceSample":               {UseCase: "MarkWorkspaceSample", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"version"}},
 	"mergeWorkItems":                    {UseCase: "MergeWorkItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -747,6 +748,7 @@ var restDoors = map[string]restDoor{
 	"suggestFromJumbleEntry":            {UseCase: "SuggestFromJumbleEntry", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendAgent":                      {UseCase: "SuspendAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"suspendTenant":                     {UseCase: "SuspendTenant", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"switchBoard":                       {UseCase: "SwitchBoard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"syncLdapDirectory":                 {UseCase: "SyncLdapDirectory", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confirm_switch_off"}},
 	"takeBackKudos":                     {UseCase: "TakeBackKudos", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"takeBaseline":                      {UseCase: "TakeBaseline", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3686,6 +3688,13 @@ func (c *RestController) LogTime(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["logTime"], usecase.Input{}, nil, &body, &answer)
 }
 
+// MakeBoardWorkflow answers POST /containers/{containerId}/board:workflow by the generated mapping.
+func (c *RestController) MakeBoardWorkflow(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var body openapi.MakeBoardWorkflowJSONRequestBody
+	var answer openapi.BoardWorkflow
+	c.door(w, r, restDoors["makeBoardWorkflow"], usecase.Input{"collection_id": containerId.String()}, nil, &body, &answer)
+}
+
 // MakeEntries answers POST /containers/{containerId}:make-entries by the generated mapping.
 func (c *RestController) MakeEntries(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId, params openapi.MakeEntriesParams) {
 	var body openapi.MakeEntriesJSONRequestBody
@@ -5591,6 +5600,13 @@ func (c *RestController) SuspendAgent(w http.ResponseWriter, r *http.Request, ag
 // SuspendTenant answers POST /admin/tenants/{tenantId}:suspend by the generated mapping.
 func (c *RestController) SuspendTenant(w http.ResponseWriter, r *http.Request, tenantId openapi.AdminTenantId) {
 	c.door(w, r, restDoors["suspendTenant"], usecase.Input{"tenant_id": tenantId.String()}, nil, nil, nil)
+}
+
+// SwitchBoard answers POST /containers/{containerId}/board:switch by the generated mapping.
+func (c *RestController) SwitchBoard(w http.ResponseWriter, r *http.Request, containerId openapi.ContainerId) {
+	var body openapi.SwitchBoardJSONRequestBody
+	var answer openapi.BoardSwitch
+	c.door(w, r, restDoors["switchBoard"], usecase.Input{"collection_id": containerId.String()}, nil, &body, &answer)
 }
 
 // SyncLdapDirectory answers POST /directory/ldap:sync by the generated mapping.

@@ -2959,6 +2959,14 @@ class Client:
         """Bring every board of the workspace to one model"""
         return self._call("POST", "/boards:repair", {}, None, {}, body, "json", "application/json", "json")
 
+    def switch_board(self, container_id: str, body: dict[str, Any]) -> "BoardSwitch":
+        """Show a collection's tasks as a board, or as a list again"""
+        return self._call("POST", "/containers/{containerId}/board:switch", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
+    def make_board_workflow(self, container_id: str, body: dict[str, Any]) -> "BoardWorkflow":
+        """Make a workflow from a board's columns"""
+        return self._call("POST", "/containers/{containerId}/board:workflow", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
     def complete_work_item(self, item_id: str, body: dict[str, Any], *, idempotency_key: str | None = None) -> "WorkItem":
         """POST /items/{itemId}:complete"""
         return self._call("POST", "/items/{itemId}:complete", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
@@ -3075,9 +3083,9 @@ class Client:
         """PATCH /containers/{containerId}/buckets/{bucketId}"""
         return self._call("PATCH", "/containers/{containerId}/buckets/{bucketId}", {"containerId": container_id, "bucketId": bucket_id}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
 
-    def delete_bucket(self, container_id: str, bucket_id: str, *, if_match: str | None = None) -> "BucketDeletion":
+    def delete_bucket(self, container_id: str, bucket_id: str, *, query: dict[str, Any] | None = None, if_match: str | None = None) -> "BucketDeletion":
         """DELETE /containers/{containerId}/buckets/{bucketId}"""
-        return self._call("DELETE", "/containers/{containerId}/buckets/{bucketId}", {"containerId": container_id, "bucketId": bucket_id}, None, {"If-Match": if_match}, None, "none", None, "json")
+        return self._call("DELETE", "/containers/{containerId}/buckets/{bucketId}", {"containerId": container_id, "bucketId": bucket_id}, query, {"If-Match": if_match}, None, "none", None, "json")
 
     def reorder_bucket(self, container_id: str, bucket_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "Bucket":
         """POST /containers/{containerId}/buckets/{bucketId}:reorder"""
