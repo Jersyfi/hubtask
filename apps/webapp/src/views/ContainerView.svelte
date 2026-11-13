@@ -1516,6 +1516,8 @@
         <Icon name="chevron-right" size="sm" />
       </button>
     {/snippet}
+  <!-- From `expanded` the panel *Ansicht* stands beside the page, which narrows (scene viewcfg). -->
+  <div class="beside-pane">
   <WorkPage>
     {#snippet top()}
     {#if container.type === 'COLLECTION'}
@@ -1634,35 +1636,6 @@
         {/if}
         {#if !viewport.isCompact}<span class="tools-end">{@render filterTool()}{@render entryTools()}</span>{/if}
       </div>
-      <ViewPanel
-        bind:isOpen={isFilterOpen}
-        bind:setup={() => setup, applySetup}
-        base={baseSetup ?? setup}
-        baseName={baseName}
-        changed={viewChanged}
-        layouts={panelLayouts}
-        groupings={listOffer ? offeredGroupings(listOffer).map((each) => ({ value: each, label: t(`app.list.group_${each}`) })) : []}
-        sortFields={sortFields.map((field) => ({ value: field, label: fieldLabel(field) }))}
-        fields={listOffer ? offeredFields(listOffer).map((each) => ({ value: each, label: columnLabel(each), isNew: each === 'requester' || each === 'priority' || each === 'sla' || each.startsWith('cf.') })) : []}
-        boardFields={boardFields}
-        dateFields={dateFields}
-        keys={queryKeys}
-        total={lineCount}
-        values={(key) => valueCounts[key] ?? []}
-        ontyping={(key) => (typingKey = key)}
-        words={lineRead.ok ? lineRead.words : []}
-        unknown={lineRead.ok ? lineRead.unknown : []}
-        scopes={saveScopes}
-        mayShare={holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'}
-        overwritable={currentView && mayOverwrite ? currentView.name : undefined}
-        isSaving={isSavingView}
-        failure={saveFailure}
-        onsave={saveView}
-        onoverwrite={overwriteView}
-        onexport={() => { isFilterOpen = false; isExportingFiltered = true; }}
-        onfeeds={() => { isFilterOpen = false; subscribing = undefined; isManagingFeeds = true; }}
-        onmanage={heldViews.length > 0 ? () => { isFilterOpen = false; viewsIntent = 'manage'; isManagingViews = true; } : undefined}
-      />
 
       <!-- Above the entries, because it is about the ones below it. It draws itself only when
            something is picked, so a reader who never selects anything never sees it. -->
@@ -1777,6 +1750,38 @@
       </div>
     {/if}
   </WorkPage>
+  {#if container.type !== 'HUB'}
+    <ViewPanel
+      bind:isOpen={isFilterOpen}
+      bind:setup={() => setup, applySetup}
+      base={baseSetup ?? setup}
+      baseName={baseName}
+      changed={viewChanged}
+      layouts={panelLayouts}
+      groupings={listOffer ? offeredGroupings(listOffer).map((each) => ({ value: each, label: t(`app.list.group_${each}`) })) : []}
+      sortFields={sortFields.map((field) => ({ value: field, label: fieldLabel(field) }))}
+      fields={listOffer ? offeredFields(listOffer).map((each) => ({ value: each, label: columnLabel(each), isNew: each === 'requester' || each === 'priority' || each === 'sla' || each.startsWith('cf.') })) : []}
+      boardFields={boardFields}
+      dateFields={dateFields}
+      keys={queryKeys}
+      total={lineCount}
+      values={(key) => valueCounts[key] ?? []}
+      ontyping={(key) => (typingKey = key)}
+      words={lineRead.ok ? lineRead.words : []}
+      unknown={lineRead.ok ? lineRead.unknown : []}
+      scopes={saveScopes}
+      mayShare={holds(structureRole ?? undefined, 'STRUCTURE').status === 'permitted'}
+      overwritable={currentView && mayOverwrite ? currentView.name : undefined}
+      isSaving={isSavingView}
+      failure={saveFailure}
+      onsave={saveView}
+      onoverwrite={overwriteView}
+      onexport={() => { isFilterOpen = false; isExportingFiltered = true; }}
+      onfeeds={() => { isFilterOpen = false; subscribing = undefined; isManagingFeeds = true; }}
+      onmanage={heldViews.length > 0 ? () => { isFilterOpen = false; viewsIntent = 'manage'; isManagingViews = true; } : undefined}
+    />
+  {/if}
+  </div>
 {/if}
 
 {#if container?.type === 'HUB'}
@@ -1914,6 +1919,10 @@
 {/if}
 
 <style>
+  .beside-pane { display: flex; align-items: flex-start; }
+
+  .beside-pane > :global(:first-child) { flex: 1; min-width: 0; }
+
   .density { display: contents; }
   .split { display: flex; align-items: flex-start; gap: var(--sp-300); min-width: 0; }
 

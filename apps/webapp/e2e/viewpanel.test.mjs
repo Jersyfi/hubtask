@@ -3,8 +3,8 @@
 
 // The one panel *View* of a collection (work-surface concept §6.2, E-21, scene viewcfg): the
 // layout, what is seen as the Hubtask query line, the order, the fields with a custom one, the
-// board's columns, lanes and limits, the calendar's date and saving - a drawer on a desktop, a
-// sheet of pages on a phone. Proves UC-WRK-17 checks 13 and 14, UC-WRK-05 check 12 and UC-WRK-43
+// board's columns, lanes and limits, the calendar's date and saving - a side pane beside the list
+// on a desktop, a sheet of pages on a phone. Proves UC-WRK-17 checks 13 and 14, UC-WRK-05 check 12 and UC-WRK-43
 // check 6. Chromium only.
 
 import { test } from 'node:test';
@@ -146,6 +146,41 @@ test('chromium 1280: one panel holds layout, the query line, order, fields, boar
   assert.equal(saved[0].sharing, 'SCOPE');
   assert.equal(saved[0].layout, 'KANBAN');
   assert.deepEqual(saved[0].query.sort?.[0], { field: 'title', dir: 'DESC' });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium 1280: the panel stands beside the list, which stays usable and shows each change at once; Escape closes it and gives focus back (scene viewcfg)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await open(browser, 1280, 900);
+  t.after(() => context.close());
+
+  await viewButton(page).click();
+  const panel = panelOf(page);
+  await panel.waitFor({ timeout: 5_000 });
+  // Non-modal: no dialog, no scrim, nothing behind it inert; the list narrows beside it.
+  assert.equal(await page.locator('dialog[open]').count(), 0, 'the panel opened as a dialog');
+  assert.equal(await page.locator('[inert]').count(), 0, 'something behind the panel is inert');
+  const side = page.locator('[data-view-side]');
+  const [list, pane] = [await page.locator('.split').boundingBox(), await side.boundingBox()];
+  assert.ok(list && pane && list.x + list.width <= pane.x + 1, `the list lies under the panel: ${JSON.stringify({ list, pane })}`);
+
+  // A change shows at once in the list beside it, and the list still takes a press.
+  await panel.locator('[data-view-field="cf.room"]').getByRole('checkbox').check();
+  await page.locator('.fields-head .col-head[data-field="cf.room"]').waitFor({ state: 'attached', timeout: 5_000 });
+  await page.locator('[data-row]').first().getByRole('checkbox').first().focus();
+  assert.ok(await side.isVisible(), 'the panel closed when the list took focus');
+
+  // Focus is never trapped: Tab leaves the panel's last control for what follows it.
+  await panel.locator('[data-view-save]').focus();
+  for (let i = 0; i < 6; i++) await page.keyboard.press('Tab');
+  assert.equal(await side.evaluate((element) => element.contains(document.activeElement)), false, 'Tab stays in the panel');
+
+  // Escape closes it from inside and gives focus back to *View*.
+  await panel.getByLabel('Sort by').focus();
+  await page.keyboard.press('Escape');
+  await side.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(await viewButton(page).evaluate((element) => element === document.activeElement), true, 'focus did not return to View');
   assert.deepEqual(failures, []);
 });
 
