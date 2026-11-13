@@ -34,8 +34,7 @@
 </script>
 
 {#if requester}
-  <section class="requester" aria-label={t('app.desk.requester.title')} data-requester-panel>
-    <h3 class="title">{t('app.desk.requester.title')}</h3>
+  <div class="requester" data-requester-panel>
     {#if requester.by_mail}
       <p class="who" data-requester-by-mail>{t('app.desk.requester.by_mail')}</p>
     {:else}
@@ -64,12 +63,11 @@
         {/each}
       </ul>
     {/if}
-  </section>
+  </div>
 {/if}
 
 <style>
   .requester { display: flex; flex-direction: column; gap: var(--sp-050); font-size: var(--fs-075); }
-  .title { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
   .who, .label { margin: 0; }
   .label, .organisation { color: var(--text-secondary); }
   .others { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-025); }

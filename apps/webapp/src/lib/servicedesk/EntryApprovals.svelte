@@ -10,7 +10,6 @@
 
   import { entryApprovalsPath } from '../data/approvals.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
-  import { t } from '../i18n/i18n.svelte.ts';
   import ApprovalCard from './ApprovalCard.svelte';
 
   const { itemId }: { itemId: string } = $props();
@@ -21,16 +20,14 @@
 </script>
 
 {#if rows.length > 0}
-  <section aria-labelledby="entry-approvals">
+  <div data-entry-approvals>
     <Stack gap="100">
-      <h2 class="heading" id="entry-approvals">{t('app.approvals.entry_title')}</h2>
       {#each rows as approval (approval.id)}
         <ApprovalCard {approval} />
       {/each}
     </Stack>
-  </section>
+  </div>
 {/if}
 
 <style>
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
 </style>
