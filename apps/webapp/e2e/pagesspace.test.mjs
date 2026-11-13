@@ -35,6 +35,7 @@ const empty = { data: [], page: { next_cursor: null, has_more: false } };
 
 async function opened(browser, rows, width = 1280, { body = BODY, unpublished = false } = {}) {
   const written = [];
+  const kept = new Map();
   const { page, failures, context } = await signedIn(browser, width, 900);
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
@@ -52,9 +53,10 @@ async function opened(browser, rows, width = 1280, { body = BODY, unpublished = 
     if (path === `/hubs/${HUB.id}/page-drafts`) return route.fulfill({ json: { hub_id: HUB.id, drafts: unpublished } });
     const one = rows.find((each) => path === `/pages/${each.id}`) ?? (path === `/pages/${id(50)}` ? row(50, 'Knowledge base') : undefined);
     if (one && request.method() === 'PATCH') {
-      return route.fulfill({ json: { ...one, body, ...request.postDataJSON(), version: one.version + 1, ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
+      kept.set(one.id, { ...kept.get(one.id), ...request.postDataJSON() });
+      return route.fulfill({ json: { ...one, body, ...kept.get(one.id), version: one.version + 1, ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
     }
-    if (one) return route.fulfill({ json: { ...one, body, ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
+    if (one) return route.fulfill({ json: { ...one, body, ...kept.get(one.id), ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
     if (/^\/pages\/[^/]+\/(comments|versions|backlinks)$/.test(path)) return route.fulfill({ json: empty });
     if (/^\/pages\/[^/]+\/language-variants$/.test(path)) return route.fulfill({ json: { page_id: HOME.id, source_page_id: null, language: null, variants: [] } });
     if (/^\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { page_id: HOME.id, labels: [] } });
@@ -275,6 +277,45 @@ test('a new page offers its templates as chips with a preview beside, under the 
     assert.ok(change && change.body.body.includes('## Context'), 'the template\'s words were not written');
     assert.equal(change.body.icon, '⚖️');
     assert.equal(change.body.title, undefined, 'a page with a title of its own keeps it');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// E-18, UC-DOC-16 (scene pcover): a cover over the content's width, the icon and title under the
+// picture; picked from the design system's gradients, the gallery or an upload, and taken away.
+test('a page takes a cover over its width, picked in tabs, the title under it (UC-DOC-16)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, written, close } = await opened(browser, FULL, 1440);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    await page.locator('[data-page-cover-add]').click({ timeout: 15_000 });
+    const cover = page.locator('[data-page-cover]');
+    await cover.waitFor({ timeout: 10_000 });
+    const covers = () => written.filter((each) => each.method === 'PATCH' && 'cover' in each.body).map((each) => each.body.cover);
+    assert.deepEqual(covers()[0], { source: 'GRADIENT', key: 'indigo-teal', position: 50 });
+    const picker = page.locator('[data-page-cover-picker]');
+    await picker.waitFor({ timeout: 5_000 });
+    assert.deepEqual(await picker.getByRole('tab').allInnerTexts(), ['Colours', 'Gallery', 'Upload'], 'no image provider unless the administration switches one on');
+    assert.equal(await picker.locator('[data-cover-key]').count(), 12);
+    await picker.getByRole('tab', { name: 'Gallery' }).click();
+    await picker.locator('[data-cover-key="hills"]').click();
+    await page.locator('[data-page-cover="GALLERY:hills"]').waitFor({ timeout: 10_000 });
+    assert.deepEqual(covers().at(-1), { source: 'GALLERY', key: 'hills', position: 50 });
+    const band = await page.locator('[data-page-cover] .picture').boundingBox();
+    const column = await page.locator('article.column').boundingBox();
+    const title = await page.getByLabel('Title').boundingBox();
+    assert.ok(band && column && title, 'the cover, the column and the title are drawn');
+    assert.ok(band.width > column.width, 'the cover spans the content, not the reading column');
+    assert.ok(title.y >= band.y + band.height, 'the title stands under the picture, never on it');
+    await picker.getByRole('tab', { name: 'Upload' }).click();
+    await picker.getByText('Choose a picture').waitFor({ timeout: 5_000 });
+    await page.locator('[data-page-cover-remove]').click();
+    await page.locator('[data-page-cover-add]').waitFor({ timeout: 10_000 });
+    assert.equal(covers().at(-1), null);
     assert.deepEqual(failures, []);
     await close();
   } finally {

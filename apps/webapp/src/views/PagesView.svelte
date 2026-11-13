@@ -52,6 +52,8 @@
   import PageEditor from '../lib/pages/PageEditor.svelte';
   import PageHistory from '../lib/pages/PageHistory.svelte';
   import PageStarts from '../lib/pages/PageStarts.svelte';
+  import PageCover from '../lib/pages/PageCover.svelte';
+  import type { PageCover as Cover } from '../lib/pages/covers.ts';
   import PageStartPreview from '../lib/pages/PageStartPreview.svelte';
   import { START_ICONS, isBlankBody, startChange, type PageStart } from '../lib/pages/starts.ts';
   import { levelThreads } from '../lib/pages/margin.ts';
@@ -179,6 +181,18 @@
     const space = shippedSpace(key, t);
     const made = await act(() => pages.create(hubId, { title: space.title, body: space.body, subpages: space.subpages }));
     if (made) onnavigate(`/pages/${made.id}`);
+  }
+
+  // --- The cover (E-18, scene pcover) ------------------------------------------------------------
+
+  let isPickingCover = $state(false);
+  async function changeCover(cover: Cover | null) {
+    if (!current) return;
+    await act(() => pages.change(current, { cover }));
+  }
+  async function addCover() {
+    isPickingCover = true;
+    await changeCover({ source: 'GRADIENT', key: 'indigo-teal', position: 50 });
   }
 
   // --- A new page's starts (scene pnew) -----------------------------------------------------------
@@ -656,8 +670,11 @@
             </Inline>
           </div>
 
+          {#if current.cover}
+            {#key current.id}<PageCover pageId={current.id} cover={current.cover} isWritable={current.writable} onchange={changeCover} bind:isPicking={isPickingCover} />{/key}
+          {/if}
           <div class="reader" class:with-beside={viewport.isLarge}>
-            <article class="column" class:with-gutter={current.writable && !viewport.isCompact} aria-labelledby="page-title">
+            <article class="column" class:with-gutter={current.writable && !viewport.isCompact} class:covered={!!current.cover} aria-labelledby="page-title">
               {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
                 <!-- The drafts band (scene pnew 1): what only its writer sees, with publishing beside it. -->
                 <Banner tone="warning" icon="lock">
@@ -669,6 +686,9 @@
                     </Inline>
                   {/snippet}
                 </Banner>
+              {/if}
+              {#if current.writable && !current.cover}
+                <div class="page-adds"><Button size="sm" tone="subtle" icon="image" data-page-cover-add onclick={addCover}>{t('app.pages.cover_add')}</Button></div>
               {/if}
               {#if current.icon}<span class="icon" aria-hidden="true">{current.icon}</span>{/if}
               {#if current.writable}
@@ -1112,4 +1132,7 @@
   .quote::before { content: open-quote; }
   .quote::after { content: close-quote; }
   .comment .text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  /* Icon and title stand under the cover's picture, never on it (E-18); the icon reaches into its edge. */
+  .covered .icon { position: relative; margin-block-start: calc(-1 * var(--sp-600)); }
+  .page-adds { display: flex; gap: var(--sp-050); margin-block-end: var(--sp-050); }
 </style>
