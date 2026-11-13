@@ -219,6 +219,7 @@ export type {
   StarList,
   HubQueue,
   HubQueueList,
+  DeadlinesKept,
   WhiteboardBacklinkList,
   WhiteboardComment,
   WhiteboardCommentList,

@@ -396,6 +396,7 @@ export type Star = components['schemas']['Star'];
 export type StarList = components['schemas']['StarList'];
 export type HubQueue = components['schemas']['HubQueue'];
 export type HubQueueList = components['schemas']['HubQueueList'];
+export type DeadlinesKept = components['schemas']['DeadlinesKept'];
 export type WhiteboardBacklinkList = components['schemas']['WhiteboardBacklinkList'];
 export type WhiteboardComment = components['schemas']['WhiteboardComment'];
 export type WhiteboardCommentList = components['schemas']['WhiteboardCommentList'];

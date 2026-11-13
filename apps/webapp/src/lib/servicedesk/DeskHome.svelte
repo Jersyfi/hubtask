@@ -8,8 +8,8 @@
   // are a settings page of their own (ServiceDeskView, page-system §9.6).
 
   import { untrack } from 'svelte';
-  import type { HubQueueList, ResourceState } from '@hubtask/sync-engine';
-  import { Icon, ListRow, PageHeader, Skeleton, ViewBar, WorkPage, type ViewLink } from '@hubtask/design-system/components';
+  import type { DeadlinesKept, HubQueueList, ResourceState } from '@hubtask/sync-engine';
+  import { Button, DataTable, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, ViewBar, WorkPage, type DataColumn, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -21,6 +21,8 @@
   import ProductEmpty from '../product/ProductEmpty.svelte';
   import { markOf } from '../workspace/look.ts';
   import DeskQueues from './DeskQueues.svelte';
+  import { groups } from '../data/groups.svelte.ts';
+  import { KEPT_SHOWN, keptRows, percentOf, type KeptRow } from './kept.ts';
   import { desksAnswered, type DeskQueue } from './queues.ts';
 
   interface Props {
@@ -68,15 +70,38 @@
   );
 
   let totals = $state<Partial<Record<DeskQueue, number>>>({});
-  const figureText = $derived(
+  const figures = $derived(
     totals.open === undefined
-      ? ''
+      ? []
       : [
           t('app.desk_home.open', { count: String(totals.open) }),
           ...(totals.breaching ? [t('app.desk_home.breaching', { count: String(totals.breaching) })] : []),
           ...(totals.unassigned ? [t('app.desk_home.unassigned', { count: String(totals.unassigned) })] : []),
-        ].join(' · '),
+        ],
   );
+
+  // The handler's own deadlines kept over the last 30 days (UC-SVC-02 check 15): every kind, worst
+  // first, three rows and "+ n more" for the whole table; groups named by `/groups`.
+  let kept = $state<ResourceState<DeadlinesKept>>({ status: 'idle' });
+  $effect(() => untrack(() => engine.subscribe<DeadlinesKept>({ path: '/deadlines-kept?days=30' }, (next) => (kept = next))));
+  const keptAll = $derived(kept.status === 'ready' ? keptRows(kept.data.data) : []);
+  const hasOla = $derived(keptAll.some((row) => row.kind === 'OLA'));
+  $effect(() => {
+    if (hasOla) return untrack(() => groups.open());
+  });
+  let isKeptOpen = $state(false);
+  function keptLabel(row: KeptRow): string {
+    const goal = t(`app.desk_home.goal_${row.goal.toLowerCase()}`);
+    if (row.kind === 'SLA') return goal;
+    const group = groups.all.find((each) => each.id === row.groupId)?.name ?? t('app.desk_home.group_unknown');
+    return t('app.desk_home.ola_goal', { group, goal });
+  }
+  const keptColumns = $derived<DataColumn[]>([
+    { id: 'kind', label: t('app.desk_home.kept_col_kind'), priority: 1 },
+    { id: 'share', label: t('app.desk_home.kept_col_share'), align: 'end', priority: 1 },
+    { id: 'breached', label: t('app.desk_home.kept_col_breached'), align: 'end', priority: 2 },
+    { id: 'ended', label: t('app.desk_home.kept_col_ended'), align: 'end', priority: 3 },
+  ]);
 
   const primary = $derived.by(() => {
     const first = desks[0];
@@ -99,10 +124,11 @@
 
 <WorkPage>
   {#snippet top()}
-  <PageHeader
-    title={name}
-    subtitle={t('app.modules.hint_service_desk')}
-    isTitleInBar={viewport.isCompact}
+  <ProductBand
+    product="desk"
+    icon="inbox"
+    {name}
+    figures={figures}
     {primary}
     breadcrumb={{
       trail: [
@@ -112,9 +138,7 @@
       label: t('app.product_home.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }}
-  >
-    {#snippet figure()}{#if figureText}<span class="figure" data-desk-figure>{figureText}</span>{/if}{/snippet}
-  </PageHeader>
+  />
 
   {/snippet}
   {#snippet tabs()}<ViewBar label={name} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate(homeViews.find((each) => each.id === id)?.href ?? '/desk')} />{/snippet}
@@ -141,12 +165,62 @@
       {/each}
     </ul>
   {:else}
+    <div class="figures" data-desk-figures>
+      <SummaryCard lead="figure" title={t('app.desk_home.fig_mine')} figure={totals.mine === undefined ? '…' : String(totals.mine)} line={t('app.desk_home.fig_mine_line')} />
+      <SummaryCard lead="figure" title={t('app.desk_home.fig_unassigned')} figure={totals.unassigned === undefined ? '…' : String(totals.unassigned)} line={t('app.desk_home.fig_unassigned_line')} />
+      <SummaryCard lead="figure" title={t('app.desk_home.fig_breaching')} figure={totals.breaching === undefined ? '…' : String(totals.breaching)} line={t('app.desk_home.fig_breaching_line')} />
+      <div class="kept" data-desk-kept>
+        <SummaryCard lead="figure" title={t('app.desk_home.fig_kept')}
+          figure={keptAll[0] ? t('app.desk_home.percent', { share: String(percentOf(keptAll[0].share)) }) : kept.status === 'ready' ? '–' : '…'}
+          line={keptAll.length === 0 && kept.status === 'ready' ? t('app.desk_home.kept_none') : t('app.desk_home.kept_window')}>
+          {#if keptAll.length > 0}
+            <ul class="kept-rows">
+              {#each keptAll.slice(0, KEPT_SHOWN) as row, index (index)}
+                <li data-kept-row>
+                  <span class="kept-kind">{keptLabel(row)}</span>
+                  <span class="kept-share">{t('app.desk_home.percent', { share: String(percentOf(row.share)) })}</span>
+                  {#if row.breached > 0}<span class="kept-breached">{t('app.desk_home.kept_breached', { count: String(row.breached) })}</span>{/if}
+                </li>
+              {/each}
+            </ul>
+            {#if keptAll.length > KEPT_SHOWN}
+              <Button size="sm" tone="subtle" onclick={() => (isKeptOpen = true)}>{t('app.desk_home.kept_more', { count: String(keptAll.length - KEPT_SHOWN) })}</Button>
+            {/if}
+          {/if}
+        </SummaryCard>
+      </div>
+    </div>
+    <Dialog bind:isOpen={isKeptOpen} title={t('app.desk_home.fig_kept')} dismissLabel={t('app.sheet_close')} size="m">
+      <p class="kept-window">{t('app.desk_home.kept_window')}</p>
+      <DataTable label={t('app.desk_home.fig_kept')} columns={keptColumns} rows={keptAll} key={(row: KeptRow) => `${row.kind}|${row.goal}|${row.groupId ?? ''}`}>
+        {#snippet cell(row: KeptRow, column: DataColumn)}
+          {#if column.id === 'kind'}{keptLabel(row)}
+          {:else if column.id === 'share'}<span class="number">{t('app.desk_home.percent', { share: String(percentOf(row.share)) })}</span>
+          {:else if column.id === 'breached'}<span class="number">{row.breached}</span>
+          {:else}<span class="number">{row.ended}</span>{/if}
+        {/snippet}
+      </DataTable>
+    </Dialog>
     <DeskQueues desks={desksAt} withHub={hubs.length > 1} {onnavigate} ontotals={(next) => (totals = next)} />
   {/if}
 </WorkPage>
 
 <style>
-  .figure { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-150); margin-block-end: var(--sp-200); }
+  .kept-rows { display: grid; gap: var(--sp-025); margin: 0; padding: 0; list-style: none; font-size: var(--fs-075); }
+  .kept-rows li { display: flex; flex-wrap: wrap; gap: var(--sp-050); align-items: baseline; }
+  .kept-kind { color: var(--text-secondary); }
+  .kept-share, .number { font-variant-numeric: tabular-nums; }
+  .kept-breached { color: var(--text-danger); }
+  .kept-window { margin: 0 0 var(--sp-100); color: var(--text-secondary); }
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
+  @media (width < 905px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  /* A phone: two figures - mine and my deadlines kept, its worst kind only (§7, decision 4). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .figures > :global(:nth-child(2)), .figures > :global(:nth-child(3)) { display: none; }
+    .kept-rows li:not(:first-child) { display: none; }
+  }
   .rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   .name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hub { display: block; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
