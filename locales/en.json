@@ -14731,5 +14731,6 @@
   "app.desk.note_audience": "only people in the desk",
   "app.desk.reply_audience": "sees: {name}",
   "app.comments.insert": "Insert",
-  "app.comments.format": "Format"
+  "app.comments.format": "Format",
+  "app.comments.send_hint": "Ctrl+↵ sends"
 }

@@ -274,7 +274,10 @@
     outline-offset: calc(-1 * var(--bw-ring));
   }
 
-  .editor { min-inline-size: 0; }
+  /* The caller's editor sits where the field would: inset as the field is, three lines once in use. */
+  .editor { min-inline-size: 0; padding: var(--sp-150) var(--sp-200); }
+  .composer:is(:focus-within, [data-held]) .editor,
+  .composer:not([data-empty]) .editor { min-block-size: var(--sp-1000); }
 
   /* Empty and not in use, it is one line to start writing in (§6.9): the formatting and the send
      come forward with the focus, so a quiet conversation does not open on an empty form. */

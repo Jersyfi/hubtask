@@ -290,6 +290,7 @@
           noteAudience={isDesk ? t('app.desk.note_audience') : undefined}
           sendLabel={editing ? t('app.workspace.save') : isDesk ? t('app.desk.send_reply') : t('app.comments.send')}
           noteSendLabel={t('app.desk.save_note')}
+          hint={t('app.comments.send_hint')}
           isBusy={isSending || (tools?.isBusy ?? false)}
           busyLabel={t('app.workspace.saving')}
           onsend={() => send()}
