@@ -427,6 +427,13 @@
     modulesOn.includes('SERVICE_DESK') && collection !== undefined
       && actsAsDesk(entryTypes.all, entryTypesOffered(collection.structure?.settings ?? undefined, 'TASK'), collection.parent_id),
   );
+  const isPhoneTicket = $derived(isDeskEntry && viewport.isCompact && !isInPane);
+  let hasOpenedOnConversation = false;
+  $effect(() => {
+    if (!isPhoneTicket || hasOpenedOnConversation) return;
+    hasOpenedOnConversation = true;
+    mark = 'entry-conversation';
+  });
   const placeManifest = $derived(manifest.value ? { ...manifest.value, modules_on: modulesOn } : undefined);
 
   // The entry's type's form, in edit mode (UC-FLW-01 check 2): its custom fields in the form's
@@ -1160,14 +1167,18 @@
     [hub?.name, collection?.name, ...[...ancestors].reverse().map((each) => each.title)].filter((part): part is string => Boolean(part)).join(' · ') || undefined,
   );
   /** Jump marks with counts (ET-2). */
-  const jumpMarks = $derived([
+  const jumpMarks = $derived.by(() => {
+    const marks = [
     ...(!isTypeKnown || carries('NOTES') ? [{ id: 'entry-description', label: t('app.entry.mark_description') }] : []),
     ...(takesChildren ? [{ id: 'entry-parts', label: t('app.entry.mark_parts'), count: children.length > 0 ? `${children.filter((child) => child.completion?.is_completed).length}/${children.length}` : undefined }] : []),
     { id: 'entry-links', label: t('app.entry.mark_links') },
     ...(modulesOn.includes('ASSETS') ? [{ id: 'entry-affected', label: t('app.entry.mark_affected') }] : []),
     { id: 'entry-files', label: t('app.entry.mark_files'), count: attachmentCount ? String(attachmentCount) : undefined },
     { id: 'entry-conversation', label: t('app.entry.mark_conversation'), count: commentCount !== undefined ? String(commentCount) : undefined },
-  ]);
+    ];
+    // A ticket on a phone opens on its conversation (the `deskentry` phone scene): replying is the work.
+    return isPhoneTicket ? [...marks.slice(-1), ...marks.slice(0, -1)] : marks;
+  });
   /** The rail's sections (ET-1, ET-6): deadlines and *Einordnung* first on a ticket; a module switched off registers none (P-17). */
   // A folded rail section says how many it holds (the scene's *Code 3*, *Approvals 0*): the
   // section's own list read once more, first page only, so a long one says "20+".
@@ -1264,7 +1275,7 @@
         next={statusNext}
         person={carries('ASSIGNMENT') || carries('MEMBERS') ? (item.assignee_id ? { name: accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed'), src: accounts.pictureOf(item.assignee_id) } : { emptyLabel: t('app.entry.nobody') }) : undefined}
         due={carries('DUE_DATE') && headDates ? { label: headDates } : undefined}
-        deadline={deadlineChip}
+        deadline={isPhoneTicket ? undefined : deadlineChip}
         facts={headFacts}
         trail={isInPane ? undefined : headTrail}
         tools={headTools}
@@ -1276,6 +1287,10 @@
           {#key item.id}<EntryStatus {item} bind:runs={hasWorkflow} bind:next={statusNext} oncomplete={() => void toggleCompleted()} disabledReason={isChangeable ? frozenReason : (roleReason ?? frozenReason)} reasonSaidAt={readOnlyReason ? readOnlyNoticeId : undefined} {onnavigate} />{/key}
         {/snippet}
       </ObjectHead>
+      <!-- A ticket's deadlines stand under its head on a phone, each a line (the `deskentry` phone scene). -->
+      {#if isPhoneTicket}
+        <div class="phone-deadlines" data-phone-deadlines>{#key item.id}<EntryDeadlines itemId={item.id} bind:chip={deadlineChip} />{/key}</div>
+      {/if}
       <!-- On a phone the head's top row stays hidden (WB-8); the ask and the key's copy stay reachable under it. -->
       {#if viewport.isCompact && (hasAi || ticketKey)}
         <div class="phone-tools">{@render headTools()}</div>
@@ -1718,6 +1733,7 @@
   .files-view { display: inline-flex; gap: var(--sp-025); }
 
   .phone-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+  .phone-deadlines { padding: var(--sp-100) var(--sp-150); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .format { display: inline-flex; flex-wrap: wrap; gap: var(--sp-025); }
   /* The bar shows while the description is being written (E-3); read, the text stands alone. */
   /* The ✦ beside it takes the focus on press: were the bar to come then, a narrow line would wrap,
