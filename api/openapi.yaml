@@ -38858,7 +38858,9 @@ components:
                 does not hold -, or from the status history: `cycle_time`, the first entry into an
                 in-progress status to completion, `wip_age`, that entry to now for an open entry,
                 and `time_in_status`, the current status's latest entry to now for an open entry;
-                an entry without history holds none. For a `time` summary, `minutes` alone.
+                an entry without history holds none -, or `slip_days`, the days an entry's due date
+                lies after its latest baseline's (`plan.slip`), which an entry outside every baseline
+                or without a due date does not hold. For a `time` summary, `minutes` alone.
                 Required for every function but `COUNT`, refused for `COUNT`.
             group_by:
               type: string

@@ -214,6 +214,7 @@ migration 0257 writes, `cycle_time`, the first entry into a status of the `IN_PR
 `completed_at`, `wip_age`, that entry to now for an open entry, and `time_in_status`, the latest
 entry into the current status to now for an open entry - the use case binds the started statuses of
 the workspace's workflows and the moment from its clock, and an entry without history holds none;
+or `slip_days`, in days, the due date after the latest baseline's as `plan.slip` reads it;
 refused for `COUNT`,
 `query.field_not_aggregatable` for anything else), `group_by` (a field a query may group by) and
 `bucket` (`field`, a timestamp or a custom date, `period`: `day`, `week`, `month`, cut in the

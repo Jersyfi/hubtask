@@ -54,6 +54,8 @@ func TestAnAggregationCompilesToOneGroupedStatement(t *testing.T) {
 			[]string{`avg(div(extract(epoch FROM timestamptz_mi(wi.completed_at, wi.created_at)), 60))::numeric`}},
 		{"a scheduled span", map[string]any{"function": "MAX", "field": "scheduled_span"}, nil,
 			[]string{`max(div(extract(epoch FROM timestamptz_mi(wi.due_at, wi.start_at)), 60))::numeric`}},
+		{"the most days slipped", map[string]any{"function": "MAX", "field": "slip_days"}, nil,
+			[]string{`max((SELECT (wi.due_at::date - pbe.due_at::date)::bigint FROM plan_baseline_entry pbe `}},
 		// UC-GOL-04 check 12: one constant fraction per percentile.
 		{"a lead time's median", map[string]any{"function": "P50", "field": "lead_time"}, nil,
 			[]string{`(percentile_cont(0.5) WITHIN GROUP (ORDER BY (div(extract(epoch FROM timestamptz_mi(wi.completed_at, wi.created_at)), 60))::float8))::numeric`}},
