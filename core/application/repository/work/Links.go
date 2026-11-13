@@ -73,6 +73,10 @@ type EntrySummary struct {
 	Archived  bool
 	// Status is the key of the entry's workflow status, empty where none runs.
 	Status string
+	// StatusName and StatusCategory are the status as the workflow in force names it, filled by
+	// the application layer; both empty where no workflow runs, the name where it has none.
+	StatusName     string
+	StatusCategory string
 }
 
 // Key is the entry's key as every screen draws it, "INC-128" (user-experience.md §5.6); empty

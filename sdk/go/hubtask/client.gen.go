@@ -8593,6 +8593,33 @@ func (e ReferenceStrength) Valid() bool {
 	}
 }
 
+// Defines values for ReferenceTargetStatusCategory.
+const (
+	ReferenceTargetStatusCategoryBACKLOG     ReferenceTargetStatusCategory = "BACKLOG"
+	ReferenceTargetStatusCategoryDONE        ReferenceTargetStatusCategory = "DONE"
+	ReferenceTargetStatusCategoryINPROGRESS  ReferenceTargetStatusCategory = "IN_PROGRESS"
+	ReferenceTargetStatusCategoryLessThannil ReferenceTargetStatusCategory = "<nil>"
+	ReferenceTargetStatusCategoryTODO        ReferenceTargetStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the ReferenceTargetStatusCategory enum.
+func (e ReferenceTargetStatusCategory) Valid() bool {
+	switch e {
+	case ReferenceTargetStatusCategoryBACKLOG:
+		return true
+	case ReferenceTargetStatusCategoryDONE:
+		return true
+	case ReferenceTargetStatusCategoryINPROGRESS:
+		return true
+	case ReferenceTargetStatusCategoryLessThannil:
+		return true
+	case ReferenceTargetStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReleaseState.
 const (
 	ReleaseStatePLANNED  ReleaseState = "PLANNED"
@@ -23504,9 +23531,18 @@ type ReferenceTarget struct {
 	// Status A goal's status.
 	Status *string `json:"status,omitempty"`
 
+	// StatusCategory An entry's status's category; null where no workflow runs, where `completed` says done or to do.
+	StatusCategory *ReferenceTargetStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName An entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+	StatusName *string `json:"status_name,omitempty"`
+
 	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name.
 	Title *string `json:"title,omitempty"`
 }
+
+// ReferenceTargetStatusCategory An entry's status's category; null where no workflow runs, where `completed` says done or to do.
+type ReferenceTargetStatusCategory string
 
 // Release defines model for Release.
 type Release struct {

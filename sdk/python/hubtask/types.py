@@ -2634,6 +2634,8 @@ class ReferenceTarget(TypedDict, total=False):
     level: "ItemType"
     entry_type: str
     completed: bool
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     archived: bool
     collection_id: str
     start_at: str | None

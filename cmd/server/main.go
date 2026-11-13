@@ -2041,7 +2041,7 @@ func run() error {
 		Items: items, Containers: containers, Types: linkTypeRegistry.Types, Links: entryLinks,
 		References: entryLinks, Views: savedViews, Pages: postgres.NewPageRepository(), Boards: postgres.NewWhiteboardRepository(),
 		Cis: postgres.NewCmdbRepository(), Goals: postgres.NewGoalRepository(), Groups: postgres.NewSnapshotRepository(),
-		Authorizer: authorizer, Reader: authorizer,
+		Workflow: workflowGate, Authorizer: authorizer, Reader: authorizer,
 		Permits: authorizer, Events: outbox, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid, Activity: journal,
 	}

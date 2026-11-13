@@ -51275,6 +51275,27 @@
           "completed": {
             "type": "boolean"
           },
+          "status_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "An entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.\n"
+          },
+          "status_category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "BACKLOG",
+              "TODO",
+              "IN_PROGRESS",
+              "DONE",
+              null
+            ],
+            "description": "An entry's status's category; null where no workflow runs, where `completed` says done or to do."
+          },
           "archived": {
             "type": "boolean"
           },
