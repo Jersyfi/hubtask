@@ -142,3 +142,10 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
   workspace-level goal sets or kinds of work today. The released concept draws them, so they are built
   as part of the concept (two workspace sections `goal_sets` and `time_work_types` with workspace-only
   templates shown as cards), not left out; scheduled after the families, before the coherence pass.
+* For the owner at the presentation (collected, nothing waits on them):
+  - Posts: `MarkPostSeen`, `ConfirmPost`, `ReactToPostReply`, `UnreactToPostReply` joined the audit gate's
+    exception list beside kudos, so that no trail names who read or confirmed what (rule 10). A change to
+    a security gate's list is the owner's to accept or overrule.
+  - Finding to file, with consent: a page version restored through the API, MCP or `hubctl` leaves an
+    open live document stale; the fix (a document epoch the realtime hub enforces) changes the sync
+    protocol.
