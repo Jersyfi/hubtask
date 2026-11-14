@@ -415,6 +415,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-MED-02](./media/UC-MED-02-give-an-entry-a-cover.md) | Give an entry a cover | media |
 | [UC-MED-03](./media/UC-MED-03-remove-files-nobody-needs.md) | Remove files nobody needs any more | media |
 | [UC-MED-04](./media/UC-MED-04-set-how-much-may-be-uploaded.md) | Set how much may be uploaded | media |
+| [UC-MED-05](./media/UC-MED-05-see-a-file-without-downloading.md) | See a file without downloading it | media |
+| [UC-MED-06](./media/UC-MED-06-edit-an-office-file-in-the-document-server.md) | Edit an office file in the document server | media |
 | [UC-LIF-01](./lifecycle/UC-LIF-01-get-something-back-from-the-trash.md) | Get something I deleted back from the trash | lifecycle |
 | [UC-LIF-02](./lifecycle/UC-LIF-02-remove-something-for-good.md) | Remove something for good | lifecycle |
 | [UC-LIF-03](./lifecycle/UC-LIF-03-archive-finished-work.md) | Archive finished work and bring it back when needed | lifecycle |
