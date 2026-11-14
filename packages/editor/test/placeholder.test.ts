@@ -34,5 +34,6 @@ test('an empty page explains itself in its first line, and stops once anything i
   assert.deepEqual(marked(empty), ['Type / for blocks']);
   assert.deepEqual(marked(stateOf(schema.node('paragraph', null, [schema.text('Hallo')]))), []);
   assert.deepEqual(marked(stateOf(schema.node('heading'))), [], 'an empty heading has its own look');
-  assert.deepEqual(marked(stateOf(schema.node('paragraph'), schema.node('paragraph'))), [], 'two lines are written lines');
+  assert.deepEqual(marked(stateOf(schema.node('paragraph'), schema.node('paragraph'))), ['Type / for blocks'], 'a live document seeded empty may hold two empty lines');
+  assert.deepEqual(marked(stateOf(schema.node('paragraph'), schema.node('paragraph', null, [schema.text('Hallo')]))), [], 'a written second line');
 });
