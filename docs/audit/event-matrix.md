@@ -347,6 +347,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `config.applied` | DecideConfigProposal | `configuration` | INFO | Every time |
 | `config.draft_discarded` | DiscardConfigDraft | `configuration` | INFO | Every time |
 | `config.draft_saved` | SaveConfigDraft | `configuration` | INFO | Every time |
+| `config.goal_set_added` | AddGoalSet | `configuration` | INFO | Every time |
 | `config.planned` | PlanConfig | `configuration` | INFO | When refused |
 | `config.planned` | PlanConfigTemplate | `configuration` | INFO | When refused |
 | `config.planned` | ValidateConfig | `configuration` | INFO | When refused |
@@ -795,6 +796,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
 | `` | ListConfigDrafts | `` |  | When refused |
+| `` | ListGoalSets | `` |  | When refused |
 | `` | ListHubTemplatePages | `` |  | When refused |
 | `` | ListRoles | `` |  | When refused |
 | `` | ListSampleEntries | `` |  | When refused |

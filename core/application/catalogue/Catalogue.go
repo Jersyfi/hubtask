@@ -100,6 +100,8 @@ func Descriptors() []usecase.Descriptor {
 		configservice.RemoveWorkspaceSamples{}.Descriptor(),
 		configservice.ListHubTemplatePages{}.Descriptor(),
 		configservice.AddHubTemplatePage{}.Descriptor(),
+		configservice.ListGoalSets{}.Descriptor(),
+		configservice.AddGoalSet{}.Descriptor(),
 		configservice.ListConfigDrafts{}.Descriptor(),
 		configservice.SaveConfigDraft{}.Descriptor(),
 		configservice.DiscardConfigDraft{}.Descriptor(),

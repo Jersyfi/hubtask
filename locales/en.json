@@ -14376,6 +14376,8 @@
   "app.consent.scope.config_apply_samples": "Apply the configuration's sample entries without their own permission scope",
   "app.consent.scope.config_apply_template_pages": "Apply the configuration's template pages without their own permission scope",
   "app.consent.scope.config_apply_ci_classes": "Apply the configuration's configuration item classes without their own permission scope",
+  "app.consent.scope.config_apply_goal_sets": "Apply the configuration's goal sets without their own permission scope",
+  "app.consent.scope.config_apply_time_work_types": "Apply the configuration's kinds of work without their own permission scope",
   "app.consent.scope.config_apply_scheme": "Apply the configuration's workflow schemes without their own permission scope",
   "app.consent.scope.config_apply_tolerance": "Apply the configuration's time tolerance without its own permission scope",
   "app.consent.scope.config_apply_collection_structure": "Apply the configuration's collection structure without its own permission scope",

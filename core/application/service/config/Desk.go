@@ -78,6 +78,8 @@ type Desk struct {
 	SampleMarks configrepo.SampleMarks
 	// TemplatePages marks the pages a template brought to a hub's space (configuration.md §6).
 	TemplatePages configrepo.TemplatePages
+	// GoalSets marks the goal periods a template brought to the workspace (configuration.md §6).
+	GoalSets configrepo.GoalSets
 	// Drafts keeps the blocks saved beside the ones in force (ui.md A4).
 	Drafts     configrepo.Drafts
 	Settings   settingrepo.Settings

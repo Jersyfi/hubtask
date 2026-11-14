@@ -2010,7 +2010,7 @@ func run() error {
 	configCatalogue := &deferredCatalogue{}
 	configDesk := configservice.Desk{
 		Catalogue: configCatalogue, Store: postgres.NewConfigRepository(), Samples: postgres.SampleEntryRepository{}, SampleMarks: postgres.SampleObjectRepository{},
-		TemplatePages: postgres.TemplatePageRepository{}, Drafts: postgres.ConfigDraftRepository{},
+		TemplatePages: postgres.TemplatePageRepository{}, GoalSets: postgres.GoalSetRepository{}, Drafts: postgres.ConfigDraftRepository{},
 		Settings:   postgres.SettingRepository{},
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		// A Hubtask template's names in the applying person's language (user-experience.md §4).
@@ -2892,6 +2892,8 @@ func run() error {
 		configservice.RemoveWorkspaceSamples{Desk: configDesk}.Descriptor(),
 		configservice.ListHubTemplatePages{Desk: configDesk}.Descriptor(),
 		configservice.AddHubTemplatePage{Desk: configDesk}.Descriptor(),
+		configservice.ListGoalSets{Desk: configDesk}.Descriptor(),
+		configservice.AddGoalSet{Desk: configDesk}.Descriptor(),
 		configservice.ListConfigDrafts{Desk: configDesk}.Descriptor(),
 		configservice.SaveConfigDraft{Desk: configDesk}.Descriptor(),
 		configservice.DiscardConfigDraft{Desk: configDesk}.Descriptor(),

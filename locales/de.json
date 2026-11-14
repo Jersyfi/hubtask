@@ -14376,6 +14376,8 @@
   "app.consent.scope.config_apply_samples": "Beispieleinträge aus der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_template_pages": "Seiten aus Vorlagen der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_ci_classes": "Klassen von Konfigurationselementen der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_goal_sets": "Ziele der Konfiguration anwenden, ohne deren eigenen Bereich",
+  "app.consent.scope.config_apply_time_work_types": "Tätigkeiten der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_scheme": "Workflow-Schemata der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_tolerance": "Zeittoleranz der Konfiguration anwenden, ohne deren eigenen Bereich",
   "app.consent.scope.config_apply_collection_structure": "Struktur der Sammlungen der Konfiguration anwenden, ohne deren eigenen Bereich",

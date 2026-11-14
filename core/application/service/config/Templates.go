@@ -194,7 +194,9 @@ func (h ListConfigTemplates) Descriptor() usecase.Descriptor {
 					if !collection.IsZero() && !newest[key].ForCollections() || collection.IsZero() && !hub.IsZero() && !newest[key].ForHubs() {
 						continue
 					}
-					row := TemplateOutput(newest[key], byKey[key])
+					shown := newest[key]
+					shown.Document = resolvedGoalSets(shown.Document, h.Desk.Clock.Now().UTC())
+					row := TemplateOutput(shown, byKey[key])
 					if !place.IsZero() {
 						row["workspace_first"] = len(newest[key].Document) > 0 &&
 							!slices.ContainsFunc(workspace, func(u domain.TemplateUse) bool { return u.TemplateKey == key })
@@ -282,7 +284,8 @@ func (d Desk) publish(ctx context.Context, actor appshared.ActorContext, in usec
 		}
 		document = templateDocument(document)
 		// Linted as if taken by an empty workspace: every block must be one its create accepts.
-		lint := d.planOf(current{Document: lintBase()}, withoutRemovals(document), domain.ModeMerge)
+		// A goal set's span is linted as the period it names today.
+		lint := d.planOf(current{Document: lintBase()}, withoutRemovals(resolvedGoalSets(document, d.Clock.Now().UTC())), domain.ModeMerge)
 		if len(lint.Refusals) > 0 {
 			return domain.ErrRefused(lint.Refusals)
 		}
@@ -500,6 +503,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			return domain.ErrTemplateUnknown(key)
 		}
 		local := localizedTemplate(*chosen, d.Words, actor.Locale)
+		local.Document = resolvedGoalSets(local.Document, d.Clock.Now().UTC())
 		chosen = &local
 		uses, err := d.Store.TemplateUses(ctx, "")
 		if err != nil {
@@ -532,7 +536,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			document = withoutSamples(document)
 		}
 		if takenBefore {
-			document = withoutTemplatePages(document)
+			document = withoutGoalSets(withoutTemplatePages(document))
 		}
 		upgrades := []usecase.Output{}
 		from := 0
@@ -556,7 +560,7 @@ func (d Desk) planTemplate(ctx context.Context, actor appshared.ActorContext, hu
 			if err != nil {
 				base = took
 			}
-			base = withoutTemplatePages(withoutSamples(base))
+			base = withoutGoalSets(withoutTemplatePages(withoutSamples(base)))
 			changes := domain.ThreeWay(base, now.Document, document)
 			for _, change := range changes {
 				upgrades = append(upgrades, usecase.Output{
