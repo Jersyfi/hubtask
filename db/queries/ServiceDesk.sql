@@ -148,6 +148,19 @@ FROM entry_sla
 WHERE item_id = ANY(sqlc.arg('item_ids')::uuid[]) AND standing = 'RUNNING'
 GROUP BY item_id;
 
+-- How a page of requests moves for their requesters (UC-SVC-05 check 3): the team's last public
+-- reply - what PublicComments keeps, by anybody but whoever raised it - and the requester's next
+-- deadline, the earliest running SLA goal; entry_ola, the teams' own promises, is never read.
+-- name: RequestPaceOf :many
+SELECT w.id AS item_id,
+       (SELECT max(c.created_at) FROM comment c
+         WHERE c.tenant_id = w.tenant_id AND c.item_id = w.id AND c.kind = 'USER' AND NOT c.internal AND c.deleted_at IS NULL
+           AND c.author_id <> w.created_by)::timestamptz AS last_reply_at,
+       (SELECT min(s.due_at) FROM entry_sla s
+         WHERE s.tenant_id = w.tenant_id AND s.item_id = w.id AND s.standing = 'RUNNING')::timestamptz AS next_due_at
+FROM work_item w
+WHERE w.id = ANY(sqlc.arg('item_ids')::uuid[]);
+
 -- name: InsertReplyTemplate :exec
 INSERT INTO reply_template (id, tenant_id, key, name, body, created_at, updated_at, version)
 VALUES (sqlc.arg('id'), sqlc.arg('tenant_id'), sqlc.arg('key'), sqlc.arg('name'), sqlc.arg('body'),

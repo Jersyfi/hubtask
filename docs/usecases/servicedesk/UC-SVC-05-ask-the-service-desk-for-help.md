@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/servicedesk/Portal_test.go, core/domain/model/work/EntryTypeText_test.go, core/application/service/servicedesk/PortalCatalogue_test.go, core/application/service/workflow/EntryTypes_test.go, test/integration/entry_type_texts_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/data/entrytypes.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/servicedesk/PortalStatus_test.go, core/application/service/servicedesk/PortalDoors_test.go, core/application/service/work/AddCommentPortal_test.go, core/domain/model/media/Object_test.go, core/application/service/media/ReadMedia_test.go, core/application/service/servicedesk/DeskLogo_test.go, test/integration/desk_logo_test.go, apps/webapp/e2e/portalscreen.test.mjs, apps/webapp/e2e/portal-frame.test.mjs, core/domain/service/PermissionCatalogue_test.go]
+checked_by: [core/domain/model/servicedesk/Portal_test.go, core/domain/model/work/EntryTypeText_test.go, core/application/service/servicedesk/PortalCatalogue_test.go, core/application/service/workflow/EntryTypes_test.go, test/integration/entry_type_texts_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/src/lib/data/entrytypes.test.ts, core/application/service/notification/RecordNotifications_test.go, core/application/service/notification/DeliverNotification_test.go, core/application/service/access/EmergencyAccess_test.go, core/application/service/servicedesk/Portal_test.go, core/application/service/servicedesk/PortalStatus_test.go, core/application/service/servicedesk/PortalDoors_test.go, core/application/service/work/AddCommentPortal_test.go, core/domain/model/media/Object_test.go, core/application/service/media/ReadMedia_test.go, core/application/service/servicedesk/DeskLogo_test.go, test/integration/desk_logo_test.go, apps/webapp/e2e/portalscreen.test.mjs, apps/webapp/e2e/portal-frame.test.mjs, core/domain/service/PermissionCatalogue_test.go, test/integration/service_desk_pace_test.go]
 ---
 
 # Ask the service desk for help and follow my request
@@ -47,7 +47,9 @@ Mehmet holds the requester role on the collection *IT help*. The portal shows hi
     owner's decision (work-surface concept, E-13).
 12. Their requests read in the desk's own words: the status as the desk's workflow names it, else
     its category's word, never a status key, with the request's number and what comes next under
-    its title. By the owner's decision (work-surface concept, P-12).
+    its title: when the team last replied in public, else by when the desk promised to answer -
+    its running SLA goal's next due time, never a team's OLA. By the owner's decision
+    (work-surface concept, P-12).
 13. One link opens the right view: a request's link opens the entry for the desk's team and the
     portal request for whoever raised it; neither lands on *no access*. By the owner's decision
     (work-surface concept, PO-5).

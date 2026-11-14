@@ -32698,6 +32698,16 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         is_own: { type: boolean, description: "Whether the caller raised it; false for a colleague's request of their organisation." }
+        last_reply_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the team last answered in public; null while it has not, and never for an internal note.
+        next_due_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            The earliest moment the desk promised the requester to act by - its running SLA goals'
+            next due time; null while none runs. A team's internal promise is never told.
 
     RequestSatisfaction:
       type: object

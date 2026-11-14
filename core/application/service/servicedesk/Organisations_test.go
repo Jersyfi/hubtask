@@ -177,7 +177,7 @@ func TestAnOrganisationsRequestsAreSeenWhereItSharesThem(t *testing.T) {
 		if err != nil || read.Rating != nil {
 			t.Errorf("a colleague's request read: %+v %v", read.Rating, err)
 		}
-		if out := requestOutputFor(read.Item, requesterID, nil); out["is_own"] != false {
+		if out := requestOutputFor(read.Item, requesterID, nil, nil); out["is_own"] != false {
 			t.Errorf("a colleague's request said it was the reader's own")
 		}
 		if _, err := portal.ownRequest(ctx, requester(), itemID); !errors.Is(err, shared.ErrNotFound) {

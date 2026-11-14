@@ -23409,10 +23409,16 @@ type PortalRequest struct {
 	IsCompleted  bool               `json:"is_completed"`
 
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
-	IsOwn  *bool   `json:"is_own,omitempty"`
-	Notes  *string `json:"notes"`
-	Number int64   `json:"number"`
-	Status *string `json:"status"`
+	IsOwn *bool `json:"is_own,omitempty"`
+
+	// LastReplyAt When the team last answered in public; null while it has not, and never for an internal note.
+	LastReplyAt *time.Time `json:"last_reply_at,omitempty"`
+
+	// NextDueAt The earliest moment the desk promised the requester to act by - its running SLA goals' next due time; null while none runs. A team's internal promise is never told.
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+	Notes     *string    `json:"notes"`
+	Number    int64      `json:"number"`
+	Status    *string    `json:"status"`
 
 	// StatusCategory The status's category; null where no workflow runs.
 	StatusCategory *PortalRequestStatusCategory `json:"status_category,omitempty"`
@@ -23451,10 +23457,16 @@ type PortalRequestDetail struct {
 	// IsOwn Whether the caller raised it; false for a colleague's request of their organisation.
 	IsOwn *bool `json:"is_own,omitempty"`
 
+	// LastReplyAt When the team last answered in public; null while it has not, and never for an internal note.
+	LastReplyAt *time.Time `json:"last_reply_at,omitempty"`
+
 	// MergedInto The request this one was merged into, which carries the answer from then on; null when it was not merged.
 	MergedInto *PortalMergedRequest `json:"merged_into,omitempty"`
-	Notes      *string              `json:"notes"`
-	Number     int64                `json:"number"`
+
+	// NextDueAt The earliest moment the desk promised the requester to act by - its running SLA goals' next due time; null while none runs. A team's internal promise is never told.
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+	Notes     *string    `json:"notes"`
+	Number    int64      `json:"number"`
 
 	// Satisfaction The caller's own score of the resolved request; null while they gave none.
 	Satisfaction *RequestSatisfaction `json:"satisfaction"`

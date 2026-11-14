@@ -6,10 +6,12 @@ package servicedesk
 import (
 	"context"
 	"testing"
+	"time"
 
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/servicedesk"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -91,5 +93,64 @@ func TestTheSurvivingRequestIsNamedByItsStatus(t *testing.T) {
 	into, _ := out["merged_into"].(usecase.Output)
 	if into == nil || into["status_name"] != "Wartet auf Sie" || into["status_category"] != "IN_PROGRESS" {
 		t.Errorf("the surviving request reads %+v", into)
+	}
+}
+
+// paceStore answers the paces it was given.
+type paceStore map[shared.ID]domain.RequestPace
+
+func (s paceStore) PaceOf(_ context.Context, ids []shared.ID) (map[shared.ID]domain.RequestPace, error) {
+	out := map[shared.ID]domain.RequestPace{}
+	for _, id := range ids {
+		if pace, found := s[id]; found {
+			out[id] = pace
+		}
+	}
+	return out, nil
+}
+
+// UC-SVC-05 check 3: a request says when the team last replied and by when the desk promised to
+// act, so the requester's line reads "replied 09:40" or "we answer by 14:00"; a request without
+// either, and one already closed, promises nothing.
+func TestARequestSaysWhenTheTeamRepliedAndByWhenItAnswers(t *testing.T) {
+	replied := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007e1")
+	waiting := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007e2")
+	closed := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007e3")
+	reply := time.Date(2026, 11, 2, 9, 40, 0, 0, time.UTC)
+	due := time.Date(2026, 11, 2, 14, 0, 0, 0, time.UTC)
+	portal := Portal{
+		Items: portalItems{rows: map[shared.ID]work.WorkItem{
+			replied: {ID: replied, CreatedBy: requesterID, Title: "Firefox"},
+			waiting: {ID: waiting, CreatedBy: requesterID, Title: "VPN"},
+			closed:  {ID: closed, CreatedBy: requesterID, Title: "Bildschirm", Completion: work.Completion{IsCompleted: true}},
+		}},
+		Containers: containerStore{}, Comments: portalComments{},
+		Paces: paceStore{
+			replied: {LastReplyAt: &reply},
+			waiting: {NextDueAt: &due},
+			closed:  {LastReplyAt: &reply, NextDueAt: &due},
+		},
+		Desk: Desk{Records: &recordStore{}, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday)},
+	}
+	read := func(id shared.ID) usecase.Output {
+		t.Helper()
+		out, err := ReadMyRequest{Portal: portal}.Descriptor().Handler.Invoke(context.Background(), requester(), usecase.Input{"item_id": id.String()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	if out := read(replied); out["last_reply_at"] != reply || out["next_due_at"] != nil {
+		t.Errorf("the answered request reads %v / %v", out["last_reply_at"], out["next_due_at"])
+	}
+	if out := read(waiting); out["last_reply_at"] != nil || out["next_due_at"] != due {
+		t.Errorf("the waiting request reads %v / %v", out["last_reply_at"], out["next_due_at"])
+	}
+	if out := read(closed); out["next_due_at"] != nil {
+		t.Errorf("a closed request still promises %v", out["next_due_at"])
+	}
+	portal.Paces = nil
+	if out := read(replied); out["last_reply_at"] != nil || out["next_due_at"] != nil {
+		t.Errorf("without paces the request reads %v / %v", out["last_reply_at"], out["next_due_at"])
 	}
 }

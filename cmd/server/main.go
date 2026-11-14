@@ -2130,7 +2130,7 @@ func run() error {
 		Entries: portalEntries, Items: items, Containers: containers, Comments: postgres.NewCommentRepository(cursors),
 		EntryTypes: entryTypes, Fields: customFields, Gate: entryGate, Desk: serviceDesk, Accounts: accounts,
 		Logos: postgres.DeskLogoRepository{}, Links: entryLinks, Permits: authorizer, Forms: publicFormLinks,
-		Workflow: workflowGate,
+		Workflow: workflowGate, Paces: serviceDeskStore.Paces(),
 	}
 	// A collection's public form (UC-SVC-13): requests raised without signing in, filed as the
 	// link's maker; the proof of work is signed under its own purpose label.

@@ -113,6 +113,13 @@ type Ratings interface {
 	OfItem(ctx context.Context, itemID shared.ID) (servicedesk.Rating, error)
 }
 
+// RequestPaces answers how requests move for their requesters (UC-SVC-05 check 3).
+type RequestPaces interface {
+	// PaceOf answers each request's pace by its id; a request of another workspace or none at
+	// all is absent.
+	PaceOf(ctx context.Context, itemIDs []shared.ID) (map[shared.ID]servicedesk.RequestPace, error)
+}
+
 // Approvals stores the approvals a step opens, their decisions and people's delegations
 // (migration 0275).
 type Approvals interface {

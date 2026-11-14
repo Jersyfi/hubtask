@@ -6,6 +6,7 @@ package servicedesk
 import (
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -124,4 +125,12 @@ func questionsOf(form work.Form, definitions []work.CustomFieldDefinition) []Que
 		}
 	}
 	return out
+}
+
+// RequestPace is how a request moves as its requester sees it (UC-SVC-05 check 3): when the team
+// last answered in public, and the next moment the desk promised them to act by - a running SLA
+// goal's, never a team's OLA. Nil where there is none.
+type RequestPace struct {
+	LastReplyAt *time.Time
+	NextDueAt   *time.Time
 }

@@ -88,6 +88,9 @@ type Portal struct {
 	// Workflow names a request's status as the desk's workflow does (P-12); unwired, a request
 	// carries its status key alone.
 	Workflow work.WorkflowGate
+	// Paces answers when the team last replied and the requester's next deadline (UC-SVC-05
+	// check 3); nil tells neither.
+	Paces repository.RequestPaces
 }
 
 // RequestStatuses are the requests' statuses as their workflows name them, by entry; an entry
@@ -131,6 +134,21 @@ func (p Portal) statuses(ctx context.Context, items ...workdomain.WorkItem) (Req
 		}
 	}
 	return named, nil
+}
+
+// RequestPaces are how the requests move for their requesters, by entry; nil tells nothing.
+type RequestPaces map[shared.ID]domain.RequestPace
+
+// paces reads the requests' pace inside the caller's transaction.
+func (p Portal) paces(ctx context.Context, items ...workdomain.WorkItem) (RequestPaces, error) {
+	if p.Paces == nil || len(items) == 0 {
+		return nil, nil
+	}
+	ids := make([]shared.ID, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	return p.Paces.PaceOf(ctx, ids)
 }
 
 // portal marks the act as the portal's door, which the entry use cases read as REQUEST.
@@ -296,11 +314,11 @@ func (p Portal) catalogueOf(ctx context.Context, actor appshared.ActorContext, c
 // RequestOutput is a request as its requester reads it (api/openapi.yaml, schema PortalRequest):
 // what they asked and where it stands, never the team's fields.
 func RequestOutput(item workdomain.WorkItem, statuses RequestStatuses) usecase.Output {
-	return requestOutputFor(item, item.CreatedBy, statuses)
+	return requestOutputFor(item, item.CreatedBy, statuses, nil)
 }
 
 // requestOutputFor is RequestOutput saying whether the reader raised it.
-func requestOutputFor(item workdomain.WorkItem, reader shared.ID, statuses RequestStatuses) usecase.Output {
+func requestOutputFor(item workdomain.WorkItem, reader shared.ID, statuses RequestStatuses, paces RequestPaces) usecase.Output {
 	out := usecase.Output{
 		"is_own": item.CreatedBy == reader,
 		"id":     item.ID.String(), "number": item.Number, "collection_id": item.CollectionID.String(),
@@ -308,8 +326,16 @@ func requestOutputFor(item workdomain.WorkItem, reader shared.ID, statuses Reque
 		"status_name": nil, "status_category": nil,
 		"is_completed": item.Completion.IsCompleted, "completed_at": nil,
 		"created_at": item.CreatedAt.UTC(), "updated_at": item.UpdatedAt.UTC(),
+		"last_reply_at": nil, "next_due_at": nil,
 	}
 	namedStatus(out, item.ID, statuses)
+	pace := paces[item.ID]
+	if pace.LastReplyAt != nil {
+		out["last_reply_at"] = pace.LastReplyAt.UTC()
+	}
+	if pace.NextDueAt != nil && !item.Completion.IsCompleted {
+		out["next_due_at"] = pace.NextDueAt.UTC()
+	}
 	if item.EntryType == "" {
 		out["entry_type"] = workdomain.SystemEntryTypeKey(item.Type)
 	}
@@ -600,6 +626,7 @@ type MyRequests struct {
 	workrepo.ItemQueryResult
 	Organisation *domain.Organisation
 	Statuses     RequestStatuses
+	Paces        RequestPaces
 }
 
 // ListMyRequests answers the requests the actor raised in a collection, newest first
@@ -651,7 +678,10 @@ func (h ListMyRequests) Execute(
 		if answer.ItemQueryResult, err = h.Portal.Items.Query(ctx, search); err != nil {
 			return err
 		}
-		answer.Statuses, err = h.Portal.statuses(ctx, answer.Items...)
+		if answer.Statuses, err = h.Portal.statuses(ctx, answer.Items...); err != nil {
+			return err
+		}
+		answer.Paces, err = h.Portal.paces(ctx, answer.Items...)
 		return err
 	})
 	return answer, err
@@ -687,7 +717,7 @@ func (h ListMyRequests) Descriptor() usecase.Descriptor {
 			}
 			data := make([]usecase.Output, 0, len(result.Items))
 			for _, item := range result.Items {
-				data = append(data, requestOutputFor(item, actor.AccountID, result.Statuses))
+				data = append(data, requestOutputFor(item, actor.AccountID, result.Statuses, result.Paces))
 			}
 			out := usecase.Output{"data": data, "page_info": usecase.Output{
 				"has_more": result.Info.HasMore, "next_cursor": result.Info.NextCursor,
@@ -712,6 +742,7 @@ type MyRequest struct {
 	// MergedInto is the request this one was merged into, nil when it was not.
 	MergedInto *MergedRequest
 	Statuses   RequestStatuses
+	Paces      RequestPaces
 }
 
 // MergedRequest is the surviving request of a merge as the merged request's requester reads it:
@@ -743,6 +774,9 @@ func (h ReadMyRequest) Execute(ctx context.Context, actor appshared.ActorContext
 			return err
 		}
 		if answer.Statuses, err = h.Portal.statuses(ctx, item); err != nil {
+			return err
+		}
+		if answer.Paces, err = h.Portal.paces(ctx, item); err != nil {
 			return err
 		}
 		if survivor, err = h.Portal.mergedInto(ctx, itemID); err != nil {
@@ -900,7 +934,7 @@ func (h ReadMyRequest) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			out := requestOutputFor(answer.Item, actor.AccountID, answer.Statuses)
+			out := requestOutputFor(answer.Item, actor.AccountID, answer.Statuses, answer.Paces)
 			out["comments"] = repliesOutput(answer.Comments, actor.AccountID, answer.Item.CreatedBy)
 			out["sla"] = goalsOutput(answer.Goals)
 			out["merged_into"] = mergedOutput(answer.MergedInto, actor.AccountID)

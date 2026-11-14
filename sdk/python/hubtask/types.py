@@ -2460,6 +2460,8 @@ class PortalRequest(TypedDict, total=False):
     created_at: Required[str]
     updated_at: Required[str]
     is_own: bool
+    last_reply_at: str | None
+    next_due_at: str | None
 
 class RequestSatisfaction(TypedDict, total=False):
     score: Required[int]
@@ -2511,6 +2513,8 @@ class PortalRequestDetail(TypedDict, total=False):
     created_at: Required[str]
     updated_at: Required[str]
     is_own: bool
+    last_reply_at: str | None
+    next_due_at: str | None
     satisfaction: Required["RequestSatisfaction" | Any]
     comments: Required[list[dict[str, Any]]]
     sla: Required[list["EntrySlaGoal"]]
