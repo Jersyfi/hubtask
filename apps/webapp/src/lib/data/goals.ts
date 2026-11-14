@@ -507,6 +507,17 @@ function compare(a: string, b: string): number {
  * A dot at each point of a line, as an SVG path: a line of one period is a dot, never nothing.
  * Each dot is a segment of no length, drawn with a round cap.
  */
+/**
+ * The line through a series' points; a series of one period is drawn as a level across the
+ * chart at its value, so a line chart never shows its axes without a line.
+ */
+export function lineThrough(points: string, width: number): string {
+  const all = points.split(' ').filter(Boolean);
+  if (all.length !== 1) return points;
+  const y = all[0]!.split(',')[1];
+  return `0,${y} ${round(width)},${y}`;
+}
+
 export function lineDots(points: string): string {
   return points.split(' ').filter(Boolean).map((point) => `M${point}h0`).join('');
 }

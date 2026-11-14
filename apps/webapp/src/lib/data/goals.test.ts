@@ -8,7 +8,7 @@ import type { DashboardWidget, Goal } from '@hubtask/sync-engine';
 
 import {
   alignmentTree, barLayout, currentQuarter, needingALook, hubOf, clampBox, csvOf, figureRows, goalWrite, linePoints, matrixOf, moved, nextBox, parentChoices,
-  folded, leftRows, lineDots, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
+  folded, leftRows, lineDots, lineThrough, percentText, scaleTop, pieSlices, readingOrder, resized, runningRows, seriesBars, seriesLines, seriesOf, seriesTable, totalOf,
   widgetWrite, numberFigure, targetState, hbars, hpairs, ringParts, matrixSteps, textPieces, conditionsOf, inheritedFilter, listFilter, searchFilter, groupedPeople,
 } from './goals.ts';
 
@@ -329,4 +329,11 @@ test('the people a dashboard names are the groups of its person-grouped widgets 
   const fields: Record<string, unknown> = { pie: 'is_completed', table: 'assignee_id', bar: 'status', made: 'created_by' };
   assert.deepEqual(groupedPeople(figures, (id) => fields[id]), ['a1', 'a2', 'a3']);
   assert.deepEqual(groupedPeople(figures, () => 'status'), []);
+});
+
+// W-3: a line chart of one period drew its axes and an invisible point.
+test('a line of one period is a level across the chart; two or more points stay as they are', () => {
+  assert.equal(lineThrough('200,40', 400), '0,40 400,40');
+  assert.equal(lineThrough('0,25 100,0', 400), '0,25 100,0');
+  assert.equal(lineThrough('', 400), '');
 });

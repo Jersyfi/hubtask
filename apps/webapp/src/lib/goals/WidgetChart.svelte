@@ -13,7 +13,7 @@
   import { DataTable, ProgressBar, type DataColumn } from '@hubtask/design-system/components';
 
   import {
-    hbars, hpairs, lineDots, matrixOf, matrixSteps, numberFigure, percentOf, ringParts, scaleTop, seriesLines, seriesOf, targetState, textPieces,
+    hbars, hpairs, lineDots, lineThrough, matrixOf, matrixSteps, numberFigure, percentOf, ringParts, scaleTop, seriesLines, seriesOf, targetState, textPieces,
     type FigureRow, type SeriesTable,
   } from '../data/goals.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -207,7 +207,7 @@
       <svg class="chart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={summary}>
         <line class="grid" x1="0" x2={W} y1="0" y2="0" /><line class="grid" x1="0" x2={W} y1={H / 2} y2={H / 2} /><line class="grid" x1="0" x2={W} y1={H} y2={H} />
         {#if targetY !== undefined}<line class="target" x1="0" x2={W} y1={targetY} y2={targetY} />{/if}
-        {#each lines as points, s (s)}<polyline {points} data-series={seriesOf(s)} class:second={s === 1} /><path class="dots" d={lineDots(points)} data-series={seriesOf(s)} />{/each}
+        {#each lines as points, s (s)}<polyline points={lineThrough(points, W)} data-series={seriesOf(s)} class:second={s === 1} /><path class="dots" d={lineDots(points)} data-series={seriesOf(s)} />{/each}
       </svg>
       {#if lineEnds.length > 0 || targetY !== undefined}
         <p class="ends">
