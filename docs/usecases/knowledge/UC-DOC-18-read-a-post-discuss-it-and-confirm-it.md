@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08]
-state: specified
+state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/notification/RecordPost_test.go, test/integration/post_repository_test.go, apps/webapp/src/lib/data/posts.test.ts]
+checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/notification/RecordPost_test.go, test/integration/post_repository_test.go, apps/webapp/src/lib/data/posts.test.ts, apps/webapp/e2e/posts.test.mjs]
 ---
 
 # Read a post, discuss it and confirm it
@@ -34,10 +34,3 @@ The new security rule goes out as a post asking the forty-five people of the ope
 * Seen and confirmed are counted among the post's audience as it stands; somebody who confirmed and has since left it is not counted against it.
 * A reminder goes to the audience who have not confirmed, at a writer's request; nothing reminds by itself.
 * A post's discussion has one level of replies and only the fixed reactions; a page has only comments.
-
-## Today
-
-* Check 1: not met - the server answers the count; the web app's *read a post* scene is not built.
-* Check 2: not met - the server counts, lists for writers and reminds by mail (notification category POST); the web app's band and *Remind* are not built.
-* Check 3: not met - the server holds the discussion; the web app's discussion is not built.
-* Check 5: not met - the server answers the unread posts across hubs (`GET /posts`); *New for you* on Today is not built in the web app.

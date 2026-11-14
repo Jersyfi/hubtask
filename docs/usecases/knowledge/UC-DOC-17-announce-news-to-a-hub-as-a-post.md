@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08]
-state: specified
+state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/knowledge/FoundPosts_test.go, core/application/service/notification/RecordPost_test.go, test/integration/post_repository_test.go, test/integration/notification_test.go]
+checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/knowledge/FoundPosts_test.go, core/application/service/notification/RecordPost_test.go, test/integration/post_repository_test.go, test/integration/notification_test.go, apps/webapp/e2e/posts.test.mjs]
 ---
 
 # Announce news to a hub as a post
@@ -36,8 +36,3 @@ Before the release on Monday, the product lead writes the release note from its 
 * A post belongs to one hub and is not moved to another; its page stays off the hub's page tree, the page search and the devices' offline copy, because its audience and moment are judged on the server.
 * A published post keeps its publishing moment; a later change of its settings does not publish it again.
 * Blog posts stay out of a wiki import (UC-IMP-06).
-
-## Today
-
-* Check 1: not met - the server writes, schedules and publishes posts; the web app's *write and schedule a post* scene is not built.
-* Check 7: not met - the hub column's section and the posts scene are not built in the web app.
