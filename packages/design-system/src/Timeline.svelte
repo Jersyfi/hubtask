@@ -988,6 +988,14 @@
 
   .action { display: inline-flex; flex: none; }
 
+  /* A thumb's target (§7): a row and its title are layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .row { min-block-size: var(--layout-target); }
+    .lead,
+    .lead .title { align-self: stretch; }
+  }
+
   /* A row's menu alone shows where the pointer or the keyboard is, as a list row's tools do: over
      the title's end, so the title keeps its width and the row its height. Never out of reach - in
      the reading order and focusable, so Tab brings it into view. An act with words stays drawn. */
