@@ -456,7 +456,8 @@ test('chromium: a workspace near or at a limit is marked, and its limits say wha
   await use.getByText(/Below what is in use/).waitFor();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 0, `the page scrolls sideways by ${overflow}px`);
-  await dialog.getByRole('button', { name: 'Cancel' }).first().click();
+  // On a phone the dialog is full screen and its X stands for *Cancel* (page system §5.1).
+  await dialog.getByRole('button', { name: 'Close' }).first().click();
 
   // The *Limits* filter keeps those near or at one, or only those at one (§8.4): a chip, behind
   // *Filters* on a phone.
