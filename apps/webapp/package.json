@@ -33,7 +33,8 @@
     "@hubtask/sync-engine": "workspace:*",
     "@hubtask/whiteboard": "workspace:*",
     "@tauri-apps/api": "2.12.4",
-    "emojibase-data": "18.0.0"
+    "emojibase-data": "18.0.0",
+    "pdfjs-dist": "4.10.38"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
