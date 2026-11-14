@@ -57,6 +57,8 @@
   import { homeModuleOf } from '../product/producttour.ts';
   import SyncLine from './SyncLine.svelte';
   import WorkspaceNav from './WorkspaceNav.svelte';
+  import PortalFrameBar from './PortalFrameBar.svelte';
+  import { isOutsider } from '../portal/portal.ts';
   import PhoneBar from './PhoneBar.svelte';
   import { AREA_STEP_PATHS, TabStacks, areaStepOf, ascentOf, depthOf, phoneTabs, starOf, tabOf, type PhoneTab } from '../phone.ts';
   import { levelOf, type NavLevel } from '../sidebar.ts';
@@ -277,10 +279,13 @@
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());
 
+  // Whoever holds READ nowhere gets the portal's frame alone (PO-2, E-13): no sidebar, Today,
+  // search over Hubtask or *Erstellen*. Decided by what the server answers on the account.
+  const isOutside = $derived(session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals));
   // The global shortcuts, while somebody is signed in: `⌘K`/`Ctrl K` and `/` open the palette from
   // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
   $effect(() => {
-    if (!session.isSignedIn) return;
+    if (!session.isSignedIn || isOutside) return;
     return listenForShortcuts(() => palette.isOpen, {
       palette: () => palette.summon(),
       help: () => (isHelpOpen = true),
@@ -308,7 +313,7 @@
     if (!needsRoles) return;
     openRoles(liveCollections());
   });
-  const isCaptureOffered = $derived(session.isSignedIn && mayCaptureHere());
+  const isCaptureOffered = $derived(session.isSignedIn && !isOutside && mayCaptureHere());
 
   /** Where the reader stands: the capture field's own collection, and what the palette offers for it. */
   const captureHere = $derived({
@@ -789,7 +794,12 @@
       </div>
     {/if}
   {/snippet}
-  {#if isPhone}
+  {#snippet outsiderAccount()}
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount} />
+  {/snippet}
+  {#if isOutside}
+    <PortalFrameBar {route} {isPhone} onnavigate={go} account={outsiderAccount} />
+  {:else if isPhone}
     <PhoneBar label={t('app.nav.bar')} title={page.title} back={phoneBack} onback={back} star={phoneStar} menu={page.menu}>
       {#snippet account()}
         <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} {elsewhere}
@@ -854,7 +864,7 @@
          view that rendered it would rebuild it on every navigation. Pinned from `expanded`, where
          the tour's `hubs` step finds it; below that the same tree is in the drawer and the step
          finds the bar's ☰ instead. -->
-    {#if session.isSignedIn}
+    {#if session.isSignedIn && !isOutside}
       {#if viewport.isBelowExpanded && !isPhone}
         <NavDrawer bind:isOpen={isDrawerOpen} title={section?.label ?? t('app.nav.title')} dismissLabel={t('app.nav.close')}>
           {#if section}
@@ -1005,7 +1015,7 @@
 
   <!-- The primary destinations where a thumb is, on `compact` only; "You" opens the account group
        as a sheet from the bottom, because there is no avatar in the bar on a phone. -->
-  {#if isPhone && isBottomBarShown}
+  {#if isPhone && isBottomBarShown && !isOutside}
     <BottomBar
       label={t('app.nav.label')}
       destinations={phoneDestinations}
@@ -1017,7 +1027,7 @@
     />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
-  {#if session.isSignedIn && viewport.isBelowExpanded && palette.isOpen}
+  {#if session.isSignedIn && !isOutside && viewport.isBelowExpanded && palette.isOpen}
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
@@ -1053,7 +1063,7 @@
        the prompt belongs to the frame rather than to whichever screen made the request. -->
   <StepUpPrompt />
   <!-- The tour: walks routes, so it lives where every route is. -->
-  {#if session.isSignedIn}
+  {#if session.isSignedIn && !isOutside}
     <TourGuide path={route.path} {onnavigate} />
     <ProductTourGuide routeName={route.name} routeTab={route.query['tab']} {onnavigate} />
   {/if}

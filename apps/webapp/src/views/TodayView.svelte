@@ -41,7 +41,6 @@
   import { entryMenu } from '../lib/entries/entryMenu.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { portalStart } from '../lib/portal/portal.ts';
   import { holds, holdsHere, hubCreationHere, mayDo, reachesAdministrationArea, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -92,11 +91,7 @@
   }
 
   const { onnavigate }: Props = $props();
-  // A requester with one portal and nothing else starts in it (UC-SVC-05).
-  $effect(() => {
-    const start = portalStart(actor.hasNoAccess, actor.portals);
-    if (start) untrack(() => onnavigate?.(start));
-  });
+  // A requester holding nothing else never stands here: the frame sends them to their portal (PO-2).
 
   let isCreatingHub = $state(false);
   // The empty workspace's one action: a shared hub with STRUCTURE on the workspace, a private one
