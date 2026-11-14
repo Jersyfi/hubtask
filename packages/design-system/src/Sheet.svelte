@@ -232,7 +232,9 @@
   }
 
   /* The head and the foot stay; only the body scrolls once the sheet is at its most. */
-  .sheet[open] { display: flex; flex-direction: column; }
+  /* The margin again where it is open: a page's flow spacing (`.page > * + *`) reaches a sheet that
+     stands among its children and pushed it to the top. */
+  .sheet[open] { display: flex; flex-direction: column; margin: auto 0 0; }
   .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
   .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
 

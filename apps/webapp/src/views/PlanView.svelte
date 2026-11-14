@@ -1271,7 +1271,8 @@
 {/snippet}
 
 {#if isAdding}
-  <Dialog bind:isOpen={isAdding} title={t('app.planning.add_dependency')} dismissLabel={t('app.links.cancel')} size="s" primary={{ label: t('app.planning.add_dependency'), onclick: addDependency }}>
+  <!-- Four fields are worked in, not answered: an M, the whole screen on a phone (D-1). -->
+  <Dialog bind:isOpen={isAdding} title={t('app.planning.add_dependency')} dismissLabel={t('app.links.cancel')} size="m" primary={{ label: t('app.planning.add_dependency'), onclick: addDependency }}>
     <div class="fields" data-add-dependency>
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
       <Select label={t('app.planning.new_waiting')} placeholder={t('app.planning.choose_entry')} bind:value={newWaiting} options={linkable} />

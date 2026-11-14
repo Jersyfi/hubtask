@@ -549,3 +549,29 @@ test('chromium: 1280 px — the plan\'s query line says the release by name over
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
+
+test('chromium: 390 px — a dependency\'s menu is a sheet at the foot; adding one is the whole screen (D-1)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await plan(browser, 390);
+  t.after(close);
+  // On a phone a dependency's row is reached by its ⋯, a sheet as every menu of the page is.
+  const more = page.getByRole('button', { name: /^More for the dependency of/ }).first();
+  await more.waitFor({ timeout: 15_000 });
+  await more.click();
+  const sheet = page.locator('dialog.sheet[open]');
+  await sheet.waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(400);
+  const box = await sheet.boundingBox();
+  assert.ok(box && Math.abs(box.y + box.height - 900) <= 1, `the sheet does not stand at the foot: ${JSON.stringify(box)}`);
+  await page.keyboard.press('Escape');
+  await sheet.waitFor({ state: 'detached', timeout: 5_000 }).catch(() => undefined);
+
+  await page.locator('[data-add-dependency-open]').click();
+  const adding = page.locator('dialog[open]').filter({ has: page.locator('[data-add-dependency]') });
+  await adding.waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(600);
+  const whole = await adding.boundingBox();
+  assert.ok(whole && whole.width >= 389 && whole.height >= 899, `adding is not the whole screen: ${JSON.stringify(whole)}`);
+  assert.deepEqual(failures, []);
+});
