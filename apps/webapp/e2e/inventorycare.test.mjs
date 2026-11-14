@@ -183,6 +183,19 @@ test('chromium 390 px: scene invcare on a phone reads - figures, to-dos and sour
   await page.locator('[data-care-figure]').first().waitFor({ timeout: 20_000 });
   await page.locator('[data-care-source="by-hand"]').waitFor({ timeout: 5_000 });
   await noSidewaysScroll(page, 'upkeep on a phone', assert);
+  // A thumb's target: the last pair's *Decide* and *All duplicates* below it each keep their own press -
+  // pressed anywhere within layout.target of its centre, each answers for itself, never for the other.
+  const pairs = page.locator('#care-duplicates');
+  const decide = pairs.getByRole('link', { name: /^Decide:/ }).last();
+  const all = pairs.getByRole('link', { name: 'All duplicates' });
+  const pressedAt = (link, dy) => link.evaluate((element, offset) => {
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2 + offset);
+    return hit?.closest('a')?.textContent?.trim() ?? null;
+  }, dy);
+  await decide.scrollIntoViewIfNeeded();
+  for (const dy of [-21, 0, 21]) assert.equal(await pressedAt(decide, dy), 'Decide', `Decide pressed at ${dy}`);
+  for (const dy of [-21, 0, 21]) assert.equal(await pressedAt(all, dy), 'All duplicates', `All duplicates pressed at ${dy}`);
   for (const name of ['Start a round', 'Remind', 'Connect a source']) assert.equal(await page.getByRole('button', { name }).count(), 0, `${name} on a phone`);
   assert.equal(await page.locator('[data-care]').getByRole('link', { name: 'Import' }).count(), 0, 'Import on a phone');
   await page.getByRole('button', { name: /^Compare:/ }).click();

@@ -467,7 +467,8 @@
   }
   .act:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
   .act:hover, .more:hover { text-decoration: underline; }
-  .more { color: var(--text-secondary); font-size: var(--fs-090); text-decoration: none; }
+  /* Its own width: a grid card would stretch it across the row above's act. */
+  .more { justify-self: start; color: var(--text-secondary); font-size: var(--fs-090); text-decoration: none; }
   /* A link drawn as the quiet button beside it (Button sm, subtle): the two acts look alike. */
   .quiet {
     display: inline-flex; align-items: center; gap: var(--sp-100); min-block-size: var(--density-control-sm-min);
@@ -491,7 +492,8 @@
   @media (pointer: coarse), (width < 600px) {
     .act { position: relative; z-index: var(--z-raised); }
     .act::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
-    .more { position: relative; z-index: var(--z-raised); }
+    /* Tall as its target, so its press does not reach up into the last row's act. */
+    .more { position: relative; z-index: var(--z-raised); display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
     .more::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
 </style>
