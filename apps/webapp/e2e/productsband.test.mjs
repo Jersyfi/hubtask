@@ -307,9 +307,10 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
   t.after(none.close);
   await none.page.locator('aside.sidenav').getByRole('tree', { name: 'Hubs' }).getByRole('treeitem', { name: new RegExp(HUB.name) }).waitFor({ timeout: 10_000 });
   assert.equal(await none.page.locator('aside.sidenav').getByText('Products', { exact: true }).count(), 0, 'a household with nothing on sees the caption');
-  // Reached by a link while off: the neutral screen with its way forward (§2.8).
+  // Reached by a link while off: the product's start page with its way forward (§2.8), its name
+  // the page's one heading (scene empty).
   await none.page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
-  assert.equal(await none.page.getByText('Products', { exact: true }).count() > 0, true, 'the trail is not the products');
+  assert.equal(await none.page.getByRole('main').getByRole('heading', { level: 1, name: 'Whiteboards' }).count(), 1, 'the start page is not the product\'s');
   assert.deepEqual([...narrowed.failures, ...none.failures], []);
 });
 
@@ -632,7 +633,7 @@ test('chromium 1280 px: a desk collection\'s own list is its queue, grouped by s
   const head = table.locator('.fields-head');
   assert.deepEqual(
     (await head.locator('.col-head').allTextContents()).map((each) => each.trim()),
-    ['Key', 'Request', 'Type', 'Requester', 'Priority', 'SLA', 'People'],
+    ['Key', 'Request', 'Type', 'Requester', 'Priority', 'SLA', 'Assignee'],
   );
   // Grouped by status in the workflow's order; each group ends in the desk's add.
   const groups = table.locator('.group-head[data-fold]');
@@ -657,22 +658,22 @@ test('chromium 390 px: a desk collection\'s phone row is title, one meta line, o
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 390, path: `/collections/${DESK.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskFlow: true, role: 'OWNER' });
   t.after(close);
-  const row = page.locator('[data-row][data-desk-phone]').filter({ hasText: 'VPN drops at noon' }).first();
+  const row = page.locator('[data-row][data-phone]').filter({ hasText: 'VPN drops at noon' }).first();
   await row.waitFor({ timeout: 15_000 });
-  await row.locator('.desk-sla .sla').waitFor({ timeout: 10_000 });
+  await row.locator('.phone-sla .sla').waitFor({ timeout: 10_000 });
   const parts = await row.evaluate((element) => {
     const box = (selector) => element.querySelector(selector)?.getBoundingClientRect();
     const visible = (each) => { const rect = each.getBoundingClientRect(); return rect.width > 2 && rect.height > 2; };
     return {
       title: box('.task-row .content'),
-      meta: box('.desk-meta'),
-      sla: box('.desk-sla'),
-      person: box('.desk-person'),
-      metaText: element.querySelector('.desk-meta')?.textContent ?? '',
+      meta: box('.phone-meta'),
+      sla: box('.phone-sla'),
+      person: box('.phone-person'),
+      metaText: element.querySelector('.phone-meta')?.textContent ?? '',
       bars: element.querySelectorAll('.sla').length,
-      chips: element.querySelectorAll('.desk-meta [data-state-chip], .desk-meta button').length,
+      chips: element.querySelectorAll('.phone-meta [data-state-chip], .phone-meta button').length,
       shownButtons: [...element.querySelectorAll('button')].filter(visible).map((each) => each.getAttribute('aria-label') ?? each.textContent?.trim()),
-      menus: element.querySelectorAll('.desk-menu button').length,
+      menus: element.querySelectorAll('.phone-menu button').length,
     };
   });
   assert.equal(parts.bars, 1, 'the SLA is drawn more than once');
