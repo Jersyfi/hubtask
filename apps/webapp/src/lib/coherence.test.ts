@@ -140,7 +140,7 @@ test('every list keeps its column head; a field without a column goes to the met
   const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
   assert.match(list, /const columnFields = \$derived\(hasColumns \? cellFields\.slice\(0, fitCount\) : cellFields\);/u);
   assert.match(list, /<span class="meta-line">\{#each metaFields as field \(field\)\}/u);
-  assert.match(list, /\.fields-head \.cell\[data-overflow\] \{ position: absolute; visibility: hidden; \}/u);
+  assert.match(list, /\.fields-head \.cell\[data-overflow\] \{ position: absolute; inset-inline-start: 0; visibility: hidden; \}/u);
   // The type is a column under its head, not a mark beside the title outside every column.
   assert.match(list, /showsTypes && !root && !fields\.includes\('type'\) \? \['type' as const\]/u);
 });
@@ -267,7 +267,7 @@ test('a list grouped by status heads each group with the queue\'s badge and no c
   const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
   assert.match(list, /\{#if badge\}<StateLozenge label=\{name\} tone=\{badge\} \/>/u);
   assert.match(list, /const rowChipOf = \(row: Row\) => \(isByStatus && row\.depth === 0 \? undefined : chipFor\(row\.item\)\);/u);
-  assert.match(list, /\.group-head \.twist \{ position: relative; z-index: 1; \}/u, 'the toggle stands above the next row (P-2)');
+  assert.match(list, /\.group-head \{ min-block-size: var\(--layout-target\); padding-block: 0; \}/u, 'the head is the toggle\'s press tall, so the press stays off the next row (P-2)');
 });
 
 test('a link a component leaves unstyled takes the design system\'s link style, underlined in running text only (C-1)', () => {
