@@ -16171,6 +16171,19 @@ type CiWork struct {
 	Data []CiWorkEntry `json:"data"`
 }
 
+// CiWorkCounts defines model for CiWorkCounts.
+type CiWorkCounts struct {
+	Data []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Open The open entries the reader may see that name the CI.
+		Open int `json:"open"`
+	} `json:"data"`
+
+	// Truncated The count stopped at 5000 namings; the numbers are then too low.
+	Truncated bool `json:"truncated"`
+}
+
 // CiWorkEntry defines model for CiWorkEntry.
 type CiWorkEntry struct {
 	CollectionId openapi_types.UUID  `json:"collection_id"`
@@ -35004,6 +35017,9 @@ type ServerInterface interface {
 	// ListCiRuns A hub's reconciliation runs
 	// (GET /hubs/{hubId}/ci-runs)
 	ListCiRuns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiRunsParams)
+	// ListHubCiWork How many open entries name each configuration item of a hub
+	// (GET /hubs/{hubId}/ci-work)
+	ListHubCiWork(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListCis A hub's configuration items
 	// (GET /hubs/{hubId}/cis)
 	ListCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCisParams)
@@ -49520,6 +49536,32 @@ func (siw *ServerInterfaceWrapper) ListCiRuns(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCiRuns(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListHubCiWork operation middleware
+func (siw *ServerInterfaceWrapper) ListHubCiWork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubCiWork(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66445,6 +66487,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-campaigns/{campaignId}", wrapper.ReadCiCampaign)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-campaigns/{campaignId}:close", wrapper.CloseCiCampaign)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ci-campaigns/{campaignId}/cis/{ciId}", wrapper.AttestCi)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-work", wrapper.ListHubCiWork)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-groups", wrapper.ListCiGroups)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/ci-groups/{groupKey}", wrapper.DefineCiGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-groups/{groupId}/members", wrapper.ListCiGroupMembers)

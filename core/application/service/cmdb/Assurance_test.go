@@ -27,6 +27,7 @@ type assured struct {
 	groups    []domain.Group
 	assets    map[shared.ID]domain.Asset
 	aliases   []domain.SoftwareAlias
+	open      []repository.OpenWork
 }
 
 func newAssured() *assured {
@@ -69,6 +70,10 @@ func (a *assured) AffectingAny(_ context.Context, cis []shared.ID, _ int) ([]dom
 		}
 	}
 	return out, nil
+}
+
+func (a *assured) OpenWorkOfHub(_ context.Context, _ shared.ID, limit int) ([]repository.OpenWork, error) {
+	return a.open[:min(limit, len(a.open))], nil
 }
 
 func (a *assured) InsertCampaign(_ context.Context, c domain.Campaign, asked []domain.Attestation) error {

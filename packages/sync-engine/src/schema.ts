@@ -462,6 +462,7 @@ export type EntryCis = components['schemas']['EntryCis'];
 export type EntryOnCi = components['schemas']['EntryOnCi'];
 export type CiWork = components['schemas']['CiWork'];
 export type CiWorkEntry = components['schemas']['CiWorkEntry'];
+export type CiWorkCounts = components['schemas']['CiWorkCounts'];
 export type CiCampaign = components['schemas']['CiCampaign'];
 export type CiCampaignList = components['schemas']['CiCampaignList'];
 export type CiCampaignDetail = components['schemas']['CiCampaignDetail'];

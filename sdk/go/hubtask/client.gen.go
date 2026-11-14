@@ -16177,6 +16177,19 @@ type CiWork struct {
 	Data []CiWorkEntry `json:"data"`
 }
 
+// CiWorkCounts defines model for CiWorkCounts.
+type CiWorkCounts struct {
+	Data []struct {
+		CiId openapi_types.UUID `json:"ci_id"`
+
+		// Open The open entries the reader may see that name the CI.
+		Open int `json:"open"`
+	} `json:"data"`
+
+	// Truncated The count stopped at 5000 namings; the numbers are then too low.
+	Truncated bool `json:"truncated"`
+}
+
 // CiWorkEntry defines model for CiWorkEntry.
 type CiWorkEntry struct {
 	CollectionId openapi_types.UUID  `json:"collection_id"`
@@ -39526,6 +39539,13 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 	ListCiRuns(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListHubCiWork How many open entries name each configuration item of a hub
+	//
+	// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+	ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListCis A hub's configuration items
 	//
 	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
@@ -57395,6 +57415,23 @@ func (c *Client) ListCiHolds(ctx context.Context, hubId openapi_types.UUID, para
 // Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 func (c *Client) ListCiRuns(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCiRunsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListHubCiWork How many open entries name each configuration item of a hub
+//
+// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+func (c *Client) ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubCiWorkRequest(c.Server, hubId)
 	if err != nil {
 		return nil, err
 	}
@@ -89586,6 +89623,40 @@ func NewListCiRunsRequest(server string, hubId openapi_types.UUID, params *ListC
 	return req, nil
 }
 
+// NewListHubCiWorkRequest constructs an http.Request for the ListHubCiWork method
+func NewListHubCiWorkRequest(server string, hubId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-work", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListCisRequest constructs an http.Request for the ListCis method
 func NewListCisRequest(server string, hubId openapi_types.UUID, params *ListCisParams) (*http.Request, error) {
 	var err error
@@ -119035,6 +119106,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 	ListCiRunsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*ListCiRunsResult, error)
 
+	// ListHubCiWorkWithResponse How many open entries name each configuration item of a hub
+	//
+	// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+	ListHubCiWorkWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCiWorkResult, error)
+
 	// ListCisWithResponse A hub's configuration items
 	//
 	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
@@ -145279,6 +145359,54 @@ func (r ListCiRunsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCiRunsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListHubCiWorkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiWorkCounts
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubCiWorkResult) GetJSON200() *CiWorkCounts {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubCiWorkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubCiWorkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubCiWorkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubCiWorkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubCiWorkResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -179040,6 +179168,21 @@ func (c *ClientWithResponses) ListCiRunsWithResponse(ctx context.Context, hubId 
 	return ParseListCiRunsResult(rsp)
 }
 
+// ListHubCiWorkWithResponse How many open entries name each configuration item of a hub
+//
+// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
+func (c *ClientWithResponses) ListHubCiWorkWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCiWorkResult, error) {
+	rsp, err := c.ListHubCiWork(ctx, hubId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubCiWorkResult(rsp)
+}
+
 // ListCisWithResponse A hub's configuration items
 //
 // A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
@@ -203922,6 +204065,39 @@ func ParseListCiRunsResult(rsp *http.Response) (*ListCiRunsResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiRunList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListHubCiWorkResult parses an HTTP response from a ListHubCiWorkWithResponse call
+func ParseListHubCiWorkResult(rsp *http.Response) (*ListHubCiWorkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubCiWorkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiWorkCounts
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

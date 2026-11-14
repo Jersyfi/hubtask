@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/cmdb"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -89,5 +90,39 @@ func TestACIListsTheWorkOnItAndBeneathIt(t *testing.T) {
 
 	if _, err := call(t, use, as(bert), usecase.Input{"ci_id": vault.String()}); !errors.Is(err, shared.ErrNotFound) && !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("Bert read the work on a CI of a hub out of his reach: %v", err)
+	}
+}
+
+// The stock table's open column: each CI of a hub counts the open entries naming it that the reader
+// may see, and a CI with none is left out; a reader of another hub is refused.
+func TestAHubCountsTheOpenWorkOnEachCIForItsReader(t *testing.T) {
+	f, a := assuredFixture()
+	a.open = []repository.OpenWork{
+		{CIID: booking, ItemID: incident, CollectionID: collected, HubID: hub},
+		{CIID: booking, ItemID: change1, CollectionID: collected, HubID: hub},
+		{CIID: booking, ItemID: change1, CollectionID: collected, HubID: hub},
+		{CIID: vm1, ItemID: change2, CollectionID: collected, HubID: hub},
+		{CIID: host, ItemID: later, CollectionID: collected, HubID: private},
+	}
+	use := ListHubCiWork{Affecting: Affecting{Inventory: f.inv, Pointers: Pointers{Reader: seeing{}}}}.Descriptor()
+	out, err := call(t, use, as(bert), usecase.Input{"hub_id": hub.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := map[string]int{}
+	for _, row := range out["data"].([]usecase.Output) {
+		counts[row["ci_id"].(string)] = row["open"].(int)
+	}
+	if len(counts) != 2 || counts[booking.String()] != 2 || counts[vm1.String()] != 1 {
+		t.Errorf("Bert's open entries per CI: %v", counts)
+	}
+	if out["truncated"] != false {
+		t.Errorf("truncated: %v", out["truncated"])
+	}
+	if out, _ := call(t, use, as(anna), usecase.Input{"hub_id": hub.String()}); len(out["data"].([]usecase.Output)) != 3 {
+		t.Errorf("Anna sees the private entry too: %v", out["data"])
+	}
+	if _, err := call(t, use, as(bert), usecase.Input{"hub_id": private.String()}); err == nil {
+		t.Error("Bert counted the work in a hub out of his reach")
 	}
 }

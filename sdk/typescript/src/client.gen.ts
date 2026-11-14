@@ -1285,6 +1285,11 @@ export class HubtaskClient {
     return this.call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", { "campaignId": campaignId, "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** How many open entries name each configuration item of a hub */
+  listHubCiWork(hubId: string, options: CallOptions = {}): Promise<operations["listHubCiWork"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/ci-work", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** A hub's CI groups */
   listCiGroups(hubId: string, options: CallOptions = {}): Promise<operations["listCiGroups"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/ci-groups", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

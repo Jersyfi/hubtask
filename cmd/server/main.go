@@ -2771,6 +2771,7 @@ func run() error {
 		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListEntryCis{Affecting: affecting}.Descriptor(),
 		cmdbservice.ListCiWork{Affecting: affecting}.Descriptor(),
+		cmdbservice.ListHubCiWork{Affecting: affecting}.Descriptor(),
 		cmdbservice.AffectEntryCi{Affecting: affecting}.Descriptor(),
 		cmdbservice.UnaffectEntryCi{Affecting: affecting}.Descriptor(),
 		cmdbservice.ListCiCampaigns{Inventory: inventory}.Descriptor(),

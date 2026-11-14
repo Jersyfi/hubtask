@@ -1039,6 +1039,10 @@ class Client:
         """Answer a campaign's question about a configuration item"""
         return self._call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", {"campaignId": campaign_id, "ciId": ci_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_hub_ci_work(self, hub_id: str) -> "CiWorkCounts":
+        """How many open entries name each configuration item of a hub"""
+        return self._call("GET", "/hubs/{hubId}/ci-work", {"hubId": hub_id}, None, {}, None, "none", None, "json")
+
     def list_ci_groups(self, hub_id: str) -> "CiGroupList":
         """A hub's CI groups"""
         return self._call("GET", "/hubs/{hubId}/ci-groups", {"hubId": hub_id}, None, {}, None, "none", None, "json")

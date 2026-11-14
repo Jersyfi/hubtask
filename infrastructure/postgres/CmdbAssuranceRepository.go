@@ -106,6 +106,28 @@ func (CmdbAssuranceRepository) AffectedOf(ctx context.Context, itemID shared.ID)
 	return out, nil
 }
 
+func (CmdbAssuranceRepository) OpenWorkOfHub(ctx context.Context, hubID shared.ID, limit int) ([]repository.OpenWork, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var k cmdbKeys
+	hub := k.of(hubID)
+	if k.err != nil {
+		return nil, k.err
+	}
+	rows, err := q.ListCmdbOpenWorkOfHub(ctx, sqlc.ListCmdbOpenWorkOfHubParams{HubID: hub, Batch: int32(limit)}) //nolint:gosec // bounded by the caller
+	if err != nil {
+		return nil, cmdbFailed("listing the open entries on a hub's CIs", err)
+	}
+	out := make([]repository.OpenWork, 0, len(rows))
+	var ids cmdbIDs
+	for _, r := range rows {
+		out = append(out, repository.OpenWork{CIID: ids.of(r.CiID), ItemID: ids.of(r.ItemID), CollectionID: ids.of(r.CollectionID), HubID: ids.of(r.HubID)})
+	}
+	return out, ids.err
+}
+
 func (CmdbAssuranceRepository) AffectingAny(ctx context.Context, ciIDs []shared.ID, limit int) ([]cmdb.Affected, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil || len(ciIDs) == 0 {

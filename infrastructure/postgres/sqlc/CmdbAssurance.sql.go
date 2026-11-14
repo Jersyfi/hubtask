@@ -725,6 +725,57 @@ func (q *Queries) ListCmdbGroups(ctx context.Context, hubID pgtype.UUID) ([]List
 	return items, nil
 }
 
+const listCmdbOpenWorkOfHub = `-- name: ListCmdbOpenWorkOfHub :many
+SELECT a.ci_id, a.item_id, wi.collection_id, c.parent_id AS hub_id
+FROM cmdb_affected a
+JOIN cmdb_ci ci ON ci.tenant_id = a.tenant_id AND ci.id = a.ci_id
+JOIN work_item wi ON wi.tenant_id = a.tenant_id AND wi.id = a.item_id
+JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+WHERE a.tenant_id = current_tenant_id() AND ci.hub_id = $1 AND ci.merged_into IS NULL
+  AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND NOT wi.is_completed AND c.deleted_at IS NULL
+ORDER BY a.added_at DESC, a.id
+LIMIT $2
+`
+
+type ListCmdbOpenWorkOfHubParams struct {
+	HubID pgtype.UUID
+	Batch int32
+}
+
+type ListCmdbOpenWorkOfHubRow struct {
+	CiID         pgtype.UUID
+	ItemID       pgtype.UUID
+	CollectionID pgtype.UUID
+	HubID        pgtype.UUID
+}
+
+// The open, living entries naming a CI of the hub, latest first and bounded: each CI's count of
+// open work. Whether the reader may see an entry is the application's to decide (rule 2).
+func (q *Queries) ListCmdbOpenWorkOfHub(ctx context.Context, arg ListCmdbOpenWorkOfHubParams) ([]ListCmdbOpenWorkOfHubRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbOpenWorkOfHub, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbOpenWorkOfHubRow{}
+	for rows.Next() {
+		var i ListCmdbOpenWorkOfHubRow
+		if err := rows.Scan(
+			&i.CiID,
+			&i.ItemID,
+			&i.CollectionID,
+			&i.HubID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCmdbSoftwareAliases = `-- name: ListCmdbSoftwareAliases :many
 SELECT id, match_publisher, match_product, publisher, product, updated_by, updated_at, version
 FROM cmdb_software_alias WHERE tenant_id = current_tenant_id()

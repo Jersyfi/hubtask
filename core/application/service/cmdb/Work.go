@@ -6,6 +6,7 @@ package cmdb
 import (
 	"context"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/cmdb"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -178,4 +179,80 @@ func workOutput(e workrepo.EntrySummary) usecase.Output {
 		"collection_id": e.CollectionID.String(), "hub_id": idOrNil(e.HubID), "status": status,
 		"completed": e.Completed, "start_at": e.StartAt, "due_at": e.DueAt,
 	}
+}
+
+// ListHubCiWorkName is the use case's name: the inventory's count of open work per CI.
+const ListHubCiWorkName = "ListHubCiWork"
+
+// maxHubWork bounds the namings a hub's open count reads.
+const maxHubWork = 5000
+
+// ListHubCiWork counts, per CI of a hub, the open entries naming it that the reader may see.
+type ListHubCiWork struct{ Affecting Affecting }
+
+// Descriptor is the catalogue entry.
+func (h ListHubCiWork) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ListHubCiWorkName, Permission: service.PermissionRead,
+		Summary: "Counts, for each configuration item of a hub, the open, unarchived entries naming it as affected " +
+			"that the reader may see; items with none are left out. Reads at most 5000 namings.",
+		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
+		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
+		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: ciTarget, Severity: audit.SeverityInfo},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			hub, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
+			return h.Affecting.hubWork(ctx, actor, hub)
+		}),
+	})
+}
+
+func (a Affecting) hubWork(ctx context.Context, actor appshared.ActorContext, hub shared.ID) (usecase.Output, error) {
+	s := a.Inventory
+	if err := s.authorizeHub(ctx, actor, hub, false, CIReadAction, ciTarget, hub); err != nil {
+		return nil, err
+	}
+	var rows []repository.OpenWork
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if err := s.hub(ctx, hub); err != nil {
+			return err
+		}
+		var err error
+		rows, err = s.Assurance.OpenWorkOfHub(ctx, hub, maxHubWork)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]workrepo.EntrySummary, 0, len(rows))
+	listed := map[shared.ID]bool{}
+	for _, r := range rows {
+		if !listed[r.ItemID] {
+			listed[r.ItemID] = true
+			entries = append(entries, workrepo.EntrySummary{ID: r.ItemID, CollectionID: r.CollectionID, HubID: r.HubID})
+		}
+	}
+	visible, err := a.Pointers.visibleEntries(ctx, actor, entries)
+	if err != nil {
+		return nil, err
+	}
+	counted := map[[2]shared.ID]bool{}
+	open := map[shared.ID]int{}
+	for _, r := range rows {
+		if _, ok := visible[r.ItemID]; ok && !counted[[2]shared.ID{r.CIID, r.ItemID}] {
+			counted[[2]shared.ID{r.CIID, r.ItemID}] = true
+			open[r.CIID]++
+		}
+	}
+	cis := make([]shared.ID, 0, len(open))
+	for id := range open {
+		cis = append(cis, id)
+	}
+	data := make([]usecase.Output, 0, len(cis))
+	for _, id := range sortedIDs(cis) {
+		data = append(data, usecase.Output{"ci_id": id.String(), "open": open[id]})
+	}
+	return usecase.Output{"data": data, "truncated": len(rows) >= maxHubWork}, nil
 }

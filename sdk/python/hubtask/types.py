@@ -7086,6 +7086,10 @@ class CiWork(TypedDict, total=False):
     ci_id: Required[str]
     data: Required[list["CiWorkEntry"]]
 
+class CiWorkCounts(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
+    truncated: Required[bool]
+
 class CiWorkEntry(TypedDict, total=False):
     item_id: Required[str]
     key: Required[str | None]

@@ -404,6 +404,7 @@ func Descriptors() []usecase.Descriptor {
 		cmdbservice.ReadCiImpact{}.Descriptor(),
 		cmdbservice.ListEntryCis{}.Descriptor(),
 		cmdbservice.ListCiWork{}.Descriptor(),
+		cmdbservice.ListHubCiWork{}.Descriptor(),
 		cmdbservice.AffectEntryCi{}.Descriptor(),
 		cmdbservice.UnaffectEntryCi{}.Descriptor(),
 		cmdbservice.ListCiCampaigns{}.Descriptor(),

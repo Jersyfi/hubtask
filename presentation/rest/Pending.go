@@ -3083,6 +3083,10 @@ func (pending) ListCiWork(w http.ResponseWriter, r *http.Request, _ openapi_type
 	notAvailable(w, r)
 }
 
+func (pending) ListHubCiWork(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ListSoftwareAliases(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

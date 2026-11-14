@@ -375,6 +375,7 @@ var restDoors = map[string]restDoor{
 	"listGoals":                         {UseCase: "ListGoals", Status: 200, Query: []string{"hub_id", "owner_id", "parent_id", "period_id", "workspace_only"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGroups":                        {UseCase: "ListGroups", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listHubCalendars":                  {UseCase: "ListHubCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listHubCiWork":                     {UseCase: "ListHubCiWork", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listHubPosts":                      {UseCase: "ListHubPosts", Status: 200, Query: []string{"filter"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listHubQueues":                     {UseCase: "ListHubQueues", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listHubTemplatePages":              {UseCase: "ListHubTemplatePages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3297,6 +3298,12 @@ func (c *RestController) ListGroups(w http.ResponseWriter, r *http.Request, para
 func (c *RestController) ListHubCalendars(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var answer openapi.BusinessCalendarList
 	c.door(w, r, restDoors["listHubCalendars"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
+}
+
+// ListHubCiWork answers GET /hubs/{hubId}/ci-work by the generated mapping.
+func (c *RestController) ListHubCiWork(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var answer openapi.CiWorkCounts
+	c.door(w, r, restDoors["listHubCiWork"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
 }
 
 // ListHubPosts answers GET /hubs/{hubId}/posts by the generated mapping.

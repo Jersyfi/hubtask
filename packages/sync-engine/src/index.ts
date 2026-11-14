@@ -362,6 +362,7 @@ export type {
   EntryOnCi,
   CiWork,
   CiWorkEntry,
+  CiWorkCounts,
   CiCampaign,
   CiCampaignList,
   CiCampaignDetail,

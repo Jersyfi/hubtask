@@ -24,6 +24,19 @@ WHERE tenant_id = current_tenant_id() AND ci_id = ANY(sqlc.arg('ci_ids')::uuid[]
 ORDER BY added_at DESC, id
 LIMIT sqlc.arg('batch');
 
+-- name: ListCmdbOpenWorkOfHub :many
+-- The open, living entries naming a CI of the hub, latest first and bounded: each CI's count of
+-- open work. Whether the reader may see an entry is the application's to decide (rule 2).
+SELECT a.ci_id, a.item_id, wi.collection_id, c.parent_id AS hub_id
+FROM cmdb_affected a
+JOIN cmdb_ci ci ON ci.tenant_id = a.tenant_id AND ci.id = a.ci_id
+JOIN work_item wi ON wi.tenant_id = a.tenant_id AND wi.id = a.item_id
+JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+WHERE a.tenant_id = current_tenant_id() AND ci.hub_id = sqlc.arg('hub_id') AND ci.merged_into IS NULL
+  AND wi.deleted_at IS NULL AND wi.archived_at IS NULL AND NOT wi.is_completed AND c.deleted_at IS NULL
+ORDER BY a.added_at DESC, a.id
+LIMIT sqlc.arg('batch');
+
 -- name: InsertCmdbCampaign :exec
 INSERT INTO cmdb_campaign (id, tenant_id, hub_id, name, classes, due_by, due_on, review_months, started_by, started_at)
 VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('name'), sqlc.arg('classes')::text[],

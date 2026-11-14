@@ -5868,6 +5868,29 @@ paths:
               schema: { $ref: "#/components/schemas/CiAttestation" }
         "4XX":
           $ref: "#/components/responses/Problem"
+  /hubs/{hubId}/ci-work:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [cmdb]
+      operationId: listHubCiWork
+      x-hubtask-rest: generated
+      x-hubtask-cli: "ci work count"
+      summary: How many open entries name each configuration item of a hub
+      description: >
+        For each CI of the hub, the open, unarchived entries the reader may see that name it as
+        affected; CIs with none are left out. Needs READ on the hub.
+      responses:
+        "200":
+          description: The open entries per CI
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CiWorkCounts" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
   /hubs/{hubId}/ci-groups:
     parameters:
       - name: hubId
@@ -45022,6 +45045,20 @@ components:
           type: array
           description: Open entries first, then at most twenty completed ones; within each, the latest named first.
           items: { $ref: "#/components/schemas/CiWorkEntry" }
+
+    CiWorkCounts:
+      type: object
+      required: [data, truncated]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [ci_id, open]
+            properties:
+              ci_id: { type: string, format: uuid }
+              open: { type: integer, minimum: 1, description: The open entries the reader may see that name the CI. }
+        truncated: { type: boolean, description: The count stopped at 5000 namings; the numbers are then too low. }
 
     CiWorkEntry:
       type: object

@@ -308,9 +308,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.ci_read` | ListCiGroups | `cmdb_ci_group` | INFO | When refused |
 | `cmdb.ci_read` | ListCiHolds | `cmdb_run` | INFO | When refused |
 | `cmdb.ci_read` | ListCiRuns | `cmdb_run` | INFO | When refused |
+| `cmdb.ci_read` | ListCiWork | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCis | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListEntryCis | `work_item` | INFO | When refused |
-| `cmdb.ci_read` | ListCiWork | `cmdb_ci` | INFO | When refused |
+| `cmdb.ci_read` | ListHubCiWork | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListSoftwareProducts | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ReadCi | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ReadCiAsset | `cmdb_asset` | INFO | When refused |

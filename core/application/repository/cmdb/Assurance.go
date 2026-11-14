@@ -11,6 +11,14 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
+// OpenWork is an open entry naming a CI, with the collection and hub its reader is judged on.
+type OpenWork struct {
+	CIID         shared.ID
+	ItemID       shared.ID
+	CollectionID shared.ID
+	HubID        shared.ID
+}
+
 // Assurance keeps what vouches for an inventory: the CIs entries name as affected, certification
 // campaigns and their attestations, a hub's CI groups, the CIs' asset records and the workspace's
 // software aliases. Another workspace's rows are not found.
@@ -22,6 +30,9 @@ type Assurance interface {
 	AffectedOf(ctx context.Context, itemID shared.ID) ([]cmdb.Affected, error)
 	// AffectingAny answers the rows naming any of the CIs, the latest first, up to limit.
 	AffectingAny(ctx context.Context, ciIDs []shared.ID, limit int) ([]cmdb.Affected, error)
+	// OpenWorkOfHub answers the open, unarchived entries naming a CI of the hub, one row per
+	// naming, the latest first, up to limit.
+	OpenWorkOfHub(ctx context.Context, hubID shared.ID, limit int) ([]OpenWork, error)
 
 	// InsertCampaign writes a campaign with one pending attestation per CI asked.
 	InsertCampaign(ctx context.Context, c cmdb.Campaign, asked []cmdb.Attestation) error

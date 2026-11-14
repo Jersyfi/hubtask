@@ -972,6 +972,11 @@ var generatedCommands = []door{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "title"}},
+	{Group: "ci", Verb: "work count", OperationID: "listHubCiWork", Method: "GET", Path: "/hubs/{hubId}/ci-work", Summary: "How many open entries name each configuration item of a hub",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"ci_id", "open"}},
 	{Group: "cmdb", Verb: "alias define", OperationID: "defineSoftwareAlias", Method: "POST", Path: "/software-aliases", Summary: "Count what installations report as one product",
 		Body: []doorParam{
 			{Name: "match_product", Kind: "string", Help: "", Required: true},
