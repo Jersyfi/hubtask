@@ -15,7 +15,7 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge, Banner, Button, DataTable, EmptyState, FilterBar, IconButton, ListPage, Menu, ProductTile, Radio, Skeleton, ViewBar,
+    Badge, Banner, Button, DataTable, EmptyState, FilterBar, IconButton, ListPage, Menu, ProductBand, ProductTile, Radio, Skeleton, ViewBar,
     type DataColumn, type Filter, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentHalt, AgentJobList, AgentList, AgentModelList, AgentRequest, AgentRequestList } from '@hubtask/sync-engine';
@@ -235,16 +235,19 @@
     })),
   );
 
-  const figureText = $derived.by(() => {
-    if (agentsRead.state.status !== 'ready' || all.length === 0) return '';
+  const figureParts = $derived.by<string[]>(() => {
+    if (agentsRead.state.status !== 'ready' || all.length === 0) return [];
     const live = all.filter((each) => each.status === 'ACTIVE').length;
     const drafts = all.filter((each) => each.status === 'DRAFT').length;
     return [
       t('app.agents.figure_live', { count: String(live) }),
       ...(drafts > 0 ? [t('app.agents.figure_drafts', { count: drafts })] : []),
       ...(pending.length > 0 ? [t('app.agents.figure_held', { count: String(pending.length) })] : []),
-    ].join(' · ');
+    ];
   });
+  const figureText = $derived(figureParts.join(' · '));
+  /** The product's home opens with its band and figures line (WB-2, WB-5); a person's own agents keep the page head. */
+  const isProductHome = $derived(base === AGENTS_HOME);
 
   const head = $derived({
     title,
@@ -261,7 +264,13 @@
 
 {#snippet figure()}{#if figureText}<span class="figure" data-agents-figure>{figureText}</span>{/if}{/snippet}
 
-<ListPage {head} refused={refusal ? refusedSnippet : undefined}>
+{#snippet band()}
+  <ProductBand product="agents" icon="zap" name={title} primary={current === 'agents' ? primary : undefined}
+    breadcrumb={agentsTrail(base)}
+    figures={figureParts} />
+{/snippet}
+
+<ListPage {head} top={isProductHome ? band : undefined} refused={refusal ? refusedSnippet : undefined}>
   {#snippet strip()}
     <ViewBar label={title} views={tabs} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(id) => onnavigate?.(hrefOf(id))} />
   {/snippet}
