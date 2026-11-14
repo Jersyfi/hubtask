@@ -41,7 +41,7 @@ const record = (id, file_name, content_type, size, extra = {}) => ({
 });
 const TEXT = record(TEXT_ID, 'notes.txt', 'text/plain', 26);
 // The record says it may be edited; the launch is not decided, so *Edit* stays undrawn all the same.
-const DOCX = record(DOCX_ID, 'offer.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 4096, { office: true, editable: true });
+const DOCX = record(DOCX_ID, 'offer.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 4096, { office: true });
 const PNG = record(PNG_ID, 'site.png', 'image/png', 68, { inline: true });
 const BIN = record(BIN_ID, 'survey.dwg', 'application/octet-stream', 2048);
 const withDownload = (object) => ({ ...object, download: { url: `${served.origin}${contentOf(object.id)}`, method: 'GET', expires_at: LATER } });
@@ -108,7 +108,15 @@ async function openEntry(browser, options) {
     const request = route.request();
     const path = new URL(request.url()).pathname;
     if (path.endsWith(`/items/${ENTRY.id}/attachments`) && request.method() === 'GET') {
-      return route.fulfill({ json: { data: [TEXT, DOCX], page: { next_cursor: null, has_more: false } } });
+      return route.fulfill({ json: { data: [TEXT, { ...DOCX, editable: options.editable === true }], page: { next_cursor: null, has_more: false } } });
+    }
+    if (path.endsWith(`/media/${DOCX_ID}:edit`) && request.method() === 'POST') {
+      edge.asked.edit = [...(edge.asked.edit ?? []), DOCX_ID];
+      return route.fulfill({ json: {
+        access_token: 'e2e-wopi-token', access_token_ttl: 1_794_650_000_000, wopi_src: `https://hub.example/api/v1/wopi/files/${DOCX_ID}`,
+        action_url: `https://office.example/browser/e2e/cool.html?WOPISrc=https%3A%2F%2Fhub.example%2Fapi%2Fv1%2Fwopi%2Ffiles%2F${DOCX_ID}`,
+        server: { kind: 'COLLABORA_ONLINE', url: 'https://office.example' },
+      } });
     }
     return edge.handle(route) ?? stub(route);
   });
@@ -144,7 +152,7 @@ test('chromium: an entry\'s file opens the viewer with its place among the files
   assert.ok(await card.getByText('Office files are shown by a document server, and this workspace has none.').isVisible());
   assert.ok(await card.getByRole('button', { name: 'Download' }).isVisible());
   assert.deepEqual(asked.pdf, []);
-  // `editable: true` on the record, and still no *Edit* while the launch is undecided.
+  // Without a server the record is not editable, and no *Edit* is drawn.
   assert.equal(await viewer.locator('[data-viewer-edit]').count(), 0);
   assert.equal(await viewer.getByRole('button', { name: 'Edit in the document server' }).count(), 0);
 
@@ -167,7 +175,42 @@ test('chromium: with a document server the office file is asked for as a PDF and
   await viewer.locator('[data-viewer-pdf] canvas').first().waitFor({ timeout: 15_000 });
   assert.deepEqual(asked.pdf, [DOCX_ID]);
   assert.equal(await viewer.locator('[data-viewer-card]').count(), 0);
+  // A reader who may not change the entry: the record is not editable, and no *Edit* is drawn.
   assert.equal(await viewer.getByRole('button', { name: 'Edit in the document server' }).count(), 0);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: Edit posts the token into a frame at the document server\'s editor, never in a URL (UC-MED-06 checks 2, 3)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, files, asked } = await openEntry(browser, { server: { kind: 'COLLABORA_ONLINE', url: 'https://office.example' }, pdf: 'pdf', editable: true });
+  t.after(() => context.close());
+  const posted = [];
+  await context.route('https://office.example/**', (route) => {
+    const request = route.request();
+    posted.push({ method: request.method(), url: request.url(), body: request.postData() ?? '' });
+    return route.fulfill({ contentType: 'text/html', body: '<!DOCTYPE html><title>Editor</title><p>The document server\'s editor</p>' });
+  });
+
+  await files.getByRole('button', { name: 'offer.docx', exact: true }).click();
+  const viewer = viewerOf(page);
+  await viewer.locator('[data-viewer-pdf] canvas').first().waitFor({ timeout: 15_000 });
+  await viewer.getByRole('button', { name: 'Edit in the document server' }).first().click();
+  const frame = viewer.locator('iframe[data-viewer-editor]');
+  await frame.waitFor({ timeout: 5_000 });
+  await page.frameLocator('iframe[data-viewer-editor]').getByText('The document server\'s editor').waitFor({ timeout: 10_000 });
+  assert.deepEqual(asked.edit, [DOCX_ID]);
+  assert.equal(posted.length, 1, `posted ${JSON.stringify(posted)}`);
+  assert.equal(posted[0].method, 'POST');
+  assert.ok(posted[0].url.startsWith('https://office.example/browser/e2e/cool.html?WOPISrc='), posted[0].url);
+  assert.ok(!posted[0].url.includes('e2e-wopi-token'), 'the token travelled in the URL');
+  const form = new URLSearchParams(posted[0].body);
+  assert.equal(form.get('access_token'), 'e2e-wopi-token');
+  assert.equal(form.get('access_token_ttl'), '1794650000000');
+  // The editor closes back to the preview.
+  await viewer.getByRole('button', { name: 'Close the editor' }).click();
+  await viewer.locator('[data-viewer-pdf] canvas').first().waitFor({ timeout: 15_000 });
+  assert.equal(await frame.count(), 0);
   assert.deepEqual(failures, []);
 });
 

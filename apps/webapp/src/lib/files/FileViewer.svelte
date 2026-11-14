@@ -10,7 +10,7 @@
 
   import type { DocNode } from '@hubtask/editor';
   import { Button, IconButton, Kbd, LabelChip } from '@hubtask/design-system/components';
-  import { TransportError, type DocumentServer, type MediaObject } from '@hubtask/sync-engine';
+  import { TransportError, type DocumentServer, type MediaEditingSession, type MediaObject } from '@hubtask/sync-engine';
   import type { PDFDocumentProxy } from 'pdfjs-dist';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -24,7 +24,7 @@
   import { renderProblem } from '../problem.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { documentServerPath } from './documentServer.svelte.ts';
-  import { EDITOR_LAUNCH, launchEditor } from './launchEditor.ts';
+  import { editorFrameName, startEditing } from './launchEditor.ts';
   import { drawPage, openPdf } from './pdf.ts';
   import { viewer } from './viewer.svelte.ts';
   import { TEXT_LIMIT, isDrawnFromBytes, markColourOf, markOf, neighbour, officeShownAs, parseCsv, viewOf, zipListing, type ViewKind, type ZipEntry } from './viewing.ts';
@@ -38,9 +38,14 @@
   const files = $derived(opened?.files ?? []);
   const file = $derived<MediaObject | undefined>(files[viewer.index]);
   const kind = $derived<ViewKind>(file ? viewOf(file) : 'card');
-  // *Edit* only where the server says the document server takes this file for this reader (F-3),
-  // and only once the launch is decided (`launchEditor.ts`).
-  const isEditable = $derived(EDITOR_LAUNCH && file?.editable === true);
+  // *Edit* only where the server says the document server takes this file for this reader (F-3):
+  // an office file, a server entered, and a right to change what holds it.
+  const isEditable = $derived(file?.editable === true);
+  /** The editing session the stage shows the document server's editor for, in a frame. */
+  let editing = $state<{ mediaId: string; session: MediaEditingSession } | undefined>(undefined);
+  let launch = $state<HTMLFormElement>();
+  $effect(() => { if (editing && launch) launch.submit(); });
+  $effect(() => { if (editing && editing.mediaId !== file?.id) editing = undefined; });
   // Whether an office file shows as the server's PDF: every member reads the choice.
   const server = resource<DocumentServer>(documentServerPath);
   const officeAs = $derived(officeShownAs(server.state.status === 'ready' ? server.state.data : undefined));
@@ -213,10 +218,10 @@
 
   async function edit() {
     if (!file) return;
+    const mediaId = file.id;
     failure = undefined;
     try {
-      // How the session reaches the server is the launch the owner decides (ADR-0104).
-      await launchEditor(file.id, () => {});
+      editing = { mediaId, session: await startEditing(mediaId) };
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     }
@@ -276,7 +281,8 @@
         {#if canZoom}<span class="wide-only"><Button tone="secondary" size="sm" icon="search" onclick={nextZoom}>{t('app.viewer.zoom', { percent: String(Math.round(zoom * 100)) })}</Button></span>{/if}
         <span class="wide-only"><Button tone="secondary" size="sm" icon="download" onclick={() => void download()}>{t('app.media.download')}</Button></span>
         <span class="wide-only"><Button tone="secondary" size="sm" icon="link" onclick={() => void copyLink()}>{t('app.viewer.link')}</Button></span>
-        {#if isEditable}<span class="wide-only" data-viewer-edit><Button tone="primary" size="sm" icon="pencil" onclick={() => void edit()}>{t('app.viewer.edit')}</Button></span>{/if}
+        {#if editing}<span data-viewer-edit-close><Button tone="secondary" size="sm" onclick={() => (editing = undefined)}>{t('app.viewer.edit_close')}</Button></span>
+        {:else if isEditable}<span class="wide-only" data-viewer-edit><Button tone="primary" size="sm" icon="pencil" onclick={() => void edit()}>{t('app.viewer.edit')}</Button></span>{/if}
         <span class="narrow-only"><IconButton icon="ellipsis" label={t('app.viewer.details')} onclick={() => (isDetailsOpen = !isDetailsOpen)} /></span>
         <span class="wide-only"><IconButton icon="x" label={t('app.viewer.close')} onclick={() => viewer.close()} /></span>
       </div>
@@ -284,8 +290,23 @@
 
     <div class="body">
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <main class="stage" bind:this={stage} data-zoom={String(zoom)} data-kind={kind} {onpointerdown} {onpointerup}>
-        {#if drawn.kind === 'loading'}
+      <main class="stage" bind:this={stage} data-zoom={String(zoom)} data-kind={kind} data-editing={editing ? '' : undefined} {onpointerdown} {onpointerup}>
+        {#if editing}
+          <!-- The editor of the workspace's document server: its token posted into the frame,
+               never in a URL (ADR-0104). The page's policy admits exactly this origin. -->
+          <form bind:this={launch} class="launch" method="post" action={editing.session.action_url} target={editorFrameName(editing.mediaId)} data-editor-launch>
+            <input type="hidden" name="access_token" value={editing.session.access_token} />
+            <input type="hidden" name="access_token_ttl" value={String(editing.session.access_token_ttl)} />
+          </form>
+          <iframe
+            class="editor"
+            name={editorFrameName(editing.mediaId)}
+            title={t('app.viewer.editor_title', { name: file.file_name ?? '' })}
+            referrerpolicy="no-referrer"
+            allow="clipboard-read; clipboard-write; fullscreen"
+            data-viewer-editor
+          ></iframe>
+        {:else if drawn.kind === 'loading'}
           <p class="quiet center" role="status">{t('app.viewer.loading')}</p>
         {:else if drawn.kind === 'failed'}
           <p class="failure center" role="alert">{drawn.message}</p>
@@ -386,6 +407,9 @@
   .where { white-space: nowrap; opacity: 0.8; }
   .acts { display: flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
   .body { display: grid; grid-template-columns: minmax(0, 1fr) calc(var(--sp-1600) * 2.5); min-block-size: 0; }
+  .launch { display: none; }
+  .stage[data-editing] { padding: 0; justify-items: stretch; align-content: stretch; }
+  .editor { inline-size: 100%; block-size: 100%; min-block-size: calc(var(--sp-1600) * 8); border: 0; background: var(--stage-surface); }
   .stage { position: relative; display: grid; justify-items: center; align-content: start; gap: var(--sp-200); padding: var(--sp-300); overflow: auto; min-block-size: 0; }
   .stage[data-kind='image'], .stage[data-kind='video'], .stage[data-kind='svg'], .stage[data-kind='audio'] { align-content: center; }
   .body { position: relative; }

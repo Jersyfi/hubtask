@@ -15826,6 +15826,8 @@
   "app.viewer.link": "Link",
   "app.viewer.link_copied": "The link to this file is copied.",
   "app.viewer.edit": "Edit in the document server",
+  "app.viewer.edit_close": "Close the editor",
+  "app.viewer.editor_title": "{name} in the document server",
   "app.viewer.close": "Close",
   "app.viewer.previous": "Previous file",
   "app.viewer.next": "Next file",
