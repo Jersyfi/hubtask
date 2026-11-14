@@ -2548,6 +2548,7 @@ class SearchAllHit(TypedDict, total=False):
     tile: Required[str | None]
     snippet: Required[str | None]
     state: Required[str | None]
+    status: Required[str | None]
     key: Required[str | None]
     updated_at: Required[str | None]
     created_at: Required[str | None]

@@ -4,10 +4,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BAR_KINDS, PAGE_KINDS, arrange, countBy, keyIn, ordered, kindsOn, marked, markWords, pathOf, requestOf, saysItsKind, scopesOf, sinceOf, tileOf, wordsForUnknownKeys, type Hit } from './everything.ts';
+import type { WorkflowList } from '@hubtask/sync-engine';
+
+import { BAR_KINDS, PAGE_KINDS, arrange, countBy, keyIn, ordered, kindsOn, marked, markWords, pathOf, requestOf, saysItsKind, scopesOf, sinceOf, statusOfHit, tileOf, wordsForUnknownKeys, type Hit } from './everything.ts';
 
 const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
-  kind, id, title: id, hub_id: null, collection_id: null, tile: null, snippet: null, state: null, key: null, updated_at: null, created_at: null, author_id: null, on: null, ...extra,
+  kind, id, title: id, hub_id: null, collection_id: null, tile: null, snippet: null, state: null, status: null, key: null, updated_at: null, created_at: null, author_id: null, on: null, ...extra,
 });
 
 test('a kind whose module is off is never asked (P-17)', () => {
@@ -112,4 +114,21 @@ test('the orders: newest made first, a hit that names no making last; the author
   ];
   assert.deepEqual(ordered(hits, 'CREATED', 'en').map((each) => each.id), ['c', 'd', 'a', 'b']);
   assert.deepEqual([...countBy(hits, (each) => each.author_id)], [['p', 2], ['m', 1]]);
+});
+
+// Every entry hit said *Offen*: the hit carried only OPEN or DONE. It now names the status its
+// collection's workflow gives it, as the board and the list do, in the status's tone.
+test('an entry hit names its real status, as its board does', () => {
+  const list = {
+    data: [{ key: 'support', published: { initial: 'new', steps: [], statuses: [{ key: 'waiting', name: 'Wartet auf Kunde', category: 'IN_PROGRESS' }, { key: 'done', name: null, category: 'DONE' }] } }],
+    scheme: [{ container_id: 'hub', entry_type: null, workflow: 'support' }],
+  } as unknown as WorkflowList;
+  const t = (code: string) => `«${code}»`;
+  const named = statusOfHit(hit('TICKET', 'a', { status: 'waiting', collection_id: 'desk', hub_id: 'hub' }), list, t);
+  assert.deepEqual(named, { label: 'Wartet auf Kunde', tone: 'warning' });
+  assert.deepEqual(statusOfHit(hit('ENTRY', 'b', { status: 'done', collection_id: 'desk', hub_id: 'hub' }), list, t), { label: '«workflows.status.done»', tone: 'success' });
+  // Not yet read, or out of sight: a shipped status keeps its own word, any other says nothing.
+  assert.deepEqual(statusOfHit(hit('ENTRY', 'c', { status: 'in_progress', collection_id: 'x' }), undefined, t), { label: '«workflows.status.in_progress»', tone: 'warning' });
+  assert.equal(statusOfHit(hit('ENTRY', 'd', { status: 'waiting', collection_id: 'x' }), undefined, t), undefined);
+  assert.equal(statusOfHit(hit('ENTRY', 'e'), list, t), undefined);
 });

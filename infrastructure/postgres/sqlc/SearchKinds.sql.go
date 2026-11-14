@@ -174,7 +174,7 @@ func (q *Queries) SearchDashboardNames(ctx context.Context, arg SearchDashboardN
 }
 
 const searchEntryByKey = `-- name: SearchEntryByKey :many
-SELECT i.id, i.title, i.type::text AS level, i.is_completed, i.updated_at, i.number,
+SELECT i.id, i.title, i.type::text AS level, i.is_completed, i.status, i.updated_at, i.number,
        i.collection_id, c.parent_id AS hub_id,
        coalesce(c.key_prefix, upper(c.handle))::text AS key_word
 FROM work_item i
@@ -199,6 +199,7 @@ type SearchEntryByKeyRow struct {
 	Title        string
 	Level        string
 	IsCompleted  bool
+	Status       *string
 	UpdatedAt    pgtype.Timestamptz
 	Number       *int64
 	CollectionID pgtype.UUID
@@ -222,6 +223,7 @@ func (q *Queries) SearchEntryByKey(ctx context.Context, arg SearchEntryByKeyPara
 			&i.Title,
 			&i.Level,
 			&i.IsCompleted,
+			&i.Status,
 			&i.UpdatedAt,
 			&i.Number,
 			&i.CollectionID,

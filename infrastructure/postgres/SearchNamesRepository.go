@@ -417,6 +417,9 @@ func (SearchNamesRepository) EntryByKey(ctx context.Context, key repository.Key,
 			ID: id, CollectionID: place[0], HubID: place[1], Title: r.Title, Tile: r.Level, State: state,
 			UpdatedAt: optionalTime(r.UpdatedAt),
 		}
+		if r.Status != nil {
+			row.Status = *r.Status
+		}
 		if r.Number != nil {
 			row.Key = r.KeyWord + "-" + strconv.FormatInt(*r.Number, 10)
 		}

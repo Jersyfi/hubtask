@@ -45,6 +45,8 @@ type Row struct {
 	State string
 	// Text is a comment's body, which the snippet is cut from.
 	Text string
+	// Status is an entry's workflow status key, empty where it stands in no workflow.
+	Status string
 	// Key is an entry's ticket key as people write it, "SA-12".
 	Key       string
 	UpdatedAt *time.Time

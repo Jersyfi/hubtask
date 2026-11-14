@@ -5,15 +5,17 @@
   // the found words marked, the passage that matched, and under it the place, how long ago and
   // the kind where the title alone does not say it. A verified page carries its lozenge; a state
   // is a word beside its colour, never colour alone.
+  import { untrack } from 'svelte';
   import { ProductTile, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
   import type { IconName } from '@hubtask/design-system/icons';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import BoardThumbnail from '../whiteboards/BoardThumbnail.svelte';
   import { containers } from '../data/containers.svelte.ts';
+  import { workflows } from '../data/workflows.svelte.ts';
   import { formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { marked, markWords, pathOf, saysItsKind, tileOf, type Hit } from './everything.ts';
+  import { marked, markWords, pathOf, saysItsKind, statusOfHit, tileOf, type Hit } from './everything.ts';
 
   interface Props {
     hit: Hit;
@@ -35,6 +37,12 @@
     }
     return undefined;
   });
+  // An entry's status as its board names it; the workflows are read only where a hit stands in one.
+  $effect(() => {
+    if (!hit.status) return;
+    return untrack(() => workflows.open());
+  });
+  const status = $derived(statusOfHit(hit, workflows.list, t));
   const meta = $derived(
     [
       hub?.name && collection?.name ? `${hub.name} › ${collection.name}` : (hub?.name ?? collection?.name),
@@ -69,7 +77,9 @@
     {/if}
   </span>
   {#if hit.kind === 'WHITEBOARD'}<BoardThumbnail boardId={hit.id} size="row" />{/if}
-  {#if hit.state && !lozenge && (hit.kind === 'ENTRY' || hit.kind === 'TICKET' || hit.kind === 'GOAL' || hit.kind === 'RELEASE' || hit.kind === 'SPRINT')}
+  {#if status}
+    <span class="state"><StateLozenge label={status.label} tone={status.tone} /></span>
+  {:else if hit.state && !lozenge && (hit.kind === 'ENTRY' || hit.kind === 'TICKET' || hit.kind === 'GOAL' || hit.kind === 'RELEASE' || hit.kind === 'SPRINT')}
     <span class="state"><StateLozenge label={t('app.search.state', { state: hit.state })} tone={hit.state === 'DONE' || hit.state === 'RELEASED' ? 'success' : 'info'} /></span>
   {/if}
 {/snippet}

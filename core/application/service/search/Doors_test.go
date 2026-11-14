@@ -31,6 +31,7 @@ func (s entrySearch) Invoke(context.Context, string, appshared.ActorContext, use
 		return usecase.Output{
 			"id": id, "title": "Printer " + id[len(id)-1:], "type": "TASK", "collection_id": collection.String(),
 			"created_at": "2026-11-01T08:00:00Z", "created_by": authorID.String(), "notes": "The toner runs out; the printer stops at noon.",
+			"status": "waiting", "is_completed": false,
 		}
 	}
 	return usecase.Output{"data": []usecase.Output{
@@ -143,7 +144,14 @@ func TestAnEntryHitCarriesItsMakingAndItsPassage(t *testing.T) {
 	if hit.Snippet != "The «toner» runs out; the printer stops at noon." {
 		t.Errorf("snippet %q", hit.Snippet)
 	}
+	// The hit carries the status its workflow gives it, not only OPEN or DONE.
+	if hit.State != "OPEN" || hit.Status != "waiting" {
+		t.Errorf("state %q, status %q", hit.State, hit.Status)
+	}
 	out := HitOutput(hit)
+	if out["status"] != "waiting" {
+		t.Errorf("status output %v", out["status"])
+	}
 	if out["created_at"] == nil || out["author_id"] != authorID.String() {
 		t.Errorf("output %v", out)
 	}

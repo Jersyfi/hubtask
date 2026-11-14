@@ -20739,6 +20739,7 @@ paths:
       operationId: searchAll
       x-hubtask-rest: generated
       x-hubtask-cli: "find all"
+      x-hubtask-cli-columns: [id, key, title, kind, state]
       summary: One search over every kind of object the caller may read
       description: >
         Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names,
@@ -33149,7 +33150,7 @@ components:
     SearchAllHit:
       type: object
       description: One object as a hit row draws it.
-      required: [kind, id, title, hub_id, collection_id, tile, snippet, state, key, updated_at, created_at, author_id, on]
+      required: [kind, id, title, hub_id, collection_id, tile, snippet, state, status, key, updated_at, created_at, author_id, on]
       properties:
         kind: { $ref: "#/components/schemas/SearchKind" }
         id: { type: string, format: uuid }
@@ -33168,6 +33169,11 @@ components:
             An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified),
             a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's
             stage, a dashboard's sharing, a person's account status.
+        status:
+          type: [string, "null"]
+          description: >
+            An entry's or a ticket's workflow status key, which the client names as its board and list do;
+            null where the entry stands in no workflow and for every other kind.
         key: { type: [string, "null"], description: "An entry's or a ticket's key where its collection has a handle or a key prefix." }
         updated_at: { type: [string, "null"], format: date-time }
         created_at: { type: [string, "null"], format: date-time, description: "When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds." }

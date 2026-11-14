@@ -11,6 +11,10 @@
  */
 
 import { resolveKey } from '@hubtask/query';
+import type { WorkflowList } from '@hubtask/sync-engine';
+
+import { boardShapeIn, statusCode, statusLabel } from '../data/workflows.ts';
+import { statusTone } from '../workflows/summary.ts';
 
 /** The kinds `/search:all` answers, as the contract names them. */
 export type Kind = 'ENTRY' | 'TICKET' | 'PAGE' | 'POST' | 'WHITEBOARD' | 'GOAL' | 'DASHBOARD' | 'ASSET' | 'PERSON' | 'FILE' | 'COMMENT' | 'PORTFOLIO' | 'RELEASE' | 'SPRINT';
@@ -24,6 +28,8 @@ export interface Hit {
   readonly tile: string | null;
   readonly snippet: string | null;
   readonly state: string | null;
+  /** An entry's or a ticket's workflow status key; null outside a workflow and for other kinds. */
+  readonly status: string | null;
   readonly key: string | null;
   readonly updated_at: string | null;
   /** When and by whom it was made: entries, tickets and pages; null for the other kinds. */
@@ -266,4 +272,23 @@ export function tileOf(hit: Pick<Hit, 'kind' | 'state' | 'on'>): { readonly icon
     default:
       return { icon: mark ?? (hit.state === 'DONE' ? 'square-check' : 'square'), color: 'brand' };
   }
+}
+
+/**
+ * An entry hit's status as its board and list name it (§6.11): the status of the workflow its
+ * collection runs, else the shipped status's own word; nothing where the entry stands in none.
+ */
+export function statusOfHit(
+  hit: Pick<Hit, 'status' | 'collection_id' | 'hub_id'>,
+  list: WorkflowList | undefined,
+  t: (code: string) => string,
+): { readonly label: string; readonly tone: 'neutral' | 'info' | 'warning' | 'success' } | undefined {
+  if (!hit.status) return undefined;
+  const shape = hit.collection_id ? boardShapeIn(list, hit.collection_id, hit.hub_id ?? undefined) : undefined;
+  const status = shape?.statuses.find((each) => each.key === hit.status);
+  if (status) return { label: statusLabel(status, t), tone: statusTone(status.category) };
+  const shipped: Record<string, 'TODO' | 'IN_PROGRESS' | 'DONE'> = { todo: 'TODO', in_progress: 'IN_PROGRESS', done: 'DONE' };
+  const category = shipped[hit.status];
+  if (!category) return undefined;
+  return { label: t(statusCode({ key: hit.status, category })), tone: statusTone(category) };
 }

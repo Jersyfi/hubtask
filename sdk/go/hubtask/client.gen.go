@@ -25670,6 +25670,9 @@ type SearchAllHit struct {
 	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's stage, a dashboard's sharing, a person's account status.
 	State *string `json:"state"`
 
+	// Status An entry's or a ticket's workflow status key, which the client names as its board and list do; null where the entry stands in no workflow and for every other kind.
+	Status *string `json:"status"`
+
 	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory object's object type key, a file's media type, a person's account kind.
 	Tile *string `json:"tile"`
 

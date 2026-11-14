@@ -154,10 +154,11 @@ func (e Entries) read(ctx context.Context, actor appshared.ActorContext, q Quest
 		if done, _ := row["is_completed"].(bool); done {
 			state = "DONE"
 		}
+		status, _ := row["status"].(string)
 		author, _ := row["created_by"].(string)
 		notes, _ := row["notes"].(string)
 		hit := Hit{
-			ID: shared.ID(id), Title: title, Tile: level, State: state, CollectionID: shared.ID(collection),
+			ID: shared.ID(id), Title: title, Tile: level, State: state, Status: status, CollectionID: shared.ID(collection),
 			UpdatedAt: momentOf(row["updated_at"]), CreatedAt: momentOf(row["created_at"]), AuthorID: shared.ID(author),
 			Snippet: passage(notes, q.Terms),
 		}

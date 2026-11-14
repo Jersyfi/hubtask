@@ -55,6 +55,6 @@ func (b ByKey) EntryByKey(ctx context.Context, actor appshared.ActorContext, key
 	}
 	return search.Hit{
 		ID: row.ID, HubID: row.HubID, CollectionID: row.CollectionID, Title: row.Title, Tile: row.Tile,
-		State: row.State, Key: row.Key, UpdatedAt: row.UpdatedAt,
+		State: row.State, Status: row.Status, Key: row.Key, UpdatedAt: row.UpdatedAt,
 	}, true, nil
 }
