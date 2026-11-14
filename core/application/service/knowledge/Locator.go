@@ -29,7 +29,7 @@ func (l Locator) Locate(ctx context.Context, actor appshared.ActorContext, id sh
 	}
 	// In a space with drafts the live document holds words not yet published: its writers alone
 	// open it, and its readers read the page as published (UC-DOC-15).
-	drafts, err := l.Space.drafting(ctx, actor.TenantID, page.HubID)
+	drafts, err := l.Space.pageDrafting(ctx, actor.TenantID, page)
 	if err != nil {
 		return realtime.Place{}, err
 	}

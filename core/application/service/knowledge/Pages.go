@@ -437,7 +437,7 @@ func (h ReadPage) Execute(ctx context.Context, actor appshared.ActorContext, id 
 		for i := len(ancestors) - 1; i >= 0; i-- {
 			out.Ancestors = append(out.Ancestors, usecase.Output{"id": ancestors[i].ID.String(), "title": ancestors[i].Title})
 		}
-		if out.Drafts, err = h.Space.drafting(ctx, actor.TenantID, page.HubID); err != nil || !out.Writable {
+		if out.Drafts, err = h.Space.pageDrafting(ctx, actor.TenantID, page); err != nil || !out.Writable {
 			return err
 		}
 		out.Draft, err = h.Space.draftOf(ctx, page.ID)
@@ -599,7 +599,7 @@ func (h UpdatePage) write(ctx context.Context, actor appshared.ActorContext, cmd
 		// In a space with drafts a published page's title and body change in its draft; its readers
 		// read what was published (UC-DOC-15). A page never published is its writer's alone and is
 		// written as it is.
-		if out.Drafts, err = h.Space.drafting(ctx, actor.TenantID, current.HubID); err != nil {
+		if out.Drafts, err = h.Space.pageDrafting(ctx, actor.TenantID, current); err != nil {
 			return err
 		}
 		if out.Draft, err = h.Space.draftOf(ctx, current.ID); err != nil {

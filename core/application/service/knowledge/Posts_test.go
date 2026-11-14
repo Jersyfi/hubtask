@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/calendar"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/knowledge"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 )
@@ -488,5 +489,34 @@ func TestAPostIsDiscussedWithReplyAndReaction(t *testing.T) {
 	}
 	if _, err := call(t, DeletePostReply{Space: f.space}.Descriptor(), actorOf(writer), gone); err != nil {
 		t.Errorf("a writer took a reply back: %v", err)
+	}
+}
+
+// A post has its own publishing: in a hub whose pages wait in drafts (UC-DOC-15) its words are
+// still written to its page, never into a draft, and its live document is open to its writers.
+func TestAPostsWordsNeverWaitInAPageDraft(t *testing.T) {
+	f := newPostFixture()
+	ctx := context.Background()
+	f.space.Drafting = Drafting{
+		Drafts:   &draftStore{drafts: map[shared.ID]domain.Draft{}},
+		Settings: &settingsStore{plan: setting.Layer{Level: setting.LevelPlan}},
+	}
+	if _, err := (SetSpaceDrafts{Space: f.space}).Execute(ctx, as(writer), SetSpaceDraftsCommand{HubID: hub, Drafts: true}); err != nil {
+		t.Fatal(err)
+	}
+	id := f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339)})
+	page := f.store.pages[id]
+	written, err := (UpdatePage{Space: f.space}).write(ctx, actorOf(writer), UpdatePageCommand{
+		PageID: id, Change: domain.Change{Body: ptr("Release 4.2 is out")}, ExpectedVersion: page.Version,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if written.Draft != nil || written.Drafts || written.Page.Body != "Release 4.2 is out" {
+		t.Fatalf("the post's words went to a draft: %+v", written)
+	}
+	read, err := (ReadPage{Space: f.space}).Execute(ctx, actorOf(writer), id)
+	if err != nil || read.Drafts || read.Draft != nil || read.Page.Body != "Release 4.2 is out" {
+		t.Fatalf("the post's page reads %+v, %v", read, err)
 	}
 }

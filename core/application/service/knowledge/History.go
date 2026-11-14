@@ -241,7 +241,7 @@ func (h RestorePageVersion) restore(
 		}
 		now := h.Space.Clock.Now()
 		audited := []audit.Change{{Field: "seq", Classification: audit.Open, To: seq}}
-		if out.Drafts, err = h.Space.drafting(ctx, actor.TenantID, current.HubID); err != nil {
+		if out.Drafts, err = h.Space.pageDrafting(ctx, actor.TenantID, current); err != nil {
 			return err
 		}
 		if out.Draft, err = h.Space.draftOf(ctx, current.ID); err != nil {
