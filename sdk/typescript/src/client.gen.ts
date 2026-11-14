@@ -1250,6 +1250,21 @@ export class HubtaskClient {
     return this.call("GET", "/cis/{ciId}/work", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** An object's files */
+  listCiAttachments(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiAttachments"]['parameters']['query']> } = {}): Promise<operations["listCiAttachments"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/attachments", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Put a file on an object */
+  attachCiMedia(ciId: string, mediaId: string, options: CallOptions = {}): Promise<operations["attachCiMedia"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/cis/{ciId}/attachments/{mediaId}", { "ciId": ciId, "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a file off an object */
+  detachCiMedia(ciId: string, mediaId: string, options: CallOptions = {}): Promise<operations["detachCiMedia"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/cis/{ciId}/attachments/{mediaId}", { "ciId": ciId, "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The objects an entry names as affected */
   listEntryCis(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/cis", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

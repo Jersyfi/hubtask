@@ -35,6 +35,35 @@ func (q *Queries) AdjustMediaRefCount(ctx context.Context, arg AdjustMediaRefCou
 	return result.RowsAffected(), nil
 }
 
+const countCiMedia = `-- name: CountCiMedia :one
+SELECT count(*)::int AS total FROM cmdb_ci_media WHERE ci_id = $1::uuid
+`
+
+func (q *Queries) CountCiMedia(ctx context.Context, ciID pgtype.UUID) (int32, error) {
+	row := q.db.QueryRow(ctx, countCiMedia, ciID)
+	var total int32
+	err := row.Scan(&total)
+	return total, err
+}
+
+const deleteCiMedia = `-- name: DeleteCiMedia :execrows
+DELETE FROM cmdb_ci_media
+WHERE ci_id = $1::uuid AND media_id = $2::uuid
+`
+
+type DeleteCiMediaParams struct {
+	CiID    pgtype.UUID
+	MediaID pgtype.UUID
+}
+
+func (q *Queries) DeleteCiMedia(ctx context.Context, arg DeleteCiMediaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCiMedia, arg.CiID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteDocumentServer = `-- name: DeleteDocumentServer :execrows
 DELETE FROM document_server WHERE tenant_id = current_tenant_id()
 `
@@ -175,6 +204,27 @@ func (q *Queries) FindMediaObject(ctx context.Context, id pgtype.UUID) (FindMedi
 	return i, err
 }
 
+const insertCiMedia = `-- name: InsertCiMedia :execrows
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+VALUES (current_tenant_id(), $1, $2)
+ON CONFLICT DO NOTHING
+`
+
+type InsertCiMediaParams struct {
+	CiID    pgtype.UUID
+	MediaID pgtype.UUID
+}
+
+// ON CONFLICT DO NOTHING, for the reason InsertItemAttachment gives: zero rows is how the caller
+// knows not to raise the reference count twice.
+func (q *Queries) InsertCiMedia(ctx context.Context, arg InsertCiMediaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, insertCiMedia, arg.CiID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertItemAttachment = `-- name: InsertItemAttachment :execrows
 INSERT INTO item_attachment (tenant_id, item_id, media_id)
 VALUES (current_tenant_id(), $1, $2)
@@ -301,6 +351,110 @@ func (q *Queries) InsertReadyMediaObject(ctx context.Context, arg InsertReadyMed
 		arg.CreatedAt,
 	)
 	return err
+}
+
+const listCiMedia = `-- name: ListCiMedia :many
+SELECT m.id, m.tenant_id, m.storage_key, m.file_name, m.mime_type, m.byte_size, m.checksum,
+       m.usage, m.status, m.ref_count, m.created_by, m.created_at, m.deleted_at
+FROM cmdb_ci_media a
+JOIN media_object m ON m.id = a.media_id
+WHERE a.ci_id = $1::uuid
+  AND (
+    $2::timestamptz IS NULL
+    OR (m.created_at, m.id) > ($2::timestamptz, $3::uuid)
+  )
+ORDER BY m.created_at, m.id
+LIMIT $4
+`
+
+type ListCiMediaParams struct {
+	CiID            pgtype.UUID
+	CursorCreatedAt pgtype.Timestamptz
+	CursorID        pgtype.UUID
+	PageSize        int32
+}
+
+type ListCiMediaRow struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	StorageKey string
+	FileName   *string
+	MimeType   string
+	ByteSize   int64
+	Checksum   *string
+	Usage      string
+	Status     string
+	RefCount   int32
+	CreatedBy  pgtype.UUID
+	CreatedAt  pgtype.Timestamptz
+	DeletedAt  pgtype.Timestamptz
+}
+
+// One page of an object's files as media objects, oldest upload first, keyed as
+// ListItemAttachments is (api-guidelines.md §4).
+func (q *Queries) ListCiMedia(ctx context.Context, arg ListCiMediaParams) ([]ListCiMediaRow, error) {
+	rows, err := q.db.Query(ctx, listCiMedia,
+		arg.CiID,
+		arg.CursorCreatedAt,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCiMediaRow{}
+	for rows.Next() {
+		var i ListCiMediaRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.StorageKey,
+			&i.FileName,
+			&i.MimeType,
+			&i.ByteSize,
+			&i.Checksum,
+			&i.Usage,
+			&i.Status,
+			&i.RefCount,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCiMediaIDs = `-- name: ListCiMediaIDs :many
+SELECT media_id FROM cmdb_ci_media
+WHERE ci_id = $1::uuid
+ORDER BY media_id
+`
+
+func (q *Queries) ListCiMediaIDs(ctx context.Context, ciID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listCiMediaIDs, ciID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var media_id pgtype.UUID
+		if err := rows.Scan(&media_id); err != nil {
+			return nil, err
+		}
+		items = append(items, media_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listHeldMediaObjects = `-- name: ListHeldMediaObjects :many
@@ -481,6 +635,35 @@ LIMIT 50
 // of those boards may read the object. A trashed board serves nothing until it is restored.
 func (q *Queries) ListMediaReferencingBoards(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
 	rows, err := q.db.Query(ctx, listMediaReferencingBoards, mediaID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var hub_id pgtype.UUID
+		if err := rows.Scan(&hub_id); err != nil {
+			return nil, err
+		}
+		items = append(items, hub_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMediaReferencingCis = `-- name: ListMediaReferencingCis :many
+SELECT DISTINCT c.hub_id
+FROM cmdb_ci_media m JOIN cmdb_ci c ON c.tenant_id = m.tenant_id AND c.id = m.ci_id
+WHERE m.media_id = $1::uuid
+LIMIT 50
+`
+
+// The hubs of the inventory objects that hold an object, for GetMedia's authorisation: whoever may
+// read one of those hubs may read the object, as they read the inventory object itself.
+func (q *Queries) ListMediaReferencingCis(ctx context.Context, mediaID pgtype.UUID) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, listMediaReferencingCis, mediaID)
 	if err != nil {
 		return nil, err
 	}
@@ -728,6 +911,8 @@ FROM (
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
     + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id)
+    -- An inventory object's files, until the object goes.
+    + (SELECT count(*) FROM cmdb_ci_media c WHERE c.media_id = o.id)
     -- A file's earlier version is kept while the file lives (UC-MED-06).
     + (SELECT count(*) FROM media_version v WHERE v.earlier_media_id = o.id) AS total
   FROM media_object o

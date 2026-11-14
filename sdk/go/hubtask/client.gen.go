@@ -15528,6 +15528,12 @@ type CiAssetStep struct {
 // CiAssetStepState defines model for CiAssetStep.State.
 type CiAssetStepState string
 
+// CiAttachments The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version.
+type CiAttachments struct {
+	CiId     openapi_types.UUID   `json:"ci_id"`
+	MediaIds []openapi_types.UUID `json:"media_ids"`
+}
+
 // CiAttest defines model for CiAttest.
 type CiAttest struct {
 	Verdict CiAttestVerdict `json:"verdict"`
@@ -29817,6 +29823,12 @@ type MoveCiAssetParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListCiAttachmentsParams defines parameters for ListCiAttachments.
+type ListCiAttachmentsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // SetCiComplianceParams defines parameters for SetCiCompliance.
 type SetCiComplianceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -37837,6 +37849,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiAttachments An object's files
+	//
+	// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+	ListCiAttachments(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DetachCiMedia Take a file off an object
+	//
+	// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+	DetachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AttachCiMedia Put a file on an object
+	//
+	// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+	AttachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListCiBacklinks What points at an object
 	//
@@ -53526,6 +53559,57 @@ func (c *Client) MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUI
 // Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 func (c *Client) MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewMoveCiAssetRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiAttachments An object's files
+//
+// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+func (c *Client) ListCiAttachments(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiAttachmentsRequest(c.Server, ciId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DetachCiMedia Take a file off an object
+//
+// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+func (c *Client) DetachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDetachCiMediaRequest(c.Server, ciId, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AttachCiMedia Put a file on an object
+//
+// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+func (c *Client) AttachCiMedia(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAttachCiMediaRequest(c.Server, ciId, mediaId)
 	if err != nil {
 		return nil, err
 	}
@@ -82204,6 +82288,161 @@ func NewMoveCiAssetRequestWithBody(server string, ciId openapi_types.UUID, param
 			req.Header.Set("If-Match", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewListCiAttachmentsRequest constructs an http.Request for the ListCiAttachments method
+func NewListCiAttachmentsRequest(server string, ciId openapi_types.UUID, params *ListCiAttachmentsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/attachments", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDetachCiMediaRequest constructs an http.Request for the DetachCiMedia method
+func NewDetachCiMediaRequest(server string, ciId openapi_types.UUID, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/attachments/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAttachCiMediaRequest constructs an http.Request for the AttachCiMedia method
+func NewAttachCiMediaRequest(server string, ciId openapi_types.UUID, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/attachments/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -117468,6 +117707,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
 
+	// ListCiAttachmentsWithResponse An object's files
+	//
+	// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+	ListCiAttachmentsWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*ListCiAttachmentsResult, error)
+
+	// DetachCiMediaWithResponse Take a file off an object
+	//
+	// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+	DetachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*DetachCiMediaResult, error)
+
+	// AttachCiMediaWithResponse Put a file on an object
+	//
+	// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+	AttachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachCiMediaResult, error)
+
 	// ListCiBacklinksWithResponse What points at an object
 	//
 	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -138532,6 +138798,150 @@ func (r MoveCiAssetResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r MoveCiAssetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiAttachmentsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MediaPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiAttachmentsResult) GetJSON200() *MediaPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiAttachmentsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiAttachmentsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiAttachmentsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiAttachmentsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiAttachmentsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DetachCiMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAttachments
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r DetachCiMediaResult) GetJSON200() *CiAttachments {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DetachCiMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DetachCiMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DetachCiMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DetachCiMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DetachCiMediaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AttachCiMediaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiAttachments
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AttachCiMediaResult) GetJSON200() *CiAttachments {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AttachCiMediaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AttachCiMediaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AttachCiMediaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AttachCiMediaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AttachCiMediaResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -176371,6 +176781,51 @@ func (c *ClientWithResponses) MoveCiAssetWithResponse(ctx context.Context, ciId 
 	return ParseMoveCiAssetResult(rsp)
 }
 
+// ListCiAttachmentsWithResponse An object's files
+//
+// The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/attachments (the `ListCiAttachments` operationId).
+func (c *ClientWithResponses) ListCiAttachmentsWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiAttachmentsParams, reqEditors ...RequestEditorFn) (*ListCiAttachmentsResult, error) {
+	rsp, err := c.ListCiAttachments(ctx, ciId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiAttachmentsResult(rsp)
+}
+
+// DetachCiMediaWithResponse Take a file off an object
+//
+// Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /cis/{ciId}/attachments/{mediaId} (the `DetachCiMedia` operationId).
+func (c *ClientWithResponses) DetachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*DetachCiMediaResult, error) {
+	rsp, err := c.DetachCiMedia(ctx, ciId, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDetachCiMediaResult(rsp)
+}
+
+// AttachCiMediaWithResponse Put a file on an object
+//
+// Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /cis/{ciId}/attachments/{mediaId} (the `AttachCiMedia` operationId).
+func (c *ClientWithResponses) AttachCiMediaWithResponse(ctx context.Context, ciId openapi_types.UUID, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachCiMediaResult, error) {
+	rsp, err := c.AttachCiMedia(ctx, ciId, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAttachCiMediaResult(rsp)
+}
+
 // ListCiBacklinksWithResponse What points at an object
 //
 // The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
@@ -199469,6 +199924,105 @@ func ParseMoveCiAssetResult(rsp *http.Response) (*MoveCiAssetResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiAsset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiAttachmentsResult parses an HTTP response from a ListCiAttachmentsWithResponse call
+func ParseListCiAttachmentsResult(rsp *http.Response) (*ListCiAttachmentsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiAttachmentsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MediaPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDetachCiMediaResult parses an HTTP response from a DetachCiMediaWithResponse call
+func ParseDetachCiMediaResult(rsp *http.Response) (*DetachCiMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DetachCiMediaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAttachments
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAttachCiMediaResult parses an HTTP response from a AttachCiMediaWithResponse call
+func ParseAttachCiMediaResult(rsp *http.Response) (*AttachCiMediaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AttachCiMediaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiAttachments
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

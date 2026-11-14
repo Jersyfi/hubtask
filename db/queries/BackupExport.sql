@@ -1731,6 +1731,20 @@ FROM (
   ORDER BY s.key_1
   LIMIT sqlc.arg('batch')::int;
 
+-- name: ExportCmdbCiMedia :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.ci_id::text || '/' || c.media_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.ci_id AS key_1,
+         c.media_id AS key_2
+  FROM cmdb_ci_media c
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
 -- name: ExportCmdbSoftwareAliases :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

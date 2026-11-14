@@ -3847,6 +3847,25 @@ SELECT EXISTS (SELECT 1 FROM cmdb_asset_move WHERE id = (sqlc.arg('payload')::js
 -- name: ClearCmdbAssetMove :execrows
 DELETE FROM cmdb_asset_move;
 
+-- name: ImportCmdbCiMedia :execrows
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+SELECT r.tenant_id, r.ci_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_media,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, ci_id, media_id) DO NOTHING;
+
+-- name: HoldsCmdbCiMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM cmdb_ci_media
+  WHERE ci_id = (sqlc.arg('payload')::jsonb->>'ci_id')::uuid
+    AND media_id = (sqlc.arg('payload')::jsonb->>'media_id')::uuid
+) AS held;
+
+-- name: ClearCmdbCiMedia :execrows
+DELETE FROM cmdb_ci_media;
+
 -- name: ImportCmdbSoftwareAlias :execrows
 INSERT INTO cmdb_software_alias (id, tenant_id, match_publisher, match_product, publisher, product, updated_by, updated_at, version)
 SELECT r.id, r.tenant_id, r.match_publisher, r.match_product, r.publisher, r.product, r.updated_by, r.updated_at, r.version

@@ -1224,6 +1224,12 @@ type CmdbCiIdentifier struct {
 	Value    string
 }
 
+type CmdbCiMedium struct {
+	TenantID pgtype.UUID
+	CiID     pgtype.UUID
+	MediaID  pgtype.UUID
+}
+
 type CmdbClass struct {
 	ID            pgtype.UUID
 	TenantID      pgtype.UUID

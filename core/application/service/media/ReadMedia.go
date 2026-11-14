@@ -77,7 +77,9 @@ type GetMedia struct {
 	Containers workrepo.Containers
 	// Pages answers whether a reader reads one of the pages holding an object (UC-DOC-14); nil
 	// serves no page's pictures beyond their uploader.
-	Pages      PageReader
+	Pages PageReader
+	// CiFiles answers the hubs of the inventory objects holding an object (UC-AST-01); nil holds none.
+	CiFiles    CiHolders
 	Transfers  storage.TransferIssuer
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
@@ -90,6 +92,11 @@ type GetMedia struct {
 // Editability is the WOPI host's answer to whether a reader may edit a file (WopiHost.Editable).
 type Editability interface {
 	Editable(ctx context.Context, actor appshared.ActorContext, object media.Object, served reach) (bool, error)
+}
+
+// CiHolders reads which hubs' inventory objects hold an upload.
+type CiHolders interface {
+	ReferencingCis(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
 }
 
 // MediaQuery is the input, typed.
@@ -208,6 +215,17 @@ func (h GetMedia) read(
 		}
 		for _, hub := range hubs {
 			served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+		}
+		// An inventory object's file is read by whoever may read the object, judged at its hub as
+		// the object is (UC-AST-01).
+		if h.CiFiles != nil {
+			cis, err := h.CiFiles.ReferencingCis(ctx, mediaID)
+			if err != nil {
+				return err
+			}
+			for _, hub := range cis {
+				served.paths = append(served.paths, []identity.Scope{identity.TenantScope(), identity.HubScope(hub)})
+			}
 		}
 		if h.Pages != nil {
 			served.pages, err = h.Objects.ReferencingPages(ctx, mediaID)

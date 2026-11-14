@@ -102,6 +102,8 @@ FROM (
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
     + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id)
+    -- An inventory object's files, until the object goes.
+    + (SELECT count(*) FROM cmdb_ci_media c WHERE c.media_id = o.id)
     -- A file's earlier version is kept while the file lives (UC-MED-06).
     + (SELECT count(*) FROM media_version v WHERE v.earlier_media_id = o.id) AS total
   FROM media_object o
@@ -169,6 +171,14 @@ LIMIT 50;
 SELECT DISTINCT g.page_id
 FROM page_media g JOIN page p ON p.tenant_id = g.tenant_id AND p.id = g.page_id
 WHERE g.media_id = sqlc.arg('media_id')::uuid AND p.deleted_at IS NULL
+LIMIT 50;
+
+-- name: ListMediaReferencingCis :many
+-- The hubs of the inventory objects that hold an object, for GetMedia's authorisation: whoever may
+-- read one of those hubs may read the object, as they read the inventory object itself.
+SELECT DISTINCT c.hub_id
+FROM cmdb_ci_media m JOIN cmdb_ci c ON c.tenant_id = m.tenant_id AND c.id = m.ci_id
+WHERE m.media_id = sqlc.arg('media_id')::uuid
 LIMIT 50;
 
 -- name: MediaServesAvatar :one
@@ -281,3 +291,37 @@ INSERT INTO media_object (
 -- name: ListMediaVersions :many
 SELECT number, earlier_media_id, saved_by, saved_at FROM media_version
 WHERE media_id = sqlc.arg('media_id') ORDER BY number DESC LIMIT 100;
+
+-- name: InsertCiMedia :execrows
+-- ON CONFLICT DO NOTHING, for the reason InsertItemAttachment gives: zero rows is how the caller
+-- knows not to raise the reference count twice.
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+VALUES (current_tenant_id(), sqlc.arg('ci_id'), sqlc.arg('media_id'))
+ON CONFLICT DO NOTHING;
+
+-- name: DeleteCiMedia :execrows
+DELETE FROM cmdb_ci_media
+WHERE ci_id = sqlc.arg('ci_id')::uuid AND media_id = sqlc.arg('media_id')::uuid;
+
+-- name: ListCiMediaIDs :many
+SELECT media_id FROM cmdb_ci_media
+WHERE ci_id = sqlc.arg('ci_id')::uuid
+ORDER BY media_id;
+
+-- name: CountCiMedia :one
+SELECT count(*)::int AS total FROM cmdb_ci_media WHERE ci_id = sqlc.arg('ci_id')::uuid;
+
+-- name: ListCiMedia :many
+-- One page of an object's files as media objects, oldest upload first, keyed as
+-- ListItemAttachments is (api-guidelines.md §4).
+SELECT m.id, m.tenant_id, m.storage_key, m.file_name, m.mime_type, m.byte_size, m.checksum,
+       m.usage, m.status, m.ref_count, m.created_by, m.created_at, m.deleted_at
+FROM cmdb_ci_media a
+JOIN media_object m ON m.id = a.media_id
+WHERE a.ci_id = sqlc.arg('ci_id')::uuid
+  AND (
+    sqlc.narg('cursor_created_at')::timestamptz IS NULL
+    OR (m.created_at, m.id) > (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
+  )
+ORDER BY m.created_at, m.id
+LIMIT sqlc.arg('page_size');

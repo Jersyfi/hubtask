@@ -1011,6 +1011,18 @@ class Client:
         """The entries an object is part of"""
         return self._call("GET", "/cis/{ciId}/work", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
+    def list_ci_attachments(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "MediaPage":
+        """An object's files"""
+        return self._call("GET", "/cis/{ciId}/attachments", {"ciId": ci_id}, query, {}, None, "none", None, "json")
+
+    def attach_ci_media(self, ci_id: str, media_id: str) -> "CiAttachments":
+        """Put a file on an object"""
+        return self._call("PUT", "/cis/{ciId}/attachments/{mediaId}", {"ciId": ci_id, "mediaId": media_id}, None, {}, None, "none", None, "json")
+
+    def detach_ci_media(self, ci_id: str, media_id: str) -> "CiAttachments":
+        """Take a file off an object"""
+        return self._call("DELETE", "/cis/{ciId}/attachments/{mediaId}", {"ciId": ci_id, "mediaId": media_id}, None, {}, None, "none", None, "json")
+
     def list_entry_cis(self, item_id: str) -> "EntryCis":
         """The objects an entry names as affected"""
         return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")

@@ -152,6 +152,24 @@ type Attachments interface {
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
 }
 
+// CiFiles is the files an inventory object holds (migration 0434). An object's files are a plain
+// set: inventory writing is online-only, so there is no tag to merge on.
+type CiFiles interface {
+	// AttachToCi links the object to the inventory object and reports whether the link is new.
+	AttachToCi(ctx context.Context, ciID, mediaID shared.ID) (bool, error)
+	// DetachFromCi unlinks and reports whether there was a link.
+	DetachFromCi(ctx context.Context, ciID, mediaID shared.ID) (bool, error)
+	// CiMediaIDs returns the identifiers an inventory object holds, stably ordered.
+	CiMediaIDs(ctx context.Context, ciID shared.ID) ([]shared.ID, error)
+	// CountCiMedia counts them.
+	CountCiMedia(ctx context.Context, ciID shared.ID) (int, error)
+	// ListForCi returns one page of an inventory object's files, oldest upload first.
+	ListForCi(ctx context.Context, ciID shared.ID, page repository.Page) (ObjectPage, error)
+	// ReferencingCis returns the hubs of the inventory objects that hold the object, bounded, for
+	// the authorisation question.
+	ReferencingCis(ctx context.Context, mediaID shared.ID) ([]shared.ID, error)
+}
+
 // Version is one save a document server made of a file: its number, the object keeping the bytes
 // the file had before it, who saved and when (UC-MED-06).
 type Version struct {

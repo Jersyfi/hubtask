@@ -8418,4 +8418,22 @@ ALTER TABLE notification ADD COLUMN cmdb_campaign_id uuid,
       cmdb_connector_id, code_hook_id, cmdb_campaign_id) <= 1);
 CREATE INDEX notification_cmdb_campaign_idx ON notification (tenant_id, cmdb_campaign_id) WHERE cmdb_campaign_id IS NOT NULL;
 
+-- An inventory object's files (migration 0434, UC-AST-01): which media objects it holds.
+CREATE TABLE cmdb_ci_media (
+  tenant_id uuid NOT NULL,
+  ci_id     uuid NOT NULL,
+  media_id  uuid NOT NULL,
+  PRIMARY KEY (tenant_id, ci_id, media_id),
+  CONSTRAINT cmdb_ci_media_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_ci_media_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_ci_media_object_idx ON cmdb_ci_media (tenant_id, media_id);
+ALTER TABLE cmdb_ci_media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci_media FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci_media
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON cmdb_ci_media TO hubtask_app;
+
 COMMIT;

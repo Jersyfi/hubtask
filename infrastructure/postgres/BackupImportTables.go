@@ -1184,6 +1184,17 @@ var importers = map[string]importer{
 			return queries.ClearCmdbAssetMove(ctx)
 		},
 	},
+	"cmdb_ci_media": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, _ bool) (int64, error) {
+			return queries.ImportCmdbCiMedia(ctx, payload)
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsCmdbCiMedia(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearCmdbCiMedia(ctx)
+		},
+	},
 	"cmdb_software_alias": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportCmdbSoftwareAlias(ctx, sqlc.ImportCmdbSoftwareAliasParams{Payload: payload, Overwrite: overwrite})

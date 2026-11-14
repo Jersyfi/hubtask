@@ -302,7 +302,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_confirmed` | ConfirmCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_file_attached` | AttachCiMedia | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_file_removed` | DetachCiMedia | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_read` | ListCiAssets | `cmdb_asset` | INFO | When refused |
+| `cmdb.ci_read` | ListCiAttachments | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiBacklinks | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiCampaigns | `cmdb_campaign` | INFO | When refused |
 | `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |

@@ -7084,6 +7084,11 @@ class EntryCis(TypedDict, total=False):
     related: Required[list["EntryOnCi"]]
     collisions: Required[list["EntryOnCi"]]
 
+class CiAttachments(TypedDict, total=False):
+    """The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version."""
+    ci_id: Required[str]
+    media_ids: Required[list[str]]
+
 class CiWork(TypedDict, total=False):
     ci_id: Required[str]
     data: Required[list["CiWorkEntry"]]

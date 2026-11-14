@@ -15522,6 +15522,12 @@ type CiAssetStep struct {
 // CiAssetStepState defines model for CiAssetStep.State.
 type CiAssetStepState string
 
+// CiAttachments The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version.
+type CiAttachments struct {
+	CiId     openapi_types.UUID   `json:"ci_id"`
+	MediaIds []openapi_types.UUID `json:"media_ids"`
+}
+
 // CiAttest defines model for CiAttest.
 type CiAttest struct {
 	Verdict CiAttestVerdict `json:"verdict"`
@@ -29811,6 +29817,12 @@ type MoveCiAssetParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListCiAttachmentsParams defines parameters for ListCiAttachments.
+type ListCiAttachmentsParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // SetCiComplianceParams defines parameters for SetCiCompliance.
 type SetCiComplianceParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -34664,6 +34676,15 @@ type ServerInterface interface {
 	// MoveCiAsset Move a register record through its life
 	// (POST /cis/{ciId}/asset:move)
 	MoveCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params MoveCiAssetParams)
+	// ListCiAttachments An object's files
+	// (GET /cis/{ciId}/attachments)
+	ListCiAttachments(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ListCiAttachmentsParams)
+	// DetachCiMedia Take a file off an object
+	// (DELETE /cis/{ciId}/attachments/{mediaId})
+	DetachCiMedia(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, mediaId MediaId)
+	// AttachCiMedia Put a file on an object
+	// (PUT /cis/{ciId}/attachments/{mediaId})
+	AttachCiMedia(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, mediaId MediaId)
 	// ListCiBacklinks What points at an object
 	// (GET /cis/{ciId}/backlinks)
 	ListCiBacklinks(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
@@ -43915,6 +43936,131 @@ func (siw *ServerInterfaceWrapper) MoveCiAsset(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.MoveCiAsset(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiAttachments operation middleware
+func (siw *ServerInterfaceWrapper) ListCiAttachments(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiAttachmentsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiAttachments(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DetachCiMedia operation middleware
+func (siw *ServerInterfaceWrapper) DetachCiMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DetachCiMedia(w, r, ciId, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AttachCiMedia operation middleware
+func (siw *ServerInterfaceWrapper) AttachCiMedia(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AttachCiMedia(w, r, ciId, mediaId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66691,6 +66837,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/backlinks", wrapper.ListCiBacklinks)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/work", wrapper.ListCiWork)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/attachments", wrapper.ListCiAttachments)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/cis/{ciId}/attachments/{mediaId}", wrapper.DetachCiMedia)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/attachments/{mediaId}", wrapper.AttachCiMedia)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/cis", wrapper.ListEntryCis)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.UnaffectEntryCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.AffectEntryCi)

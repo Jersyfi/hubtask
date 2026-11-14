@@ -50,6 +50,7 @@ var restDoors = map[string]restDoor{
 	"askQuery":              {UseCase: "AskQuery", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"askWorkspace":          {UseCase: "AskWorkspace", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"assignWorkItem":        {UseCase: "AssignWorkItem", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"attachCiMedia":         {UseCase: "AttachCiMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachMedia":           {UseCase: "AttachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachPageMedia":       {UseCase: "AttachPageMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"attachWhiteboardMedia": {UseCase: "AttachWhiteboardMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -234,6 +235,7 @@ var restDoors = map[string]restDoor{
 	"deleteWhiteboardComment":           {UseCase: "DeleteWhiteboardComment", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteWorkflow":                    {UseCase: "DeleteWorkflow", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"describeRule":                      {UseCase: "DescribeRule", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"detachCiMedia":                     {UseCase: "DetachCiMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"detachMedia":                       {UseCase: "DetachMedia", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableRule":                       {UseCase: "DisableRule", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"disableTotp":                       {UseCase: "DisableTotp", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -335,6 +337,7 @@ var restDoors = map[string]restDoor{
 	"listChatBots":                      {UseCase: "ListChatBots", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCiAlerts":                      {UseCase: "ListCiAlerts", Status: 200, Query: []string{"limit", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listCiAssets":                      {UseCase: "ListCiAssets", Status: 200, Query: []string{"after", "limit", "state"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
+	"listCiAttachments":                 {UseCase: "ListCiAttachments", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listCiBacklinks":                   {UseCase: "ListCiBacklinks", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCiCampaigns":                   {UseCase: "ListCiCampaigns", Status: 200, Query: []string{"limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listCiClasses":                     {UseCase: "ListCiClasses", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1101,6 +1104,12 @@ func (c *RestController) AskWorkspace(w http.ResponseWriter, r *http.Request, pa
 func (c *RestController) AssignWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AssignWorkItemParams) {
 	var body openapi.AssignWorkItemJSONRequestBody
 	c.door(w, r, restDoors["assignWorkItem"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// AttachCiMedia answers PUT /cis/{ciId}/attachments/{mediaId} by the generated mapping.
+func (c *RestController) AttachCiMedia(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, mediaId openapi.MediaId) {
+	var answer openapi.CiAttachments
+	c.door(w, r, restDoors["attachCiMedia"], usecase.Input{"ci_id": ciId.String(), "media_id": mediaId.String()}, nil, nil, &answer)
 }
 
 // AttachMedia answers PUT /items/{itemId}/attachments/{mediaId} by the generated mapping.
@@ -2331,6 +2340,12 @@ func (c *RestController) DescribeRule(w http.ResponseWriter, r *http.Request, pa
 	c.door(w, r, restDoors["describeRule"], usecase.Input{}, params, &body, answerBy(acceptedAsk))
 }
 
+// DetachCiMedia answers DELETE /cis/{ciId}/attachments/{mediaId} by the generated mapping.
+func (c *RestController) DetachCiMedia(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, mediaId openapi.MediaId) {
+	var answer openapi.CiAttachments
+	c.door(w, r, restDoors["detachCiMedia"], usecase.Input{"ci_id": ciId.String(), "media_id": mediaId.String()}, nil, nil, &answer)
+}
+
 // DetachMedia answers DELETE /items/{itemId}/attachments/{mediaId} by the generated mapping.
 func (c *RestController) DetachMedia(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, mediaId openapi.MediaId) {
 	c.door(w, r, restDoors["detachMedia"], usecase.Input{"item_id": itemId.String(), "media_id": mediaId.String()}, nil, nil, answerBy(attachmentsResponse))
@@ -3068,6 +3083,12 @@ func (c *RestController) ListCiAlerts(w http.ResponseWriter, r *http.Request, hu
 func (c *RestController) ListCiAssets(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params openapi.ListCiAssetsParams) {
 	var answer openapi.CiAssetList
 	c.door(w, r, restDoors["listCiAssets"], usecase.Input{"hub_id": hubId.String()}, params, nil, &answer)
+}
+
+// ListCiAttachments answers GET /cis/{ciId}/attachments by the generated mapping.
+func (c *RestController) ListCiAttachments(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params openapi.ListCiAttachmentsParams) {
+	var answer openapi.MediaPage
+	c.door(w, r, restDoors["listCiAttachments"], usecase.Input{"ci_id": ciId.String()}, params, nil, &answer)
 }
 
 // ListCiBacklinks answers GET /cis/{ciId}/backlinks by the generated mapping.

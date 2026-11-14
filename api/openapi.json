@@ -10047,6 +10047,118 @@
         }
       }
     },
+    "/cis/{ciId}/attachments": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiAttachments",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci files",
+        "summary": "An object's files",
+        "description": "The object's files as media objects, oldest upload first, without a download target per row - one is read for one file. Needs READ on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The files",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/cis/{ciId}/attachments/{mediaId}": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        {
+          "$ref": "#/components/parameters/MediaId"
+        }
+      ],
+      "put": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "attachCiMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci attach",
+        "summary": "Put a file on an object",
+        "description": "Idempotent: an object that already holds it succeeds. The media object has to be READY, of usage ATTACHMENT and of this workspace; it is one the caller uploaded or one an object of a hub they read already holds. Attaching raises the object's reference count; the bytes are shared, never copied. At most 500 files an object (`cmdb.files_full`, 409). Needs WRITE_ITEMS on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The files the object now holds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAttachments"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "detachCiMedia",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci detach",
+        "summary": "Take a file off an object",
+        "description": "Idempotent: an object that does not hold it succeeds. The media object itself stays; once nothing references it, the reconciliation job removes it. Needs WRITE_ITEMS on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The files the object now holds",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiAttachments"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}/cis": {
       "parameters": [
         {
@@ -76258,6 +76370,27 @@
                   }
                 }
               ]
+            }
+          }
+        }
+      },
+      "CiAttachments": {
+        "type": "object",
+        "description": "The files one object holds. Returned by attaching and detaching rather than the object itself: neither touches the object's own row or version.\n",
+        "required": [
+          "ci_id",
+          "media_ids"
+        ],
+        "properties": {
+          "ci_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "media_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         }

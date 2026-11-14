@@ -598,6 +598,36 @@ func TestAPictureOnABoardIsReadByTheBoardsReaders(t *testing.T) {
 	}
 }
 
+// ciHolders answers the hubs of the inventory objects holding each upload.
+type ciHolders map[shared.ID][]shared.ID
+
+func (c ciHolders) ReferencingCis(_ context.Context, id shared.ID) ([]shared.ID, error) {
+	return c[id], nil
+}
+
+// UC-AST-01 check 11: a file on an inventory object is read by whoever may read the object's hub,
+// asked along the hub's path; somebody who may not is told it does not exist.
+func TestAFileOnAnInventoryObjectIsReadByTheObjectsReaders(t *testing.T) {
+	for _, allow := range []bool{true, false} {
+		handler, records, permission, _ := readingHarness()
+		records.stored[mintedID] = ready(strangerA)
+		handler.CiFiles = ciHolders{mintedID: {hubID}}
+		permission.allow = allow
+
+		_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+		if allow && err != nil {
+			t.Fatalf("a reader of the object was refused: %v", err)
+		}
+		if !allow && !errors.Is(err, shared.ErrNotFound) {
+			t.Fatalf("somebody outside the hub got %v, want not found", err)
+		}
+		want := []identity.Scope{identity.TenantScope(), identity.HubScope(hubID)}
+		if len(permission.asked) != 1 || !samePath(permission.asked[0][0], want) {
+			t.Fatalf("asked %v, want the hub's path", permission.asked)
+		}
+	}
+}
+
 // UC-SVC-05 check 9: a desk's logo is read by whoever may raise a request at its collection - the
 // portal's question, REQUEST or READ along the collection's path; anybody else is told it does
 // not exist.

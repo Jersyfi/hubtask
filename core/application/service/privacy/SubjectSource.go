@@ -217,6 +217,7 @@ var notThePersons = map[string]string{
 	"realtime_snapshot":       "a compaction of many authors' updates into one state, which names nobody; each author's own updates are in the map above",
 	"whiteboard_media":        "which media object lies on which board - the file itself is in media_objects, filtered by who uploaded it",
 	"page_media":              "which media object a page holds - the file itself is in media_objects, filtered by who uploaded it",
+	"cmdb_ci_media":           "which media object an inventory object holds - the file itself is in media_objects, filtered by who uploaded it",
 	"page_label":              "a page's labels name no writer; the page they belong to is filtered by its author",
 	"cmdb_class":              "the workspace's own classes of configuration items",
 	"cmdb_relation_type":      "the workspace's vocabulary of relations between configuration items",

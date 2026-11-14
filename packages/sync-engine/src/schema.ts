@@ -481,6 +481,7 @@ export type CiAssetList = components['schemas']['CiAssetList'];
 export type CiAssetRegister = components['schemas']['CiAssetRegister'];
 export type CiAssetMove = components['schemas']['CiAssetMove'];
 export type CiAssetStep = components['schemas']['CiAssetStep'];
+export type CiAttachments = components['schemas']['CiAttachments'];
 export type SoftwareAlias = components['schemas']['SoftwareAlias'];
 export type SoftwareAliasList = components['schemas']['SoftwareAliasList'];
 export type SoftwareAliasDefine = components['schemas']['SoftwareAliasDefine'];

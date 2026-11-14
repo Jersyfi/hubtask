@@ -3095,6 +3095,18 @@ func (pending) ListCiWork(w http.ResponseWriter, r *http.Request, _ openapi_type
 	notAvailable(w, r)
 }
 
+func (pending) ListCiAttachments(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiAttachmentsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) AttachCiMedia(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) DetachCiMedia(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
 func (pending) ListHubCiWork(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

@@ -399,6 +399,18 @@ func (q *Queries) ClearCmdbCiIdentifier(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCmdbCiMedia = `-- name: ClearCmdbCiMedia :execrows
+DELETE FROM cmdb_ci_media
+`
+
+func (q *Queries) ClearCmdbCiMedia(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbCiMedia)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearCmdbClass = `-- name: ClearCmdbClass :execrows
 DELETE FROM cmdb_class
 `
@@ -2180,6 +2192,21 @@ SELECT EXISTS (SELECT 1 FROM cmdb_ci_identifier WHERE ci_id = ($1::jsonb->>'ci_i
 
 func (q *Queries) HoldsCmdbCiIdentifier(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCmdbCiIdentifier, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbCiMedia = `-- name: HoldsCmdbCiMedia :one
+SELECT EXISTS (
+  SELECT 1 FROM cmdb_ci_media
+  WHERE ci_id = ($1::jsonb->>'ci_id')::uuid
+    AND media_id = ($1::jsonb->>'media_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsCmdbCiMedia(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbCiMedia, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4846,6 +4873,24 @@ type ImportCmdbCiIdentifierParams struct {
 
 func (q *Queries) ImportCmdbCiIdentifier(ctx context.Context, arg ImportCmdbCiIdentifierParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCmdbCiIdentifier, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbCiMedia = `-- name: ImportCmdbCiMedia :execrows
+INSERT INTO cmdb_ci_media (tenant_id, ci_id, media_id)
+SELECT r.tenant_id, r.ci_id, r.media_id
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_media,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, ci_id, media_id) DO NOTHING
+`
+
+func (q *Queries) ImportCmdbCiMedia(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbCiMedia, payload)
 	if err != nil {
 		return 0, err
 	}

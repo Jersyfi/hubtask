@@ -2239,6 +2239,8 @@ func run() error {
 		Store: postgres.NewCmdbRepository(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
 		Assurance: postgres.NewCmdbAssuranceRepository(),
+		// An object's files and the reader that judges another object's upload (UC-AST-01).
+		Files: mediaObjects, Reader: authorizer,
 		// A round's owners reminded by a writer (UC-AST-10).
 		Notify: notification.RecordAttestation{
 			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
@@ -2446,7 +2448,7 @@ func run() error {
 	mediaRead := mediaservice.GetMedia{
 		Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
 		Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		Pages: knowledgeservice.PageMediaReach{Space: pageSpace},
+		Pages: knowledgeservice.PageMediaReach{Space: pageSpace}, CiFiles: mediaObjects,
 	}
 	// The document server the administration entered may sit on a private network where the
 	// installation allows it (security.md §10): its calls, and only its, go through a client
@@ -2857,6 +2859,8 @@ func run() error {
 		cmdbservice.SetCiConnectorCredential{Connectors: connectors}.Descriptor(),
 		cmdbservice.RunCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.ListCiAlerts{Connectors: connectors}.Descriptor(),
+		cmdbservice.AttachCiMedia{Inventory: inventory}.Descriptor(),
+		cmdbservice.DetachCiMedia{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiBacklinks{Inventory: inventory, Pointers: cmdbservice.Pointers{
 			Texts: pageSpace.Pages, Boards: boardStudio.Boards, Entries: entryLinks, Reader: authorizer,
 		}}.Descriptor(),
@@ -3904,6 +3908,9 @@ func run() error {
 		mediaservice.ListAttachments{
 			Objects: mediaObjects, Items: items, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		mediaservice.ListCiAttachments{
+			CIs: inventory.Store, Files: mediaObjects, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 
 		backupservice.CreateBackupTarget{Writer: backupWriter}.Descriptor(),

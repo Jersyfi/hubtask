@@ -816,6 +816,12 @@ var generatedCommands = []door{
 			{Name: "warranty_until", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"name", "state", "version"}},
+	{Group: "ci", Verb: "attach", OperationID: "attachCiMedia", Method: "PUT", Path: "/cis/{ciId}/attachments/{mediaId}", Summary: "Put a file on an object",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"ci_id"}},
 	{Group: "ci", Verb: "attest", OperationID: "attestCi", Method: "PUT", Path: "/ci-campaigns/{campaignId}/cis/{ciId}", Summary: "Answer a campaign's question about an object",
 		PathParams: []doorParam{
 			{Name: "campaignId", Kind: "uuid", Help: "", Required: true},
@@ -863,6 +869,12 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "detach", OperationID: "detachCiMedia", Method: "DELETE", Path: "/cis/{ciId}/attachments/{mediaId}", Summary: "Take a file off an object",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"ci_id"}},
 	{Group: "ci", Verb: "duplicate ls", OperationID: "listCiDuplicates", Method: "GET", Path: "/hubs/{hubId}/ci-duplicates", Summary: "Open duplicates",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -879,6 +891,15 @@ var generatedCommands = []door{
 			{Name: "survivor_id", Kind: "uuid", Help: "The object that stays; absent says the objects are distinct", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "version"}},
+	{Group: "ci", Verb: "files", OperationID: "listCiAttachments", Method: "GET", Path: "/cis/{ciId}/attachments", Summary: "An object's files",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "status"}},
 	{Group: "ci", Verb: "get", OperationID: "readCi", Method: "GET", Path: "/cis/{ciId}", Summary: "Read an object",
 		PathParams: []doorParam{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},

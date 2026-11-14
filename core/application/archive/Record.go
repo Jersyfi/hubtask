@@ -971,6 +971,14 @@ var entities = []Entity{
 		},
 	},
 	{
+		// An inventory object's files (migration 0434), after the objects and the uploads they name.
+		Name: "cmdb_ci_media", Table: "cmdb_ci_media", Whole: true, Later: true, Keys: []string{"ci_id", "media_id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+			{Field: "media_id", Table: "media_object"},
+		},
+	},
+	{
 		Name: "cmdb_software_aliases", Table: "cmdb_software_alias", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
 	},
 	// The service desk's business calendars, SLA policies and what became of each goal on an entry
