@@ -23,7 +23,8 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 /** The items of a menu by their labels alone, without the reasons beside them. */
-const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim().replace(/…$/, '') ?? ''));
+// A menu's item carries its label in `.label`; shown as a phone's sheet (D-1), the label is the item's first line.
+const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => (item.querySelector('.label')?.textContent ?? item.innerText.split('\n')[0] ?? '').trim().replace(/…$/, '')));
 
 /** The collection's own menu (design-system.md §11.1): what is done to the place itself, trash last. */
 // The place's one menu, the same from its page and its row in the navigation (placeMenu.ts).
