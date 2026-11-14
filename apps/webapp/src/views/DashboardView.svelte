@@ -210,7 +210,9 @@
     const parsed = dashboard?.filter ? parseQuery(dashboard.filter) : undefined;
     return parsed?.ok ? parsed.query.filter : undefined;
   });
-  let previewRows = $state<FigureRow[]>([]);
+  // The library's previews count by status: kept as read, named as the statuses' names arrive (C-2).
+  let previewCounts = $state<Record<string, unknown>[]>([]);
+  const previewRows = $derived<FigureRow[]>(figureRows(previewCounts, { group: (value) => groupName('status', value), period: (day) => day }));
   let previewEntries = $state<ListEntry[]>([]);
   $effect(() => {
     if (!isLibraryOpen) return;
@@ -221,7 +223,7 @@
     return untrack(() => {
       const closers = [
         engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:aggregate', body: { scope, ...(filter ? { filter } : {}), aggregate: { function: 'COUNT', group_by: 'status' } } }, (next) => {
-          if (next.status === 'ready') previewRows = figureRows(next.data.data, { group: (value) => groupName('status', value), period: (day) => day });
+          if (next.status === 'ready') previewCounts = next.data.data;
         }),
         ...(hub ? [engine.subscribe<{ data: Record<string, unknown>[] }>({ path: '/items:query', body: { scope, ...(filter ? { filter } : {}), page: { size: 3 } } }, (next) => {
           if (next.status === 'ready') previewEntries = next.data.data.map((row) => ({ id: String(row['id']), key: ticketKeyOf(typeof row['collection_id'] === 'string' ? containers.find(row['collection_id']) : undefined, row['number'] as number) ?? '', title: String(row['title'] ?? ''), href: `/items/${String(row['id'])}`, column: '' }));
@@ -395,7 +397,7 @@
   const readsViews = $derived(shown.some((widget) => widget.source === 'VIEW'));
   // A group is named by what it is a value of, so the names are read where a widget groups by them.
   $effect(() => {
-    const wanted = { types: groupFields.has('entry_type'), statuses: groupFields.has('status') || shown.some((widget) => widget.chart === 'LIST' && widget.column === 'status'), views: readsViews, hub: placeHub ?? undefined };
+    const wanted = { types: groupFields.has('entry_type'), statuses: groupFields.has('status') || shown.some((widget) => widget.chart === 'LIST' && widget.column === 'status') || isLibraryOpen || (draftWidget !== undefined && aggregateOf(draftWidget)?.group_by === 'status'), views: readsViews, hub: placeHub ?? undefined };
     return untrack(() => {
       const closers = [
         ...(wanted.types ? [entryTypes.open()] : []),

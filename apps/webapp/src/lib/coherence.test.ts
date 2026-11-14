@@ -275,3 +275,9 @@ test('a link a component leaves unstyled takes the design system\'s link style, 
   assert.match(css, /:where\(a:any-link\) \{\s*color: var\(--text-brand\);\s*text-decoration: none;/u, 'an unstyled link keeps the browser\'s underline');
   assert.match(css, /:where\(a:any-link:hover\),\s*:where\(p, blockquote\) :where\(a:any-link\) \{\s*text-decoration: underline;/u, 'a link in a sentence lost its line');
 });
+
+test('the widget library names its preview\'s statuses, read while it is open and named once the names arrive (C-2)', () => {
+  const view = sources.find(({ path }) => path === 'views/DashboardView.svelte')?.text ?? '';
+  assert.match(view, /const previewRows = \$derived<FigureRow\[\]>\(figureRows\(previewCounts, \{ group: \(value\) => groupName\('status', value\)/u, 'the preview is named once, as read');
+  assert.match(view, /statuses: [^\n]*\|\| isLibraryOpen \|\| \(draftWidget !== undefined && aggregateOf\(draftWidget\)\?\.group_by === 'status'\)/u, 'the statuses are not read for the library or the editor');
+});
