@@ -263,4 +263,12 @@
   .said { color: var(--text-secondary); font-size: var(--fs-075); }
   .said.clash { color: var(--text-warning); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .rows > li { position: relative; min-block-size: var(--layout-target); align-content: center; }
+    .what::after { content: ''; position: absolute; inset: 0; }
+  }
 </style>

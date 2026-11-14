@@ -324,5 +324,10 @@ test('the controls the press walk still found short reach a thumb\'s target on a
   overhangs('views/SprintView.svelte', '.card-title');
   overhangs('lib/files/EntryFiles.svelte', '.what a');
   grows('lib/posts/PostPublish.svelte', '.when button');
+  overhangs('lib/assets/Care.svelte', '.act');
+  overhangs('lib/assets/Care.svelte', '.more');
+  assert.match(block('lib/assets/Health.svelte'), /\.row > a::after \{ content: ''; position: absolute; inset: 0; \}/u, 'a health row is pressed whole');
+  assert.match(block('lib/assets/MapTab.svelte'), /\.what::after \{ content: ''; position: absolute; inset: 0; \}/u, 'a map row is pressed whole');
+  assert.match(block('lib/assets/ServiceGraph.svelte'), /\.name a::after \{ content: ''; position: absolute; inset: 0; \}/u, 'a map node is pressed whole');
   assert.match(block('lib/workspace/PlacePeople.svelte'), /\.members \{ position: relative; z-index: 1; \}/u, 'the members\' overhang is painted over');
 });
