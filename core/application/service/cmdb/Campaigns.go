@@ -6,6 +6,7 @@ package cmdb
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -18,20 +19,22 @@ import (
 
 // The use case names (UC-AST-10).
 const (
-	ListCiCampaignsName = "ListCiCampaigns"
-	StartCiCampaignName = "StartCiCampaign"
-	ReadCiCampaignName  = "ReadCiCampaign"
-	AttestCiName        = "AttestCi"
-	CloseCiCampaignName = "CloseCiCampaign"
-	ConfirmCiName       = "ConfirmCi"
+	ListCiCampaignsName  = "ListCiCampaigns"
+	StartCiCampaignName  = "StartCiCampaign"
+	ReadCiCampaignName   = "ReadCiCampaign"
+	AttestCiName         = "AttestCi"
+	CloseCiCampaignName  = "CloseCiCampaign"
+	ConfirmCiName        = "ConfirmCi"
+	RemindCiCampaignName = "RemindCiCampaign"
 )
 
 // The audit codes of certification. An attestation names the CI and the verdict, never a name.
 const (
-	CampaignStartedAction audit.Action = "cmdb.campaign_started"
-	CampaignClosedAction  audit.Action = "cmdb.campaign_closed"
-	CIAttestedAction      audit.Action = "cmdb.ci_attested"
-	CIConfirmedAction     audit.Action = "cmdb.ci_confirmed"
+	CampaignStartedAction  audit.Action = "cmdb.campaign_started"
+	CampaignClosedAction   audit.Action = "cmdb.campaign_closed"
+	CIAttestedAction       audit.Action = "cmdb.ci_attested"
+	CIConfirmedAction      audit.Action = "cmdb.ci_confirmed"
+	CampaignRemindedAction audit.Action = "cmdb.campaign_reminded"
 )
 
 const campaignTarget = "cmdb_campaign"
@@ -491,6 +494,65 @@ func (s Inventory) answerOpenCampaigns(ctx context.Context, actor appshared.Acto
 		answered++
 	}
 	return answered, nil
+}
+
+// RemindCiCampaign tells the owners of objects an open campaign still waits for.
+type RemindCiCampaign struct{ Inventory Inventory }
+
+// Descriptor is the catalogue entry.
+func (h RemindCiCampaign) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: RemindCiCampaignName, Permission: service.PermissionWriteItems,
+		Summary: "Reminds each owning person of an object a certification campaign still waits for, once per call, " +
+			"naming how many of their objects wait. Refused when no pending object has an owning person, and on a " +
+			"closed campaign.",
+		SideEffects: "Records a reminder for each owner and writes an audit entry naming how many, never whom.", TokenScope: cisWrite,
+		Input: []usecase.Field{{Name: "campaign_id", Kind: usecase.KindID, Required: true, Description: "The campaign."}},
+		Audit: usecase.AuditDeclaration{Action: CampaignRemindedAction, TargetType: campaignTarget, Severity: audit.SeverityInfo, Required: true},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("campaign_id")
+			if err != nil {
+				return nil, err
+			}
+			s := h.Inventory
+			c, err := s.campaign(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			if err := s.authorizeHub(ctx, actor, c.HubID, true, CampaignRemindedAction, campaignTarget, id); err != nil {
+				return nil, err
+			}
+			if c.Closed() {
+				return nil, shared.ErrConflict.WithDetail("cmdb.campaign_closed")
+			}
+			var owners []shared.ID
+			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				as, err := s.Assurance.Attestations(ctx, id)
+				if err != nil {
+					return err
+				}
+				waiting := domain.Waiting(as, actor.AccountID)
+				if len(waiting) == 0 {
+					return shared.ErrConflict.WithDetail("cmdb.nobody_to_remind")
+				}
+				for owner := range waiting {
+					owners = append(owners, owner)
+				}
+				slices.SortFunc(owners, compareIDs)
+				if s.Notify != nil {
+					if err := s.Notify.AttestationReminder(ctx, actor.TenantID, actor.AccountID, id, owners); err != nil {
+						return err
+					}
+				}
+				return s.record(ctx, actor, CampaignRemindedAction, campaignTarget, id,
+					audit.Change{Field: "reminded", Classification: audit.Open, To: itoa(len(owners))})
+			})
+			if err != nil {
+				return nil, err
+			}
+			return usecase.Output{"reminded": len(owners)}, nil
+		}),
+	})
 }
 
 // CloseCiCampaign stops a campaign taking answers; its score stays as it stood.

@@ -241,3 +241,4 @@ one workspace, by person and place.
 | `notifications.request_reply` | PERSON | `SELF` | the person |
 | `notifications.sla` | PERSON | `SELF` | the person |
 | `notifications.post` | PERSON | `SELF` | the person |
+| `notifications.attestation` | PERSON | `SELF` | the person |

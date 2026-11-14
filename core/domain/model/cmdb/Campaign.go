@@ -161,6 +161,18 @@ func (ci CI) Confirm(by shared.ID, now, local time.Time, months int) (CI, error)
 	return ci, nil
 }
 
+// Waiting counts, per owning person, the objects a campaign still waits for - the pending
+// questions that name an owner. The one who asks is left out: nobody reminds themselves.
+func Waiting(as []Attestation, asker shared.ID) map[shared.ID]int {
+	out := map[shared.ID]int{}
+	for _, a := range as {
+		if a.Verdict == VerdictPending && !a.Owner.IsZero() && a.Owner != asker {
+			out[a.Owner]++
+		}
+	}
+	return out
+}
+
 // Today is the day now falls on in the zone it is read in - the workspace's -, as a review day
 // is held: midnight UTC of that date.
 func Today(now time.Time) time.Time {

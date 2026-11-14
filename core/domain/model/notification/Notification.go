@@ -87,6 +87,10 @@ const (
 	// writer reminding those who have not confirmed it (UC-DOC-18 check 2). Its own switch, because
 	// news from a hub is neither somebody's act on one's work nor a moment one asked for.
 	CategoryPost Category = "POST"
+	// CategoryAttestation is a writer reminding the owners of objects an attestation round still
+	// waits for (UC-AST-10). Its own switch, because a round's reminder is the workspace's upkeep
+	// rather than somebody's act on one's work.
+	CategoryAttestation Category = "ATTESTATION"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
@@ -94,7 +98,7 @@ func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
 		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess, CategoryRequestReply,
-		CategorySLA, CategoryPost,
+		CategorySLA, CategoryPost, CategoryAttestation,
 	}
 }
 
@@ -251,6 +255,9 @@ type Notification struct {
 	// CodeHookID is the forge hook that switched itself off because the person it acts as may no
 	// longer write in its hub, told to the workspace's and the hub's administrators once.
 	CodeHookID shared.ID
+	// CampaignID is the attestation round whose owners a writer reminds (UC-AST-10): the message
+	// reads its name and how many of the recipient's objects still wait at delivery.
+	CampaignID shared.ID
 	// ActorID is who caused it, zero where nobody did: the automatic assignment acts for the system
 	// rather than for a person.
 	ActorID   shared.ID
@@ -288,6 +295,7 @@ type NewInput struct {
 	CalendarPushID     shared.ID
 	ConnectorID        shared.ID
 	CodeHookID         shared.ID
+	CampaignID         shared.ID
 	ActorID            shared.ID
 	At                 time.Time
 }
@@ -341,6 +349,7 @@ func New(in NewInput) (Notification, error) {
 		CalendarPushID:     in.CalendarPushID,
 		ConnectorID:        in.ConnectorID,
 		CodeHookID:         in.CodeHookID,
+		CampaignID:         in.CampaignID,
 		ActorID:            in.ActorID,
 		CreatedAt:          in.At,
 	}, nil
@@ -348,7 +357,7 @@ func New(in NewInput) (Notification, error) {
 
 func subjectsNamed(in NewInput) int {
 	named := 0
-	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID, in.CalendarPushID, in.ConnectorID, in.CodeHookID} {
+	for _, id := range []shared.ID{in.ItemID, in.RuleID, in.SubscriptionID, in.PrivateHubAccessID, in.MembershipID, in.PageID, in.AgentID, in.WhiteboardID, in.ApprovalID, in.BaselineID, in.MailboxID, in.IdentityProviderID, in.CalendarPushID, in.ConnectorID, in.CodeHookID, in.CampaignID} {
 		if !id.IsZero() {
 			named++
 		}

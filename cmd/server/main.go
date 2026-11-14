@@ -84,6 +84,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	calendardomain "github.com/Jersyfi/hubtask/core/domain/model/calendar"
+	cmdbdomain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	identitymodel "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	importdomain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	integrationmodel "github.com/Jersyfi/hubtask/core/domain/model/integration"
@@ -2238,6 +2239,11 @@ func run() error {
 		Store: postgres.NewCmdbRepository(), Containers: containers, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Changes: changes, HLC: hybrid,
 		Assurance: postgres.NewCmdbAssuranceRepository(),
+		// A round's owners reminded by a writer (UC-AST-10).
+		Notify: notification.RecordAttestation{
+			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+			Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+		},
 	}
 	// An entry's affected CIs read the entries and who may see them (UC-AST-09).
 	affecting := cmdbservice.Affecting{Inventory: inventory, Pointers: cmdbservice.Pointers{Entries: entryLinks, Reader: authorizer}, Workflows: workflows}
@@ -2780,6 +2786,7 @@ func run() error {
 		cmdbservice.AttestCi{Inventory: inventory}.Descriptor(),
 		cmdbservice.ConfirmCi{Inventory: inventory}.Descriptor(),
 		cmdbservice.DeleteCiGroup{Inventory: inventory}.Descriptor(),
+		cmdbservice.RemindCiCampaign{Inventory: inventory}.Descriptor(),
 		cmdbservice.CloseCiCampaign{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiGroups{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiGroup{Inventory: inventory}.Descriptor(),
@@ -4969,6 +4976,8 @@ func run() error {
 			// The calendar push, connector or forge hook that stopped, by the name it is known by.
 			Connections: connectionNames{pushes: postgres.NewCalendarPushRepository(), connectors: postgres.NewCmdbConnectorRepository(), hooks: postgres.NewCodeForgeRepository()},
 			Boards:      postgres.NewWhiteboardRepository(),
+			// The attestation round a reminder names, and how many of the owner's objects wait.
+			Rounds: roundsWaiting{postgres.NewCmdbAssuranceRepository()},
 			// The approval a message is about, and through it the entry.
 			Approvals: serviceDeskStore.Approvals(),
 			// The baseline a plan slipped from, and through it the plan's place.
@@ -5490,15 +5499,17 @@ func run() error {
 		// And under a plan exception's (queue.KindPlanExceptionEmail).
 		queueport.KindPlanExceptionEmail: notificationDelivery,
 		// And under a post's (queue.KindPostEmail).
-		queueport.KindPostEmail:       notificationDelivery,
-		queueport.KindWebhookDeliver:  webhookDelivery,
-		queueport.KindPlatformSweep:   worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindOwnDomainCheck:  worker.OwnDomainCheck{Check: ownDomainCheck},
-		queueport.KindPlatformDeliver: platformDelivery,
-		queueport.KindAutomationRun:   automationRun,
-		queueport.KindAutomationHTTP:  outboundCall,
-		queueport.KindBackupRun:       backupRun,
-		queueport.KindBackupVerify:    worker.BackupVerify{Performer: backupPerformer},
+		queueport.KindPostEmail: notificationDelivery,
+		// And under an attestation round's reminder (queue.KindAttestationEmail).
+		queueport.KindAttestationEmail: notificationDelivery,
+		queueport.KindWebhookDeliver:   webhookDelivery,
+		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindOwnDomainCheck:   worker.OwnDomainCheck{Check: ownDomainCheck},
+		queueport.KindPlatformDeliver:  platformDelivery,
+		queueport.KindAutomationRun:    automationRun,
+		queueport.KindAutomationHTTP:   outboundCall,
+		queueport.KindBackupRun:        backupRun,
+		queueport.KindBackupVerify:     worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},
@@ -6092,6 +6103,24 @@ func (c connectionNames) CalendarPushName(ctx context.Context, id shared.ID) (st
 func (c connectionNames) ConnectorName(ctx context.Context, id shared.ID) (string, error) {
 	connector, err := c.connectors.FindConnector(ctx, id, false)
 	return connector.Key, err
+}
+
+// roundsWaiting names an attestation round, its hub and how many of an owner's objects it still
+// waits for, for the reminder's mail.
+type roundsWaiting struct {
+	assurance postgres.CmdbAssuranceRepository
+}
+
+func (r roundsWaiting) RoundWaiting(ctx context.Context, campaignID, owner shared.ID) (string, shared.ID, int, error) {
+	c, err := r.assurance.FindCampaign(ctx, campaignID)
+	if err != nil {
+		return "", shared.ID(""), 0, err
+	}
+	as, err := r.assurance.Attestations(ctx, campaignID)
+	if err != nil {
+		return "", shared.ID(""), 0, err
+	}
+	return c.Name, c.HubID, cmdbdomain.Waiting(as, shared.ID(""))[owner], nil
 }
 
 // samlProviderEnds names a SAML provider and the end of its last certificate for the warning.

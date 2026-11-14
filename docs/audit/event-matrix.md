@@ -294,6 +294,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.asset_moved` | MoveCiAsset | `cmdb_asset` | INFO | Every time |
 | `cmdb.asset_registered` | RegisterCiAsset | `cmdb_asset` | INFO | Every time |
 | `cmdb.campaign_closed` | CloseCiCampaign | `cmdb_campaign` | INFO | Every time |
+| `cmdb.campaign_reminded` | RemindCiCampaign | `cmdb_campaign` | INFO | Every time |
 | `cmdb.campaign_started` | StartCiCampaign | `cmdb_campaign` | INFO | Every time |
 | `cmdb.ci_affected` | AffectEntryCi | `work_item` | INFO | Every time |
 | `cmdb.ci_attested` | AttestCi | `cmdb_ci` | INFO | Every time |

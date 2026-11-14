@@ -58,6 +58,9 @@ type Message struct {
 	// interface, not of the backend (rule 8).
 	RoleCode  string
 	PlaceCode string
+	// Count is how many of the recipient's objects an attestation round still waits for, written
+	// out; empty for every other message.
+	Count string
 }
 
 // Params is the message's parameters as the i18n port takes them.
@@ -77,7 +80,7 @@ func (m Message) Params() map[string]string {
 	if m.Link != "" {
 		params["link"] = m.Link
 	}
-	for name, value := range map[string]string{"reason": m.Reason, "when": m.When, "until": m.Until} {
+	for name, value := range map[string]string{"reason": m.Reason, "when": m.When, "until": m.Until, "count": m.Count} {
 		if value != "" {
 			params[name] = value
 		}

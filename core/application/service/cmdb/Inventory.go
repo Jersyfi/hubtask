@@ -94,6 +94,14 @@ type Inventory struct {
 	// nothing, a test's convenience.
 	Changes changelog.ChangeLog
 	HLC     clock.HLCSource
+	// Notify reminds the owners an attestation round waits for; nil tells nobody.
+	Notify RoundNotifier
+}
+
+// RoundNotifier tells the owners of objects a round still waits for that a writer reminds them.
+// It is handed the people the application judged (rule 2).
+type RoundNotifier interface {
+	AttestationReminder(ctx context.Context, tenant, writer, campaign shared.ID, owners []shared.ID) error
 }
 
 // The change log's entities: a CI and a relation, each filed under its hub; the catalogue of

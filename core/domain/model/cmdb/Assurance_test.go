@@ -342,6 +342,41 @@ func TestAConfirmationMovesTheReviewAndKeepsWhoSaidSo(t *testing.T) {
 	}
 }
 
+// A round waits for each owner's pending objects; answered ones, ownerless ones and the asker's
+// own are not counted.
+func TestARoundWaitsForEachOwnersPendingObjects(t *testing.T) {
+	ann, ben, asker := id("61"), id("62"), id("63")
+	cases := []struct {
+		name string
+		as   []Attestation
+		want map[shared.ID]int
+	}{
+		{"nothing asked", nil, map[shared.ID]int{}},
+		{"two of one owner, one of another", []Attestation{
+			{Owner: ann, Verdict: VerdictPending}, {Owner: ann, Verdict: VerdictPending}, {Owner: ben, Verdict: VerdictPending},
+		}, map[shared.ID]int{ann: 2, ben: 1}},
+		{"answered and ownerless left out", []Attestation{
+			{Owner: ann, Verdict: VerdictConfirmed}, {Owner: ben, Verdict: VerdictDisputed}, {Verdict: VerdictPending},
+		}, map[shared.ID]int{}},
+		{"the asker's own left out", []Attestation{
+			{Owner: asker, Verdict: VerdictPending}, {Owner: ben, Verdict: VerdictPending},
+		}, map[shared.ID]int{ben: 1}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := Waiting(c.as, asker)
+			if len(got) != len(c.want) {
+				t.Fatalf("%v, want %v", got, c.want)
+			}
+			for owner, n := range c.want {
+				if got[owner] != n {
+					t.Errorf("%s: %d, want %d", owner, got[owner], n)
+				}
+			}
+		})
+	}
+}
+
 // A product's versions are listed newest first by their numbers, not by their letters: 10.0
 // is newer than 9.4, and 1.10 than 1.9.
 func TestAProductsVersionsAreListedNewestFirstByTheirNumbers(t *testing.T) {

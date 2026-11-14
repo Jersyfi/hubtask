@@ -2113,6 +2113,22 @@
           "permission": "SELF"
         }
       ]
+    },
+    {
+      "key": "notifications.attestation",
+      "kind": "FLAG",
+      "levels": [
+        "PERSON"
+      ],
+      "lockable": false,
+      "may": "REPLACE",
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "PERSON",
+          "permission": "SELF"
+        }
+      ]
     }
   ]
 }
