@@ -946,6 +946,30 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `portfolio.status_reported` | ReportPortfolioStatus | `portfolio` | INFO | Every time |
 | `portfolio.updated` | UpdatePortfolio | `portfolio` | INFO | Every time |
 
+## Post
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `post.changed` | SetPostSettings | `post` | INFO | Every time |
+| `post.confirmed` | ConfirmPost | `post` | INFO | When refused |
+| `post.created` | CreatePost | `post` | INFO | Every time |
+| `post.published` | PublishPost | `post` | INFO | Every time |
+| `post.read` | ListHubPosts | `post` | INFO | When refused |
+| `post.read` | ListPostReplies | `post` | INFO | When refused |
+| `post.read` | ReadPost | `post` | INFO | When refused |
+| `post.read` | ReadPostConfirmations | `post` | INFO | When refused |
+| `post.reminded` | RemindPost | `post` | INFO | Every time |
+| `post.seen` | MarkPostSeen | `post` | INFO | When refused |
+
+## Post_reply
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `post_reply.added` | AddPostReply | `post_reply` | INFO | Every time |
+| `post_reply.deleted` | DeletePostReply | `post_reply` | INFO | Every time |
+| `post_reply.reacted` | ReactToPostReply | `post_reply` | INFO | When refused |
+| `post_reply.reacted` | UnreactToPostReply | `post_reply` | INFO | When refused |
+
 ## Presets
 
 | Action | Use case | Target | Severity | Recorded |

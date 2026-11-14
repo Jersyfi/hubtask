@@ -230,6 +230,11 @@ var auditedOnlyWhenRefused = map[string]string{
 	"GiveKudos": "UC-WRK-29 check 6: figures about one person are shown only to that person; a " +
 		"trail of every give would let an auditor count who acknowledged whom",
 	"TakeBackKudos": "UC-WRK-29 check 6, as GiveKudos",
+	"MarkPostSeen": "UC-DOC-18: who has seen a post is counted for everybody and named to nobody; " +
+		"a trail of every reading would name them",
+	"ConfirmPost":        "UC-DOC-18: a read confirmation is shown to the post's writers only, as MarkPostSeen",
+	"ReactToPostReply":   "UC-DOC-18: who reacted to whom, as GiveKudos",
+	"UnreactToPostReply": "UC-DOC-18, as ReactToPostReply",
 }
 
 // Gate SG-13: a use case with security or privacy relevance carries an audit declaration

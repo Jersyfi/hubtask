@@ -32,7 +32,7 @@ type postRow struct {
 	Template                              *string
 	PublishAt, PublishedAt, FeaturedUntil pgtype.Timestamptz
 	Audience                              string
-	GroupIds                              []pgtype.UUID
+	GroupIds                              []pgtype.UUID //nolint:revive // sqlc's spelling, converted from its rows
 	Discussion, Notify                    bool
 	ConfirmBy                             pgtype.Timestamptz
 }
@@ -207,7 +207,7 @@ func (PostRepository) List(
 	}
 	rows, err := queries.ListHubPosts(ctx, sqlc.ListHubPostsParams{
 		HubID: ids[0], AccountID: ids[1], Mine: filter.Mine, Unread: filter.Unread, PageID: page,
-		Now: timestampOf(now), Batch: int32(min(limit, 1000)),
+		Now: timestampOf(now), Batch: boundedInt32(min(limit, 1000)),
 	})
 	if err != nil {
 		return nil, pageFailed("reading the hub's posts", err)
@@ -293,7 +293,7 @@ func (PostRepository) PeopleReaching(ctx context.Context, hubID shared.ID, limit
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.PeopleReachingHub(ctx, sqlc.PeopleReachingHubParams{HubID: hub, Batch: int32(min(limit, 100000))})
+	rows, err := queries.PeopleReachingHub(ctx, sqlc.PeopleReachingHubParams{HubID: hub, Batch: boundedInt32(min(limit, 100000))})
 	if err != nil {
 		return nil, pageFailed("reading the people reaching a hub", err)
 	}
@@ -405,7 +405,7 @@ func (PostRepository) Replies(ctx context.Context, pageID shared.ID, limit int) 
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.ListPostReplies(ctx, sqlc.ListPostRepliesParams{PageID: key, Batch: int32(min(limit, 5000))})
+	rows, err := queries.ListPostReplies(ctx, sqlc.ListPostRepliesParams{PageID: key, Batch: boundedInt32(min(limit, 5000))})
 	if err != nil {
 		return nil, pageFailed("reading the discussion", err)
 	}

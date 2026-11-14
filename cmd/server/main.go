@@ -2079,6 +2079,8 @@ func run() error {
 			Library:  coverimagesadapter.NewOpenverse(coverImagesClient(cfg.Outbound), cfg.Outbound.Timeout),
 			Settings: postgres.SettingRepository{},
 		},
+		// A hub's posts, a scheduled one published by its timer (UC-DOC-17, UC-DOC-18).
+		Posting: knowledgeservice.Posting{Posts: postgres.NewPostRepository(), Timers: reviewClocks},
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -2497,6 +2499,20 @@ func run() error {
 		knowledgeservice.SetCoverImagesPolicy{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SearchCoverImages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.FetchCoverImage{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListHubPosts{Space: pageSpace}.Descriptor(),
+		knowledgeservice.CreatePost{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPost{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetPostSettings{Space: pageSpace}.Descriptor(),
+		knowledgeservice.PublishPost{Space: pageSpace}.Descriptor(),
+		knowledgeservice.MarkPostSeen{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ConfirmPost{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadPostConfirmations{Space: pageSpace}.Descriptor(),
+		knowledgeservice.RemindPost{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPostReplies{Space: pageSpace}.Descriptor(),
+		knowledgeservice.AddPostReply{Space: pageSpace}.Descriptor(),
+		knowledgeservice.DeletePostReply{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReactToPostReply{Space: pageSpace}.Descriptor(),
+		knowledgeservice.UnreactToPostReply{Space: pageSpace}.Descriptor(),
 		knowledgeservice.PublishPageToPortal{Space: pageSpace}.Descriptor(),
 		knowledgeservice.UnpublishPageFromPortal{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPageLanguageVariants{Space: pageSpace}.Descriptor(),
@@ -5319,6 +5335,10 @@ func run() error {
 				},
 				calendardomain.PurposeApproval: servicedeskservice.ApprovalElapsed{
 					Store: deskApprovals, Notify: approvalNotice,
+				},
+				calendardomain.PurposePostPublish: knowledgeservice.PostPublishElapsed{
+					Pages: postgres.NewPageRepository(), Posts: postgres.NewPostRepository(),
+					Timers: reviewClocks, Clock: clockadapter.System{},
 				},
 				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
 					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},

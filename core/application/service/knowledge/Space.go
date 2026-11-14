@@ -123,7 +123,8 @@ type Space struct {
 	Boards BoardPlaces
 	// Covers offers an image library as a cover's fourth source where the workspace chooses one
 	// (UC-DOC-16 check 5); its zero value offers none.
-	Covers CoverLibrary
+	Covers  CoverLibrary // Posting keeps a hub's posts (UC-DOC-17, UC-DOC-18); its zero value offers none.
+	Posting Posting
 }
 
 // Drafting is what a space with drafts needs beside the pages.
@@ -146,6 +147,12 @@ func (s Space) announce(ctx context.Context, actor appshared.ActorContext, pages
 	if err != nil {
 		return err
 	}
+	posts := map[shared.ID]bool{}
+	if s.Posting.Posts != nil {
+		if posts, err = s.Posting.Posts.PostPages(ctx, ids); err != nil {
+			return err
+		}
+	}
 	for _, page := range pages {
 		change := changelog.Change{
 			TenantID: actor.TenantID, Entity: domain.DocumentKind, EntityID: page.ID, Op: changelog.Upsert,
@@ -154,7 +161,8 @@ func (s Space) announce(ctx context.Context, actor appshared.ActorContext, pages
 		}
 		// A change is told to every reader of the hub; a page behind a restriction is not theirs
 		// all, so the devices drop it and read it from the server.
-		if readers[page.ID].Restricted {
+		// A post's audience and moment are judged on the server alone, so it is no device's either.
+		if readers[page.ID].Restricted || posts[page.ID] {
 			change.Op, change.Payload = changelog.Delete, nil
 		}
 		if err := s.Changes.Record(ctx, change); err != nil {
@@ -253,7 +261,10 @@ func (s Space) readable(ctx context.Context, actor appshared.ActorContext, id sh
 	if err := s.admit(ctx, actor, page.ID); err != nil {
 		return domain.Page{}, err
 	}
-	return page, s.authorizeRead(ctx, actor, page, action)
+	if err := s.authorizeRead(ctx, actor, page, action); err != nil {
+		return domain.Page{}, err
+	}
+	return page, s.hidePosts(ctx, actor, page)
 }
 
 // placeOf reads the page's hub before a write: the permission is asked there, outside the write's

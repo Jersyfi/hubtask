@@ -15667,5 +15667,17 @@
   "app.product_home.band_boards_comments": "{count, plural, one {# offener Kommentar} other {# offene Kommentare}}",
   "app.whiteboards.new_more": "Weitere Wege zu einem Whiteboard",
   "app.whiteboards.import_menu": "Aus einem exportierten Whiteboard …",
-  "app.whiteboards.version_more": "Mehr zu dieser Version"
+  "app.whiteboards.version_more": "Mehr zu dieser Version",
+  "posts.confirmation_not_asked": "Dieser Beitrag bittet seine Leser nicht um eine Bestätigung.",
+  "posts.discussion_closed": "Die Diskussion unter diesem Beitrag ist geschlossen.",
+  "posts.nobody_to_remind": "Alle, für die dieser Beitrag ist, haben ihn bestätigt.",
+  "posts.not_found": "Diesen Beitrag gibt es nicht, oder er ist nicht für dich.",
+  "posts.not_published": "Dieser Beitrag ist noch nicht veröffentlicht.",
+  "posts.person_confirms": "Nur eine Person bestätigt, einen Beitrag gelesen zu haben, nie ein Agent oder ein Dienstkonto für sie.",
+  "posts.person_reacts": "Nur eine Person reagiert in einer Diskussion, nie ein Agent oder ein Dienstkonto für sie.",
+  "posts.reply_length": "Eine Antwort braucht Worte, höchstens 64 KB davon.",
+  "posts.reply_not_found": "Diese Antwort gibt es nicht.",
+  "posts.reply_not_yours": "Nur wer sie geschrieben hat oder wer im Hub schreibt, nimmt eine Antwort zurück.",
+  "posts.reply_parent": "Eine Antwort gehört unter eine Antwort, die einen Faden in der Diskussion dieses Beitrags beginnt.",
+  "posts.unavailable": "Beiträge werden hier nicht angeboten."
 }

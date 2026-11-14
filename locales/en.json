@@ -15667,5 +15667,17 @@
   "app.product_home.band_boards_comments": "{count, plural, one {# open comment} other {# open comments}}",
   "app.whiteboards.new_more": "More ways to start a whiteboard",
   "app.whiteboards.import_menu": "From an exported whiteboard…",
-  "app.whiteboards.version_more": "More for this version"
+  "app.whiteboards.version_more": "More for this version",
+  "posts.confirmation_not_asked": "This post does not ask its readers to confirm it.",
+  "posts.discussion_closed": "The discussion under this post is closed.",
+  "posts.nobody_to_remind": "Everybody this post is for has confirmed it.",
+  "posts.not_found": "This post does not exist or is not for you.",
+  "posts.not_published": "This post is not published yet.",
+  "posts.person_confirms": "Only a person confirms having read a post, never an agent or a service account for them.",
+  "posts.person_reacts": "Only a person reacts in a discussion, never an agent or a service account for them.",
+  "posts.reply_length": "A reply needs words, at most 64 KB of them.",
+  "posts.reply_not_found": "This reply does not exist.",
+  "posts.reply_not_yours": "Only its author or a writer of the hub takes a reply back.",
+  "posts.reply_parent": "An answer goes under a reply that opens a thread in this post's discussion.",
+  "posts.unavailable": "Posts are not offered here."
 }

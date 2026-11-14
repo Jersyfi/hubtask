@@ -23,12 +23,14 @@ const (
 	// PurposeOLA counts down a team's goal on an entry; its subject is the goal's record, since
 	// one entry carries the goals of several groups (UC-SVC-02 check 10).
 	PurposeOLA Purpose = "OLA"
+	// PurposePostPublish counts down to a scheduled post's moment (work-surface concept B-3).
+	PurposePostPublish Purpose = "POST_PUBLISH"
 )
 
 // Valid answers whether the purpose is one of the set.
 func (p Purpose) Valid() bool {
 	switch p {
-	case PurposeSLA, PurposeApproval, PurposePageReview, PurposeOLA:
+	case PurposeSLA, PurposeApproval, PurposePageReview, PurposeOLA, PurposePostPublish:
 		return true
 	}
 	return false
