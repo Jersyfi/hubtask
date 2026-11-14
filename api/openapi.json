@@ -150,8 +150,8 @@
     "code": "a hub's forge hooks and an entry's commits, branches and pull requests",
     "file": "an entry's files and folders in a file store: Nextcloud, SharePoint, OneDrive, WebDAV",
     "chat": "a hub's chat bots on Matrix, Slack, Teams and Mattermost, which answer links to entries and make tasks of messages",
-    "cmdb": "the workspace's configuration item classes, relation types and sources, and a hub's inventory health",
-    "ci": "a hub's configuration items: make, reconcile, import, relate, merge and walk their impact",
+    "cmdb": "the workspace's object types, relation types and sources, and a hub's inventory health",
+    "ci": "a hub's inventory objects: make, reconcile, import, relate, merge and walk their impact",
     "business-calendar": "the workspace's business calendars: working hours, holidays and a time zone under a key",
     "sla": "the workspace's SLA policies, how an entry's goals stand, and how they stood in a period",
     "request": "the requester portal: a service's catalogue, raising a request, following and answering your own",
@@ -3817,7 +3817,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "agent run",
         "summary": "Start a shipped agent's job on one target",
-        "description": "Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.\n",
+        "description": "Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -4063,7 +4063,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "agent evaluate-run",
         "summary": "Have a shipped agent answer its own evaluation set",
-        "description": "Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.\n",
+        "description": "Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.\n",
         "requestBody": {
           "required": false,
           "content": {
@@ -4075,7 +4075,7 @@
                   "hub_id": {
                     "type": "string",
                     "format": "uuid",
-                    "description": "The hub whose CIs a CI suggestion or a triage matches; required for those two."
+                    "description": "The hub whose objects an object suggestion or a triage matches; required for those two."
                   },
                   "collection_id": {
                     "type": "string",
@@ -6855,7 +6855,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "item requester",
         "summary": "Who raised the entry, and their organisation",
-        "description": "The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.\n",
+        "description": "The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.\n",
         "responses": {
           "200": {
             "description": "The requester",
@@ -7883,11 +7883,11 @@
         "operationId": "listCiClasses",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb class ls",
-        "summary": "The configuration item classes",
-        "description": "The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.\n",
+        "summary": "The object types",
+        "description": "The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.\n",
         "responses": {
           "200": {
-            "description": "The classes",
+            "description": "The object types",
             "content": {
               "application/json": {
                 "schema": {
@@ -7923,8 +7923,8 @@
           "classKey": "key"
         },
         "x-hubtask-cli": "cmdb class define",
-        "summary": "Add or change a class of the workspace's own",
-        "description": "Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.\n",
+        "summary": "Add or change an object type of the workspace's own",
+        "description": "Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -7942,7 +7942,7 @@
         },
         "responses": {
           "200": {
-            "description": "The class",
+            "description": "The object type",
             "content": {
               "application/json": {
                 "schema": {
@@ -7965,8 +7965,8 @@
         "operationId": "listCiRelationTypes",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb relation-type ls",
-        "summary": "The relation types between configuration items",
-        "description": "The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.\n",
+        "summary": "The relation types between objects",
+        "description": "The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.\n",
         "responses": {
           "200": {
             "description": "The relation types",
@@ -8006,7 +8006,7 @@
         },
         "x-hubtask-cli": "cmdb relation-type define",
         "summary": "Add or change a relation type of the workspace's own",
-        "description": "Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.\n",
+        "description": "Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -8047,7 +8047,7 @@
         "operationId": "listCiSources",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb source ls",
-        "summary": "The sources configuration items come from",
+        "summary": "The sources objects come from",
         "description": "People (`manual`), files, programs and connectors by precedence, a lower rank first.\n",
         "responses": {
           "200": {
@@ -8088,7 +8088,7 @@
         },
         "x-hubtask-cli": "cmdb source define",
         "summary": "Add or change a source",
-        "description": "Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.\n",
+        "description": "Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -8140,8 +8140,8 @@
         "operationId": "listCis",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci ls",
-        "summary": "A hub's configuration items",
-        "description": "A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.\n",
+        "summary": "A hub's objects",
+        "description": "A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.\n",
         "parameters": [
           {
             "name": "class",
@@ -8177,7 +8177,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The CIs",
+            "description": "The objects",
             "content": {
               "application/json": {
                 "schema": {
@@ -8199,8 +8199,8 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-rest-location": "/cis/{id}",
         "x-hubtask-cli": "ci create",
-        "summary": "Make a configuration item by hand",
-        "description": "Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.\n",
+        "summary": "Make an object by hand",
+        "description": "Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -8248,7 +8248,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci reconcile",
         "summary": "Reconcile a source's payload",
-        "description": "Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.\n",
+        "description": "Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -8295,7 +8295,7 @@
         "operationId": "importCiFile",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci import",
-        "summary": "Import a file of configuration items",
+        "summary": "Import a file of objects",
         "description": "A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": true,
@@ -8393,7 +8393,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci run get",
         "summary": "One reconciliation run with its decisions",
-        "description": "Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.",
+        "description": "Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.",
         "responses": {
           "200": {
             "description": "The run",
@@ -8431,7 +8431,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci hold ls",
         "summary": "Items held for review",
-        "description": "What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.",
+        "description": "What the reconciliation held instead of making an object, newest first. Needs READ on the hub.",
         "parameters": [
           {
             "name": "limit",
@@ -8518,7 +8518,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci duplicate ls",
         "summary": "Open duplicates",
-        "description": "Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.",
+        "description": "Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.",
         "parameters": [
           {
             "name": "limit",
@@ -8567,7 +8567,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci duplicate resolve",
         "summary": "Merge a duplicate or call it distinct",
-        "description": "With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.\n",
+        "description": "With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": false,
           "content": {
@@ -8615,7 +8615,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb connector ls",
         "summary": "A hub's connectors",
-        "description": "The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.\n",
+        "description": "The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.\n",
         "responses": {
           "200": {
             "description": "The connectors",
@@ -8812,7 +8812,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci alert ls",
         "summary": "A hub's alerts",
-        "description": "The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.\n",
+        "description": "The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.\n",
         "parameters": [
           {
             "name": "status",
@@ -8883,7 +8883,7 @@
         "x-hubtask-rest-to": "Intake",
         "security": [],
         "summary": "Post alerts to an intake",
-        "description": "An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.\nEvery reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.\n",
+        "description": "An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.\nEvery reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.\n",
         "parameters": [
           {
             "name": "X-Hubtask-Signature",
@@ -9714,7 +9714,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb health",
         "summary": "A hub's inventory judged",
-        "description": "Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.\n",
+        "description": "Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.\n",
         "responses": {
           "200": {
             "description": "The health",
@@ -9751,11 +9751,11 @@
         "operationId": "readCi",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci get",
-        "summary": "Read a configuration item",
+        "summary": "Read an object",
         "description": "With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.\n",
         "responses": {
           "200": {
-            "description": "The CI",
+            "description": "The object",
             "content": {
               "application/json": {
                 "schema": {
@@ -9776,8 +9776,8 @@
         "operationId": "updateCi",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci update",
-        "summary": "Change a configuration item by hand",
-        "description": "Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.\n",
+        "summary": "Change an object by hand",
+        "description": "Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -9795,7 +9795,7 @@
         },
         "responses": {
           "200": {
-            "description": "The CI",
+            "description": "The object",
             "content": {
               "application/json": {
                 "schema": {
@@ -9829,7 +9829,7 @@
         "operationId": "setCiCompliance",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci compliance",
-        "summary": "Set a configuration item's lifecycle and compliance fields",
+        "summary": "Set an object's lifecycle and compliance fields",
         "description": "Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.\n",
         "parameters": [
           {
@@ -9848,7 +9848,7 @@
         },
         "responses": {
           "200": {
-            "description": "The CI",
+            "description": "The object",
             "content": {
               "application/json": {
                 "schema": {
@@ -9882,7 +9882,7 @@
         "operationId": "readCiImpact",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci impact",
-        "summary": "What a configuration item's failure reaches",
+        "summary": "What an object's failure reaches",
         "description": "DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.\n",
         "parameters": [
           {
@@ -9942,7 +9942,7 @@
         "operationId": "listCiBacklinks",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci backlinks",
-        "summary": "What points at a configuration item",
+        "summary": "What points at an object",
         "description": "The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.\n",
         "responses": {
           "200": {
@@ -9980,11 +9980,11 @@
         "operationId": "listCiWork",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci work",
-        "summary": "The entries a configuration item is part of",
-        "description": "Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.\n",
+        "summary": "The entries an object is part of",
+        "description": "Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.\n",
         "responses": {
           "200": {
-            "description": "The entries on the CI",
+            "description": "The entries on the object",
             "content": {
               "application/json": {
                 "schema": {
@@ -10018,11 +10018,11 @@
         "operationId": "listEntryCis",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "item cis",
-        "summary": "The configuration items an entry names as affected",
-        "description": "Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.\n",
+        "summary": "The objects an entry names as affected",
+        "description": "Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.\n",
         "responses": {
           "200": {
-            "description": "The affected CIs",
+            "description": "The affected objects",
             "content": {
               "application/json": {
                 "schema": {
@@ -10065,11 +10065,11 @@
         "operationId": "affectEntryCi",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "item affect",
-        "summary": "Name a configuration item as affected by an entry",
-        "description": "At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.\n",
+        "summary": "Name an object as affected by an entry",
+        "description": "At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.\n",
         "responses": {
           "200": {
-            "description": "The affected CIs as they now stand",
+            "description": "The affected objects as they now stand",
             "content": {
               "application/json": {
                 "schema": {
@@ -10090,11 +10090,11 @@
         "operationId": "unaffectEntryCi",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "item unaffect",
-        "summary": "Remove a configuration item from an entry's affected ones",
+        "summary": "Remove an object from an entry's affected ones",
         "description": "Needs WRITE_ITEMS on the entry.",
         "responses": {
           "200": {
-            "description": "The affected CIs as they now stand",
+            "description": "The affected objects as they now stand",
             "content": {
               "application/json": {
                 "schema": {
@@ -10164,8 +10164,8 @@
         "operationId": "startCiCampaign",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb campaign start",
-        "summary": "Ask the owners of a hub's CIs to attest them",
-        "description": "Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.\n",
+        "summary": "Ask the owners of a hub's objects to attest them",
+        "description": "Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -10212,8 +10212,8 @@
         "operationId": "readCiCampaign",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb campaign show",
-        "summary": "A certification campaign with every CI asked",
-        "description": "Its score and each CI's verdict, who gave it and when. Needs READ on the hub.",
+        "summary": "A certification campaign with every object asked",
+        "description": "Its score and each object's verdict, who gave it and when. Needs READ on the hub.",
         "responses": {
           "200": {
             "description": "The campaign",
@@ -10302,8 +10302,8 @@
         "operationId": "attestCi",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci attest",
-        "summary": "Answer a campaign's question about a configuration item",
-        "description": "CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.\n",
+        "summary": "Answer a campaign's question about an object",
+        "description": "CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -10350,11 +10350,11 @@
         "operationId": "listHubCiWork",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci work count",
-        "summary": "How many open entries name each configuration item of a hub",
-        "description": "For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.\n",
+        "summary": "How many open entries name each object of a hub",
+        "description": "For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.\n",
         "responses": {
           "200": {
-            "description": "The open entries per CI",
+            "description": "The open entries per object",
             "content": {
               "application/json": {
                 "schema": {
@@ -10388,8 +10388,8 @@
         "operationId": "listCiGroups",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb group ls",
-        "summary": "A hub's CI groups",
-        "description": "Each with how many CIs it holds now. Needs READ on the hub.",
+        "summary": "A hub's object groups",
+        "description": "Each with how many objects it holds now. Needs READ on the hub.",
         "responses": {
           "200": {
             "description": "The groups",
@@ -10437,8 +10437,8 @@
           "groupKey": "key"
         },
         "x-hubtask-cli": "cmdb group define",
-        "summary": "Define or change a CI group by its key",
-        "description": "A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.\n",
+        "summary": "Define or change an object group by its key",
+        "description": "A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -10490,7 +10490,7 @@
         "operationId": "listCiGroupMembers",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb group members",
-        "summary": "The configuration items a group holds now",
+        "summary": "The objects a group holds now",
         "description": "Needs READ on the hub.",
         "responses": {
           "200": {
@@ -10576,8 +10576,8 @@
         "operationId": "listCiAssets",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb asset ls",
-        "summary": "A hub's asset register",
-        "description": "In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.",
+        "summary": "A hub's register records",
+        "description": "In object order after a cursor, narrowed to a state when given. Needs READ on the hub.",
         "parameters": [
           {
             "name": "state",
@@ -10614,7 +10614,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The assets",
+            "description": "The register records",
             "content": {
               "application/json": {
                 "schema": {
@@ -10648,11 +10648,11 @@
         "operationId": "readCiAsset",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci asset",
-        "summary": "A configuration item's asset record",
+        "summary": "An object's register record",
         "description": "With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.",
         "responses": {
           "200": {
-            "description": "The asset",
+            "description": "The register record",
             "content": {
               "application/json": {
                 "schema": {
@@ -10673,7 +10673,7 @@
         "operationId": "registerCiAsset",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci asset register",
-        "summary": "Write a configuration item's asset record",
+        "summary": "Write an object's register record",
         "description": "Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.\n",
         "parameters": [
           {
@@ -10692,7 +10692,7 @@
         },
         "responses": {
           "200": {
-            "description": "The asset",
+            "description": "The register record",
             "content": {
               "application/json": {
                 "schema": {
@@ -10726,8 +10726,8 @@
         "operationId": "moveCiAsset",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci asset move",
-        "summary": "Move an asset through its life",
-        "description": "The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.\n",
+        "summary": "Move a register record through its life",
+        "description": "The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -10745,7 +10745,7 @@
         },
         "responses": {
           "200": {
-            "description": "The asset",
+            "description": "The register record",
             "content": {
               "application/json": {
                 "schema": {
@@ -10885,7 +10885,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "cmdb software",
         "summary": "A hub's software, normalised",
-        "description": "Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.\n",
+        "description": "Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.\n",
         "responses": {
           "200": {
             "description": "The products",
@@ -10911,8 +10911,8 @@
         "operationId": "relateCis",
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "ci relate",
-        "summary": "Join two configuration items",
-        "description": "By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.\n",
+        "summary": "Join two objects",
+        "description": "By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -29990,7 +29990,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "find all",
         "summary": "One search over every kind of object the caller may read",
-        "description": "Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.\n",
+        "description": "Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -51602,7 +51602,7 @@
             "description": "True where the mail intake filed the request for a sender without an account: account_id is then whoever opened the intake, not the requester, and the requester's other requests are not that person's.\n"
           },
           "assets": {
-            "description": "The configuration items the requester owns that the reader may read, by name, at most 20.\n",
+            "description": "The objects the requester owns that the reader may read, by name, at most 20.\n",
             "type": "array",
             "items": {
               "type": "object",
@@ -51970,7 +51970,7 @@
               "string",
               "null"
             ],
-            "description": "What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory item's class key, a file's media type, a person's account kind.\n"
+            "description": "What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory object's object type key, a file's media type, a person's account kind.\n"
           },
           "snippet": {
             "type": [
@@ -51984,7 +51984,7 @@
               "string",
               "null"
             ],
-            "description": "An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory item's stage, a dashboard's sharing, a person's account status.\n"
+            "description": "An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's stage, a dashboard's sharing, a person's account status.\n"
           },
           "key": {
             "type": [
@@ -52845,7 +52845,7 @@
           },
           "title": {
             "type": "string",
-            "description": "The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name."
+            "description": "The entry's, page's or goal's title, the container's, view's, dashboard's or object's name."
           },
           "key": {
             "type": [
@@ -52927,7 +52927,7 @@
           "hub_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in."
+            "description": "The hub a page, a whiteboard, an object, or a goal or dashboard of a hub is in."
           },
           "status": {
             "type": "string",
@@ -52935,11 +52935,11 @@
           },
           "ci_class": {
             "type": "string",
-            "description": "A configuration item's class."
+            "description": "An object's object type."
           },
           "stage": {
             "type": "string",
-            "description": "A configuration item's lifecycle stage."
+            "description": "An object's lifecycle stage."
           },
           "icon": {
             "type": [
@@ -54265,7 +54265,7 @@
       },
       "EntryType": {
         "type": "object",
-        "description": "A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.\n",
+        "description": "A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries.\n",
         "required": [
           "key",
           "level",
@@ -73710,7 +73710,7 @@
           },
           "class": {
             "type": "string",
-            "description": "The class that declared the rule."
+            "description": "The object type that declared the rule."
           }
         }
       },
@@ -73732,13 +73732,13 @@
           },
           "class": {
             "type": "string",
-            "description": "The class that declared it; left out where it is defined."
+            "description": "The object type that declared it; left out where it is defined."
           }
         }
       },
       "CiClass": {
         "type": "object",
-        "description": "A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.\n",
+        "description": "An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.\n",
         "required": [
           "key",
           "parent",
@@ -73799,7 +73799,7 @@
           },
           "own_staleness_days": {
             "type": "integer",
-            "description": "The staleness period the class sets itself; 0 where it inherits."
+            "description": "The staleness period the object type sets itself; 0 where it inherits."
           },
           "lineage": {
             "type": "array",
@@ -73992,7 +73992,7 @@
       },
       "CiFileMapping": {
         "type": "object",
-        "description": "How a CSV table's or a JSON array's columns become a configuration item.",
+        "description": "How a CSV table's or a JSON array's columns become an object.",
         "required": [
           "class",
           "name_column"
@@ -74177,7 +74177,7 @@
       },
       "CiOwnProtection": {
         "type": "object",
-        "description": "The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.\n",
+        "description": "The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.\n",
         "properties": {
           "c": {
             "type": [
@@ -74368,7 +74368,7 @@
       },
       "ConfigurationItem": {
         "type": "object",
-        "description": "A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.\n",
+        "description": "An object in a hub. `attributes` hold its object type's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.\n",
         "required": [
           "id",
           "hub_id",
@@ -74459,7 +74459,7 @@
           },
           "has_asset": {
             "type": "boolean",
-            "description": "Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.\n"
+            "description": "Given on a single read: whether it has a register record. False means `GET /cis/{ciId}/asset` answers not found.\n"
           },
           "review_due": {
             "type": [
@@ -74846,7 +74846,7 @@
       },
       "CiConnector": {
         "type": "object",
-        "description": "A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.\n",
+        "description": "A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.\n",
         "required": [
           "id",
           "hub_id",
@@ -74899,7 +74899,7 @@
           },
           "inventory": {
             "type": "boolean",
-            "description": "An intake posted CIs rather than alerts."
+            "description": "An intake posted objects rather than alerts."
           },
           "base_url": {
             "type": "string"
@@ -75993,13 +75993,13 @@
           "survivor_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The CI that stays; absent says the CIs are distinct."
+            "description": "The object that stays; absent says the objects are distinct."
           }
         }
       },
       "CiDuplicateResolved": {
         "type": "object",
-        "description": "The survivor after a merge, or the duplicate's identifier when the CIs are distinct.",
+        "description": "The survivor after a merge, or the duplicate's identifier when the objects are distinct.",
         "required": [
           "id",
           "merged"
@@ -76080,7 +76080,7 @@
           },
           "services": {
             "type": "array",
-            "description": "The active services and offerings the affected CIs' failure reaches.",
+            "description": "The active services and offerings the affected objects' failure reaches.",
             "items": {
               "type": "object",
               "required": [
@@ -76104,14 +76104,14 @@
           },
           "related": {
             "type": "array",
-            "description": "The other open entries naming an affected CI or one it reaches.",
+            "description": "The other open entries naming an affected object or one it reaches.",
             "items": {
               "$ref": "#/components/schemas/EntryOnCi"
             }
           },
           "collisions": {
             "type": "array",
-            "description": "The entries planned on an affected CI, or one it reaches, in an overlapping window.",
+            "description": "The entries planned on an affected object, or one it reaches, in an overlapping window.",
             "items": {
               "allOf": [
                 {
@@ -76125,7 +76125,7 @@
                   "properties": {
                     "direct": {
                       "type": "boolean",
-                      "description": "Both entries name the CI itself."
+                      "description": "Both entries name the object itself."
                     }
                   }
                 }
@@ -76177,7 +76177,7 @@
                 "open": {
                   "type": "integer",
                   "minimum": 1,
-                  "description": "The open entries the reader may see that name the CI."
+                  "description": "The open entries the reader may see that name the object."
                 }
               }
             }
@@ -76285,14 +76285,14 @@
               "NAMES",
               "BENEATH"
             ],
-            "description": "NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers."
+            "description": "NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers."
           },
           "via": {
             "type": [
               "object",
               "null"
             ],
-            "description": "The nearest CI beneath that the entry names; null for NAMES.",
+            "description": "The nearest object beneath that the entry names; null for NAMES.",
             "required": [
               "ci_id",
               "name",
@@ -76689,12 +76689,12 @@
             "type": "boolean",
             "description": "Also",
             "or only": null,
-            "CIs without an owner.": null
+            "objects without an owner.": null
           },
           "locations": {
             "type": "array",
             "maxItems": 50,
-            "description": "The location is one of these location CIs (or none, with no_location) - asset.location.",
+            "description": "The location is one of these location objects (or none, with no_location) - asset.location.",
             "items": {
               "type": "string",
               "format": "uuid"
@@ -76704,12 +76704,12 @@
             "type": "boolean",
             "description": "Also",
             "or only": null,
-            "CIs without a location.": null
+            "objects without a location.": null
           },
           "tags": {
             "type": "array",
             "maxItems": 50,
-            "description": "The asset tag is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.",
+            "description": "The inventory number is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.",
             "items": {
               "type": "string",
               "minLength": 1,
@@ -76720,7 +76720,7 @@
             "type": "boolean",
             "description": "Also",
             "or only": null,
-            "CIs without an asset tag.": null
+            "objects without an inventory number.": null
           }
         }
       },
@@ -76792,7 +76792,7 @@
           },
           "members": {
             "type": "integer",
-            "description": "How many CIs it holds now."
+            "description": "How many objects it holds now."
           }
         }
       },
@@ -76923,7 +76923,7 @@
           },
           "truncated": {
             "type": "boolean",
-            "description": "The map stopped at 2000 CIs."
+            "description": "The map stopped at 2000 objects."
           }
         }
       },
@@ -77187,7 +77187,7 @@
           },
           "moves": {
             "type": "array",
-            "description": "The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one asset, not by the register's list; an asset registered before the steps were kept has none, its state alone.\n",
+            "description": "The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one register record, not by the register's list; a register record made before the steps were kept has none, its state alone.\n",
             "items": {
               "$ref": "#/components/schemas/CiAssetStep"
             }
@@ -77584,7 +77584,7 @@
       },
       "CmdbHealth": {
         "type": "object",
-        "description": "A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.\n",
+        "description": "A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.\n",
         "required": [
           "total",
           "completeness",
@@ -77727,7 +77727,7 @@
                 },
                 "cis": {
                   "type": "integer",
-                  "description": "The active CIs it rests on, itself included."
+                  "description": "The active objects it rests on, itself included."
                 },
                 "wanting": {
                   "type": "integer",

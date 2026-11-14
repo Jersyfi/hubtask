@@ -2871,7 +2871,7 @@ class WorkflowPicture(TypedDict, total=False):
     steps: Required[list[dict[str, Any]]]
 
 class EntryType(TypedDict, total=False):
-    """A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries."""
+    """A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries."""
     key: Required[str]
     level: Required["ItemType"]
     system: Required[bool]
@@ -6579,7 +6579,7 @@ CiRequiredRelation = TypedDict("CiRequiredRelation", {
 }, total=False)
 
 class CiClass(TypedDict, total=False):
-    """A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits."""
+    """An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits."""
     key: Required[str]
     parent: Required[str]
     name: str
@@ -6673,7 +6673,7 @@ class CiProtection(TypedDict, total=False):
     a: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
 
 class CiOwnProtection(TypedDict, total=False):
-    """The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`."""
+    """The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`."""
     c: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
     i: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
     a: Literal["NORMAL", "HIGH", "VERY_HIGH"] | None
@@ -6814,7 +6814,7 @@ class CiRun(TypedDict, total=False):
     skipped_rows: list[int]
 
 class CiConnector(TypedDict, total=False):
-    """A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's."""
+    """A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's."""
     id: Required[str]
     hub_id: Required[str]
     key: Required[str]
@@ -7308,7 +7308,7 @@ class CiBacklinkList(TypedDict, total=False):
     data: Required[list[dict[str, Any]]]
 
 class CmdbHealth(TypedDict, total=False):
-    """A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept."""
+    """A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept."""
     total: Required[int]
     completeness: Required[float]
     correctness: Required[float]

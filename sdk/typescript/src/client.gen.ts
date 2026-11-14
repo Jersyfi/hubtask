@@ -1011,17 +1011,17 @@ export class HubtaskClient {
     return this.call("POST", "/requests/{itemId}/comments", { "itemId": itemId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The configuration item classes */
+  /** The object types */
   listCiClasses(options: CallOptions = {}): Promise<operations["listCiClasses"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/classes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Add or change a class of the workspace's own */
+  /** Add or change an object type of the workspace's own */
   defineCiClass(classKey: string, body: NonNullable<operations["defineCiClass"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiClass"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cmdb/classes/{classKey}", { "classKey": classKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The relation types between configuration items */
+  /** The relation types between objects */
   listCiRelationTypes(options: CallOptions = {}): Promise<operations["listCiRelationTypes"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/relation-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1031,7 +1031,7 @@ export class HubtaskClient {
     return this.call("PUT", "/cmdb/relation-types/{typeKey}", { "typeKey": typeKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The sources configuration items come from */
+  /** The sources objects come from */
   listCiSources(options: CallOptions = {}): Promise<operations["listCiSources"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cmdb/sources", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1041,12 +1041,12 @@ export class HubtaskClient {
     return this.call("PUT", "/cmdb/sources/{sourceKey}", { "sourceKey": sourceKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** A hub's configuration items */
+  /** A hub's objects */
   listCis(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCis"]['parameters']['query']> } = {}): Promise<operations["listCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/cis", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Make a configuration item by hand */
+  /** Make an object by hand */
   createCi(hubId: string, body: NonNullable<operations["createCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createCi"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/cis", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
@@ -1056,7 +1056,7 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/cis:reconcile", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Import a file of configuration items */
+  /** Import a file of objects */
   importCiFile(hubId: string, body: NonNullable<operations["importCiFile"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["importCiFile"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/cis:import", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
@@ -1215,47 +1215,47 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/cmdb-health", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Read a configuration item */
+  /** Read an object */
   readCi(ciId: string, options: CallOptions = {}): Promise<operations["readCi"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Change a configuration item by hand */
+  /** Change an object by hand */
   updateCi(ciId: string, body: NonNullable<operations["updateCi"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/cis/{ciId}", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Set a configuration item's lifecycle and compliance fields */
+  /** Set an object's lifecycle and compliance fields */
   setCiCompliance(ciId: string, body: NonNullable<operations["setCiCompliance"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setCiCompliance"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cis/{ciId}/compliance", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** What a configuration item's failure reaches */
+  /** What an object's failure reaches */
   readCiImpact(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["readCiImpact"]['parameters']['query']> } = {}): Promise<operations["readCiImpact"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/impact", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** What points at a configuration item */
+  /** What points at an object */
   listCiBacklinks(ciId: string, options: CallOptions = {}): Promise<operations["listCiBacklinks"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/backlinks", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** The entries a configuration item is part of */
+  /** The entries an object is part of */
   listCiWork(ciId: string, options: CallOptions = {}): Promise<operations["listCiWork"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/work", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** The configuration items an entry names as affected */
+  /** The objects an entry names as affected */
   listEntryCis(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/cis", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Name a configuration item as affected by an entry */
+  /** Name an object as affected by an entry */
   affectEntryCi(itemId: string, ciId: string, options: CallOptions = {}): Promise<operations["affectEntryCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/items/{itemId}/cis/{ciId}", { "itemId": itemId, "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Remove a configuration item from an entry's affected ones */
+  /** Remove an object from an entry's affected ones */
   unaffectEntryCi(itemId: string, ciId: string, options: CallOptions = {}): Promise<operations["unaffectEntryCi"]['responses'][200]['content']["application/json"]> {
     return this.call("DELETE", "/items/{itemId}/cis/{ciId}", { "itemId": itemId, "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1265,12 +1265,12 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/ci-campaigns", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Ask the owners of a hub's CIs to attest them */
+  /** Ask the owners of a hub's objects to attest them */
   startCiCampaign(hubId: string, body: NonNullable<operations["startCiCampaign"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["startCiCampaign"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/ci-campaigns", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** A certification campaign with every CI asked */
+  /** A certification campaign with every object asked */
   readCiCampaign(campaignId: string, options: CallOptions = {}): Promise<operations["readCiCampaign"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/ci-campaigns/{campaignId}", { "campaignId": campaignId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1280,27 +1280,27 @@ export class HubtaskClient {
     return this.call("POST", "/ci-campaigns/{campaignId}:close", { "campaignId": campaignId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Answer a campaign's question about a configuration item */
+  /** Answer a campaign's question about an object */
   attestCi(campaignId: string, ciId: string, body: NonNullable<operations["attestCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attestCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", { "campaignId": campaignId, "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** How many open entries name each configuration item of a hub */
+  /** How many open entries name each object of a hub */
   listHubCiWork(hubId: string, options: CallOptions = {}): Promise<operations["listHubCiWork"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/ci-work", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** A hub's CI groups */
+  /** A hub's object groups */
   listCiGroups(hubId: string, options: CallOptions = {}): Promise<operations["listCiGroups"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/ci-groups", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Define or change a CI group by its key */
+  /** Define or change an object group by its key */
   defineCiGroup(hubId: string, groupKey: string, body: NonNullable<operations["defineCiGroup"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiGroup"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", { "hubId": hubId, "groupKey": groupKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The configuration items a group holds now */
+  /** The objects a group holds now */
   listCiGroupMembers(groupId: string, options: CallOptions = {}): Promise<operations["listCiGroupMembers"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/ci-groups/{groupId}/members", { "groupId": groupId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
@@ -1310,22 +1310,22 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/service-map", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** A hub's asset register */
+  /** A hub's register records */
   listCiAssets(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiAssets"]['parameters']['query']> } = {}): Promise<operations["listCiAssets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/hubs/{hubId}/assets", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** A configuration item's asset record */
+  /** An object's register record */
   readCiAsset(ciId: string, options: CallOptions = {}): Promise<operations["readCiAsset"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/cis/{ciId}/asset", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Write a configuration item's asset record */
+  /** Write an object's register record */
   registerCiAsset(ciId: string, body: NonNullable<operations["registerCiAsset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["registerCiAsset"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cis/{ciId}/asset", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Move an asset through its life */
+  /** Move a register record through its life */
   moveCiAsset(ciId: string, body: NonNullable<operations["moveCiAsset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["moveCiAsset"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/cis/{ciId}/asset:move", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
@@ -1350,7 +1350,7 @@ export class HubtaskClient {
     return this.call("GET", "/hubs/{hubId}/software", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Join two configuration items */
+  /** Join two objects */
   relateCis(body: NonNullable<operations["relateCis"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["relateCis"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/ci-relations", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }

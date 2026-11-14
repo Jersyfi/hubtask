@@ -824,15 +824,15 @@ class Client:
         return self._call("POST", "/requests/{itemId}/comments", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def list_ci_classes(self) -> "CiClassList":
-        """The configuration item classes"""
+        """The object types"""
         return self._call("GET", "/cmdb/classes", {}, None, {}, None, "none", None, "json")
 
     def define_ci_class(self, class_key: str, body: "CiClassDefine", *, if_match: str | None = None) -> "CiClass":
-        """Add or change a class of the workspace's own"""
+        """Add or change an object type of the workspace's own"""
         return self._call("PUT", "/cmdb/classes/{classKey}", {"classKey": class_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_ci_relation_types(self) -> "CiRelationTypeList":
-        """The relation types between configuration items"""
+        """The relation types between objects"""
         return self._call("GET", "/cmdb/relation-types", {}, None, {}, None, "none", None, "json")
 
     def define_ci_relation_type(self, type_key: str, body: "CiRelationTypeDefine", *, if_match: str | None = None) -> "CiRelationType":
@@ -840,7 +840,7 @@ class Client:
         return self._call("PUT", "/cmdb/relation-types/{typeKey}", {"typeKey": type_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_ci_sources(self) -> "CiSourceList":
-        """The sources configuration items come from"""
+        """The sources objects come from"""
         return self._call("GET", "/cmdb/sources", {}, None, {}, None, "none", None, "json")
 
     def define_ci_source(self, source_key: str, body: "CiSourceDefine", *, if_match: str | None = None) -> "CiSource":
@@ -848,11 +848,11 @@ class Client:
         return self._call("PUT", "/cmdb/sources/{sourceKey}", {"sourceKey": source_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_cis(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ConfigurationItemList":
-        """A hub's configuration items"""
+        """A hub's objects"""
         return self._call("GET", "/hubs/{hubId}/cis", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def create_ci(self, hub_id: str, body: "ConfigurationItemCreate") -> "ConfigurationItem":
-        """Make a configuration item by hand"""
+        """Make an object by hand"""
         return self._call("POST", "/hubs/{hubId}/cis", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def reconcile_cis(self, hub_id: str, body: "CiPayload") -> "CiRun":
@@ -860,7 +860,7 @@ class Client:
         return self._call("POST", "/hubs/{hubId}/cis:reconcile", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def import_ci_file(self, hub_id: str, body: "CiFileImport") -> "CiRun":
-        """Import a file of configuration items"""
+        """Import a file of objects"""
         return self._call("POST", "/hubs/{hubId}/cis:import", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def list_ci_runs(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiRunList":
@@ -984,39 +984,39 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/cmdb-health", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def read_ci(self, ci_id: str) -> "ConfigurationItem":
-        """Read a configuration item"""
+        """Read an object"""
         return self._call("GET", "/cis/{ciId}", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def update_ci(self, ci_id: str, body: "ConfigurationItemUpdate", *, if_match: str | None = None) -> "ConfigurationItem":
-        """Change a configuration item by hand"""
+        """Change an object by hand"""
         return self._call("PATCH", "/cis/{ciId}", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def set_ci_compliance(self, ci_id: str, body: "CiCompliance", *, if_match: str | None = None) -> "ConfigurationItem":
-        """Set a configuration item's lifecycle and compliance fields"""
+        """Set an object's lifecycle and compliance fields"""
         return self._call("PUT", "/cis/{ciId}/compliance", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def read_ci_impact(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "CiImpact":
-        """What a configuration item's failure reaches"""
+        """What an object's failure reaches"""
         return self._call("GET", "/cis/{ciId}/impact", {"ciId": ci_id}, query, {}, None, "none", None, "json")
 
     def list_ci_backlinks(self, ci_id: str) -> "CiBacklinkList":
-        """What points at a configuration item"""
+        """What points at an object"""
         return self._call("GET", "/cis/{ciId}/backlinks", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def list_ci_work(self, ci_id: str) -> "CiWork":
-        """The entries a configuration item is part of"""
+        """The entries an object is part of"""
         return self._call("GET", "/cis/{ciId}/work", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def list_entry_cis(self, item_id: str) -> "EntryCis":
-        """The configuration items an entry names as affected"""
+        """The objects an entry names as affected"""
         return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")
 
     def affect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
-        """Name a configuration item as affected by an entry"""
+        """Name an object as affected by an entry"""
         return self._call("PUT", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def unaffect_entry_ci(self, item_id: str, ci_id: str) -> "EntryCis":
-        """Remove a configuration item from an entry's affected ones"""
+        """Remove an object from an entry's affected ones"""
         return self._call("DELETE", "/items/{itemId}/cis/{ciId}", {"itemId": item_id, "ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def list_ci_campaigns(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiCampaignList":
@@ -1024,11 +1024,11 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def start_ci_campaign(self, hub_id: str, body: "CiCampaignStart") -> "CiCampaign":
-        """Ask the owners of a hub's CIs to attest them"""
+        """Ask the owners of a hub's objects to attest them"""
         return self._call("POST", "/hubs/{hubId}/ci-campaigns", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
     def read_ci_campaign(self, campaign_id: str) -> "CiCampaignDetail":
-        """A certification campaign with every CI asked"""
+        """A certification campaign with every object asked"""
         return self._call("GET", "/ci-campaigns/{campaignId}", {"campaignId": campaign_id}, None, {}, None, "none", None, "json")
 
     def close_ci_campaign(self, campaign_id: str, *, if_match: str | None = None) -> "CiCampaign":
@@ -1036,23 +1036,23 @@ class Client:
         return self._call("POST", "/ci-campaigns/{campaignId}:close", {"campaignId": campaign_id}, None, {"If-Match": if_match}, None, "none", None, "json")
 
     def attest_ci(self, campaign_id: str, ci_id: str, body: "CiAttest") -> "CiAttestation":
-        """Answer a campaign's question about a configuration item"""
+        """Answer a campaign's question about an object"""
         return self._call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", {"campaignId": campaign_id, "ciId": ci_id}, None, {}, body, "json", "application/json", "json")
 
     def list_hub_ci_work(self, hub_id: str) -> "CiWorkCounts":
-        """How many open entries name each configuration item of a hub"""
+        """How many open entries name each object of a hub"""
         return self._call("GET", "/hubs/{hubId}/ci-work", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def list_ci_groups(self, hub_id: str) -> "CiGroupList":
-        """A hub's CI groups"""
+        """A hub's object groups"""
         return self._call("GET", "/hubs/{hubId}/ci-groups", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def define_ci_group(self, hub_id: str, group_key: str, body: "CiGroupDefine", *, if_match: str | None = None) -> "CiGroup":
-        """Define or change a CI group by its key"""
+        """Define or change an object group by its key"""
         return self._call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_ci_group_members(self, group_id: str) -> "CiGroupMembers":
-        """The configuration items a group holds now"""
+        """The objects a group holds now"""
         return self._call("GET", "/ci-groups/{groupId}/members", {"groupId": group_id}, None, {}, None, "none", None, "json")
 
     def read_service_map(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "ServiceMap":
@@ -1060,19 +1060,19 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/service-map", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def list_ci_assets(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "CiAssetList":
-        """A hub's asset register"""
+        """A hub's register records"""
         return self._call("GET", "/hubs/{hubId}/assets", {"hubId": hub_id}, query, {}, None, "none", None, "json")
 
     def read_ci_asset(self, ci_id: str) -> "CiAsset":
-        """A configuration item's asset record"""
+        """An object's register record"""
         return self._call("GET", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
     def register_ci_asset(self, ci_id: str, body: "CiAssetRegister", *, if_match: str | None = None) -> "CiAsset":
-        """Write a configuration item's asset record"""
+        """Write an object's register record"""
         return self._call("PUT", "/cis/{ciId}/asset", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def move_ci_asset(self, ci_id: str, body: "CiAssetMove", *, if_match: str | None = None) -> "CiAsset":
-        """Move an asset through its life"""
+        """Move a register record through its life"""
         return self._call("POST", "/cis/{ciId}/asset:move", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def list_software_aliases(self) -> "SoftwareAliasList":
@@ -1092,7 +1092,7 @@ class Client:
         return self._call("GET", "/hubs/{hubId}/software", {"hubId": hub_id}, None, {}, None, "none", None, "json")
 
     def relate_cis(self, body: "CiRelate") -> "CiRelation":
-        """Join two configuration items"""
+        """Join two objects"""
         return self._call("POST", "/ci-relations", {}, None, {}, body, "json", "application/json", "json")
 
     def unrelate_cis(self, relation_id: str) -> "CiRelationRemoved":

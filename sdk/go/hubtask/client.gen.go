@@ -15457,7 +15457,7 @@ type CiAsset struct {
 	} `json:"disposal"`
 	HubId openapi_types.UUID `json:"hub_id"`
 
-	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one asset, not by the register's list; an asset registered before the steps were kept has none, its state alone.
+	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one register record, not by the register's list; a register record made before the steps were kept has none, its state alone.
 	Moves         *[]CiAssetStep      `json:"moves,omitempty"`
 	Name          *string             `json:"name,omitempty"`
 	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
@@ -15662,7 +15662,7 @@ type CiCampaignStart struct {
 	ReviewMonths *int                `json:"review_months,omitempty"`
 }
 
-// CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
+// CiClass An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
 	Abstract        *bool              `json:"abstract,omitempty"`
 	AllAttributes   []CiAttribute      `json:"all_attributes"`
@@ -15674,7 +15674,7 @@ type CiClass struct {
 	Lineage         []string           `json:"lineage"`
 	Name            *string            `json:"name,omitempty"`
 
-	// OwnStalenessDays The staleness period the class sets itself; 0 where it inherits.
+	// OwnStalenessDays The staleness period the object type sets itself; 0 where it inherits.
 	OwnStalenessDays  *int                 `json:"own_staleness_days,omitempty"`
 	Parent            string               `json:"parent"`
 	RequiredRelations []CiRequiredRelation `json:"required_relations"`
@@ -15713,7 +15713,7 @@ type CiCompliance struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection *CiOwnProtection    `json:"protection,omitempty"`
 	Quantity   *int                `json:"quantity,omitempty"`
 	ReviewDue  *openapi_types.Date `json:"review_due,omitempty"`
@@ -15727,7 +15727,7 @@ type CiComplianceStage string
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
 
-// CiConnector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+// CiConnector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
 	AllowedHosts  []string            `json:"allowed_hosts"`
 	BaseUrl       *string             `json:"base_url,omitempty"`
@@ -15743,7 +15743,7 @@ type CiConnector struct {
 	HubId openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// Inventory An intake posted CIs rather than alerts.
+	// Inventory An intake posted objects rather than alerts.
 	Inventory *bool           `json:"inventory,omitempty"`
 	Key       string          `json:"key"`
 	Kind      CiConnectorKind `json:"kind"`
@@ -15799,7 +15799,7 @@ type CiConnectorList struct {
 
 // CiConnectorRun defines model for CiConnectorRun.
 type CiConnectorRun struct {
-	// Connector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+	// Connector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 	Connector CiConnector   `json:"connector"`
 	Counts    CiRunCounts   `json:"counts"`
 	Decisions *[]CiDecision `json:"decisions,omitempty"`
@@ -15856,11 +15856,11 @@ type CiDuplicateList struct {
 
 // CiDuplicateResolve defines model for CiDuplicateResolve.
 type CiDuplicateResolve struct {
-	// SurvivorId The CI that stays; absent says the CIs are distinct.
+	// SurvivorId The object that stays; absent says the objects are distinct.
 	SurvivorId *openapi_types.UUID `json:"survivor_id,omitempty"`
 }
 
-// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the objects are distinct.
 type CiDuplicateResolved struct {
 	Class   *string             `json:"class,omitempty"`
 	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
@@ -15877,7 +15877,7 @@ type CiFileImport struct {
 	DryRun  *bool              `json:"dry_run,omitempty"`
 	Format  CiFileImportFormat `json:"format"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping *CiFileMapping `json:"mapping,omitempty"`
 	Source  string         `json:"source"`
 }
@@ -15885,7 +15885,7 @@ type CiFileImport struct {
 // CiFileImportFormat defines model for CiFileImport.Format.
 type CiFileImportFormat string
 
-// CiFileMapping How a CSV table's or a JSON array's columns become a configuration item.
+// CiFileMapping How a CSV table's or a JSON array's columns become an object.
 type CiFileMapping struct {
 	Class           string             `json:"class"`
 	ClassColumn     *string            `json:"class_column,omitempty"`
@@ -15902,7 +15902,7 @@ type CiGroup struct {
 	Id     openapi_types.UUID `json:"id"`
 	Key    string             `json:"key"`
 
-	// Members How many CIs it holds now.
+	// Members How many objects it holds now.
 	Members   *int                `json:"members,omitempty"`
 	Name      string              `json:"name"`
 	ServiceId *openapi_types.UUID `json:"service_id"`
@@ -15922,7 +15922,7 @@ type CiGroupFilter struct {
 	Attributes *map[string]string `json:"attributes,omitempty"`
 	Classes    *[]string          `json:"classes,omitempty"`
 
-	// Locations The location is one of these location CIs (or none, with no_location) - asset.location.
+	// Locations The location is one of these location objects (or none, with no_location) - asset.location.
 	Locations *[]openapi_types.UUID `json:"locations,omitempty"`
 	NameHas   *string               `json:"name_has,omitempty"`
 
@@ -15939,7 +15939,7 @@ type CiGroupFilter struct {
 	Owners *[]openapi_types.UUID  `json:"owners,omitempty"`
 	Stages *[]CiGroupFilterStages `json:"stages,omitempty"`
 
-	// Tags The asset tag is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
+	// Tags The inventory number is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
 	Tags *[]string `json:"tags,omitempty"`
 }
 
@@ -15988,7 +15988,7 @@ type CiHoldList struct {
 type CiIdentifierRule struct {
 	Attributes []string `json:"attributes"`
 
-	// Class The class that declared the rule.
+	// Class The object type that declared the rule.
 	Class *string `json:"class,omitempty"`
 }
 
@@ -16019,7 +16019,7 @@ type CiInventoryReceipt struct {
 // CiInventoryReceiptStatus defines model for CiInventoryReceipt.Status.
 type CiInventoryReceiptStatus string
 
-// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 type CiOwnProtection struct {
 	A      *CiOwnProtectionA       `json:"a,omitempty"`
 	C      *CiOwnProtectionC       `json:"c,omitempty"`
@@ -16159,7 +16159,7 @@ type CiRelationTypeList struct {
 
 // CiRequiredRelation defines model for CiRequiredRelation.
 type CiRequiredRelation struct {
-	// Class The class that declared it; left out where it is defined.
+	// Class The object type that declared it; left out where it is defined.
 	Class    *string  `json:"class,omitempty"`
 	Outgoing bool     `json:"outgoing"`
 	Types    []string `json:"types"`
@@ -16218,7 +16218,7 @@ type CiSourceDefine struct {
 	Classes *[]string          `json:"classes,omitempty"`
 	Kind    CiSourceDefineKind `json:"kind"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping   *CiFileMapping `json:"mapping,omitempty"`
 	MayCreate *bool          `json:"may_create,omitempty"`
 	Rank      int            `json:"rank"`
@@ -16245,7 +16245,7 @@ type CiWorkCounts struct {
 	Data []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Open The open entries the reader may see that name the CI.
+		// Open The open entries the reader may see that name the object.
 		Open int `json:"open"`
 	} `json:"data"`
 
@@ -16265,7 +16265,7 @@ type CiWorkEntry struct {
 	// Key The entry's key, INC-128; null where the entry has no number or its collection no word.
 	Key *string `json:"key"`
 
-	// Reason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+	// Reason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
 	Reason  CiWorkEntryReason `json:"reason"`
 	StartAt *time.Time        `json:"start_at"`
 
@@ -16277,7 +16277,7 @@ type CiWorkEntry struct {
 	} `json:"status"`
 	Title string `json:"title"`
 
-	// Via The nearest CI beneath that the entry names; null for NAMES.
+	// Via The nearest object beneath that the entry names; null for NAMES.
 	Via *struct {
 		CiId  openapi_types.UUID `json:"ci_id"`
 		Class string             `json:"class"`
@@ -16285,10 +16285,10 @@ type CiWorkEntry struct {
 	} `json:"via"`
 }
 
-// CiWorkEntryReason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+// CiWorkEntryReason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
 type CiWorkEntryReason string
 
-// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
+// CmdbHealth A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
 	Classes []struct {
 		Class        string  `json:"class"`
@@ -16312,7 +16312,7 @@ type CmdbHealth struct {
 	Services      []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Cis The active CIs it rests on, itself included.
+		// Cis The active objects it rests on, itself included.
 		Cis   int    `json:"cis"`
 		Class string `json:"class"`
 		Name  string `json:"name"`
@@ -17044,7 +17044,7 @@ type ConfigVersionList struct {
 	Data []ConfigVersion `json:"data"`
 }
 
-// ConfigurationItem A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
+// ConfigurationItem An object in a hub. `attributes` hold its object type's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
 type ConfigurationItem struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	Class      string                 `json:"class"`
@@ -17057,7 +17057,7 @@ type ConfigurationItem struct {
 	// EffectiveProtection A protection need per confidentiality, integrity and availability.
 	EffectiveProtection *CiProtection `json:"effective_protection,omitempty"`
 
-	// HasAsset Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.
+	// HasAsset Given on a single read: whether it has a register record. False means `GET /cis/{ciId}/asset` answers not found.
 	HasAsset       *bool               `json:"has_asset,omitempty"`
 	HubId          openapi_types.UUID  `json:"hub_id"`
 	Id             openapi_types.UUID  `json:"id"`
@@ -17068,7 +17068,7 @@ type ConfigurationItem struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection CiOwnProtection         `json:"protection"`
 	Provenance map[string]CiProvenance `json:"provenance"`
 	Quantity   int                     `json:"quantity"`
@@ -18312,11 +18312,11 @@ type EntryCis struct {
 		Stage   string             `json:"stage"`
 	} `json:"cis"`
 
-	// Collisions The entries planned on an affected CI, or one it reaches, in an overlapping window.
+	// Collisions The entries planned on an affected object, or one it reaches, in an overlapping window.
 	Collisions []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Direct Both entries name the CI itself.
+		// Direct Both entries name the object itself.
 		Direct    bool               `json:"direct"`
 		DueAt     *time.Time         `json:"due_at"`
 		EntryType string             `json:"entry_type"`
@@ -18331,10 +18331,10 @@ type EntryCis struct {
 	} `json:"collisions"`
 	ItemId openapi_types.UUID `json:"item_id"`
 
-	// Related The other open entries naming an affected CI or one it reaches.
+	// Related The other open entries naming an affected object or one it reaches.
 	Related []EntryOnCi `json:"related"`
 
-	// Services The active services and offerings the affected CIs' failure reaches.
+	// Services The active services and offerings the affected objects' failure reaches.
 	Services []struct {
 		CiId  openapi_types.UUID `json:"ci_id"`
 		Class string             `json:"class"`
@@ -18594,7 +18594,7 @@ type EntryOnCi struct {
 type EntryRequester struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
-	// Assets The configuration items the requester owns that the reader may read, by name, at most 20.
+	// Assets The objects the requester owns that the reader may read, by name, at most 20.
 	Assets []struct {
 		Class string             `json:"class"`
 		HubId openapi_types.UUID `json:"hub_id"`
@@ -18699,7 +18699,7 @@ type EntrySteps struct {
 // EntryStepsStateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
 type EntryStepsStateMode string
 
-// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
+// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
 	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
 	AllowedChildren []string `json:"allowed_children"`
@@ -24559,7 +24559,7 @@ type ReferenceTarget struct {
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
 	Available  bool                `json:"available"`
 
-	// CiClass A configuration item's class.
+	// CiClass An object's object type.
 	CiClass      *string             `json:"ci_class,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
@@ -24572,7 +24572,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in.
+	// HubId The hub a page, a whiteboard, an object, or a goal or dashboard of a hub is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -24592,7 +24592,7 @@ type ReferenceTarget struct {
 	Level  *ItemType `json:"level,omitempty"`
 	Number *int64    `json:"number,omitempty"`
 
-	// Stage A configuration item's lifecycle stage.
+	// Stage An object's lifecycle stage.
 	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
@@ -24605,7 +24605,7 @@ type ReferenceTarget struct {
 	// StatusName An entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
 	StatusName *string `json:"status_name,omitempty"`
 
-	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name.
+	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or object's name.
 	Title *string `json:"title,omitempty"`
 }
 
@@ -25589,10 +25589,10 @@ type SearchAllHit struct {
 	// Snippet The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for.
 	Snippet *string `json:"snippet"`
 
-	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory item's stage, a dashboard's sharing, a person's account status.
+	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's stage, a dashboard's sharing, a person's account status.
 	State *string `json:"state"`
 
-	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory item's class key, a file's media type, a person's account kind.
+	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory object's object type key, a file's media type, a person's account kind.
 	Tile *string `json:"tile"`
 
 	// Title The title, a name, a file name, or for a comment the title of what it is on.
@@ -25669,7 +25669,7 @@ type ServiceMap struct {
 		Stage string `json:"stage"`
 	} `json:"nodes"`
 
-	// Truncated The map stopped at 2000 CIs.
+	// Truncated The map stopped at 2000 objects.
 	Truncated bool `json:"truncated"`
 }
 
@@ -29486,7 +29486,7 @@ type RunAgentEvaluationJSONBody struct {
 	// CollectionId The collection whose labels a ticket triage chooses from; without it no labels are answered.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
-	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
+	// HubId The hub whose objects an object suggestion or a triage matches; required for those two.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 }
 
@@ -35769,7 +35769,7 @@ type ClientInterface interface {
 
 	// RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35778,7 +35778,7 @@ type ClientInterface interface {
 
 	// RunAgentEvaluation Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -35794,7 +35794,7 @@ type ClientInterface interface {
 
 	// StartAgentJobWithBody Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -35803,7 +35803,7 @@ type ClientInterface interface {
 
 	// StartAgentJob Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37639,25 +37639,25 @@ type ClientInterface interface {
 	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
 	DeliverChatWithFormdataBody(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCiCampaign A certification campaign with every CI asked
+	// ReadCiCampaign A certification campaign with every object asked
 	//
-	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+	// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 	//
 	// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
 	ReadCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AttestCiWithBody Answer a campaign's question about a configuration item
+	// AttestCiWithBody Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
 	AttestCiWithBody(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AttestCi Answer a campaign's question about a configuration item
+	// AttestCi Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37673,7 +37673,7 @@ type ClientInterface interface {
 
 	// ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -37682,14 +37682,14 @@ type ClientInterface interface {
 
 	// ResolveCiDuplicate Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 	ResolveCiDuplicate(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiGroupMembers The configuration items a group holds now
+	// ListCiGroupMembers The objects a group holds now
 	//
 	// Needs READ on the hub.
 	//
@@ -37703,18 +37703,18 @@ type ClientInterface interface {
 	// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
 	DismissCiHold(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RelateCisWithBody Join two configuration items
+	// RelateCisWithBody Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
 	RelateCisWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RelateCis Join two configuration items
+	// RelateCis Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37730,44 +37730,44 @@ type ClientInterface interface {
 
 	// ReadCiRun One reconciliation run with its decisions
 	//
-	// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+	// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 	//
 	// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
 	ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCi Read a configuration item
+	// ReadCi Read an object
 	//
 	// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
 	ReadCi(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateCiWithBody Change a configuration item by hand
+	// UpdateCiWithBody Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UpdateCi Change a configuration item by hand
+	// UpdateCi Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCiAsset A configuration item's asset record
+	// ReadCiAsset An object's register record
 	//
 	// With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
 	ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RegisterCiAssetWithBody Write a configuration item's asset record
+	// RegisterCiAssetWithBody Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -37776,7 +37776,7 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// RegisterCiAsset Write a configuration item's asset record
+	// RegisterCiAsset Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -37785,32 +37785,32 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAsset(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// MoveCiAssetWithBody Move an asset through its life
+	// MoveCiAssetWithBody Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// MoveCiAsset Move an asset through its life
+	// MoveCiAsset Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiBacklinks What points at a configuration item
+	// ListCiBacklinks What points at an object
 	//
 	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
 	ListCiBacklinks(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
+	// SetCiComplianceWithBody Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -37819,7 +37819,7 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithBody(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+	// SetCiCompliance Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -37828,16 +37828,16 @@ type ClientInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ReadCiImpact What a configuration item's failure reaches
+	// ReadCiImpact What an object's failure reaches
 	//
 	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiWork The entries a configuration item is part of
+	// ListCiWork The entries an object is part of
 	//
-	// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+	// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
 	//
 	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
 	ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -37880,7 +37880,7 @@ type ClientInterface interface {
 
 	// DeliverCiAlertsWithBody Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes any type of body and a specified content type.
@@ -37890,7 +37890,7 @@ type ClientInterface interface {
 
 	// DeliverCiAlerts Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes a body of the `application/json` content type.
@@ -37898,25 +37898,25 @@ type ClientInterface interface {
 	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
 	DeliverCiAlerts(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiClasses The configuration item classes
+	// ListCiClasses The object types
 	//
-	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+	// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 	//
 	// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
 	ListCiClasses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiClassWithBody Add or change a class of the workspace's own
+	// DefineCiClassWithBody Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 	DefineCiClassWithBody(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiClass Add or change a class of the workspace's own
+	// DefineCiClass Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -37941,16 +37941,16 @@ type ClientInterface interface {
 	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
 	DeliverCiInventory(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiRelationTypes The relation types between configuration items
+	// ListCiRelationTypes The relation types between objects
 	//
-	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 	//
 	// Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
 	ListCiRelationTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DefineCiRelationTypeWithBody Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -37959,14 +37959,14 @@ type ClientInterface interface {
 
 	// DefineCiRelationType Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
 	DefineCiRelationType(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiSources The sources configuration items come from
+	// ListCiSources The sources objects come from
 	//
 	// People (`manual`), files, programs and connectors by precedence, a lower rank first.
 	//
@@ -37975,7 +37975,7 @@ type ClientInterface interface {
 
 	// DefineCiSourceWithBody Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -37984,7 +37984,7 @@ type ClientInterface interface {
 
 	// DefineCiSource Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -39460,9 +39460,9 @@ type ClientInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiAssets A hub's asset register
+	// ListCiAssets A hub's register records
 	//
-	// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+	// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 	ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39526,7 +39526,7 @@ type ClientInterface interface {
 
 	// ListCiAlerts A hub's alerts
 	//
-	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
 	ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39538,18 +39538,18 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
 	ListCiCampaigns(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// StartCiCampaignWithBody Ask the owners of a hub's CIs to attest them
+	// StartCiCampaignWithBody Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
 	StartCiCampaignWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// StartCiCampaign Ask the owners of a hub's CIs to attest them
+	// StartCiCampaign Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -39558,30 +39558,30 @@ type ClientInterface interface {
 
 	// ListCiDuplicates Open duplicates
 	//
-	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+	// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 	ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCiGroups A hub's CI groups
+	// ListCiGroups A hub's object groups
 	//
-	// Each with how many CIs it holds now. Needs READ on the hub.
+	// Each with how many objects it holds now. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 	ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiGroupWithBody Define or change a CI group by its key
+	// DefineCiGroupWithBody Define or change an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
 	DefineCiGroupWithBody(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// DefineCiGroup Define or change a CI group by its key
+	// DefineCiGroup Define or change an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -39590,7 +39590,7 @@ type ClientInterface interface {
 
 	// ListCiHolds Items held for review
 	//
-	// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+	// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
 	ListCiHolds(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39602,39 +39602,39 @@ type ClientInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 	ListCiRuns(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListHubCiWork How many open entries name each configuration item of a hub
+	// ListHubCiWork How many open entries name each object of a hub
 	//
-	// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+	// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
 	ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListCis A hub's configuration items
+	// ListCis A hub's objects
 	//
-	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+	// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
 	ListCis(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateCiWithBody Make a configuration item by hand
+	// CreateCiWithBody Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCiWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// CreateCi Make a configuration item by hand
+	// CreateCi Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCi(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ImportCiFileWithBody Import a file of configuration items
+	// ImportCiFileWithBody Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -39643,7 +39643,7 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
 	ImportCiFileWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ImportCiFile Import a file of configuration items
+	// ImportCiFile Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -39654,7 +39654,7 @@ type ClientInterface interface {
 
 	// ReconcileCisWithBody Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -39663,7 +39663,7 @@ type ClientInterface interface {
 
 	// ReconcileCis Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -39672,7 +39672,7 @@ type ClientInterface interface {
 
 	// ListCiConnectors A hub's connectors
 	//
-	// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+	// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
 	ListCiConnectors(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39697,7 +39697,7 @@ type ClientInterface interface {
 
 	// ReadCmdbHealth A hub's inventory judged
 	//
-	// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+	// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
 	ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -39900,7 +39900,7 @@ type ClientInterface interface {
 
 	// ListSoftwareProducts A hub's software, normalised
 	//
-	// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+	// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 	//
 	// Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 	ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -40506,23 +40506,23 @@ type ClientInterface interface {
 	// Attaches a media object to the entry. Idempotent: an entry that already carries it succeeds. The object has to be READY, of usage ATTACHMENT and of this workspace, and the entry's type has to carry the ATTACHMENTS capability - an activity does not. Attaching raises the object's reference count; the bytes are shared, never copied.
 	AttachMedia(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ListEntryCis The configuration items an entry names as affected
+	// ListEntryCis The objects an entry names as affected
 	//
-	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 	//
 	// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
 	ListEntryCis(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+	// UnaffectEntryCi Remove an object from an entry's affected ones
 	//
 	// Needs WRITE_ITEMS on the entry.
 	//
 	// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
 	UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// AffectEntryCi Name a configuration item as affected by an entry
+	// AffectEntryCi Name an object as affected by an entry
 	//
-	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 	//
 	// Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 	AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -40827,7 +40827,7 @@ type ClientInterface interface {
 
 	// ReadEntryRequester Who raised the entry, and their organisation
 	//
-	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 	//
 	// Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
 	ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -44255,7 +44255,7 @@ type ClientInterface interface {
 
 	// SearchAllWithBody One search over every kind of object the caller may read
 	//
-	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -44264,7 +44264,7 @@ type ClientInterface interface {
 
 	// SearchAll One search over every kind of object the caller may read
 	//
-	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -49365,7 +49365,7 @@ func (c *Client) RecordAgentEvaluation(ctx context.Context, agentId AgentId, bod
 
 // RunAgentEvaluationWithBody Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -49384,7 +49384,7 @@ func (c *Client) RunAgentEvaluationWithBody(ctx context.Context, agentId AgentId
 
 // RunAgentEvaluation Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -49420,7 +49420,7 @@ func (c *Client) ListAgentJobs(ctx context.Context, agentId AgentId, reqEditors 
 
 // StartAgentJobWithBody Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes any type of body and a specified content type.
 //
@@ -49439,7 +49439,7 @@ func (c *Client) StartAgentJobWithBody(ctx context.Context, agentId AgentId, con
 
 // StartAgentJob Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53095,9 +53095,9 @@ func (c *Client) DeliverChatWithFormdataBody(ctx context.Context, tenantId opena
 	return c.Client.Do(req)
 }
 
-// ReadCiCampaign A certification campaign with every CI asked
+// ReadCiCampaign A certification campaign with every object asked
 //
-// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 //
 // Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
 func (c *Client) ReadCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -53112,9 +53112,9 @@ func (c *Client) ReadCiCampaign(ctx context.Context, campaignId openapi_types.UU
 	return c.Client.Do(req)
 }
 
-// AttestCiWithBody Answer a campaign's question about a configuration item
+// AttestCiWithBody Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53131,9 +53131,9 @@ func (c *Client) AttestCiWithBody(ctx context.Context, campaignId openapi_types.
 	return c.Client.Do(req)
 }
 
-// AttestCi Answer a campaign's question about a configuration item
+// AttestCi Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53169,7 +53169,7 @@ func (c *Client) CloseCiCampaign(ctx context.Context, campaignId openapi_types.U
 
 // ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53188,7 +53188,7 @@ func (c *Client) ResolveCiDuplicateWithBody(ctx context.Context, duplicateId ope
 
 // ResolveCiDuplicate Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53205,7 +53205,7 @@ func (c *Client) ResolveCiDuplicate(ctx context.Context, duplicateId openapi_typ
 	return c.Client.Do(req)
 }
 
-// ListCiGroupMembers The configuration items a group holds now
+// ListCiGroupMembers The objects a group holds now
 //
 // Needs READ on the hub.
 //
@@ -53239,9 +53239,9 @@ func (c *Client) DismissCiHold(ctx context.Context, holdId openapi_types.UUID, r
 	return c.Client.Do(req)
 }
 
-// RelateCisWithBody Join two configuration items
+// RelateCisWithBody Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53258,9 +53258,9 @@ func (c *Client) RelateCisWithBody(ctx context.Context, contentType string, body
 	return c.Client.Do(req)
 }
 
-// RelateCis Join two configuration items
+// RelateCis Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53296,7 +53296,7 @@ func (c *Client) UnrelateCis(ctx context.Context, relationId openapi_types.UUID,
 
 // ReadCiRun One reconciliation run with its decisions
 //
-// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 //
 // Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
 func (c *Client) ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -53311,7 +53311,7 @@ func (c *Client) ReadCiRun(ctx context.Context, runId openapi_types.UUID, reqEdi
 	return c.Client.Do(req)
 }
 
-// ReadCi Read a configuration item
+// ReadCi Read an object
 //
 // With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 //
@@ -53328,9 +53328,9 @@ func (c *Client) ReadCi(ctx context.Context, ciId openapi_types.UUID, reqEditors
 	return c.Client.Do(req)
 }
 
-// UpdateCiWithBody Change a configuration item by hand
+// UpdateCiWithBody Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53347,9 +53347,9 @@ func (c *Client) UpdateCiWithBody(ctx context.Context, ciId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
-// UpdateCi Change a configuration item by hand
+// UpdateCi Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53366,7 +53366,7 @@ func (c *Client) UpdateCi(ctx context.Context, ciId openapi_types.UUID, params *
 	return c.Client.Do(req)
 }
 
-// ReadCiAsset A configuration item's asset record
+// ReadCiAsset An object's register record
 //
 // With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 //
@@ -53383,7 +53383,7 @@ func (c *Client) ReadCiAsset(ctx context.Context, ciId openapi_types.UUID, reqEd
 	return c.Client.Do(req)
 }
 
-// RegisterCiAssetWithBody Write a configuration item's asset record
+// RegisterCiAssetWithBody Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -53402,7 +53402,7 @@ func (c *Client) RegisterCiAssetWithBody(ctx context.Context, ciId openapi_types
 	return c.Client.Do(req)
 }
 
-// RegisterCiAsset Write a configuration item's asset record
+// RegisterCiAsset Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -53421,9 +53421,9 @@ func (c *Client) RegisterCiAsset(ctx context.Context, ciId openapi_types.UUID, p
 	return c.Client.Do(req)
 }
 
-// MoveCiAssetWithBody Move an asset through its life
+// MoveCiAssetWithBody Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53440,9 +53440,9 @@ func (c *Client) MoveCiAssetWithBody(ctx context.Context, ciId openapi_types.UUI
 	return c.Client.Do(req)
 }
 
-// MoveCiAsset Move an asset through its life
+// MoveCiAsset Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53459,7 +53459,7 @@ func (c *Client) MoveCiAsset(ctx context.Context, ciId openapi_types.UUID, param
 	return c.Client.Do(req)
 }
 
-// ListCiBacklinks What points at a configuration item
+// ListCiBacklinks What points at an object
 //
 // The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 //
@@ -53476,7 +53476,7 @@ func (c *Client) ListCiBacklinks(ctx context.Context, ciId openapi_types.UUID, r
 	return c.Client.Do(req)
 }
 
-// SetCiComplianceWithBody Set a configuration item's lifecycle and compliance fields
+// SetCiComplianceWithBody Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -53495,7 +53495,7 @@ func (c *Client) SetCiComplianceWithBody(ctx context.Context, ciId openapi_types
 	return c.Client.Do(req)
 }
 
-// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+// SetCiCompliance Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -53514,7 +53514,7 @@ func (c *Client) SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, p
 	return c.Client.Do(req)
 }
 
-// ReadCiImpact What a configuration item's failure reaches
+// ReadCiImpact What an object's failure reaches
 //
 // DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 //
@@ -53531,9 +53531,9 @@ func (c *Client) ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, para
 	return c.Client.Do(req)
 }
 
-// ListCiWork The entries a configuration item is part of
+// ListCiWork The entries an object is part of
 //
-// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
 //
 // Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
 func (c *Client) ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -53626,7 +53626,7 @@ func (c *Client) RunCiConnector(ctx context.Context, connectorId openapi_types.U
 
 // DeliverCiAlertsWithBody Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes any type of body and a specified content type.
@@ -53646,7 +53646,7 @@ func (c *Client) DeliverCiAlertsWithBody(ctx context.Context, tenantId openapi_t
 
 // DeliverCiAlerts Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes a body of the `application/json` content type.
@@ -53664,9 +53664,9 @@ func (c *Client) DeliverCiAlerts(ctx context.Context, tenantId openapi_types.UUI
 	return c.Client.Do(req)
 }
 
-// ListCiClasses The configuration item classes
+// ListCiClasses The object types
 //
-// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 //
 // Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
 func (c *Client) ListCiClasses(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -53681,9 +53681,9 @@ func (c *Client) ListCiClasses(ctx context.Context, reqEditors ...RequestEditorF
 	return c.Client.Do(req)
 }
 
-// DefineCiClassWithBody Add or change a class of the workspace's own
+// DefineCiClassWithBody Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53700,9 +53700,9 @@ func (c *Client) DefineCiClassWithBody(ctx context.Context, classKey string, par
 	return c.Client.Do(req)
 }
 
-// DefineCiClass Add or change a class of the workspace's own
+// DefineCiClass Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53757,9 +53757,9 @@ func (c *Client) DeliverCiInventory(ctx context.Context, tenantId openapi_types.
 	return c.Client.Do(req)
 }
 
-// ListCiRelationTypes The relation types between configuration items
+// ListCiRelationTypes The relation types between objects
 //
-// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 //
 // Corresponds with GET /cmdb/relation-types (the `ListCiRelationTypes` operationId).
 func (c *Client) ListCiRelationTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -53776,7 +53776,7 @@ func (c *Client) ListCiRelationTypes(ctx context.Context, reqEditors ...RequestE
 
 // DefineCiRelationTypeWithBody Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53795,7 +53795,7 @@ func (c *Client) DefineCiRelationTypeWithBody(ctx context.Context, typeKey strin
 
 // DefineCiRelationType Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -53812,7 +53812,7 @@ func (c *Client) DefineCiRelationType(ctx context.Context, typeKey string, param
 	return c.Client.Do(req)
 }
 
-// ListCiSources The sources configuration items come from
+// ListCiSources The sources objects come from
 //
 // People (`manual`), files, programs and connectors by precedence, a lower rank first.
 //
@@ -53831,7 +53831,7 @@ func (c *Client) ListCiSources(ctx context.Context, reqEditors ...RequestEditorF
 
 // DefineCiSourceWithBody Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type.
 //
@@ -53850,7 +53850,7 @@ func (c *Client) DefineCiSourceWithBody(ctx context.Context, sourceKey string, p
 
 // DefineCiSource Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -57166,9 +57166,9 @@ func (c *Client) UpdateGroupWithApplicationMergePatchPlusJSONBody(ctx context.Co
 	return c.Client.Do(req)
 }
 
-// ListCiAssets A hub's asset register
+// ListCiAssets A hub's register records
 //
-// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/assets (the `ListCiAssets` operationId).
 func (c *Client) ListCiAssets(ctx context.Context, hubId openapi_types.UUID, params *ListCiAssetsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57312,7 +57312,7 @@ func (c *Client) CreateChatBot(ctx context.Context, hubId HubId, body CreateChat
 
 // ListCiAlerts A hub's alerts
 //
-// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-alerts (the `ListCiAlerts` operationId).
 func (c *Client) ListCiAlerts(ctx context.Context, hubId openapi_types.UUID, params *ListCiAlertsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57344,9 +57344,9 @@ func (c *Client) ListCiCampaigns(ctx context.Context, hubId openapi_types.UUID, 
 	return c.Client.Do(req)
 }
 
-// StartCiCampaignWithBody Ask the owners of a hub's CIs to attest them
+// StartCiCampaignWithBody Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -57363,9 +57363,9 @@ func (c *Client) StartCiCampaignWithBody(ctx context.Context, hubId openapi_type
 	return c.Client.Do(req)
 }
 
-// StartCiCampaign Ask the owners of a hub's CIs to attest them
+// StartCiCampaign Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -57384,7 +57384,7 @@ func (c *Client) StartCiCampaign(ctx context.Context, hubId openapi_types.UUID, 
 
 // ListCiDuplicates Open duplicates
 //
-// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57399,9 +57399,9 @@ func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
-// ListCiGroups A hub's CI groups
+// ListCiGroups A hub's object groups
 //
-// Each with how many CIs it holds now. Needs READ on the hub.
+// Each with how many objects it holds now. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 func (c *Client) ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57416,9 +57416,9 @@ func (c *Client) ListCiGroups(ctx context.Context, hubId openapi_types.UUID, req
 	return c.Client.Do(req)
 }
 
-// DefineCiGroupWithBody Define or change a CI group by its key
+// DefineCiGroupWithBody Define or change an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -57435,9 +57435,9 @@ func (c *Client) DefineCiGroupWithBody(ctx context.Context, hubId openapi_types.
 	return c.Client.Do(req)
 }
 
-// DefineCiGroup Define or change a CI group by its key
+// DefineCiGroup Define or change an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -57456,7 +57456,7 @@ func (c *Client) DefineCiGroup(ctx context.Context, hubId openapi_types.UUID, gr
 
 // ListCiHolds Items held for review
 //
-// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-holds (the `ListCiHolds` operationId).
 func (c *Client) ListCiHolds(ctx context.Context, hubId openapi_types.UUID, params *ListCiHoldsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57488,9 +57488,9 @@ func (c *Client) ListCiRuns(ctx context.Context, hubId openapi_types.UUID, param
 	return c.Client.Do(req)
 }
 
-// ListHubCiWork How many open entries name each configuration item of a hub
+// ListHubCiWork How many open entries name each object of a hub
 //
-// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
 func (c *Client) ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57505,9 +57505,9 @@ func (c *Client) ListHubCiWork(ctx context.Context, hubId openapi_types.UUID, re
 	return c.Client.Do(req)
 }
 
-// ListCis A hub's configuration items
+// ListCis A hub's objects
 //
-// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
 func (c *Client) ListCis(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57522,9 +57522,9 @@ func (c *Client) ListCis(ctx context.Context, hubId openapi_types.UUID, params *
 	return c.Client.Do(req)
 }
 
-// CreateCiWithBody Make a configuration item by hand
+// CreateCiWithBody Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -57541,9 +57541,9 @@ func (c *Client) CreateCiWithBody(ctx context.Context, hubId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
-// CreateCi Make a configuration item by hand
+// CreateCi Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -57560,7 +57560,7 @@ func (c *Client) CreateCi(ctx context.Context, hubId openapi_types.UUID, body Cr
 	return c.Client.Do(req)
 }
 
-// ImportCiFileWithBody Import a file of configuration items
+// ImportCiFileWithBody Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -57579,7 +57579,7 @@ func (c *Client) ImportCiFileWithBody(ctx context.Context, hubId openapi_types.U
 	return c.Client.Do(req)
 }
 
-// ImportCiFile Import a file of configuration items
+// ImportCiFile Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -57600,7 +57600,7 @@ func (c *Client) ImportCiFile(ctx context.Context, hubId openapi_types.UUID, bod
 
 // ReconcileCisWithBody Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type.
 //
@@ -57619,7 +57619,7 @@ func (c *Client) ReconcileCisWithBody(ctx context.Context, hubId openapi_types.U
 
 // ReconcileCis Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -57638,7 +57638,7 @@ func (c *Client) ReconcileCis(ctx context.Context, hubId openapi_types.UUID, bod
 
 // ListCiConnectors A hub's connectors
 //
-// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/cmdb-connectors (the `ListCiConnectors` operationId).
 func (c *Client) ListCiConnectors(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -57693,7 +57693,7 @@ func (c *Client) DefineCiConnector(ctx context.Context, hubId openapi_types.UUID
 
 // ReadCmdbHealth A hub's inventory judged
 //
-// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/cmdb-health (the `ReadCmdbHealth` operationId).
 func (c *Client) ReadCmdbHealth(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -58146,7 +58146,7 @@ func (c *Client) ReadServiceMap(ctx context.Context, hubId openapi_types.UUID, p
 
 // ListSoftwareProducts A hub's software, normalised
 //
-// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 //
 // Corresponds with GET /hubs/{hubId}/software (the `ListSoftwareProducts` operationId).
 func (c *Client) ListSoftwareProducts(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -59451,9 +59451,9 @@ func (c *Client) AttachMedia(ctx context.Context, itemId ItemId, mediaId MediaId
 	return c.Client.Do(req)
 }
 
-// ListEntryCis The configuration items an entry names as affected
+// ListEntryCis The objects an entry names as affected
 //
-// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 //
 // Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
 func (c *Client) ListEntryCis(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -59468,7 +59468,7 @@ func (c *Client) ListEntryCis(ctx context.Context, itemId openapi_types.UUID, re
 	return c.Client.Do(req)
 }
 
-// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+// UnaffectEntryCi Remove an object from an entry's affected ones
 //
 // Needs WRITE_ITEMS on the entry.
 //
@@ -59485,9 +59485,9 @@ func (c *Client) UnaffectEntryCi(ctx context.Context, itemId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
-// AffectEntryCi Name a configuration item as affected by an entry
+// AffectEntryCi Name an object as affected by an entry
 //
-// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 //
 // Corresponds with PUT /items/{itemId}/cis/{ciId} (the `AffectEntryCi` operationId).
 func (c *Client) AffectEntryCi(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -60272,7 +60272,7 @@ func (c *Client) RenderReplyTemplate(ctx context.Context, itemId ItemId, templat
 
 // ReadEntryRequester Who raised the entry, and their organisation
 //
-// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 //
 // Corresponds with GET /items/{itemId}/requester (the `ReadEntryRequester` operationId).
 func (c *Client) ReadEntryRequester(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -67490,7 +67490,7 @@ func (c *Client) SearchItems(ctx context.Context, body SearchItemsJSONRequestBod
 
 // SearchAllWithBody One search over every kind of object the caller may read
 //
-// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 //
 // Takes any type of body and a specified content type.
 //
@@ -67509,7 +67509,7 @@ func (c *Client) SearchAllWithBody(ctx context.Context, contentType string, body
 
 // SearchAll One search over every kind of object the caller may read
 //
-// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -115018,7 +115018,7 @@ type ClientWithResponsesInterface interface {
 
 	// RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -115027,7 +115027,7 @@ type ClientWithResponsesInterface interface {
 
 	// RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
 	//
-	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+	// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -115045,7 +115045,7 @@ type ClientWithResponsesInterface interface {
 
 	// StartAgentJobWithBodyWithResponse Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -115054,7 +115054,7 @@ type ClientWithResponsesInterface interface {
 
 	// StartAgentJobWithResponse Start a shipped agent's job on one target
 	//
-	// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+	// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117010,27 +117010,27 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /chat-intake/{tenantId}/{botId} (the `DeliverChat` operationId).
 	DeliverChatWithFormdataBodyWithResponse(ctx context.Context, tenantId openapi_types.UUID, botId openapi_types.UUID, body DeliverChatFormdataRequestBody, reqEditors ...RequestEditorFn) (*DeliverChatResult, error)
 
-	// ReadCiCampaignWithResponse A certification campaign with every CI asked
+	// ReadCiCampaignWithResponse A certification campaign with every object asked
 	//
-	// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+	// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /ci-campaigns/{campaignId} (the `ReadCiCampaign` operationId).
 	ReadCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiCampaignResult, error)
 
-	// AttestCiWithBodyWithResponse Answer a campaign's question about a configuration item
+	// AttestCiWithBodyWithResponse Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /ci-campaigns/{campaignId}/cis/{ciId} (the `AttestCi` operationId).
 	AttestCiWithBodyWithResponse(ctx context.Context, campaignId openapi_types.UUID, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AttestCiResult, error)
 
-	// AttestCiWithResponse Answer a campaign's question about a configuration item
+	// AttestCiWithResponse Answer a campaign's question about an object
 	//
-	// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+	// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117048,7 +117048,7 @@ type ClientWithResponsesInterface interface {
 
 	// ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117057,14 +117057,14 @@ type ClientWithResponsesInterface interface {
 
 	// ResolveCiDuplicateWithResponse Merge a duplicate or call it distinct
 	//
-	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /ci-duplicates/{duplicateId}:resolve (the `ResolveCiDuplicate` operationId).
 	ResolveCiDuplicateWithResponse(ctx context.Context, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody, reqEditors ...RequestEditorFn) (*ResolveCiDuplicateResult, error)
 
-	// ListCiGroupMembersWithResponse The configuration items a group holds now
+	// ListCiGroupMembersWithResponse The objects a group holds now
 	//
 	// Needs READ on the hub.
 	//
@@ -117082,18 +117082,18 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /ci-holds/{holdId}:dismiss (the `DismissCiHold` operationId).
 	DismissCiHoldWithResponse(ctx context.Context, holdId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DismissCiHoldResult, error)
 
-	// RelateCisWithBodyWithResponse Join two configuration items
+	// RelateCisWithBodyWithResponse Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /ci-relations (the `RelateCis` operationId).
 	RelateCisWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RelateCisResult, error)
 
-	// RelateCisWithResponse Join two configuration items
+	// RelateCisWithResponse Join two objects
 	//
-	// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+	// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117111,14 +117111,14 @@ type ClientWithResponsesInterface interface {
 
 	// ReadCiRunWithResponse One reconciliation run with its decisions
 	//
-	// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+	// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /ci-runs/{runId} (the `ReadCiRun` operationId).
 	ReadCiRunWithResponse(ctx context.Context, runId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiRunResult, error)
 
-	// ReadCiWithResponse Read a configuration item
+	// ReadCiWithResponse Read an object
 	//
 	// With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 	//
@@ -117127,25 +117127,25 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId} (the `ReadCi` operationId).
 	ReadCiWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiResult, error)
 
-	// UpdateCiWithBodyWithResponse Change a configuration item by hand
+	// UpdateCiWithBodyWithResponse Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
 
-	// UpdateCiWithResponse Change a configuration item by hand
+	// UpdateCiWithResponse Change an object by hand
 	//
-	// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+	// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PATCH /cis/{ciId} (the `UpdateCi` operationId).
 	UpdateCiWithResponse(ctx context.Context, ciId openapi_types.UUID, params *UpdateCiParams, body UpdateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCiResult, error)
 
-	// ReadCiAssetWithResponse A configuration item's asset record
+	// ReadCiAssetWithResponse An object's register record
 	//
 	// With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 	//
@@ -117154,7 +117154,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId}/asset (the `ReadCiAsset` operationId).
 	ReadCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ReadCiAssetResult, error)
 
-	// RegisterCiAssetWithBodyWithResponse Write a configuration item's asset record
+	// RegisterCiAssetWithBodyWithResponse Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -117163,7 +117163,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error)
 
-	// RegisterCiAssetWithResponse Write a configuration item's asset record
+	// RegisterCiAssetWithResponse Write an object's register record
 	//
 	// Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -117172,25 +117172,25 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/asset (the `RegisterCiAsset` operationId).
 	RegisterCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *RegisterCiAssetParams, body RegisterCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*RegisterCiAssetResult, error)
 
-	// MoveCiAssetWithBodyWithResponse Move an asset through its life
+	// MoveCiAssetWithBodyWithResponse Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
 
-	// MoveCiAssetWithResponse Move an asset through its life
+	// MoveCiAssetWithResponse Move a register record through its life
 	//
-	// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+	// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /cis/{ciId}/asset:move (the `MoveCiAsset` operationId).
 	MoveCiAssetWithResponse(ctx context.Context, ciId openapi_types.UUID, params *MoveCiAssetParams, body MoveCiAssetJSONRequestBody, reqEditors ...RequestEditorFn) (*MoveCiAssetResult, error)
 
-	// ListCiBacklinksWithResponse What points at a configuration item
+	// ListCiBacklinksWithResponse What points at an object
 	//
 	// The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 	//
@@ -117199,7 +117199,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId}/backlinks (the `ListCiBacklinks` operationId).
 	ListCiBacklinksWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiBacklinksResult, error)
 
-	// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
+	// SetCiComplianceWithBodyWithResponse Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -117208,7 +117208,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
 
-	// SetCiComplianceWithResponse Set a configuration item's lifecycle and compliance fields
+	// SetCiComplianceWithResponse Set an object's lifecycle and compliance fields
 	//
 	// Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 	//
@@ -117217,7 +117217,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
 
-	// ReadCiImpactWithResponse What a configuration item's failure reaches
+	// ReadCiImpactWithResponse What an object's failure reaches
 	//
 	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 	//
@@ -117226,9 +117226,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpactWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*ReadCiImpactResult, error)
 
-	// ListCiWorkWithResponse The entries a configuration item is part of
+	// ListCiWorkWithResponse The entries an object is part of
 	//
-	// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+	// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -117273,7 +117273,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeliverCiAlertsWithBodyWithResponse Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -117283,7 +117283,7 @@ type ClientWithResponsesInterface interface {
 
 	// DeliverCiAlertsWithResponse Post alerts to an intake
 	//
-	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+	// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 	// Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -117291,27 +117291,27 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /cmdb/alert-intake/{tenantId}/{connectorId} (the `DeliverCiAlerts` operationId).
 	DeliverCiAlertsWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiAlertsParams, body DeliverCiAlertsJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiAlertsResult, error)
 
-	// ListCiClassesWithResponse The configuration item classes
+	// ListCiClassesWithResponse The object types
 	//
-	// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+	// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /cmdb/classes (the `ListCiClasses` operationId).
 	ListCiClassesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListCiClassesResult, error)
 
-	// DefineCiClassWithBodyWithResponse Add or change a class of the workspace's own
+	// DefineCiClassWithBodyWithResponse Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /cmdb/classes/{classKey} (the `DefineCiClass` operationId).
 	DefineCiClassWithBodyWithResponse(ctx context.Context, classKey string, params *DefineCiClassParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiClassResult, error)
 
-	// DefineCiClassWithResponse Add or change a class of the workspace's own
+	// DefineCiClassWithResponse Add or change an object type of the workspace's own
 	//
-	// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+	// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117336,9 +117336,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /cmdb/inventory-intake/{tenantId}/{connectorId} (the `DeliverCiInventory` operationId).
 	DeliverCiInventoryWithResponse(ctx context.Context, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params *DeliverCiInventoryParams, body DeliverCiInventoryJSONRequestBody, reqEditors ...RequestEditorFn) (*DeliverCiInventoryResult, error)
 
-	// ListCiRelationTypesWithResponse The relation types between configuration items
+	// ListCiRelationTypesWithResponse The relation types between objects
 	//
-	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+	// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -117347,7 +117347,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiRelationTypeWithBodyWithResponse Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117356,14 +117356,14 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiRelationTypeWithResponse Add or change a relation type of the workspace's own
 	//
-	// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+	// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /cmdb/relation-types/{typeKey} (the `DefineCiRelationType` operationId).
 	DefineCiRelationTypeWithResponse(ctx context.Context, typeKey string, params *DefineCiRelationTypeParams, body DefineCiRelationTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*DefineCiRelationTypeResult, error)
 
-	// ListCiSourcesWithResponse The sources configuration items come from
+	// ListCiSourcesWithResponse The sources objects come from
 	//
 	// People (`manual`), files, programs and connectors by precedence, a lower rank first.
 	//
@@ -117374,7 +117374,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiSourceWithBodyWithResponse Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -117383,7 +117383,7 @@ type ClientWithResponsesInterface interface {
 
 	// DefineCiSourceWithResponse Add or change a source
 	//
-	// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+	// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -119007,9 +119007,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /groups/{groupId} (the `UpdateGroup` operationId).
 	UpdateGroupWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, groupId GroupId, params *UpdateGroupParams, body UpdateGroupApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateGroupResult, error)
 
-	// ListCiAssetsWithResponse A hub's asset register
+	// ListCiAssetsWithResponse A hub's register records
 	//
-	// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+	// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -119081,7 +119081,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiAlertsWithResponse A hub's alerts
 	//
-	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+	// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -119097,18 +119097,18 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-campaigns (the `ListCiCampaigns` operationId).
 	ListCiCampaignsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiCampaignsParams, reqEditors ...RequestEditorFn) (*ListCiCampaignsResult, error)
 
-	// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's CIs to attest them
+	// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/ci-campaigns (the `StartCiCampaign` operationId).
 	StartCiCampaignWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*StartCiCampaignResult, error)
 
-	// StartCiCampaignWithResponse Ask the owners of a hub's CIs to attest them
+	// StartCiCampaignWithResponse Ask the owners of a hub's objects to attest them
 	//
-	// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+	// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -119117,34 +119117,34 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiDuplicatesWithResponse Open duplicates
 	//
-	// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+	// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-duplicates (the `ListCiDuplicates` operationId).
 	ListCiDuplicatesWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiDuplicatesParams, reqEditors ...RequestEditorFn) (*ListCiDuplicatesResult, error)
 
-	// ListCiGroupsWithResponse A hub's CI groups
+	// ListCiGroupsWithResponse A hub's object groups
 	//
-	// Each with how many CIs it holds now. Needs READ on the hub.
+	// Each with how many objects it holds now. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 	ListCiGroupsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupsResult, error)
 
-	// DefineCiGroupWithBodyWithResponse Define or change a CI group by its key
+	// DefineCiGroupWithBodyWithResponse Define or change an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /hubs/{hubId}/ci-groups/{groupKey} (the `DefineCiGroup` operationId).
 	DefineCiGroupWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DefineCiGroupParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DefineCiGroupResult, error)
 
-	// DefineCiGroupWithResponse Define or change a CI group by its key
+	// DefineCiGroupWithResponse Define or change an object group by its key
 	//
-	// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+	// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -119153,7 +119153,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiHoldsWithResponse Items held for review
 	//
-	// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+	// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -119169,43 +119169,43 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /hubs/{hubId}/ci-runs (the `ListCiRuns` operationId).
 	ListCiRunsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCiRunsParams, reqEditors ...RequestEditorFn) (*ListCiRunsResult, error)
 
-	// ListHubCiWorkWithResponse How many open entries name each configuration item of a hub
+	// ListHubCiWorkWithResponse How many open entries name each object of a hub
 	//
-	// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+	// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-work (the `ListHubCiWork` operationId).
 	ListHubCiWorkWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListHubCiWorkResult, error)
 
-	// ListCisWithResponse A hub's configuration items
+	// ListCisWithResponse A hub's objects
 	//
-	// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+	// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /hubs/{hubId}/cis (the `ListCis` operationId).
 	ListCisWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListCisParams, reqEditors ...RequestEditorFn) (*ListCisResult, error)
 
-	// CreateCiWithBodyWithResponse Make a configuration item by hand
+	// CreateCiWithBodyWithResponse Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCiWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateCiResult, error)
 
-	// CreateCiWithResponse Make a configuration item by hand
+	// CreateCiWithResponse Make an object by hand
 	//
-	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+	// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /hubs/{hubId}/cis (the `CreateCi` operationId).
 	CreateCiWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreateCiJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateCiResult, error)
 
-	// ImportCiFileWithBodyWithResponse Import a file of configuration items
+	// ImportCiFileWithBodyWithResponse Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -119214,7 +119214,7 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/cis:import (the `ImportCiFile` operationId).
 	ImportCiFileWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportCiFileResult, error)
 
-	// ImportCiFileWithResponse Import a file of configuration items
+	// ImportCiFileWithResponse Import a file of objects
 	//
 	// A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
@@ -119225,7 +119225,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReconcileCisWithBodyWithResponse Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -119234,7 +119234,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReconcileCisWithResponse Reconcile a source's payload
 	//
-	// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+	// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -119243,7 +119243,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListCiConnectorsWithResponse A hub's connectors
 	//
-	// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+	// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -119270,7 +119270,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadCmdbHealthWithResponse A hub's inventory judged
 	//
-	// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+	// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -119495,7 +119495,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListSoftwareProductsWithResponse A hub's software, normalised
 	//
-	// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+	// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -120167,16 +120167,16 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	AttachMediaWithResponse(ctx context.Context, itemId ItemId, mediaId MediaId, reqEditors ...RequestEditorFn) (*AttachMediaResult, error)
 
-	// ListEntryCisWithResponse The configuration items an entry names as affected
+	// ListEntryCisWithResponse The objects an entry names as affected
 	//
-	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+	// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /items/{itemId}/cis (the `ListEntryCis` operationId).
 	ListEntryCisWithResponse(ctx context.Context, itemId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListEntryCisResult, error)
 
-	// UnaffectEntryCiWithResponse Remove a configuration item from an entry's affected ones
+	// UnaffectEntryCiWithResponse Remove an object from an entry's affected ones
 	//
 	// Needs WRITE_ITEMS on the entry.
 	//
@@ -120185,9 +120185,9 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with DELETE /items/{itemId}/cis/{ciId} (the `UnaffectEntryCi` operationId).
 	UnaffectEntryCiWithResponse(ctx context.Context, itemId openapi_types.UUID, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*UnaffectEntryCiResult, error)
 
-	// AffectEntryCiWithResponse Name a configuration item as affected by an entry
+	// AffectEntryCiWithResponse Name an object as affected by an entry
 	//
-	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+	// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -120556,7 +120556,7 @@ type ClientWithResponsesInterface interface {
 
 	// ReadEntryRequesterWithResponse Who raised the entry, and their organisation
 	//
-	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+	// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -124296,7 +124296,7 @@ type ClientWithResponsesInterface interface {
 
 	// SearchAllWithBodyWithResponse One search over every kind of object the caller may read
 	//
-	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -124305,7 +124305,7 @@ type ClientWithResponsesInterface interface {
 
 	// SearchAllWithResponse One search over every kind of object the caller may read
 	//
-	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+	// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -172506,7 +172506,7 @@ func (c *ClientWithResponses) RecordAgentEvaluationWithResponse(ctx context.Cont
 
 // RunAgentEvaluationWithBodyWithResponse Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172521,7 +172521,7 @@ func (c *ClientWithResponses) RunAgentEvaluationWithBodyWithResponse(ctx context
 
 // RunAgentEvaluationWithResponse Have a shipped agent answer its own evaluation set
 //
-// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, a CI suggestion and a ticket triage answer `cis`, the names of the hub's CIs the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
+// Each case's title and notes are the material: a knowledge draft answers `title` and `body`, an object suggestion and a ticket triage answer `cis`, the names of the hub's objects the text names. Given a collection, a ticket triage also answers `labels` for each case expecting them (at most 50): the names of the collection's labels the workspace's classifier chooses, asked as the caller. The answers are compared as a recorded run's are, and the run counts for the model's revision as it now stands. A duplicate review and an agent built elsewhere are evaluated by the answers somebody sends. Needs MANAGE_MEMBERS at the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172551,7 +172551,7 @@ func (c *ClientWithResponses) ListAgentJobsWithResponse(ctx context.Context, age
 
 // StartAgentJobWithBodyWithResponse Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -172566,7 +172566,7 @@ func (c *ClientWithResponses) StartAgentJobWithBodyWithResponse(ctx context.Cont
 
 // StartAgentJobWithResponse Start a shipped agent's job on one target
 //
-// Ticket triage, CI suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
+// Ticket triage, object suggestion and knowledge draft work on an entry, duplicate review on a hub's inventory. The job runs in the background on the agent's own account, held to its policy, its person and its budget; what it would change waits for a person among the agent's requests, or as a suggestion on the entry. An agent built elsewhere runs no job here.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175614,9 +175614,9 @@ func (c *ClientWithResponses) DeliverChatWithFormdataBodyWithResponse(ctx contex
 	return ParseDeliverChatResult(rsp)
 }
 
-// ReadCiCampaignWithResponse A certification campaign with every CI asked
+// ReadCiCampaignWithResponse A certification campaign with every object asked
 //
-// Its score and each CI's verdict, who gave it and when. Needs READ on the hub.
+// Its score and each object's verdict, who gave it and when. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -175629,9 +175629,9 @@ func (c *ClientWithResponses) ReadCiCampaignWithResponse(ctx context.Context, ca
 	return ParseReadCiCampaignResult(rsp)
 }
 
-// AttestCiWithBodyWithResponse Answer a campaign's question about a configuration item
+// AttestCiWithBodyWithResponse Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175644,9 +175644,9 @@ func (c *ClientWithResponses) AttestCiWithBodyWithResponse(ctx context.Context, 
 	return ParseAttestCiResult(rsp)
 }
 
-// AttestCiWithResponse Answer a campaign's question about a configuration item
+// AttestCiWithResponse Answer a campaign's question about an object
 //
-// CONFIRMED moves the CI's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
+// CONFIRMED moves the object's next review by the campaign's period; DISPUTED makes it fall due today. The person asked answers with READ on the hub, anybody else with WRITE_ITEMS.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175676,7 +175676,7 @@ func (c *ClientWithResponses) CloseCiCampaignWithResponse(ctx context.Context, c
 
 // ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175691,7 +175691,7 @@ func (c *ClientWithResponses) ResolveCiDuplicateWithBodyWithResponse(ctx context
 
 // ResolveCiDuplicateWithResponse Merge a duplicate or call it distinct
 //
-// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the CIs are recorded as distinct. Needs WRITE_ITEMS on the hub.
+// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175704,7 +175704,7 @@ func (c *ClientWithResponses) ResolveCiDuplicateWithResponse(ctx context.Context
 	return ParseResolveCiDuplicateResult(rsp)
 }
 
-// ListCiGroupMembersWithResponse The configuration items a group holds now
+// ListCiGroupMembersWithResponse The objects a group holds now
 //
 // Needs READ on the hub.
 //
@@ -175734,9 +175734,9 @@ func (c *ClientWithResponses) DismissCiHoldWithResponse(ctx context.Context, hol
 	return ParseDismissCiHoldResult(rsp)
 }
 
-// RelateCisWithBodyWithResponse Join two configuration items
+// RelateCisWithBodyWithResponse Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175749,9 +175749,9 @@ func (c *ClientWithResponses) RelateCisWithBodyWithResponse(ctx context.Context,
 	return ParseRelateCisResult(rsp)
 }
 
-// RelateCisWithResponse Join two configuration items
+// RelateCisWithResponse Join two objects
 //
-// By a relation type, read from the source; the type's class pairs decide whether it may join them. Both CIs are in one hub. Needs WRITE_ITEMS on the hub.
+// By a relation type, read from the source; the type's object type pairs decide whether it may join them. Both objects are in one hub. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175781,7 +175781,7 @@ func (c *ClientWithResponses) UnrelateCisWithResponse(ctx context.Context, relat
 
 // ReadCiRunWithResponse One reconciliation run with its decisions
 //
-// Every item's outcome, CI, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
+// Every item's outcome, object, matching rule and the attributes taken or kept, by name. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -175794,7 +175794,7 @@ func (c *ClientWithResponses) ReadCiRunWithResponse(ctx context.Context, runId o
 	return ParseReadCiRunResult(rsp)
 }
 
-// ReadCiWithResponse Read a configuration item
+// ReadCiWithResponse Read an object
 //
 // With its relations both ways and the protection need it inherits from everything that suffers when it fails. Needs READ on the hub.
 //
@@ -175809,9 +175809,9 @@ func (c *ClientWithResponses) ReadCiWithResponse(ctx context.Context, ciId opena
 	return ParseReadCiResult(rsp)
 }
 
-// UpdateCiWithBodyWithResponse Change a configuration item by hand
+// UpdateCiWithBodyWithResponse Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175824,9 +175824,9 @@ func (c *ClientWithResponses) UpdateCiWithBodyWithResponse(ctx context.Context, 
 	return ParseUpdateCiResult(rsp)
 }
 
-// UpdateCiWithResponse Change a configuration item by hand
+// UpdateCiWithResponse Change an object by hand
 //
-// Its name, attributes (null clears one) or a more specific class, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
+// Its name, attributes (null clears one) or a more specific object type, through the reconciliation as source `manual`; the answer's `decision` names what was kept from whom. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175839,7 +175839,7 @@ func (c *ClientWithResponses) UpdateCiWithResponse(ctx context.Context, ciId ope
 	return ParseUpdateCiResult(rsp)
 }
 
-// ReadCiAssetWithResponse A configuration item's asset record
+// ReadCiAssetWithResponse An object's register record
 //
 // With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
 //
@@ -175854,7 +175854,7 @@ func (c *ClientWithResponses) ReadCiAssetWithResponse(ctx context.Context, ciId 
 	return ParseReadCiAssetResult(rsp)
 }
 
-// RegisterCiAssetWithBodyWithResponse Write a configuration item's asset record
+// RegisterCiAssetWithBodyWithResponse Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -175869,7 +175869,7 @@ func (c *ClientWithResponses) RegisterCiAssetWithBodyWithResponse(ctx context.Co
 	return ParseRegisterCiAssetResult(rsp)
 }
 
-// RegisterCiAssetWithResponse Write a configuration item's asset record
+// RegisterCiAssetWithResponse Write an object's register record
 //
 // Its tag, cost, purchase, supplier, warranty, contract, stockroom, holder and request; a new record starts in the state given, REQUESTED when none. A member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -175884,9 +175884,9 @@ func (c *ClientWithResponses) RegisterCiAssetWithResponse(ctx context.Context, c
 	return ParseRegisterCiAssetResult(rsp)
 }
 
-// MoveCiAssetWithBodyWithResponse Move an asset through its life
+// MoveCiAssetWithBodyWithResponse Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175899,9 +175899,9 @@ func (c *ClientWithResponses) MoveCiAssetWithBodyWithResponse(ctx context.Contex
 	return ParseMoveCiAssetResult(rsp)
 }
 
-// MoveCiAssetWithResponse Move an asset through its life
+// MoveCiAssetWithResponse Move a register record through its life
 //
-// The CI's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed asset moves no more. Needs WRITE_ITEMS on the hub.
+// The object's lifecycle stage follows. Disposing needs the method and the reference of the certificate that proves it; a disposed object moves no more. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -175914,7 +175914,7 @@ func (c *ClientWithResponses) MoveCiAssetWithResponse(ctx context.Context, ciId 
 	return ParseMoveCiAssetResult(rsp)
 }
 
-// ListCiBacklinksWithResponse What points at a configuration item
+// ListCiBacklinksWithResponse What points at an object
 //
 // The pages, entries' notes and comments and whiteboards that mention it, show it as a card or embed it, each with its title - only those the reader may see. Needs READ on the hub.
 //
@@ -175929,7 +175929,7 @@ func (c *ClientWithResponses) ListCiBacklinksWithResponse(ctx context.Context, c
 	return ParseListCiBacklinksResult(rsp)
 }
 
-// SetCiComplianceWithBodyWithResponse Set a configuration item's lifecycle and compliance fields
+// SetCiComplianceWithBodyWithResponse Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -175944,7 +175944,7 @@ func (c *ClientWithResponses) SetCiComplianceWithBodyWithResponse(ctx context.Co
 	return ParseSetCiComplianceResult(rsp)
 }
 
-// SetCiComplianceWithResponse Set a configuration item's lifecycle and compliance fields
+// SetCiComplianceWithResponse Set an object's lifecycle and compliance fields
 //
 // Stage and status, owner, location, protection need (C/I/A), next review and quantity; a member left out stays, null clears it. Needs WRITE_ITEMS on the hub.
 //
@@ -175959,7 +175959,7 @@ func (c *ClientWithResponses) SetCiComplianceWithResponse(ctx context.Context, c
 	return ParseSetCiComplianceResult(rsp)
 }
 
-// ReadCiImpactWithResponse What a configuration item's failure reaches
+// ReadCiImpactWithResponse What an object's failure reaches
 //
 // DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
 //
@@ -175974,9 +175974,9 @@ func (c *ClientWithResponses) ReadCiImpactWithResponse(ctx context.Context, ciId
 	return ParseReadCiImpactResult(rsp)
 }
 
-// ListCiWorkWithResponse The entries a configuration item is part of
+// ListCiWorkWithResponse The entries an object is part of
 //
-// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+// Every entry - a ticket, a change, a task - that names the object as affected, or names an object beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -176051,7 +176051,7 @@ func (c *ClientWithResponses) RunCiConnectorWithResponse(ctx context.Context, co
 
 // DeliverCiAlertsWithBodyWithResponse Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -176067,7 +176067,7 @@ func (c *ClientWithResponses) DeliverCiAlertsWithBodyWithResponse(ctx context.Co
 
 // DeliverCiAlertsWithResponse Post alerts to an intake
 //
-// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the CI its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
+// An Alertmanager webhook, a Zabbix media type or a Checkmk notification posts its alerts in its own format. The intake's secret is the credential: presented as `Authorization: Bearer <secret>`, or used to sign the delivery - `X-Hubtask-Timestamp` in Unix seconds and `X-Hubtask-Signature: sha256=<hex>` of the HMAC-SHA-256 over the timestamp, a dot and the body - inside five minutes, a replay refused. Each alert is kept once by its key, bound to the object its host names, and opens an entry in the intake's collection while it fires and completes it when it resolves.
 // Every reason not to serve answers the same `404` - an unknown intake, one switched off, a wrong secret, a stale or replayed signature.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -176081,9 +176081,9 @@ func (c *ClientWithResponses) DeliverCiAlertsWithResponse(ctx context.Context, t
 	return ParseDeliverCiAlertsResult(rsp)
 }
 
-// ListCiClassesWithResponse The configuration item classes
+// ListCiClassesWithResponse The object types
 //
-// The class hierarchy Hubtask ships and the workspace's own classes beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations a CI of it needs. Needs READ in the workspace and the assets module switched on.
+// The object type hierarchy Hubtask ships and the workspace's own object types beneath it, each with what it inherits: attributes, identifier rules nearest first, the relations an object of it needs. Needs READ in the workspace and the inventory module switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -176096,9 +176096,9 @@ func (c *ClientWithResponses) ListCiClassesWithResponse(ctx context.Context, req
 	return ParseListCiClassesResult(rsp)
 }
 
-// DefineCiClassWithBodyWithResponse Add or change a class of the workspace's own
+// DefineCiClassWithBodyWithResponse Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -176111,9 +176111,9 @@ func (c *ClientWithResponses) DefineCiClassWithBodyWithResponse(ctx context.Cont
 	return ParseDefineCiClassResult(rsp)
 }
 
-// DefineCiClassWithResponse Add or change a class of the workspace's own
+// DefineCiClassWithResponse Add or change an object type of the workspace's own
 //
-// Adds a class beneath a shipped or an own class, or changes an own class. A shipped class is not changed. Needs STRUCTURE in the workspace.
+// Adds an object type beneath a shipped or an own object type, or changes an own object type. A shipped object type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -176156,9 +176156,9 @@ func (c *ClientWithResponses) DeliverCiInventoryWithResponse(ctx context.Context
 	return ParseDeliverCiInventoryResult(rsp)
 }
 
-// ListCiRelationTypesWithResponse The relation types between configuration items
+// ListCiRelationTypesWithResponse The relation types between objects
 //
-// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the class pairs it may join.
+// The shipped relation catalogue and the workspace's own types, each with which end suffers when the other fails and the object type pairs it may join.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -176173,7 +176173,7 @@ func (c *ClientWithResponses) ListCiRelationTypesWithResponse(ctx context.Contex
 
 // DefineCiRelationTypeWithBodyWithResponse Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -176188,7 +176188,7 @@ func (c *ClientWithResponses) DefineCiRelationTypeWithBodyWithResponse(ctx conte
 
 // DefineCiRelationTypeWithResponse Add or change a relation type of the workspace's own
 //
-// Its words both ways, its impact (which end suffers when the other fails) and the class pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
+// Its words both ways, its impact (which end suffers when the other fails) and the object type pairs it may join. A shipped type is not changed. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -176201,7 +176201,7 @@ func (c *ClientWithResponses) DefineCiRelationTypeWithResponse(ctx context.Conte
 	return ParseDefineCiRelationTypeResult(rsp)
 }
 
-// ListCiSourcesWithResponse The sources configuration items come from
+// ListCiSourcesWithResponse The sources objects come from
 //
 // People (`manual`), files, programs and connectors by precedence, a lower rank first.
 //
@@ -176218,7 +176218,7 @@ func (c *ClientWithResponses) ListCiSourcesWithResponse(ctx context.Context, req
 
 // DefineCiSourceWithBodyWithResponse Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -176233,7 +176233,7 @@ func (c *ClientWithResponses) DefineCiSourceWithBodyWithResponse(ctx context.Con
 
 // DefineCiSourceWithResponse Add or change a source
 //
-// Its kind, rank, the classes it may write, whether it may make new CIs and a file source's mapping. Needs STRUCTURE in the workspace.
+// Its kind, rank, the object types it may write, whether it may make new objects and a file source's mapping. Needs STRUCTURE in the workspace.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -178961,9 +178961,9 @@ func (c *ClientWithResponses) UpdateGroupWithApplicationMergePatchPlusJSONBodyWi
 	return ParseUpdateGroupResult(rsp)
 }
 
-// ListCiAssetsWithResponse A hub's asset register
+// ListCiAssetsWithResponse A hub's register records
 //
-// In CI order after a cursor, narrowed to a state when given. Needs READ on the hub.
+// In object order after a cursor, narrowed to a state when given. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179083,7 +179083,7 @@ func (c *ClientWithResponses) CreateChatBotWithResponse(ctx context.Context, hub
 
 // ListCiAlertsWithResponse A hub's alerts
 //
-// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the CI its host names and the entry opened for it. Needs READ on the hub.
+// The alerts monitoring programs posted to the hub's intakes, the latest first, each problem once by its key, with the object its host names and the entry opened for it. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179111,9 +179111,9 @@ func (c *ClientWithResponses) ListCiCampaignsWithResponse(ctx context.Context, h
 	return ParseListCiCampaignsResult(rsp)
 }
 
-// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's CIs to attest them
+// StartCiCampaignWithBodyWithResponse Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179126,9 +179126,9 @@ func (c *ClientWithResponses) StartCiCampaignWithBodyWithResponse(ctx context.Co
 	return ParseStartCiCampaignResult(rsp)
 }
 
-// StartCiCampaignWithResponse Ask the owners of a hub's CIs to attest them
+// StartCiCampaignWithResponse Ask the owners of a hub's objects to attest them
 //
-// Every active CI of the classes named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
+// Every active object of the object types named (all when none) - with due_by, only those whose review falls due by then or was never set - is asked once, of its owning person when it has one. The set is fixed when it starts. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179143,7 +179143,7 @@ func (c *ClientWithResponses) StartCiCampaignWithResponse(ctx context.Context, h
 
 // ListCiDuplicatesWithResponse Open duplicates
 //
-// Sets of CIs one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
+// Sets of objects one reported item matched, waiting to be merged or called distinct. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179156,9 +179156,9 @@ func (c *ClientWithResponses) ListCiDuplicatesWithResponse(ctx context.Context, 
 	return ParseListCiDuplicatesResult(rsp)
 }
 
-// ListCiGroupsWithResponse A hub's CI groups
+// ListCiGroupsWithResponse A hub's object groups
 //
-// Each with how many CIs it holds now. Needs READ on the hub.
+// Each with how many objects it holds now. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179171,9 +179171,9 @@ func (c *ClientWithResponses) ListCiGroupsWithResponse(ctx context.Context, hubI
 	return ParseListCiGroupsResult(rsp)
 }
 
-// DefineCiGroupWithBodyWithResponse Define or change a CI group by its key
+// DefineCiGroupWithBodyWithResponse Define or change an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179186,9 +179186,9 @@ func (c *ClientWithResponses) DefineCiGroupWithBodyWithResponse(ctx context.Cont
 	return ParseDefineCiGroupResult(rsp)
 }
 
-// DefineCiGroupWithResponse Define or change a CI group by its key
+// DefineCiGroupWithResponse Define or change an object group by its key
 //
-// A name and a filter on classes, stages, a text the name holds and attribute values; at least one. A group naming a service CI is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
+// A name and a filter on object types, stages, a text the name holds and attribute values; at least one. A group naming a service object is what that service rests on beside its relations. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179203,7 +179203,7 @@ func (c *ClientWithResponses) DefineCiGroupWithResponse(ctx context.Context, hub
 
 // ListCiHoldsWithResponse Items held for review
 //
-// What the reconciliation held instead of making a CI, newest first. Needs READ on the hub.
+// What the reconciliation held instead of making an object, newest first. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179231,9 +179231,9 @@ func (c *ClientWithResponses) ListCiRunsWithResponse(ctx context.Context, hubId 
 	return ParseListCiRunsResult(rsp)
 }
 
-// ListHubCiWorkWithResponse How many open entries name each configuration item of a hub
+// ListHubCiWorkWithResponse How many open entries name each object of a hub
 //
-// For each CI of the hub, the open, unarchived entries the reader may see that name it as affected; CIs with none are left out. Needs READ on the hub.
+// For each object of the hub, the open, unarchived entries the reader may see that name it as affected; objects with none are left out. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179246,9 +179246,9 @@ func (c *ClientWithResponses) ListHubCiWorkWithResponse(ctx context.Context, hub
 	return ParseListHubCiWorkResult(rsp)
 }
 
-// ListCisWithResponse A hub's configuration items
+// ListCisWithResponse A hub's objects
 //
-// A page of the hub's CIs in a stable order, narrowed to a class and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
+// A page of the hub's objects in a stable order, narrowed to an object type and its descendants when one is given; `next` is the cursor of the following page. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179261,9 +179261,9 @@ func (c *ClientWithResponses) ListCisWithResponse(ctx context.Context, hubId ope
 	return ParseListCisResult(rsp)
 }
 
-// CreateCiWithBodyWithResponse Make a configuration item by hand
+// CreateCiWithBodyWithResponse Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179276,9 +179276,9 @@ func (c *ClientWithResponses) CreateCiWithBodyWithResponse(ctx context.Context, 
 	return ParseCreateCiResult(rsp)
 }
 
-// CreateCiWithResponse Make a configuration item by hand
+// CreateCiWithResponse Make an object by hand
 //
-// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds a CI its identifiers name, nothing is made and the problem names that CI (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
+// Through the same reconciliation every source writes through, as source `manual`: when the hub already holds an object its identifiers name, nothing is made and the problem names that object (`cmdb.ci_exists`). Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179291,7 +179291,7 @@ func (c *ClientWithResponses) CreateCiWithResponse(ctx context.Context, hubId op
 	return ParseCreateCiResult(rsp)
 }
 
-// ImportCiFileWithBodyWithResponse Import a file of configuration items
+// ImportCiFileWithBodyWithResponse Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -179306,7 +179306,7 @@ func (c *ClientWithResponses) ImportCiFileWithBodyWithResponse(ctx context.Conte
 	return ParseImportCiFileResult(rsp)
 }
 
-// ImportCiFileWithResponse Import a file of configuration items
+// ImportCiFileWithResponse Import a file of objects
 //
 // A CSV table or a JSON array read by a mapping, or a CycloneDX or SPDX bill of materials, through the reconciliation as the source named. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
@@ -179323,7 +179323,7 @@ func (c *ClientWithResponses) ImportCiFileWithResponse(ctx context.Context, hubI
 
 // ReconcileCisWithBodyWithResponse Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179338,7 +179338,7 @@ func (c *ClientWithResponses) ReconcileCisWithBodyWithResponse(ctx context.Conte
 
 // ReconcileCisWithResponse Reconcile a source's payload
 //
-// Each item is identified - by the source's own key, then by its class's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
+// Each item is identified - by the source's own key, then by its object type's identifier rules in order - and created, updated under the sources' precedence, held for review, or reported as a duplicate; every decision is explained. A dry run writes nothing. Needs WRITE_ITEMS on the hub.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -179353,7 +179353,7 @@ func (c *ClientWithResponses) ReconcileCisWithResponse(ctx context.Context, hubI
 
 // ListCiConnectorsWithResponse A hub's connectors
 //
-// The programs the hub's configuration items are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
+// The programs the hub's objects are pulled from and the monitoring programs that post alerts to it, with the source each writes as, the hosts it may reach, its period, whether a credential is set - never the credential - and how its last run ended. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179398,7 +179398,7 @@ func (c *ClientWithResponses) DefineCiConnectorWithResponse(ctx context.Context,
 
 // ReadCmdbHealthWithResponse A hub's inventory judged
 //
-// Completeness, correctness (stale, orphaned, duplicate), CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting. Needs READ on the hub.
+// Completeness, correctness (stale, orphaned, duplicate), objects without an owner and reviews overdue, per object type and in all, with the objects found wanting. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -179773,7 +179773,7 @@ func (c *ClientWithResponses) ReadServiceMapWithResponse(ctx context.Context, hu
 
 // ListSoftwareProductsWithResponse A hub's software, normalised
 //
-// Its software CIs grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
+// Its software objects grouped by the product an alias names or by their folded names, with their versions and installations. Needs READ on the hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -180865,9 +180865,9 @@ func (c *ClientWithResponses) AttachMediaWithResponse(ctx context.Context, itemI
 	return ParseAttachMediaResult(rsp)
 }
 
-// ListEntryCisWithResponse The configuration items an entry names as affected
+// ListEntryCisWithResponse The objects an entry names as affected
 //
-// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or a CI they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
+// Those the reader may read, the active services and offerings their failure reaches, the other open entries naming them or an object they reach, and the entries planned on them in a window overlapping the entry's start and due. Needs READ on the entry.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -180880,7 +180880,7 @@ func (c *ClientWithResponses) ListEntryCisWithResponse(ctx context.Context, item
 	return ParseListEntryCisResult(rsp)
 }
 
-// UnaffectEntryCiWithResponse Remove a configuration item from an entry's affected ones
+// UnaffectEntryCiWithResponse Remove an object from an entry's affected ones
 //
 // Needs WRITE_ITEMS on the entry.
 //
@@ -180895,9 +180895,9 @@ func (c *ClientWithResponses) UnaffectEntryCiWithResponse(ctx context.Context, i
 	return ParseUnaffectEntryCiResult(rsp)
 }
 
-// AffectEntryCiWithResponse Name a configuration item as affected by an entry
+// AffectEntryCiWithResponse Name an object as affected by an entry
 //
-// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the CI's hub.
+// At most fifty per entry; naming one again changes nothing. Needs WRITE_ITEMS on the entry and READ on the object's hub.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -181554,7 +181554,7 @@ func (c *ClientWithResponses) RenderReplyTemplateWithResponse(ctx context.Contex
 
 // ReadEntryRequesterWithResponse Who raised the entry, and their organisation
 //
-// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 configuration items the requester owns, by name, of the hubs where the reader may read them and assets are switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
+// The person who raised the entry - its creator - and the portal organisation their mail domain belongs to, if any, for the side panel a handler reads beside a request; their other requests are a query by `created_by`, which answers what the reader may see. Also up to 20 objects the requester owns, by name, of the hubs where the reader may read them and the inventory is switched on; merged and disposed ones are left out. The address itself is not answered. Needs READ on the entry and the service desk switched on.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -187568,7 +187568,7 @@ func (c *ClientWithResponses) SearchItemsWithResponse(ctx context.Context, body 
 
 // SearchAllWithBodyWithResponse One search over every kind of object the caller may read
 //
-// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -187583,7 +187583,7 @@ func (c *ClientWithResponses) SearchAllWithBodyWithResponse(ctx context.Context,
 
 // SearchAllWithResponse One search over every kind of object the caller may read
 //
-// Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
+// Entries, tickets, pages, whiteboards, goals, dashboards, inventory objects, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

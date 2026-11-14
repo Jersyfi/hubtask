@@ -15451,7 +15451,7 @@ type CiAsset struct {
 	} `json:"disposal"`
 	HubId openapi_types.UUID `json:"hub_id"`
 
-	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one asset, not by the register's list; an asset registered before the steps were kept has none, its state alone.
+	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one register record, not by the register's list; a register record made before the steps were kept has none, its state alone.
 	Moves         *[]CiAssetStep      `json:"moves,omitempty"`
 	Name          *string             `json:"name,omitempty"`
 	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
@@ -15656,7 +15656,7 @@ type CiCampaignStart struct {
 	ReviewMonths *int                `json:"review_months,omitempty"`
 }
 
-// CiClass A configuration item class. A shipped class has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
+// CiClass An object type. A shipped object type has no `name`: a client shows its own word for the key. `all_attributes`, `identifier_rules`, `required_relations` and `staleness_days` include what it inherits.
 type CiClass struct {
 	Abstract        *bool              `json:"abstract,omitempty"`
 	AllAttributes   []CiAttribute      `json:"all_attributes"`
@@ -15668,7 +15668,7 @@ type CiClass struct {
 	Lineage         []string           `json:"lineage"`
 	Name            *string            `json:"name,omitempty"`
 
-	// OwnStalenessDays The staleness period the class sets itself; 0 where it inherits.
+	// OwnStalenessDays The staleness period the object type sets itself; 0 where it inherits.
 	OwnStalenessDays  *int                 `json:"own_staleness_days,omitempty"`
 	Parent            string               `json:"parent"`
 	RequiredRelations []CiRequiredRelation `json:"required_relations"`
@@ -15707,7 +15707,7 @@ type CiCompliance struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection *CiOwnProtection    `json:"protection,omitempty"`
 	Quantity   *int                `json:"quantity,omitempty"`
 	ReviewDue  *openapi_types.Date `json:"review_due,omitempty"`
@@ -15721,7 +15721,7 @@ type CiComplianceStage string
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
 
-// CiConnector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+// CiConnector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
 	AllowedHosts  []string            `json:"allowed_hosts"`
 	BaseUrl       *string             `json:"base_url,omitempty"`
@@ -15737,7 +15737,7 @@ type CiConnector struct {
 	HubId openapi_types.UUID `json:"hub_id"`
 	Id    openapi_types.UUID `json:"id"`
 
-	// Inventory An intake posted CIs rather than alerts.
+	// Inventory An intake posted objects rather than alerts.
 	Inventory *bool           `json:"inventory,omitempty"`
 	Key       string          `json:"key"`
 	Kind      CiConnectorKind `json:"kind"`
@@ -15793,7 +15793,7 @@ type CiConnectorList struct {
 
 // CiConnectorRun defines model for CiConnectorRun.
 type CiConnectorRun struct {
-	// Connector A program a hub's CIs are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
+	// Connector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 	Connector CiConnector   `json:"connector"`
 	Counts    CiRunCounts   `json:"counts"`
 	Decisions *[]CiDecision `json:"decisions,omitempty"`
@@ -15850,11 +15850,11 @@ type CiDuplicateList struct {
 
 // CiDuplicateResolve defines model for CiDuplicateResolve.
 type CiDuplicateResolve struct {
-	// SurvivorId The CI that stays; absent says the CIs are distinct.
+	// SurvivorId The object that stays; absent says the objects are distinct.
 	SurvivorId *openapi_types.UUID `json:"survivor_id,omitempty"`
 }
 
-// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the CIs are distinct.
+// CiDuplicateResolved The survivor after a merge, or the duplicate's identifier when the objects are distinct.
 type CiDuplicateResolved struct {
 	Class   *string             `json:"class,omitempty"`
 	HubId   *openapi_types.UUID `json:"hub_id,omitempty"`
@@ -15871,7 +15871,7 @@ type CiFileImport struct {
 	DryRun  *bool              `json:"dry_run,omitempty"`
 	Format  CiFileImportFormat `json:"format"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping *CiFileMapping `json:"mapping,omitempty"`
 	Source  string         `json:"source"`
 }
@@ -15879,7 +15879,7 @@ type CiFileImport struct {
 // CiFileImportFormat defines model for CiFileImport.Format.
 type CiFileImportFormat string
 
-// CiFileMapping How a CSV table's or a JSON array's columns become a configuration item.
+// CiFileMapping How a CSV table's or a JSON array's columns become an object.
 type CiFileMapping struct {
 	Class           string             `json:"class"`
 	ClassColumn     *string            `json:"class_column,omitempty"`
@@ -15896,7 +15896,7 @@ type CiGroup struct {
 	Id     openapi_types.UUID `json:"id"`
 	Key    string             `json:"key"`
 
-	// Members How many CIs it holds now.
+	// Members How many objects it holds now.
 	Members   *int                `json:"members,omitempty"`
 	Name      string              `json:"name"`
 	ServiceId *openapi_types.UUID `json:"service_id"`
@@ -15916,7 +15916,7 @@ type CiGroupFilter struct {
 	Attributes *map[string]string `json:"attributes,omitempty"`
 	Classes    *[]string          `json:"classes,omitempty"`
 
-	// Locations The location is one of these location CIs (or none, with no_location) - asset.location.
+	// Locations The location is one of these location objects (or none, with no_location) - asset.location.
 	Locations *[]openapi_types.UUID `json:"locations,omitempty"`
 	NameHas   *string               `json:"name_has,omitempty"`
 
@@ -15933,7 +15933,7 @@ type CiGroupFilter struct {
 	Owners *[]openapi_types.UUID  `json:"owners,omitempty"`
 	Stages *[]CiGroupFilterStages `json:"stages,omitempty"`
 
-	// Tags The asset tag is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
+	// Tags The inventory number is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
 	Tags *[]string `json:"tags,omitempty"`
 }
 
@@ -15982,7 +15982,7 @@ type CiHoldList struct {
 type CiIdentifierRule struct {
 	Attributes []string `json:"attributes"`
 
-	// Class The class that declared the rule.
+	// Class The object type that declared the rule.
 	Class *string `json:"class,omitempty"`
 }
 
@@ -16013,7 +16013,7 @@ type CiInventoryReceipt struct {
 // CiInventoryReceiptStatus defines model for CiInventoryReceipt.Status.
 type CiInventoryReceiptStatus string
 
-// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+// CiOwnProtection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 type CiOwnProtection struct {
 	A      *CiOwnProtectionA       `json:"a,omitempty"`
 	C      *CiOwnProtectionC       `json:"c,omitempty"`
@@ -16153,7 +16153,7 @@ type CiRelationTypeList struct {
 
 // CiRequiredRelation defines model for CiRequiredRelation.
 type CiRequiredRelation struct {
-	// Class The class that declared it; left out where it is defined.
+	// Class The object type that declared it; left out where it is defined.
 	Class    *string  `json:"class,omitempty"`
 	Outgoing bool     `json:"outgoing"`
 	Types    []string `json:"types"`
@@ -16212,7 +16212,7 @@ type CiSourceDefine struct {
 	Classes *[]string          `json:"classes,omitempty"`
 	Kind    CiSourceDefineKind `json:"kind"`
 
-	// Mapping How a CSV table's or a JSON array's columns become a configuration item.
+	// Mapping How a CSV table's or a JSON array's columns become an object.
 	Mapping   *CiFileMapping `json:"mapping,omitempty"`
 	MayCreate *bool          `json:"may_create,omitempty"`
 	Rank      int            `json:"rank"`
@@ -16239,7 +16239,7 @@ type CiWorkCounts struct {
 	Data []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Open The open entries the reader may see that name the CI.
+		// Open The open entries the reader may see that name the object.
 		Open int `json:"open"`
 	} `json:"data"`
 
@@ -16259,7 +16259,7 @@ type CiWorkEntry struct {
 	// Key The entry's key, INC-128; null where the entry has no number or its collection no word.
 	Key *string `json:"key"`
 
-	// Reason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+	// Reason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
 	Reason  CiWorkEntryReason `json:"reason"`
 	StartAt *time.Time        `json:"start_at"`
 
@@ -16271,7 +16271,7 @@ type CiWorkEntry struct {
 	} `json:"status"`
 	Title string `json:"title"`
 
-	// Via The nearest CI beneath that the entry names; null for NAMES.
+	// Via The nearest object beneath that the entry names; null for NAMES.
 	Via *struct {
 		CiId  openapi_types.UUID `json:"ci_id"`
 		Class string             `json:"class"`
@@ -16279,10 +16279,10 @@ type CiWorkEntry struct {
 	} `json:"via"`
 }
 
-// CiWorkEntryReason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+// CiWorkEntryReason NAMES, the entry names this object itself; BENEATH, it names an object whose failure this object suffers.
 type CiWorkEntryReason string
 
-// CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
+// CmdbHealth A hub's active objects judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate objects, objects without an owner and reviews overdue, per object type, and the objects found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's object type; each service scored by the share of the objects it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
 	Classes []struct {
 		Class        string  `json:"class"`
@@ -16306,7 +16306,7 @@ type CmdbHealth struct {
 	Services      []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Cis The active CIs it rests on, itself included.
+		// Cis The active objects it rests on, itself included.
 		Cis   int    `json:"cis"`
 		Class string `json:"class"`
 		Name  string `json:"name"`
@@ -17038,7 +17038,7 @@ type ConfigVersionList struct {
 	Data []ConfigVersion `json:"data"`
 }
 
-// ConfigurationItem A configuration item in a hub. `attributes` hold its class's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
+// ConfigurationItem An object in a hub. `attributes` hold its object type's typed values; `provenance` names per attribute the source that last wrote it. `effective_protection` is given on a single read: the need it inherits from everything that suffers when it fails.
 type ConfigurationItem struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	Class      string                 `json:"class"`
@@ -17051,7 +17051,7 @@ type ConfigurationItem struct {
 	// EffectiveProtection A protection need per confidentiality, integrity and availability.
 	EffectiveProtection *CiProtection `json:"effective_protection,omitempty"`
 
-	// HasAsset Given on a single read: whether it has an asset record. False means `GET /cis/{ciId}/asset` answers not found.
+	// HasAsset Given on a single read: whether it has a register record. False means `GET /cis/{ciId}/asset` answers not found.
 	HasAsset       *bool               `json:"has_asset,omitempty"`
 	HubId          openapi_types.UUID  `json:"hub_id"`
 	Id             openapi_types.UUID  `json:"id"`
@@ -17062,7 +17062,7 @@ type ConfigurationItem struct {
 	OwnerAccountId *openapi_types.UUID `json:"owner_account_id,omitempty"`
 	OwnerGroupId   *openapi_types.UUID `json:"owner_group_id,omitempty"`
 
-	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the CI and carries a `reason`.
+	// Protection The need a person set. A dimension in `fixed` is not raised by what depends on the object and carries a `reason`.
 	Protection CiOwnProtection         `json:"protection"`
 	Provenance map[string]CiProvenance `json:"provenance"`
 	Quantity   int                     `json:"quantity"`
@@ -18306,11 +18306,11 @@ type EntryCis struct {
 		Stage   string             `json:"stage"`
 	} `json:"cis"`
 
-	// Collisions The entries planned on an affected CI, or one it reaches, in an overlapping window.
+	// Collisions The entries planned on an affected object, or one it reaches, in an overlapping window.
 	Collisions []struct {
 		CiId openapi_types.UUID `json:"ci_id"`
 
-		// Direct Both entries name the CI itself.
+		// Direct Both entries name the object itself.
 		Direct    bool               `json:"direct"`
 		DueAt     *time.Time         `json:"due_at"`
 		EntryType string             `json:"entry_type"`
@@ -18325,10 +18325,10 @@ type EntryCis struct {
 	} `json:"collisions"`
 	ItemId openapi_types.UUID `json:"item_id"`
 
-	// Related The other open entries naming an affected CI or one it reaches.
+	// Related The other open entries naming an affected object or one it reaches.
 	Related []EntryOnCi `json:"related"`
 
-	// Services The active services and offerings the affected CIs' failure reaches.
+	// Services The active services and offerings the affected objects' failure reaches.
 	Services []struct {
 		CiId  openapi_types.UUID `json:"ci_id"`
 		Class string             `json:"class"`
@@ -18588,7 +18588,7 @@ type EntryOnCi struct {
 type EntryRequester struct {
 	AccountId openapi_types.UUID `json:"account_id"`
 
-	// Assets The configuration items the requester owns that the reader may read, by name, at most 20.
+	// Assets The objects the requester owns that the reader may read, by name, at most 20.
 	Assets []struct {
 		Class string             `json:"class"`
 		HubId openapi_types.UUID `json:"hub_id"`
@@ -18693,7 +18693,7 @@ type EntrySteps struct {
 // EntryStepsStateMode How the entry's type says where an entry stands in its collection: `NONE` a list - open or done; `COLUMNS` a board without a workflow - `columns` are the states; `WORKFLOW` the status decides.
 type EntryStepsStateMode string
 
-// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
+// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, an inventory object - with its icon, its colour and the behaviours of its entries.
 type EntryType struct {
 	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
 	AllowedChildren []string `json:"allowed_children"`
@@ -24553,7 +24553,7 @@ type ReferenceTarget struct {
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
 	Available  bool                `json:"available"`
 
-	// CiClass A configuration item's class.
+	// CiClass An object's object type.
 	CiClass      *string             `json:"ci_class,omitempty"`
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 	Completed    *bool               `json:"completed,omitempty"`
@@ -24566,7 +24566,7 @@ type ReferenceTarget struct {
 	ElementCount *int    `json:"element_count,omitempty"`
 	EntryType    *string `json:"entry_type,omitempty"`
 
-	// HubId The hub a page, a whiteboard, a configuration item, or a goal or dashboard of a hub is in.
+	// HubId The hub a page, a whiteboard, an object, or a goal or dashboard of a hub is in.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 
 	// Icon A page's icon.
@@ -24586,7 +24586,7 @@ type ReferenceTarget struct {
 	Level  *ItemType `json:"level,omitempty"`
 	Number *int64    `json:"number,omitempty"`
 
-	// Stage A configuration item's lifecycle stage.
+	// Stage An object's lifecycle stage.
 	Stage   *string    `json:"stage,omitempty"`
 	StartAt *time.Time `json:"start_at,omitempty"`
 
@@ -24599,7 +24599,7 @@ type ReferenceTarget struct {
 	// StatusName An entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
 	StatusName *string `json:"status_name,omitempty"`
 
-	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or configuration item's name.
+	// Title The entry's, page's or goal's title, the container's, view's, dashboard's or object's name.
 	Title *string `json:"title,omitempty"`
 }
 
@@ -25583,10 +25583,10 @@ type SearchAllHit struct {
 	// Snippet The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for.
 	Snippet *string `json:"snippet"`
 
-	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory item's stage, a dashboard's sharing, a person's account status.
+	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory object's stage, a dashboard's sharing, a person's account status.
 	State *string `json:"state"`
 
-	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory item's class key, a file's media type, a person's account kind.
+	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory object's object type key, a file's media type, a person's account kind.
 	Tile *string `json:"tile"`
 
 	// Title The title, a name, a file name, or for a comment the title of what it is on.
@@ -25663,7 +25663,7 @@ type ServiceMap struct {
 		Stage string `json:"stage"`
 	} `json:"nodes"`
 
-	// Truncated The map stopped at 2000 CIs.
+	// Truncated The map stopped at 2000 objects.
 	Truncated bool `json:"truncated"`
 }
 
@@ -29480,7 +29480,7 @@ type RunAgentEvaluationJSONBody struct {
 	// CollectionId The collection whose labels a ticket triage chooses from; without it no labels are answered.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
 
-	// HubId The hub whose CIs a CI suggestion or a triage matches; required for those two.
+	// HubId The hub whose objects an object suggestion or a triage matches; required for those two.
 	HubId *openapi_types.UUID `json:"hub_id,omitempty"`
 }
 
@@ -34591,10 +34591,10 @@ type ServerInterface interface {
 	// DeliverChat A chat platform posts what was said to its bot
 	// (POST /chat-intake/{tenantId}/{botId})
 	DeliverChat(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, botId openapi_types.UUID)
-	// ReadCiCampaign A certification campaign with every CI asked
+	// ReadCiCampaign A certification campaign with every object asked
 	// (GET /ci-campaigns/{campaignId})
 	ReadCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
-	// AttestCi Answer a campaign's question about a configuration item
+	// AttestCi Answer a campaign's question about an object
 	// (PUT /ci-campaigns/{campaignId}/cis/{ciId})
 	AttestCi(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID, ciId openapi_types.UUID)
 	// CloseCiCampaign Stop a campaign taking answers
@@ -34603,13 +34603,13 @@ type ServerInterface interface {
 	// ResolveCiDuplicate Merge a duplicate or call it distinct
 	// (POST /ci-duplicates/{duplicateId}:resolve)
 	ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, duplicateId openapi_types.UUID)
-	// ListCiGroupMembers The configuration items a group holds now
+	// ListCiGroupMembers The objects a group holds now
 	// (GET /ci-groups/{groupId}/members)
 	ListCiGroupMembers(w http.ResponseWriter, r *http.Request, groupId openapi_types.UUID)
 	// DismissCiHold Close a held item
 	// (POST /ci-holds/{holdId}:dismiss)
 	DismissCiHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
-	// RelateCis Join two configuration items
+	// RelateCis Join two objects
 	// (POST /ci-relations)
 	RelateCis(w http.ResponseWriter, r *http.Request)
 	// UnrelateCis Remove a relation
@@ -34618,31 +34618,31 @@ type ServerInterface interface {
 	// ReadCiRun One reconciliation run with its decisions
 	// (GET /ci-runs/{runId})
 	ReadCiRun(w http.ResponseWriter, r *http.Request, runId openapi_types.UUID)
-	// ReadCi Read a configuration item
+	// ReadCi Read an object
 	// (GET /cis/{ciId})
 	ReadCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
-	// UpdateCi Change a configuration item by hand
+	// UpdateCi Change an object by hand
 	// (PATCH /cis/{ciId})
 	UpdateCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params UpdateCiParams)
-	// ReadCiAsset A configuration item's asset record
+	// ReadCiAsset An object's register record
 	// (GET /cis/{ciId}/asset)
 	ReadCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
-	// RegisterCiAsset Write a configuration item's asset record
+	// RegisterCiAsset Write an object's register record
 	// (PUT /cis/{ciId}/asset)
 	RegisterCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params RegisterCiAssetParams)
-	// MoveCiAsset Move an asset through its life
+	// MoveCiAsset Move a register record through its life
 	// (POST /cis/{ciId}/asset:move)
 	MoveCiAsset(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params MoveCiAssetParams)
-	// ListCiBacklinks What points at a configuration item
+	// ListCiBacklinks What points at an object
 	// (GET /cis/{ciId}/backlinks)
 	ListCiBacklinks(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
-	// SetCiCompliance Set a configuration item's lifecycle and compliance fields
+	// SetCiCompliance Set an object's lifecycle and compliance fields
 	// (PUT /cis/{ciId}/compliance)
 	SetCiCompliance(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params SetCiComplianceParams)
-	// ReadCiImpact What a configuration item's failure reaches
+	// ReadCiImpact What an object's failure reaches
 	// (GET /cis/{ciId}/impact)
 	ReadCiImpact(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ReadCiImpactParams)
-	// ListCiWork The entries a configuration item is part of
+	// ListCiWork The entries an object is part of
 	// (GET /cis/{ciId}/work)
 	ListCiWork(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
 	// SetCiConnectorCredential Set a connector's credential
@@ -34654,22 +34654,22 @@ type ServerInterface interface {
 	// DeliverCiAlerts Post alerts to an intake
 	// (POST /cmdb/alert-intake/{tenantId}/{connectorId})
 	DeliverCiAlerts(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params DeliverCiAlertsParams)
-	// ListCiClasses The configuration item classes
+	// ListCiClasses The object types
 	// (GET /cmdb/classes)
 	ListCiClasses(w http.ResponseWriter, r *http.Request)
-	// DefineCiClass Add or change a class of the workspace's own
+	// DefineCiClass Add or change an object type of the workspace's own
 	// (PUT /cmdb/classes/{classKey})
 	DefineCiClass(w http.ResponseWriter, r *http.Request, classKey string, params DefineCiClassParams)
 	// DeliverCiInventory Post a GLPI Agent's inventory
 	// (POST /cmdb/inventory-intake/{tenantId}/{connectorId})
 	DeliverCiInventory(w http.ResponseWriter, r *http.Request, tenantId openapi_types.UUID, connectorId openapi_types.UUID, params DeliverCiInventoryParams)
-	// ListCiRelationTypes The relation types between configuration items
+	// ListCiRelationTypes The relation types between objects
 	// (GET /cmdb/relation-types)
 	ListCiRelationTypes(w http.ResponseWriter, r *http.Request)
 	// DefineCiRelationType Add or change a relation type of the workspace's own
 	// (PUT /cmdb/relation-types/{typeKey})
 	DefineCiRelationType(w http.ResponseWriter, r *http.Request, typeKey string, params DefineCiRelationTypeParams)
-	// ListCiSources The sources configuration items come from
+	// ListCiSources The sources objects come from
 	// (GET /cmdb/sources)
 	ListCiSources(w http.ResponseWriter, r *http.Request)
 	// DefineCiSource Add or change a source
@@ -35038,7 +35038,7 @@ type ServerInterface interface {
 	// UpdateGroup Rename a group or change its description
 	// (PATCH /groups/{groupId})
 	UpdateGroup(w http.ResponseWriter, r *http.Request, groupId GroupId, params UpdateGroupParams)
-	// ListCiAssets A hub's asset register
+	// ListCiAssets A hub's register records
 	// (GET /hubs/{hubId}/assets)
 	ListCiAssets(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiAssetsParams)
 	// ListHubCalendars A hub's own business calendars
@@ -35062,16 +35062,16 @@ type ServerInterface interface {
 	// ListCiCampaigns A hub's certification campaigns
 	// (GET /hubs/{hubId}/ci-campaigns)
 	ListCiCampaigns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiCampaignsParams)
-	// StartCiCampaign Ask the owners of a hub's CIs to attest them
+	// StartCiCampaign Ask the owners of a hub's objects to attest them
 	// (POST /hubs/{hubId}/ci-campaigns)
 	StartCiCampaign(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListCiDuplicates Open duplicates
 	// (GET /hubs/{hubId}/ci-duplicates)
 	ListCiDuplicates(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiDuplicatesParams)
-	// ListCiGroups A hub's CI groups
+	// ListCiGroups A hub's object groups
 	// (GET /hubs/{hubId}/ci-groups)
 	ListCiGroups(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
-	// DefineCiGroup Define or change a CI group by its key
+	// DefineCiGroup Define or change an object group by its key
 	// (PUT /hubs/{hubId}/ci-groups/{groupKey})
 	DefineCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params DefineCiGroupParams)
 	// ListCiHolds Items held for review
@@ -35080,16 +35080,16 @@ type ServerInterface interface {
 	// ListCiRuns A hub's reconciliation runs
 	// (GET /hubs/{hubId}/ci-runs)
 	ListCiRuns(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCiRunsParams)
-	// ListHubCiWork How many open entries name each configuration item of a hub
+	// ListHubCiWork How many open entries name each object of a hub
 	// (GET /hubs/{hubId}/ci-work)
 	ListHubCiWork(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
-	// ListCis A hub's configuration items
+	// ListCis A hub's objects
 	// (GET /hubs/{hubId}/cis)
 	ListCis(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListCisParams)
-	// CreateCi Make a configuration item by hand
+	// CreateCi Make an object by hand
 	// (POST /hubs/{hubId}/cis)
 	CreateCi(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
-	// ImportCiFile Import a file of configuration items
+	// ImportCiFile Import a file of objects
 	// (POST /hubs/{hubId}/cis:import)
 	ImportCiFile(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ReconcileCis Reconcile a source's payload
@@ -35307,13 +35307,13 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/attachments/{mediaId})
 	AttachMedia(w http.ResponseWriter, r *http.Request, itemId ItemId, mediaId MediaId)
-	// ListEntryCis The configuration items an entry names as affected
+	// ListEntryCis The objects an entry names as affected
 	// (GET /items/{itemId}/cis)
 	ListEntryCis(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID)
-	// UnaffectEntryCi Remove a configuration item from an entry's affected ones
+	// UnaffectEntryCi Remove an object from an entry's affected ones
 	// (DELETE /items/{itemId}/cis/{ciId})
 	UnaffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
-	// AffectEntryCi Name a configuration item as affected by an entry
+	// AffectEntryCi Name an object as affected by an entry
 	// (PUT /items/{itemId}/cis/{ciId})
 	AffectEntryCi(w http.ResponseWriter, r *http.Request, itemId openapi_types.UUID, ciId openapi_types.UUID)
 	// ListEntryCodeLinks An entry's commits, branches and pull requests
