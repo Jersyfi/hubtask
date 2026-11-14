@@ -104,6 +104,29 @@ func TestAnOwnerConfirmsAnObjectAndAnOpenRoundCountsIt(t *testing.T) {
 	}
 }
 
+// An owner admitted with READ answers only the round's questions asked of them: one asked of
+// somebody else - the object changed hands since the round started - stays pending.
+func TestAnOwnerConfirmingAnswersOnlyWhatWasAskedOfThem(t *testing.T) {
+	f, a := assuredFixture()
+	f.inv.Authorizer = &asked{}
+	started, err := call(t, StartCiCampaign{Inventory: f.inv}.Descriptor(), as(anna), usecase.Input{
+		"hub_id": hub.String(), "name": "Q4", "classes": []any{"server"}, "due_on": "2026-11-30",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	campaign := shared.ID(started["id"].(string))
+	for i := range a.asked[campaign] {
+		a.asked[campaign][i].Owner = anna
+	}
+	if _, err := call(t, ConfirmCi{Inventory: f.inv}.Descriptor(), as(bert), usecase.Input{"ci_id": host.String()}); err != nil {
+		t.Fatal(err)
+	}
+	if at, _ := a.FindAttestation(context.Background(), campaign, host); at.Verdict != domain.VerdictPending {
+		t.Errorf("Bert answered Anna's question: %+v", at)
+	}
+}
+
 // A CONFIRMED answer in a round records who confirmed the object, as its own act does; a
 // DISPUTED one does not.
 func TestARoundsConfirmationIsTheObjectsConfirmation(t *testing.T) {

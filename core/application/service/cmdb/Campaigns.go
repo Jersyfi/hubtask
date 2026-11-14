@@ -442,7 +442,7 @@ func (h ConfirmCi) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
-				answered, err := s.answerOpenCampaigns(ctx, actor, ci, now)
+				answered, err := s.answerOpenCampaigns(ctx, actor, ci, owner, now)
 				if err != nil {
 					return err
 				}
@@ -464,8 +464,9 @@ func (h ConfirmCi) Descriptor() usecase.Descriptor {
 }
 
 // answerOpenCampaigns answers CONFIRMED every open campaign of the CI's hub still waiting for it,
-// so that the round counts the object's own confirmation; it answers how many it answered.
-func (s Inventory) answerOpenCampaigns(ctx context.Context, actor appshared.ActorContext, ci domain.CI, now time.Time) (int, error) {
+// so that the round counts the object's own confirmation; it answers how many it answered. An
+// owner admitted with READ answers only what was asked of them, as AttestCi would let them.
+func (s Inventory) answerOpenCampaigns(ctx context.Context, actor appshared.ActorContext, ci domain.CI, asOwner bool, now time.Time) (int, error) {
 	cs, err := s.Assurance.Campaigns(ctx, ci.HubID, 100)
 	if err != nil {
 		return 0, err
@@ -482,7 +483,7 @@ func (s Inventory) answerOpenCampaigns(ctx context.Context, actor appshared.Acto
 		if err != nil {
 			return 0, err
 		}
-		if a.Verdict != domain.VerdictPending {
+		if a.Verdict != domain.VerdictPending || asOwner && a.Owner != actor.AccountID {
 			continue
 		}
 		if a, err = c.Answer(a, domain.VerdictConfirmed, actor.AccountID, now); err != nil {
