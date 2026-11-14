@@ -29,7 +29,7 @@ export interface ToolInput {
 /**
  * A hub tool's own tabs (§2.4): *Plan* the schedule, its table, its dependencies, the releases and
  * the sprints; *Inventory* its
- * sections are its own (`assetStrips`, *Manage* a menu at the bar's end); *Time* the actuals,
+ * tabs are its own (`inventoryPlace`: Stock, Map, Health, Alerts, Upkeep); *Time* the actuals,
  * the workload and, for whoever manages costs, the budget; *Goals* the goals and the dashboards.
  */
 export function toolViews(hubId: string, tool: string, input: ToolInput = {}): readonly PlaceView[] {

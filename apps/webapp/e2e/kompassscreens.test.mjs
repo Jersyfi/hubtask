@@ -89,16 +89,15 @@ test('UC-WRK-36 check 9: each hub tool draws one view bar of its own tabs, never
   const goals = main(page).getByRole('navigation', { name: PD.name });
   await goals.getByRole('link', { name: 'Dashboards' }).waitFor({ timeout: 10_000 });
   assert.deepEqual(await texts(goals.getByRole('link')), ['Goals', 'Dashboards']);
-  // Inventory: its sections in one bar, *Manage* a menu at its end.
+  // Inventory: its five tabs in one bar, the operator's former sections under *Upkeep* (work-surface §6.10).
   await page.goto(`${served.origin}/hubs/${IT.id}/inventory`);
   const sections = main(page).getByRole('navigation', { name: 'Parts of the inventory' });
-  await sections.getByRole('link', { name: 'Inventory' }).waitFor({ timeout: 10_000 });
+  await sections.getByRole('link', { name: 'Stock' }).waitFor({ timeout: 10_000 });
   assert.equal(await main(page).getByRole('tablist').count(), 0, 'the inventory draws a strip of tabs');
-  const manage = main(page).locator('[data-assets-manage]');
-  if (await manage.count()) {
-    await manage.click();
-    await page.getByRole('menuitem', { name: 'Runs' }).click();
-    await at(page, `/hubs/${IT.id}/inventory/runs`);
+  const upkeep = sections.getByRole('link', { name: 'Upkeep' });
+  if (await upkeep.count()) {
+    await upkeep.click();
+    await at(page, `/hubs/${IT.id}/inventory/care`);
   }
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/live-inv.png` });
   assert.deepEqual(failures, []);

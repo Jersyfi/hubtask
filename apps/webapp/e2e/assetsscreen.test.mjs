@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A hub's Assets as user-experience.md §7.3 draws it: the inventory first under a head that says
-// how it stands, the operator's sections behind *Manage* as a second strip that a reader is never
-// shown - the register and the software, which only list, in the reader's first strip -, a create in the head's list that opens its section's own dialog, connectors as cards with
+// A hub's inventory as the work surface draws it (§6.10, scene invlist): *Stock* first under a head
+// that says how it stands, five tabs - the operator's former sections gathered under *Upkeep*, which
+// a reader is never shown; the register and the software, which only list, in *Stock*'s switch -, a
+// create in the head's list that opens its tab's own dialog, connectors as cards with
 // one act and a menu, and alerts that say where they come from when there are none - with no
 // sideways scroll on a phone, full or empty; and a CI's relations as a small graph beside the list
 // (UC-AST-01 check 8, UC-AST-07 check 7, UC-AST-08 check 7, UC-AST-12 check 5).
@@ -100,25 +101,23 @@ async function open(browser, { width = 1280, height = 900, path, full = true, ro
   return { page, context, failures };
 }
 
-// The tool *Inventory* (the navigation concept §2.4): one view bar of its parts, *Manage ▾* a menu
-// at its end - never a second strip.
+// The tool *Inventory* (the navigation concept §2.4, work-surface §6.10): one view bar of its five
+// tabs - never a second strip, no *Manage ▾*.
 const bar = (page) => page.getByRole('navigation', { name: 'Parts of the inventory' });
-const manage = (page) => page.locator('[data-assets-manage]');
 async function partNames(page) {
   await bar(page).getByRole('link').first().waitFor({ timeout: 10_000 });
-  const links = (await bar(page).getByRole('link').allTextContents()).map((each) => each.trim());
-  return (await manage(page).count()) > 0 ? [...links, 'Manage'] : links;
+  assert.equal(await page.locator('[data-assets-manage]').count(), 0, 'Manage is still drawn');
+  return (await bar(page).getByRole('link').allTextContents()).map((each) => each.trim().replace(/\s*\d+$/u, ''));
 }
-async function manageTo(page, name) {
-  await manage(page).click();
-  await page.getByRole('menuitem', { name, exact: true }).click();
+async function tabTo(page, name) {
+  await bar(page).getByRole('link', { name, exact: false }).first().click();
 }
 async function noSidewaysScroll(page, what) {
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 1, `${what} scrolls sideways by ${wide} px`);
 }
 
-test('chromium: the inventory comes first under its figure, the operator\'s sections behind Manage', async (t) => {
+test('chromium: Stock comes first under its figure, the operator\'s sections under Upkeep', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets` });
@@ -126,45 +125,55 @@ test('chromium: the inventory comes first under its figure, the operator\'s sect
 
   const figure = page.locator('[data-assets-figure]');
   await figure.waitFor({ timeout: 20_000 });
-  await page.getByText('alert firing').waitFor({ timeout: 5_000 });
-  assert.match(await figure.innerText(), /40 objects[\s\S]*6 need attention[\s\S]*1 alert firing/);
+  assert.match(await figure.innerText(), /40 objects[\s\S]*6 need attention/);
+  // The firing alert is counted on its tab (scene invlist 1).
+  await bar(page).getByRole('link', { name: /Alerts\s*1/ }).waitFor({ timeout: 5_000 });
   // The count opens the health, where each one says why, and its title says what counts.
   const attention = figure.getByRole('link', { name: '6 need attention' });
   assert.equal(await attention.getAttribute('href'), `/hubs/${HUB.id}/inventory/health`);
   assert.match(await attention.getAttribute('title') ?? '', /incomplete, stale, orphaned/);
-  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Map', 'Manage']);
+  assert.deepEqual(await partNames(page), ['Stock', 'Map', 'Health', 'Alerts', 'Upkeep']);
   assert.equal(await page.getByRole('tablist').count(), 0, 'a second strip');
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 5_000 });
 
-  await manage(page).click();
-  assert.deepEqual((await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Runs', 'Duplicates', 'Connectors', 'Campaigns', 'Devices and licences', 'Software', 'Import']);
-  await page.getByRole('menuitem', { name: 'Runs', exact: true }).click();
-  await page.waitForFunction(() => location.pathname.endsWith('/inventory/runs'), null, { timeout: 5_000 });
-  assert.equal(await page.getByRole('tablist').count(), 0, 'Manage opened a second strip');
+  // Every former operator's section is a part of Upkeep, with its own address.
+  await tabTo(page, 'Upkeep');
+  await page.waitForFunction(() => location.pathname.endsWith('/inventory/care'), null, { timeout: 5_000 });
+  await page.locator('[data-care-part=import]').waitFor({ timeout: 5_000 });
+  assert.deepEqual(await page.locator('[data-care-part]').evaluateAll((all) => all.map((each) => each.getAttribute('data-care-part'))), ['runs', 'duplicates', 'connectors', 'campaigns', 'import']);
+  // The register and the software are Stock's switch.
+  await tabTo(page, 'Stock');
+  await page.getByRole('radio', { name: /Devices and licences/ }).waitFor({ timeout: 5_000 });
+  await page.getByRole('radio', { name: /Software/ }).waitFor({ timeout: 5_000 });
+  await page.goto(`${served.origin}/hubs/${HUB.id}/inventory/runs`);
+  await page.locator('[data-care-part=runs]').waitFor({ timeout: 10_000 });
+  assert.equal(await bar(page).getByRole('link', { name: 'Upkeep' }).getAttribute('aria-current'), 'page');
+  assert.equal(await page.getByRole('tablist').count(), 0, 'Upkeep opened a second strip');
   assert.deepEqual(failures, []);
 });
 
-test('chromium: a reader is shown neither Manage nor a create, and a managed address shows the inventory', async (t) => {
+test('chromium: a reader is shown neither Upkeep nor a create, and an upkeep address shows Stock', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets/connectors`, role: 'VIEWER' });
   t.after(() => context.close());
 
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 20_000 });
-  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Map', 'Devices and licences', 'Software']);
+  assert.deepEqual(await partNames(page), ['Stock', 'Map', 'Health', 'Alerts']);
   assert.equal(await page.getByRole('button', { name: 'New object', exact: true }).count(), 0);
+  assert.equal(await page.locator('[data-care-part]').count(), 0);
 
   // The register lists for a reader, and offers nothing to write (UC-AST-12 check 5).
-  await bar(page).getByRole('link', { name: 'Devices and licences' }).click();
+  await page.getByRole('radio', { name: /Devices and licences/ }).click();
   await page.locator(`[data-asset="${ASSET.ci_id}"]`).waitFor({ timeout: 5_000 });
   assert.ok(page.url().endsWith('/inventory/register'));
   assert.equal(await page.locator('[data-register] button').count(), 0);
-  await bar(page).getByRole('link', { name: 'Software' }).click();
+  await page.getByRole('radio', { name: /Software/ }).click();
   await page.waitForFunction(() => location.pathname.endsWith('/inventory/software'), null, { timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
-test('chromium: New connector in the head\'s list opens the connector dialog on its section', async (t) => {
+test('chromium: New connector in the head\'s list opens the connector dialog on its part of Upkeep', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets` });
@@ -177,9 +186,10 @@ test('chromium: New connector in the head\'s list opens the connector dialog on 
   await dialog.getByLabel('Program').waitFor({ timeout: 5_000 });
   assert.ok(page.url().endsWith('/inventory/connectors'));
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
-  // The ask was taken once: coming back to the section opens nothing.
-  await manageTo(page, 'Runs');
-  await manageTo(page, 'Connectors');
+  // The ask was taken once: coming back to the tab opens nothing.
+  await tabTo(page, 'Stock');
+  await page.waitForFunction(() => location.pathname.endsWith('/inventory'), null, { timeout: 5_000 });
+  await tabTo(page, 'Upkeep');
   await page.locator('[data-connector=netbox-main]').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('dialog').count(), 0, 'the dialog opened a second time');
   assert.deepEqual(failures, []);

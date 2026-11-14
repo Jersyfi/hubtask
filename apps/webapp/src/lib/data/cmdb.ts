@@ -11,7 +11,7 @@
 
 import type {
   CiAlert, CiAsset, CiAssetRegister, CiAttribute, CiCampaign, CiCampaignDetail, CiCampaignStart, CiClass, CiConnector, CiConnectorDefine,
-  CiDecision, CiFileImport, CiGroup, CiGroupDefine, CiOwnProtection, CiProtection, CiReached, CiRelation, CiRelationType, ConfigurationItem,
+  CiDecision, CiFileImport, CiGroup, CiGroupDefine, CiGroupFilter, CiOwnProtection, CiProtection, CiReached, CiRelation, CiRelationType, ConfigurationItem,
   EntryCis, EntryOnCi, ServiceMap, SoftwareAliasDefine, SoftwareProductList,
 } from '@hubtask/sync-engine';
 
@@ -40,57 +40,79 @@ export const holdsPath = (hubId: string) => `/hubs/${hubId}/ci-holds`;
 export const duplicatesPath = (hubId: string) => `/hubs/${hubId}/ci-duplicates`;
 export const healthPath = (hubId: string) => `/hubs/${hubId}/cmdb-health`;
 
-/** The sections of a hub's *Assets* screen, in their order; the first is the address's default. */
-export const ASSET_SECTIONS = ['inventory', 'runs', 'duplicates', 'import', 'connectors', 'alerts', 'health', 'campaigns', 'groups', 'register', 'software'] as const;
+/**
+ * The addresses under a hub's `/inventory`, each a tab or a part of one: the first is the
+ * address's default. Kept whole so that a bookmark of a former sub-page still lands (§6.10).
+ */
+export const ASSET_SECTIONS = [
+  'inventory', 'map', 'health', 'alerts', 'care', 'runs', 'duplicates', 'import', 'connectors', 'campaigns', 'groups', 'register', 'software',
+] as const;
 export type AssetSection = (typeof ASSET_SECTIONS)[number];
 export const sectionOf = (name: string | undefined): AssetSection =>
   (ASSET_SECTIONS as readonly string[]).includes(name ?? '') ? (name as AssetSection) : 'inventory';
 
-/** What a reader of a hub's assets is shown first, *Manage* last where the reader may run it (user-experience.md §7.3). */
-const READER_SECTIONS = ['inventory', 'health', 'alerts', 'groups'] as const satisfies readonly AssetSection[];
-/** The operator's sections, a second strip behind *Manage*; the import last, as the head's create list reaches it too. */
-const MANAGE_SECTIONS = ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software', 'import'] as const satisfies readonly AssetSection[];
-/** The sections behind *Manage* that write nothing, which a reader without it reads in the first strip. */
-const LISTED_SECTIONS = ['register', 'software'] as const satisfies readonly AssetSection[];
+/** The inventory's tabs (work-surface §6.10, scene invlist 1): *Stock*, *Map*, *Health*, *Alerts*, *Upkeep*. */
+export const INVENTORY_TABS = ['inventory', 'map', 'health', 'alerts', 'care'] as const;
+export type InventoryTab = (typeof INVENTORY_TABS)[number];
+/** The parts *Upkeep* gathers (IN-4), in its order: each a former sub-page, its address kept. */
+export const CARE_PARTS = ['runs', 'duplicates', 'connectors', 'campaigns', 'import'] as const;
+export type CarePart = (typeof CARE_PARTS)[number];
+/** *Stock*'s switch: all objects, the register's devices and licences, the software found. */
+export type StockPart = 'all' | 'register' | 'software';
 
-export interface AssetStrips {
-  /** The first strip's tabs: the reader's sections and, where it holds anything, `manage`. */
-  readonly top: readonly string[];
-  /** The second strip, under *Manage*; empty for a reader who may run none of it. */
-  readonly manage: readonly AssetSection[];
-  /** The first strip's selected tab. */
-  readonly selected: string;
-  /** The section drawn: the one asked for, or the inventory where the reader may not reach it. */
-  readonly shown: AssetSection;
+export interface InventoryPlace {
+  /** The tabs the reader is shown. */
+  readonly tabs: readonly InventoryTab[];
+  /** The tab drawn. */
+  readonly tab: InventoryTab;
+  /** *Stock*'s part, where the tab is *Stock*. */
+  readonly stock: StockPart;
+  /** The part of *Upkeep* an address names, which the tab scrolls to. */
+  readonly care?: CarePart;
+  /** The parts of *Upkeep* the reader may run. */
+  readonly careParts: readonly CarePart[];
 }
 
 /**
- * The two strips of a hub's *Assets* for a reader. *Manage* is drawn for whoever may run what is
- * behind it - writing runs pulls and settles duplicates, shaping defines connectors -, and the
- * import only for a writer, because it writes; an address naming a section the reader cannot
- * reach shows the inventory rather than an empty strip. Without *Manage*, the register and the
- * software - which only list - join the first strip, so a reader reads them too (UC-AST-12 check 5).
+ * Where an address under `/inventory` lands for a reader. *Upkeep* is drawn for whoever may run
+ * something in it - writing runs pulls, settles duplicates and starts rounds, shaping defines
+ * connectors -, the import only for a writer (P-05). A former sub-page's address opens its tab: an
+ * upkeep part *Upkeep* at that part, the groups *Stock* with its saved groups, the register and
+ * the software *Stock*'s switch. One the reader cannot reach shows *Stock*.
  */
-export function assetStrips(section: AssetSection, may: { readonly write: boolean; readonly shape: boolean }): AssetStrips {
-  const manage = may.write || may.shape ? MANAGE_SECTIONS.filter((each) => each !== 'import' || may.write) : [];
-  const read: readonly AssetSection[] = manage.length > 0 ? READER_SECTIONS : [...READER_SECTIONS, ...LISTED_SECTIONS];
-  const top = [...read, ...(manage.length > 0 ? ['manage'] : [])];
-  const reachable = read.includes(section) || (manage as readonly string[]).includes(section);
-  const shown = reachable ? section : 'inventory';
-  return { top, manage, selected: (manage as readonly string[]).includes(shown) ? 'manage' : shown, shown };
+export function inventoryPlace(section: AssetSection, may: { readonly write: boolean; readonly shape: boolean }): InventoryPlace {
+  const careParts = CARE_PARTS.filter((part) => (part === 'import' ? may.write : may.write || may.shape));
+  const tabs = INVENTORY_TABS.filter((tab) => tab !== 'care' || careParts.length > 0);
+  const base = { tabs, careParts, stock: 'all' as StockPart };
+  if (section === 'register' || section === 'software') return { ...base, tab: 'inventory', stock: section };
+  if (section === 'map' || section === 'health' || section === 'alerts') return { ...base, tab: section };
+  if (section === 'care' && careParts.length > 0) return { ...base, tab: 'care' };
+  if ((careParts as readonly string[]).includes(section)) return { ...base, tab: 'care', care: section as CarePart };
+  return { ...base, tab: 'inventory' };
 }
 
+/** The address of a tab or a part. */
+export const inventoryPath = (hubId: string, section: AssetSection | 'all') =>
+  section === 'inventory' || section === 'all' ? `/hubs/${hubId}/inventory` : `/hubs/${hubId}/inventory/${section}`;
+
 /**
- * The head's figure: CIs in all, those found wanting, and the firing alerts once they are read. An
- * answer without its counts draws no figure rather than taking the screen down with it.
+ * The head's figure (scene invlist): objects in all, those found wanting, the reviews overdue and
+ * the completeness, and the firing alerts once they are read - the alerts' tab carries that count.
+ * An answer without its counts draws no figure rather than taking the screen down with it.
  */
 export function assetsFigure(
-  health: { readonly total: number; readonly problems: readonly unknown[] } | undefined,
+  health: { readonly total: number; readonly problems: readonly unknown[]; readonly review_overdue?: number; readonly completeness?: number } | undefined,
   alerts: readonly { readonly status: string }[] | undefined,
-): { readonly total: number; readonly wanting: number; readonly firing: number | undefined } | undefined {
+): { readonly total: number; readonly wanting: number; readonly overdue: number; readonly completeness: number | undefined; readonly firing: number | undefined } | undefined {
   if (!health || typeof health.total !== 'number' || !Array.isArray(health.problems)) return undefined;
   const firing = Array.isArray(alerts) ? alerts.filter((each) => each.status === 'FIRING').length : undefined;
-  return { total: health.total, wanting: health.problems.length, firing };
+  return {
+    total: health.total,
+    wanting: health.problems.length,
+    overdue: typeof health.review_overdue === 'number' ? health.review_overdue : 0,
+    completeness: typeof health.completeness === 'number' && health.total > 0 ? percent(health.completeness) : undefined,
+    firing,
+  };
 }
 
 /** Looks a word up and says whether the catalogue has it; the screen passes its `t`. */
@@ -607,6 +629,8 @@ export const campaignPath = (campaignId: string) => `/ci-campaigns/${campaignId}
 export const attestPath = (campaignId: string, ciId: string) => `${campaignPath(campaignId)}/cis/${ciId}`;
 export const campaignClosePath = (campaignId: string) => `${campaignPath(campaignId)}:close`;
 export const groupsPath = (hubId: string) => `/hubs/${hubId}/ci-groups`;
+/** The open entries per object of a hub, for the inventory's *Open* column. */
+export const ciWorkPath = (hubId: string) => `/hubs/${hubId}/ci-work`;
 export const groupPath = (hubId: string, key: string) => `${groupsPath(hubId)}/${encodeURIComponent(key)}`;
 export const groupMembersPath = (groupId: string) => `/ci-groups/${groupId}/members`;
 export const serviceMapPath = (hubId: string, serviceId?: string) =>
@@ -700,7 +724,14 @@ export interface GroupDraft {
   /** One condition per line, `attribute = value`. */
   conditions: string;
   service: string;
+  /**
+   * What the line put in the filter that the dialog does not edit - owners, locations, numbers and
+   * their *none* - carried unchanged, so a change in the dialog never drops it.
+   */
+  kept: Pick<CiGroupFilter, 'owners' | 'no_owner' | 'locations' | 'no_location' | 'tags' | 'no_tag'>;
 }
+
+const KEPT = ['owners', 'no_owner', 'locations', 'no_location', 'tags', 'no_tag'] as const;
 
 export function groupDraft(of?: CiGroup): GroupDraft {
   return {
@@ -711,7 +742,18 @@ export function groupDraft(of?: CiGroup): GroupDraft {
     nameHas: of?.filter.name_has ?? '',
     conditions: Object.entries(of?.filter.attributes ?? {}).map(([key, value]) => `${key} = ${value}`).join('\n'),
     service: of?.service_id ?? '',
+    kept: keptOf(of?.filter),
   };
+}
+
+/** The parts of a group's filter the dialog carries without editing. */
+export function keptOf(filter: CiGroupFilter | undefined): GroupDraft['kept'] {
+  const out: Record<string, unknown> = {};
+  for (const key of KEPT) {
+    const value = filter?.[key];
+    if (Array.isArray(value) ? value.length > 0 : value === true) out[key] = Array.isArray(value) ? [...value] : value;
+  }
+  return out as GroupDraft['kept'];
 }
 
 /** The attribute conditions a draft's lines hold; a line without `=` is not one. */
@@ -737,6 +779,7 @@ export function groupDefine(draft: GroupDraft): CiGroupDefine {
       ...(draft.stages.length > 0 ? { stages: [...draft.stages] } : {}),
       ...(nameHas ? { name_has: nameHas } : {}),
       ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
+      ...keptOf(draft.kept),
     },
     service_id: draft.service || null,
   };

@@ -12,7 +12,7 @@ import {
   alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
   changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, fileText, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
-  sideBySide, typeAllows, assetStrips, assetsFigure, relationSides, GRAPH_SIDE,
+  sideBySide, typeAllows, inventoryPlace, inventoryPath, assetsFigure, relationSides, GRAPH_SIDE,
 } from './cmdb.ts';
 import {
   aliasDefine, assetDraft, assetMissing, assetMoves, assetRegister, assetsPath, assetTone, attestationsInOrder, attestPath, campaignClosePath,
@@ -290,8 +290,8 @@ test('the entry screen lists the services reached by name and the direct collisi
   assert.equal(entryKey({ handle: 'operations', key_prefix: 'OPS', number: 8 }), 'OPS-8');
 });
 
-test('the Assets screen has a section each for campaigns, groups, the register and software', () => {
-  for (const each of ['campaigns', 'groups', 'register', 'software']) {
+test('the inventory keeps an address for each former sub-page and its new tabs', () => {
+  for (const each of ['campaigns', 'groups', 'register', 'software', 'map', 'care', 'runs', 'import']) {
     assert.ok((ASSET_SECTIONS as readonly string[]).includes(each), each);
     assert.equal(sectionOf(each), each);
   }
@@ -345,6 +345,10 @@ test('a group is defined by its filter, its conditions one per line, and its ser
     updated_at: '2026-10-01T00:00:00Z', version: 2,
   };
   assert.deepEqual(groupDefine(groupDraft(group)), { name: 'Web', filter: { stages: ['IN_USE'], attributes: { os: 'Debian' } }, service_id: 's1' });
+  // What the line put in a group and the dialog does not edit is carried, never dropped.
+  const lined: CiGroup = { ...group, filter: { classes: ['laptop'], owners: ['a1'], no_owner: true, locations: [], no_tag: false, tags: ['nb-1'] } };
+  assert.deepEqual(groupDefine({ ...groupDraft(lined), name: 'Laptops' }).filter, { classes: ['laptop'], owners: ['a1'], no_owner: true, tags: ['nb-1'] });
+  assert.deepEqual(groupMissing({ ...groupDraft(), key: 'mine', name: 'Mine', kept: { no_owner: true } }, true), []);
 });
 
 test('the service map is drawn in its layers, each ordered by its neighbours above (UC-AST-11 check 5)', () => {
@@ -445,39 +449,46 @@ test('software is narrowed by its words and an alias for any publisher sends non
   assert.deepEqual(matchingProducts(all, 'MICRO off').map((each) => each.product), ['office']);
 });
 
-test('the Assets screen opens on the inventory and keeps the operator\'s sections behind Manage (user-experience.md §7.3)', () => {
-  const operator = assetStrips('connectors', { write: true, shape: true });
-  assert.deepEqual(operator.top, ['inventory', 'health', 'alerts', 'groups', 'manage']);
-  assert.deepEqual(operator.manage, ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software', 'import']);
-  assert.equal(operator.selected, 'manage');
-  assert.equal(operator.shown, 'connectors');
-
-  assert.equal(assetStrips('alerts', { write: true, shape: false }).selected, 'alerts');
-  // A member who may write runs pulls and resolves duplicates; one who only shapes defines connectors.
-  assert.deepEqual(assetStrips('runs', { write: false, shape: true }).manage, ['runs', 'duplicates', 'connectors', 'campaigns', 'register', 'software']);
-
-  // Manage is visible to whoever may run what is behind it; a reader is shown the inventory instead,
-  // and reads the register and the software in the first strip (UC-AST-12 check 5).
-  const reader = assetStrips('connectors', { write: false, shape: false });
-  assert.deepEqual(reader.top, ['inventory', 'health', 'alerts', 'groups', 'register', 'software']);
-  assert.deepEqual(reader.manage, []);
-  assert.equal(reader.shown, 'inventory');
-  assert.equal(reader.selected, 'inventory');
-  assert.equal(assetStrips('import', { write: false, shape: true }).shown, 'inventory');
-  for (const listed of ['register', 'software'] as const) {
-    const reading = assetStrips(listed, { write: false, shape: false });
-    assert.equal(reading.shown, listed);
-    assert.equal(reading.selected, listed);
+test('the inventory is five tabs, a former sub-page opening its tab (work-surface §6.10)', () => {
+  const operator = { write: true, shape: true };
+  assert.deepEqual(inventoryPlace('inventory', operator).tabs, ['inventory', 'map', 'health', 'alerts', 'care']);
+  assert.equal(inventoryPlace('inventory', operator).tab, 'inventory');
+  assert.equal(inventoryPlace('map', operator).tab, 'map');
+  assert.equal(inventoryPlace('health', operator).tab, 'health');
+  assert.equal(inventoryPlace('alerts', operator).tab, 'alerts');
+  assert.deepEqual(inventoryPlace('care', operator), { tabs: ['inventory', 'map', 'health', 'alerts', 'care'], careParts: ['runs', 'duplicates', 'connectors', 'campaigns', 'import'], stock: 'all', tab: 'care' });
+  for (const part of ['runs', 'duplicates', 'connectors', 'campaigns', 'import'] as const) {
+    assert.deepEqual([inventoryPlace(part, operator).tab, inventoryPlace(part, operator).care], ['care', part]);
   }
+  // The groups are Stock's saved groups; the register and the software Stock's switch.
+  assert.deepEqual([inventoryPlace('groups', operator).tab, inventoryPlace('groups', operator).stock], ['inventory', 'all']);
+  assert.deepEqual([inventoryPlace('register', operator).tab, inventoryPlace('register', operator).stock], ['inventory', 'register']);
+  assert.deepEqual([inventoryPlace('software', operator).tab, inventoryPlace('software', operator).stock], ['inventory', 'software']);
+
+  // One who only shapes runs upkeep but no import, which writes.
+  assert.deepEqual(inventoryPlace('runs', { write: false, shape: true }).careParts, ['runs', 'duplicates', 'connectors', 'campaigns']);
+  assert.equal(inventoryPlace('import', { write: false, shape: true }).tab, 'inventory');
+
+  // A reader is shown no Upkeep (P-05); its addresses show Stock, the register and the software stay theirs to read (UC-AST-12 check 5).
+  const reader = { write: false, shape: false };
+  assert.deepEqual(inventoryPlace('connectors', reader).tabs, ['inventory', 'map', 'health', 'alerts']);
+  assert.equal(inventoryPlace('connectors', reader).tab, 'inventory');
+  assert.equal(inventoryPlace('care', reader).tab, 'inventory');
+  assert.equal(inventoryPlace('register', reader).stock, 'register');
+  assert.equal(inventoryPath('h', 'inventory'), '/hubs/h/inventory');
+  assert.equal(inventoryPath('h', 'all'), '/hubs/h/inventory');
+  assert.equal(inventoryPath('h', 'runs'), '/hubs/h/inventory/runs');
 });
 
 test('the Assets head says how many CIs there are, how many need attention and how many alerts fire', () => {
   assert.deepEqual(assetsFigure(undefined, undefined), undefined);
   assert.deepEqual(assetsFigure({} as never, {} as never), undefined);
-  assert.deepEqual(assetsFigure({ total: 3, problems: [] }, {} as never), { total: 3, wanting: 0, firing: undefined });
-  const health = { total: 218, problems: [{}, {}, {}, {}, {}, {}] };
-  assert.deepEqual(assetsFigure(health, undefined), { total: 218, wanting: 6, firing: undefined });
-  assert.deepEqual(assetsFigure(health, [{ status: 'FIRING' }, { status: 'RESOLVED' }, { status: 'FIRING' }]), { total: 218, wanting: 6, firing: 2 });
+  assert.deepEqual(assetsFigure({ total: 3, problems: [] }, {} as never), { total: 3, wanting: 0, overdue: 0, completeness: undefined, firing: undefined });
+  const health = { total: 218, problems: [{}, {}, {}, {}, {}, {}], review_overdue: 1, completeness: 0.996 };
+  assert.deepEqual(assetsFigure(health, undefined), { total: 218, wanting: 6, overdue: 1, completeness: 100, firing: undefined });
+  assert.deepEqual(assetsFigure(health, [{ status: 'FIRING' }, { status: 'RESOLVED' }, { status: 'FIRING' }]), { total: 218, wanting: 6, overdue: 1, completeness: 100, firing: 2 });
+  // An empty inventory is not called complete.
+  assert.equal(assetsFigure({ total: 0, problems: [], completeness: 1 }, undefined)?.completeness, undefined);
 });
 
 test('a CI\'s relation graph draws what points at it and what it points at, the rest counted', () => {

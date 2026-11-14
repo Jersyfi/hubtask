@@ -1,38 +1,31 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // *Assets* in a hub (M6, UC-AST-01 … UC-AST-13; user-experience.md §7.3): the inventory first
-  // under a head that says how it stands, then its health, the alerts and the groups with the
-  // service map; the operator's sections - runs, duplicates, connectors, campaigns, register,
-  // software, a file's import - behind *Manage ▾*, a menu at the view bar's end, never a second
-  // strip (the navigation concept §3). The hub's tool *Inventory*: each section has its own address
-  // under `/hubs/:id/inventory`. A work page (page-system §7.8); one configuration item is `CiView`.
+  // *Inventory* in a hub (M6, UC-AST-01 … UC-AST-13; work-surface §6.10, scene invlist): one head
+  // that says how it stands, and five tabs - *Stock* (all objects, devices and licences, software),
+  // *Map*, *Health*, *Alerts* with the firing count, *Upkeep* gathering the former sub-pages (IN-4).
+  // Every former sub-page keeps its address under `/hubs/:id/inventory` and lands on its tab
+  // (`inventoryPlace`). A work page (page-system §7.8); one object is `CiView`.
   //
   // **What the reader may never do is not drawn** (P-05): a reader without WRITE_ITEMS on the hub
-  // is offered no write: the import is not offered to them at all, the other operator sections are
-  // not shown, and the register and the software, which only list, stand in the first strip.
+  // is offered no create and no import, and *Upkeep* only to whom may run something in it. On a
+  // phone the head offers no create or import: the inventory is read there (§6.10, UC-AST-01 check 10).
   import ToolHead from '../lib/workspace/ToolHead.svelte';
 
   import { untrack } from 'svelte';
-  import { Badge, Icon, Menu, Skeleton, ViewBar, WorkPage } from '@hubtask/design-system/components';
+  import { Skeleton, ViewBar, WorkPage } from '@hubtask/design-system/components';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { CiAlert, CiAlertList, CiClassList, CmdbHealth } from '@hubtask/sync-engine';
 
   import Alerts from '../lib/assets/Alerts.svelte';
-  import Campaigns from '../lib/assets/Campaigns.svelte';
-  import Groups from '../lib/assets/Groups.svelte';
-  import Register from '../lib/assets/Register.svelte';
-  import Software from '../lib/assets/Software.svelte';
-  import Connectors from '../lib/assets/Connectors.svelte';
-  import Duplicates from '../lib/assets/Duplicates.svelte';
+  import Care from '../lib/assets/Care.svelte';
   import Health from '../lib/assets/Health.svelte';
-  import ImportFile from '../lib/assets/ImportFile.svelte';
-  import Inventory from '../lib/assets/Inventory.svelte';
-  import Runs from '../lib/assets/Runs.svelte';
+  import MapTab from '../lib/assets/MapTab.svelte';
+  import Stock from '../lib/assets/Stock.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { holds, holdsHere, roleOrder } from '../lib/data/capability.svelte.ts';
   import {
-    alertsPath, assetStrips, assetsFigure, classesPath, healthPath, sectionOf, type AssetSection, type Words,
+    alertsPath, assetsFigure, classesPath, healthPath, inventoryPath, inventoryPlace, sectionOf, type AssetSection, type Words,
   } from '../lib/data/cmdb.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -43,7 +36,7 @@
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
-    /** The hub whose assets are shown. */
+    /** The hub whose inventory is shown. */
     hubId: string;
     section?: string;
     onnavigate: (path: string) => void;
@@ -77,8 +70,8 @@
   });
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
 
-  // The head's figure, from the same reads the health and the alerts sections draw; a refusal of
-  // either leaves its part out rather than the whole head.
+  // The head's figure and the alerts' count, from the same reads the health and the alerts tabs
+  // draw; a refusal of either leaves its part out rather than the whole head.
   let health = $state<CmdbHealth | undefined>(undefined);
   let alerts = $state<readonly CiAlert[] | undefined>(undefined);
   $effect(() => {
@@ -97,36 +90,38 @@
     });
   });
   const standing = $derived(assetsFigure(health, alerts));
+  // The objects to mark in the stock: found wanting, or an alert firing on them.
+  const wanting = $derived(new Set([
+    ...(health?.problems ?? []).map((each) => each.ci_id),
+    ...(alerts ?? []).filter((each) => each.status === 'FIRING' && each.ci_id).map((each) => each.ci_id as string),
+  ]));
 
-  const strips = $derived(assetStrips(sectionOf(section), { write: mayWrite, shape: mayShape }));
-  const shown = $derived(strips.shown);
-  const label = (id: string) => t(`app.assets.section.${id}`);
-  const sectionPath = (id: string) => (id === 'inventory' ? `/hubs/${hubId}/inventory` : `/hubs/${hubId}/inventory/${id}`);
-  const go = (id: string) => onnavigate(sectionPath(id));
-  const sections = $derived(strips.top.filter((id) => id !== 'manage').map((id) => ({ id, label: label(id), href: sectionPath(id) })));
-  const manageItems = $derived(strips.manage.map((id) => ({ id, label: label(id), ...(id === shown ? { icon: 'check' as const } : {}) })));
+  const asked0 = $derived(sectionOf(section));
+  const place = $derived(inventoryPlace(asked0, { write: mayWrite, shape: mayShape }));
+  const tabLabel = (id: string) => t(`app.assets.section.${id}`);
+  const tabs = $derived(place.tabs.map((id) => ({
+    id, label: tabLabel(id), href: inventoryPath(hubId, id), ...(id === 'alerts' && standing?.firing ? { count: standing.firing } : {}),
+  })));
+  const go = (id: string) => onnavigate(inventoryPath(hubId, id as AssetSection));
 
-  // A create chosen in the head opens its section's own dialog: the section takes the ask once it
-  // is drawn and gives it back, so returning to the section later opens nothing.
+  // A create chosen in the head opens its tab's own dialog: the tab takes the ask once it is drawn
+  // and gives it back, so returning to it later opens nothing.
   type Ask = 'ci' | 'connector' | 'group' | 'campaign';
   let asked = $state<Ask | undefined>(undefined);
-  const ASK_SECTION: Record<Ask, AssetSection> = { ci: 'inventory', connector: 'connectors', group: 'groups', campaign: 'campaigns' };
+  const ASK_SECTION: Record<Ask, AssetSection> = { ci: 'inventory', connector: 'connectors', group: 'inventory', campaign: 'campaigns' };
   function ask(what: Ask) {
     asked = what;
-    if (shown !== ASK_SECTION[what]) onnavigate(sectionPath(ASK_SECTION[what]));
+    const to = ASK_SECTION[what];
+    const isThere = to === 'inventory' ? place.tab === 'inventory' && place.stock === 'all' : place.tab === 'care' && (place.care === to || asked0 === 'care');
+    if (!isThere) onnavigate(inventoryPath(hubId, to));
   }
   const answered = () => (asked = undefined);
 
   const creates = $derived([
-    ...(mayWrite ? [{ id: 'import', label: t('app.assets.create_import'), icon: 'cloud-upload' as const }] : []),
     ...(mayShape ? [{ id: 'connector', label: t('app.assets.connector_new'), icon: 'link' as const }] : []),
     ...(mayWrite ? [{ id: 'group', label: t('app.ci_groups.new'), icon: 'shapes' as const }] : []),
     ...(mayWrite ? [{ id: 'campaign', label: t('app.campaigns.start'), icon: 'check' as const }] : []),
   ]);
-  function choose(id: string) {
-    if (id === 'import') onnavigate(sectionPath('import'));
-    else ask(id as Ask);
-  }
 
   $effect(() => frame.entitle(t('app.assets.title')));
 </script>
@@ -134,9 +129,10 @@
 {#snippet inventoryFigure()}
   {#if standing}
     <p class="figure" data-assets-figure>
-      <span>{t('app.assets.figure_total', { count: standing.total })}</span>
-      {#if standing.wanting > 0}<span><span aria-hidden="true">·</span> <a href={sectionPath('health')} title={t('app.assets.attention_why')}>{t('app.assets.figure_wanting', { count: standing.wanting })}</a></span>{/if}
-      {#if standing.firing}<Badge size="sm" tone="danger" icon="bell">{t('app.assets.figure_firing', { count: standing.firing })}</Badge>{/if}
+      <span class="total">{t('app.assets.figure_total', { count: standing.total })}</span>
+      {#if standing.wanting > 0}<span><span aria-hidden="true">·</span> <a href={inventoryPath(hubId, 'health')} title={t('app.assets.attention_why')}>{t('app.assets.figure_wanting', { count: standing.wanting })}</a></span>{/if}
+      {#if standing.overdue > 0}<span><span aria-hidden="true">·</span> {t('app.inventory.figure_overdue', { count: standing.overdue })}</span>{/if}
+      {#if standing.completeness !== undefined}<span><span aria-hidden="true">·</span> {t('app.inventory.figure_complete', { percent: String(standing.completeness) })}</span>{/if}
     </p>
   {/if}
 {/snippet}
@@ -144,35 +140,27 @@
   {#snippet top()}
   {#if hubId}
     <ToolHead {hubId} tool="inventory" {onnavigate} figure={inventoryFigure}
-      primary={mayWrite
+      primary={mayWrite && !viewport.isCompact
         ? {
             label: t('app.assets.new'),
             icon: 'plus',
             onclick: () => ask('ci'),
-            menu: { label: t('app.assets.create_more'), items: creates, onselect: choose },
+            ...(creates.length > 0 ? { menu: { label: t('app.assets.create_more'), items: creates, onselect: (id: string) => ask(id as Ask) } } : {}),
           }
         : undefined}
+      secondary={mayWrite && !viewport.isCompact ? [{ label: t('app.inventory.import'), icon: 'cloud-upload', onclick: () => onnavigate(inventoryPath(hubId, 'import')) }] : []}
     >
       {#snippet bar()}
         {#if !classesRefusal && classesRead.state.status === 'ready'}
           <ViewBar
-          label={t('app.assets.sections')}
-          views={sections}
-          current={strips.selected}
-          isCompact={viewport.isCompact}
-          sheetTitle={t('app.nav.tool_inventory')}
-          closeLabel={t('app.sheet_close')}
-          onnavigate={go}
-          more={strips.manage.length > 0 ? manage : undefined}
-        />
-        {#snippet manage()}
-          <!-- *Manage ▾* among the parts, drawn as one of them (the mockup's inventory). -->
-          <Menu label={t('app.assets.manage_sections')} items={manageItems} onselect={go}>
-            {#snippet trigger(props)}
-              <button type="button" aria-current={strips.selected === 'manage' ? 'page' : undefined} data-assets-manage {...props}>{t('app.assets.section.manage')} <Icon name="chevron-down" size="sm" /></button>
-            {/snippet}
-          </Menu>
-        {/snippet}
+            label={t('app.assets.sections')}
+            views={tabs}
+            current={place.tab}
+            isCompact={viewport.isCompact}
+            sheetTitle={t('app.nav.tool_inventory')}
+            closeLabel={t('app.sheet_close')}
+            onnavigate={go}
+          />
         {/if}
       {/snippet}
     </ToolHead>
@@ -183,37 +171,27 @@
     {:else if classesRead.state.status !== 'ready'}
       <div aria-busy="true"><Skeleton lines={4} /></div>
     {:else if hubId}
-      {#snippet body()}
-        {#if shown === 'inventory'}
-          <Inventory {hubId} {classes} {words} {mayWrite} {onnavigate} isAsked={asked === 'ci'} onasked={answered} onimport={() => onnavigate(sectionPath('import'))} />
-        {:else if shown === 'runs'}
-          <Runs {hubId} {classes} {words} {mayWrite} />
-        {:else if shown === 'duplicates'}
-          <Duplicates {hubId} {classes} {words} {mayWrite} />
-        {:else if shown === 'import' && mayWrite}
-          <ImportFile {hubId} {classes} {words} onopen={() => onnavigate(sectionPath('inventory'))} />
-        {:else if shown === 'connectors'}
-          <Connectors {hubId} {classes} {words} {mayWrite} isAsked={asked === 'connector'} onasked={answered} />
-        {:else if shown === 'alerts'}
-          <Alerts {hubId} mayConnect={mayShape} onconnect={() => ask('connector')} />
-        {:else if shown === 'health'}
+      <div role="region" aria-label={tabLabel(place.tab)} data-inventory-tab={place.tab}>
+        {#if place.tab === 'inventory'}
+          <Stock {hubId} {classes} {words} {mayWrite} {onnavigate} part={place.stock} {wanting} isSavedShown={asked0 === 'groups'}
+            asked={asked === 'ci' || asked === 'group' ? asked : undefined} onasked={answered} onimport={() => onnavigate(inventoryPath(hubId, 'import'))} />
+        {:else if place.tab === 'map'}
+          <MapTab {hubId} {classes} {words} />
+        {:else if place.tab === 'health'}
           <Health {hubId} {classes} {words} />
-        {:else if shown === 'campaigns'}
-          <Campaigns {hubId} {classes} {words} {mayWrite} isAsked={asked === 'campaign'} onasked={answered} />
-        {:else if shown === 'groups'}
-          <Groups {hubId} {classes} {words} {mayWrite} isAsked={asked === 'group'} onasked={answered} />
-        {:else if shown === 'register'}
-          <Register {hubId} {classes} {words} />
-        {:else if shown === 'software'}
-          <Software {hubId} />
+        {:else if place.tab === 'alerts'}
+          <Alerts {hubId} mayConnect={mayShape} onconnect={() => ask('connector')} />
+        {:else if place.tab === 'care'}
+          <Care {hubId} {classes} {words} {mayWrite} parts={place.careParts} part={place.care}
+            asked={asked === 'connector' || asked === 'campaign' ? asked : undefined} onasked={answered} onimported={() => onnavigate(inventoryPath(hubId, 'inventory'))} />
         {/if}
-      {/snippet}
-      <div role="region" aria-label={label(shown)}>{@render body()}</div>
+      </div>
     {/if}
 </WorkPage>
 
 <style>
   .figure { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
-  .figure a { color: inherit; text-decoration-line: underline; text-decoration-style: dotted; text-underline-offset: var(--sp-025); }
+  .figure .total { color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .figure a { color: var(--text-warning); text-decoration-line: underline; text-decoration-style: dotted; text-underline-offset: var(--sp-025); }
   .figure a:hover { color: var(--text-primary); }
 </style>
