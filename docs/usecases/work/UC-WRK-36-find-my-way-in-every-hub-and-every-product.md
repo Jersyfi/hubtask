@@ -54,7 +54,8 @@ three lists, nothing else.
    is kept on this device; `Ctrl+[` folds it to the rail, hovering the rail opens the peek and
    leaving it closes the peek.
 9. A collection, a hub tool and a product home draw one view bar under the head and never a second
-   strip; a collection's former *Plan* is its *Timeline* view; the assets' *Manage* is a menu.
+   strip; a collection's former *Plan* is its *Timeline* view; the inventory's former sub-pages are
+   gathered in its tab *Upkeep*.
 10. The hub's overview carries no tabs: its tools' lines, the collection cards with their figures,
     *Recently changed*.
 11. Each product home shows its product across every hub with the tabs of its kind — *For you* first

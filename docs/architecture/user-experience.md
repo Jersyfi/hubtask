@@ -141,8 +141,8 @@ concept's §2.4 has the tables):
 2. ***Overview* and the hub tools**, one row each where its module is on at the hub, in a fixed
    order that no person changes: *Queues* (SERVICE_DESK and at least one desk; expands to the hub's
    queues with live counts, starred first; replaces the tab *Desk*), *Plan* (PLANNING; tabs
-   *Schedule · Releases · Sprints*), *Inventory* (ASSETS; tabs *Inventory · Health · Alerts · Map ·
-   Manage ▾*, the class tree inside the page), *Time* (TIME; tabs *Actuals · Workload · Budget*),
+   *Schedule · Releases · Sprints*), *Inventory* (ASSETS; tabs *Stock · Map · Health · Alerts ·
+   Upkeep*, the object-type tree inside *Stock*), *Time* (TIME; tabs *Actuals · Workload · Budget*),
    *Goals* (GOALS; tabs *Goals · Dashboards*). A tool is switched off at the hub by a holder of
    `STRUCTURE`, never hidden by a person. Agents, portfolios, types and workflows, approvals, the
    person's own time and the portal are not on the hub level.
@@ -838,22 +838,27 @@ decision of 2026-11-14). Its words on every screen: *object* (de *Objekt*), *obj
 said only in the help, as the ITIL word for objects in IT operations (*In IT, objects are also
 called objects (ITIL)*, the empty inventory's hint); no display text says "Asset".
 
-*Inventory* first, with a health summary above it (*218 objects · 6 need attention · 3 licences
-expire this month*). The operator's tabs — runs, duplicates, connectors, campaigns, devices and licences,
-software — go behind *Manage* (one tab that opens them as a second strip), visible to whoever
-may run them. A lifecycle state is a non-interactive `Badge`, never a bordered pill that reads as
-a button. An object's detail shows its relations as a small graph with the list beside it.
+*Stock* first, with a health summary above it (*12 objects · 2 need attention · 1 review overdue ·
+Completeness 100 %*), work-surface §6.10. The operator's former sections - runs, duplicates,
+connectors, rounds, the import - are gathered under the tab *Upkeep* (IN-4), drawn for whoever may
+run them, the import for a writer only. A lifecycle state is a non-interactive lozenge, never a
+bordered pill that reads as a button. An object's detail shows its relations as a small graph with
+the list beside it.
 
-As built: the hub's *Inventory* has a `PageHeader` with the trail, a figure (*40 objects ·
-6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New object* as
-the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
-campaign*, each opening its section's own dialog once. No licence count is drawn: no read answers
-which licences expire. The tool's view bar is *Inventory · Health · Alerts · Map · Manage ▾*
-(*Map* holds the groups and the service map); *Manage ▾* is a menu of *Runs · Duplicates ·
-Connectors · Campaigns · Devices and licences · Software · Import*, never a second strip, and is drawn for
-whoever may write or shape the hub, the import for a writer only; for a reader without it,
-*Devices and licences* and *Software*, which only list, join the view bar (UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
-`ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
+As built: the hub's *Inventory* has the tool's head with the trail, the figure from the health read,
+*Import* as the secondary act and *New object* as the primary, whose list holds *New connector*,
+*New group* and *Start a campaign*, each opening its tab's own dialog once; on a phone the head offers
+neither, the stock is read there (UC-AST-01 check 10). The view bar is *Stock · Map · Health ·
+Alerts n · Upkeep*, never a second strip; every former section keeps its address under
+`/hubs/:id/inventory/` and lands on its tab (`inventoryPlace`): runs, duplicates, connectors,
+campaigns and import on *Upkeep* at that part, groups on *Stock* with its saved groups, register and
+software on *Stock*'s switch *All objects · Devices and licences n · Software n*, which a reader
+reads too (UC-AST-12 check 5); an address the reader cannot reach shows *Stock*. *Stock* is the query
+line with the `asset.` keys - narrowed on the device over the hub's loaded objects with the server's
+reading of the keys (`data/inventoryquery.ts`), opening on `-asset.stage: disposed` -, the
+object-type tree with counts and the saved groups beside it (a select on a phone), and a `DataTable`
+of name, type, stage, owner, location, protection and open entries, *List* or *By object type*,
+the columns kept on the device. An
 empty inventory offers the create and the import, a reader is told how objects arrive. A connector is
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched
 off*), when it last and next runs, *Pull now* as its one act and the dry run, the full pull,
@@ -1528,7 +1533,7 @@ section of the design system it changes, and is walked against the mockups befor
     default views by template (§7.5).
 22. Pages: the home page first, the three regions, the public link's media (§7.1).
 23. Whiteboards: the full-bleed canvas, side sheets, the create gallery (§7.2).
-24. Assets and CMDB: inventory first, *Manage*, badges (§7.3).
+24. Assets and CMDB: *Stock* first, *Upkeep*, lozenges (§7.3).
 25. Time: *My week*, the record dialog, *Record until…* (§7.6).
 26. Goals and dashboards: the default quarter, charts in templates, headings (§7.7).
 27. Agents: cards, held acts, runs (§7.8).
