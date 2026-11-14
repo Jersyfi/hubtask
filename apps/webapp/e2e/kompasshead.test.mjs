@@ -279,7 +279,12 @@ test('The list\'s column heads stand over their columns where they fit, and are 
     if (width === 1440) assert.ok(shown, 'the widest window shows the column heads');
     if (shown) {
       const heads = [];
-      for (const each of await head.locator('.col-head').all()) heads.push({ text: (await each.innerText()).trim(), ...(await box(each)) });
+      // Only the drawn heads: a field that finds no column goes to the row's meta line, and its
+      // head stays behind, undrawn, to be measured (§7).
+      for (const each of await head.locator('.col-head').all()) {
+        if (!(await each.evaluate((node) => getComputedStyle(node).visibility === 'visible'))) continue;
+        heads.push({ text: (await each.innerText()).trim(), ...(await box(each)) });
+      }
       for (let index = 1; index < heads.length; index += 1) {
         const before = heads[index - 1];
         assert.ok(heads[index].x >= before.x + before.width, `${width}: "${heads[index].text}" starts at ${heads[index].x}, "${before.text}" ends at ${before.x + before.width}`);

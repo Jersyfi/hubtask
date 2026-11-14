@@ -2236,8 +2236,9 @@
     /* A desk's key stands where the box would: past the twist alone. */
     .columns[data-desk] .fields-head { padding-inline-start: calc(var(--sp-800) + var(--sp-100) - var(--sp-300)); }
 
-    /* A head cell whose field went to the meta line: laid out, so its width is known, not seen. */
-    .fields-head .cell[data-overflow] { position: absolute; visibility: hidden; }
+    /* A head cell whose field went to the meta line: laid out, so its width is known, not seen -
+       at the list's start, where it cannot widen the page past its edge. */
+    .fields-head .cell[data-overflow] { position: absolute; inset-inline-start: 0; visibility: hidden; }
 
     .fields-head:not([data-columns]) {
       position: absolute;
