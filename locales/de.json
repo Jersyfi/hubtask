@@ -11854,6 +11854,7 @@
   "app.whiteboards.strength.MENTION": "erwähnt es",
   "app.whiteboards.strength.CARD": "zeigt es als Karte",
   "app.whiteboards.strength.EMBED": "zeigt es eingebettet",
+  "app.whiteboards.touch_hint": "Stift zeichnet · Finger verschiebt und wählt · zwei Finger tippen = rückgängig",
   "app.whiteboards.put_file": "Bild oder Datei",
   "app.whiteboards.uploading": "Wird hochgeladen …",
   "app.whiteboards.file_open": "{name} öffnen",

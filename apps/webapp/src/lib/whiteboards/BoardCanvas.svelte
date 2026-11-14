@@ -134,6 +134,10 @@
   let surface = $state<SVGSVGElement | undefined>(undefined);
   let toolbar = $state<HTMLDivElement | undefined>(undefined);
   let zoombar = $state<HTMLDivElement | undefined>(undefined);
+  /** A tablet: the frame's middle widths, where the dock and the corner share the foot only one above the other. */
+  const isTablet = $derived(!viewport.isCompact && viewport.isBelowExpanded);
+  /** On a touch screen the pen, finger and two-finger tap are said once above the dock, until first used. */
+  let hasTouched = $state(false);
   /** The session bar stands level with the top islands at the centre, below them where it would touch one (W-5). */
   let titleIsland = $state<HTMLDivElement | undefined>(undefined);
   let peopleIsland = $state<HTMLDivElement | undefined>(undefined);
@@ -422,6 +426,7 @@
   }
 
   function down(event: PointerEvent) {
+    if (event.pointerType !== 'mouse') hasTouched = true;
     if (editing) commitEdit();
     if (following !== undefined) following = undefined;
     if (event.pointerType === 'touch') {
@@ -1864,8 +1869,8 @@
         <span class="seam" aria-hidden="true"></span>
       {/if}
       {#if !viewport.isCompact || voting || timerState}
-        <Button size="sm" tone={sheet === 'session' ? 'primary' : 'subtle'} icon="timer" aria-pressed={sheet === 'session'} data-board-sheet="session" onclick={() => toggleSheet('session')}>
-          {viewport.isCompact ? '' : t('app.whiteboards.moderate')}
+        <Button size="sm" tone={sheet === 'session' ? 'primary' : 'subtle'} icon="timer" aria-label={viewport.isCompact || isTablet ? t('app.whiteboards.moderate') : undefined} aria-pressed={sheet === 'session'} data-board-sheet="session" onclick={() => toggleSheet('session')}>
+          {viewport.isCompact || isTablet ? '' : t('app.whiteboards.moderate')}
         </Button>
       {/if}
       <Button size="sm" tone={sheet === 'comments' ? 'primary' : 'subtle'} icon="message-square" aria-pressed={sheet === 'comments'} aria-label={openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')} data-board-sheet="comments" onclick={() => toggleSheet('comments')}>
@@ -1956,6 +1961,8 @@
             {#snippet trigger(props)}
               {#if viewport.isCompact}
                 <IconButton icon="ellipsis" label={t('app.whiteboards.insert')} data-board-insert {...props} />
+              {:else if isTablet}
+                <IconButton size="sm" icon="plus" label={t('app.whiteboards.insert')} data-board-insert {...props} />
               {:else}
                 <Button size="sm" tone="secondary" icon="plus" data-board-insert {...props}>{t('app.whiteboards.insert_short')}</Button>
               {/if}
@@ -1976,7 +1983,11 @@
       {/if}
     {/if}
 
-    <div class="corner">
+    {#if viewport.isCoarse && !viewport.isCompact && writable && mode === 'surface' && !hasTouched}
+      <p class="touch-hint" data-board-touch-hint><Icon name="pencil" size="sm" />{t('app.whiteboards.touch_hint')}</p>
+    {/if}
+
+    <div class="corner" class:raised={isTablet}>
       {#if map}
         <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
         <svg class="minimap" role="img" aria-label={t('app.whiteboards.minimap')} viewBox={`0 0 ${MAP.width} ${MAP.height}`} onclick={mapClick}>
@@ -2343,6 +2354,25 @@
     gap: var(--sp-100);
   }
   .corner .island { position: static; }
+  /* On a tablet the dock takes the foot's middle and the corner stands above it. */
+  .corner.raised { inset-block-end: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-300)); }
+  .touch-hint {
+    position: absolute;
+    inset-block-end: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-300));
+    inset-inline: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-050);
+    inline-size: fit-content;
+    margin: 0 auto;
+    padding: var(--sp-050) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-full);
+    background: var(--bg-raised);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    pointer-events: none;
+  }
   .zoom { min-inline-size: var(--sp-500); text-align: center; color: var(--text-primary); font-size: var(--fs-075); font-variant-numeric: tabular-nums; }
   .minimap {
     inline-size: var(--layout-gallery-card);

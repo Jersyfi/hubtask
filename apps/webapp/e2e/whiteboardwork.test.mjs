@@ -327,6 +327,27 @@ test('chromium: a picture or file from the insert menu opens the platform\'s cho
   assert.deepEqual(failures, []);
 });
 
+test('chromium 820 px: on a tablet the corner stands above the dock and Insert is in reach', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, { width: 820, height: 1180, hasTouch: true });
+  t.after(() => context.close());
+  await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+  const insert = page.locator('[data-board-insert]:visible');
+  await insert.waitFor({ timeout: 5_000 });
+  const reachable = await insert.evaluate((button) => {
+    const at = button.getBoundingClientRect();
+    return button.contains(document.elementFromPoint(at.left + at.width / 2, at.top + at.height / 2));
+  });
+  assert.ok(reachable, 'Insert lies under another control');
+  const dock = await box(page.locator('[data-board-tools]'));
+  const corner = await box(page.locator('.corner'));
+  assert.ok(corner.y + corner.height <= dock.y, 'the corner does not stand above the dock');
+  await insert.click();
+  await page.getByRole('menuitem', { name: 'Picture or file' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: on a tablet a finger moves the board and a pen draws (UC-CNV-04 check 7, as far as touch emulation reaches)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

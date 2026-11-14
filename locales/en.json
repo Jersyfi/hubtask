@@ -11854,6 +11854,7 @@
   "app.whiteboards.strength.MENTION": "mentions it",
   "app.whiteboards.strength.CARD": "shows it as a card",
   "app.whiteboards.strength.EMBED": "shows it in place",
+  "app.whiteboards.touch_hint": "The pen draws · a finger moves and chooses · a two-finger tap undoes",
   "app.whiteboards.put_file": "Picture or file",
   "app.whiteboards.uploading": "Uploading …",
   "app.whiteboards.file_open": "Open {name}",
