@@ -4232,6 +4232,76 @@ export class HubtaskClient {
     return this.call("DELETE", "/page-comments/{commentId}", { "commentId": commentId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** A hub's posts */
+  listHubPosts(hubId: string, options: CallOptions & { readonly query?: NonNullable<operations["listHubPosts"]['parameters']['query']> } = {}): Promise<operations["listHubPosts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/hubs/{hubId}/posts", { "hubId": hubId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Write a new post */
+  createPost(hubId: string, body: NonNullable<operations["createPost"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createPost"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/hubs/{hubId}/posts", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Read a post */
+  readPost(pageId: string, options: CallOptions = {}): Promise<operations["readPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts/{pageId}", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Schedule, feature or narrow a post */
+  setPostSettings(pageId: string, body: NonNullable<operations["setPostSettings"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setPostSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/posts/{pageId}", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Publish a post now */
+  publishPost(pageId: string, options: CallOptions = {}): Promise<operations["publishPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:publish", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Mark a post seen */
+  markPostSeen(pageId: string, options: CallOptions = {}): Promise<operations["markPostSeen"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:seen", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Confirm having read a post */
+  confirmPost(pageId: string, options: CallOptions = {}): Promise<operations["confirmPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:confirm", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Who confirmed a post */
+  readPostConfirmations(pageId: string, options: CallOptions = {}): Promise<operations["readPostConfirmations"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts/{pageId}/confirmations", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Remind those who have not confirmed a post */
+  remindPost(pageId: string, options: CallOptions = {}): Promise<operations["remindPost"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}:remind", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** A post's discussion */
+  listPostReplies(pageId: string, options: CallOptions = {}): Promise<operations["listPostReplies"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts/{pageId}/replies", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Reply in a post's discussion */
+  addPostReply(pageId: string, body: NonNullable<operations["addPostReply"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addPostReply"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/posts/{pageId}/replies", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Take a reply back */
+  deletePostReply(pageId: string, replyId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/posts/{pageId}/replies/{replyId}", { "pageId": pageId, "replyId": replyId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** React to a reply */
+  reactToPostReply(pageId: string, replyId: string, reaction: string, options: CallOptions = {}): Promise<operations["reactToPostReply"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", { "pageId": pageId, "replyId": replyId, "reaction": reaction }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Take a reaction back */
+  unreactToPostReply(pageId: string, replyId: string, reaction: string, options: CallOptions = {}): Promise<operations["unreactToPostReply"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", { "pageId": pageId, "replyId": replyId, "reaction": reaction }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What links to a page */
   listPageBacklinks(pageId: string, options: CallOptions = {}): Promise<operations["listPageBacklinks"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/pages/{pageId}/backlinks", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -2617,6 +2617,8 @@ SELECT p.id, p.hub_id, p.parent_id, p.title, p.body, p.icon, p.order_key, p.temp
 FROM page p
 WHERE p.tenant_id = current_tenant_id() AND p.id > $1 AND p.deleted_at IS NULL
   AND NOT page_behind_restriction(p.id)
+  -- Nor does a post: its audience and its moment are judged on the server.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = p.tenant_id AND po.page_id = p.id)
 ORDER BY p.id
 LIMIT $2
 `

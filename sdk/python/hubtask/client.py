@@ -3363,6 +3363,62 @@ class Client:
         """Take a page comment back"""
         return self._call("DELETE", "/page-comments/{commentId}", {"commentId": comment_id}, None, {}, None, "none", None, "void")
 
+    def list_hub_posts(self, hub_id: str, *, query: dict[str, Any] | None = None) -> "PostList":
+        """A hub's posts"""
+        return self._call("GET", "/hubs/{hubId}/posts", {"hubId": hub_id}, query, {}, None, "none", None, "json")
+
+    def create_post(self, hub_id: str, body: "PostCreate") -> "Post":
+        """Write a new post"""
+        return self._call("POST", "/hubs/{hubId}/posts", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
+
+    def read_post(self, page_id: str) -> "Post":
+        """Read a post"""
+        return self._call("GET", "/posts/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def set_post_settings(self, page_id: str, body: "PostSettings") -> "Post":
+        """Schedule, feature or narrow a post"""
+        return self._call("PUT", "/posts/{pageId}", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def publish_post(self, page_id: str) -> "Post":
+        """Publish a post now"""
+        return self._call("POST", "/posts/{pageId}:publish", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def mark_post_seen(self, page_id: str) -> "Post":
+        """Mark a post seen"""
+        return self._call("POST", "/posts/{pageId}:seen", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def confirm_post(self, page_id: str) -> "Post":
+        """Confirm having read a post"""
+        return self._call("POST", "/posts/{pageId}:confirm", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def read_post_confirmations(self, page_id: str) -> "PostConfirmations":
+        """Who confirmed a post"""
+        return self._call("GET", "/posts/{pageId}/confirmations", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def remind_post(self, page_id: str) -> "PostReminded":
+        """Remind those who have not confirmed a post"""
+        return self._call("POST", "/posts/{pageId}:remind", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def list_post_replies(self, page_id: str) -> "PostReplyList":
+        """A post's discussion"""
+        return self._call("GET", "/posts/{pageId}/replies", {"pageId": page_id}, None, {}, None, "none", None, "json")
+
+    def add_post_reply(self, page_id: str, body: "PostReplyCreate") -> "PostReply":
+        """Reply in a post's discussion"""
+        return self._call("POST", "/posts/{pageId}/replies", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
+
+    def delete_post_reply(self, page_id: str, reply_id: str) -> None:
+        """Take a reply back"""
+        return self._call("DELETE", "/posts/{pageId}/replies/{replyId}", {"pageId": page_id, "replyId": reply_id}, None, {}, None, "none", None, "void")
+
+    def react_to_post_reply(self, page_id: str, reply_id: str, reaction: str) -> "PostReply":
+        """React to a reply"""
+        return self._call("PUT", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", {"pageId": page_id, "replyId": reply_id, "reaction": reaction}, None, {}, None, "none", None, "json")
+
+    def unreact_to_post_reply(self, page_id: str, reply_id: str, reaction: str) -> "PostReply":
+        """Take a reaction back"""
+        return self._call("DELETE", "/posts/{pageId}/replies/{replyId}/reactions/{reaction}", {"pageId": page_id, "replyId": reply_id, "reaction": reaction}, None, {}, None, "none", None, "json")
+
     def list_page_backlinks(self, page_id: str) -> "PageBacklinkList":
         """What links to a page"""
         return self._call("GET", "/pages/{pageId}/backlinks", {"pageId": page_id}, None, {}, None, "none", None, "json")

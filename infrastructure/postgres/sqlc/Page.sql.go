@@ -774,10 +774,12 @@ SELECT id, hub_id, parent_id, title, icon, order_key, template, content_language
        created_by, created_at, updated_by, updated_at, version, restricted, daily_for,
        left(body, 1000)::text AS body_head
 FROM page
-WHERE tenant_id = current_tenant_id() AND hub_id = $1
+WHERE page.tenant_id = current_tenant_id() AND page.hub_id = $1
   AND deleted_at IS NULL
   AND ($2::boolean OR archived_at IS NULL)
   AND (NOT $3::boolean OR template)
+  -- A post's page stands among the hub's posts, not in its tree.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = page.tenant_id AND po.page_id = page.id)
 ORDER BY parent_id NULLS FIRST, order_key, id
 LIMIT $4
 `
@@ -1902,6 +1904,8 @@ FROM page p,
                   || websearch_to_tsquery('simple', $1::text) AS query) q
 WHERE p.tenant_id = current_tenant_id() AND p.hub_id = ANY($2::uuid[])
   AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  -- A post is found as a post, where its audience and moment are judged, never as a page.
+  AND NOT EXISTS (SELECT 1 FROM post po WHERE po.tenant_id = p.tenant_id AND po.page_id = p.id)
   AND ($1::text = '' OR p.search_document @@ q.query)
   AND ($3::text IS NULL OR EXISTS (
         SELECT 1 FROM page_label l

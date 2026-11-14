@@ -6220,6 +6220,86 @@ class CoverImageSearch(TypedDict, total=False):
     offered: Required[bool]
     pictures: Required[list[dict[str, Any]]]
 
+class PostSettings(TypedDict, total=False):
+    template: Literal["ANNOUNCEMENT", "RELEASE_NOTE", "MONTHLY_REVIEW", "WELCOME"] | None
+    publish_at: str | None
+    featured_until: str | None
+    audience: Literal["HUB", "GROUPS"]
+    group_ids: list[str]
+    discussion: bool
+    notify: bool
+    confirm_by: str | None
+
+class PostCreate(TypedDict, total=False):
+    title: Required[str]
+    body: str
+    template: Literal["ANNOUNCEMENT", "RELEASE_NOTE", "MONTHLY_REVIEW", "WELCOME"] | None
+    publish_at: str | None
+    featured_until: str | None
+    audience: Literal["HUB", "GROUPS"]
+    group_ids: list[str]
+    discussion: bool
+    notify: bool
+    confirm_by: str | None
+
+class Post(TypedDict, total=False):
+    page_id: Required[str]
+    hub_id: Required[str]
+    title: Required[str]
+    icon: Required[str | None]
+    template: Required[Literal["ANNOUNCEMENT", "RELEASE_NOTE", "MONTHLY_REVIEW", "WELCOME"] | None]
+    state: Required[Literal["DRAFT", "SCHEDULED", "PUBLISHED"]]
+    publish_at: Required[str | None]
+    published_at: Required[str | None]
+    featured_until: Required[str | None]
+    featured: Required[bool]
+    audience: Required[Literal["HUB", "GROUPS"]]
+    group_ids: Required[list[str]]
+    everyone_in_workspace: Required[bool]
+    discussion: Required[bool]
+    notify: Required[bool]
+    confirm_by: Required[str | None]
+    created_by: Required[str | None]
+    created_at: Required[str]
+    seen_count: Required[int]
+    seen: Required[bool]
+    confirmed: Required[bool]
+    may_write: Required[bool]
+    confirmations: "PostConfirmations" | Any
+
+class PostList(TypedDict, total=False):
+    data: Required[list["Post"]]
+    may_write: Required[bool]
+    workspace_wide: Required[bool]
+
+class PostConfirmations(TypedDict, total=False):
+    confirmed: Required[int]
+    audience: Required[int]
+    confirm_by: Required[str]
+    may_remind: Required[bool]
+    overdue: Required[bool]
+    confirmed_ids: list[str]
+
+class PostReminded(TypedDict, total=False):
+    reminded: Required[int]
+
+class PostReply(TypedDict, total=False):
+    id: Required[str]
+    page_id: Required[str]
+    parent_id: Required[str | None]
+    author_id: Required[str | None]
+    body: Required[str]
+    created_at: Required[str]
+    deleted: Required[bool]
+    reactions: Required[list[dict[str, Any]]]
+
+class PostReplyList(TypedDict, total=False):
+    data: Required[list["PostReply"]]
+
+class PostReplyCreate(TypedDict, total=False):
+    body: Required[str]
+    parent_id: str | None
+
 class CoverImageFetched(TypedDict, total=False):
     content_base64: Required[str]
     content_type: Required[Literal["image/jpeg", "image/png", "image/webp"]]

@@ -3366,3 +3366,45 @@ func (pending) FetchCoverImage(w http.ResponseWriter, r *http.Request, _ openapi
 }
 func (pending) ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }
+
+// Posts (work-surface concept E-15).
+func (pending) ListHubPosts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListHubPostsParams) {
+	notAvailable(w, r)
+}
+func (pending) CreatePost(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) ReadPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
+func (pending) SetPostSettings(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) ReadPostConfirmations(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) ListPostReplies(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) AddPostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) DeletePostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+func (pending) UnreactToPostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ReactToPostReply(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi_types.UUID, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ConfirmPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) PublishPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) RemindPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}
+func (pending) MarkPostSeen(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
+	notAvailable(w, r)
+}

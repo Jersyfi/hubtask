@@ -23589,6 +23589,317 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /hubs/{hubId}/posts:
+    parameters:
+      - name: hubId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [pages]
+      operationId: listHubPosts
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post list"
+      summary: A hub's posts
+      description: >
+        The hub's posts the caller sees, featured ones first, then newest first: published ones for
+        their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to
+        the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who
+        may not read its hub. Needs READ on the hub.
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema: { type: string, enum: [ALL, UNREAD, MINE, SCHEDULED], default: ALL }
+      responses:
+        "200":
+          description: The posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [pages]
+      operationId: createPost
+      x-hubtask-rest: generated
+      x-hubtask-rest-location: /posts/{page_id}
+      x-hubtask-cli: "post create"
+      summary: Write a new post
+      description: >
+        Writes a post in the hub: a page with a date, started from one of the post templates or
+        empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept
+        as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the
+        groups named. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostCreate" }
+      responses:
+        "201":
+          description: Written
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: readPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post get"
+      summary: Read a post
+      description: >
+        The post's date, audience and state, how many have seen it, and whether the caller has
+        seen and confirmed it; its words are its page's. A writer of the hub also gets the read
+        confirmation's standing. Not found for anybody it is not for.
+      responses:
+        "200":
+          description: The post
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [pages]
+      operationId: setPostSettings
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post set"
+      summary: Schedule, feature or narrow a post
+      description: >
+        Sets when the post goes out, until when it stays on top, for whom, whether it is discussed,
+        whether the hub's followers are told and until when its readers are asked to confirm it.
+        A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostSettings" }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:publish:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: publishPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post publish"
+      summary: Publish a post now
+      description: >
+        Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the
+        hub; a published post answers as it stands.
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:seen:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: markPostSeen
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post seen"
+      summary: Mark a post seen
+      description: >
+        Counts the caller among those who have seen the published post; the count is shown to
+        everybody, the names to nobody.
+      responses:
+        "200":
+          description: Seen
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:confirm:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: confirmPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post confirm"
+      summary: Confirm having read a post
+      description: >
+        Confirms that the caller read a published post that asks its audience for it; refused
+        `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/confirmations:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: readPostConfirmations
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post confirmations"
+      summary: Who confirmed a post
+      description: >
+        How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on
+        the hub: read confirmations are shown to the post's writers only.
+      responses:
+        "200":
+          description: The confirmations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostConfirmations" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}:remind:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    post:
+      tags: [pages]
+      operationId: remindPost
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post remind"
+      summary: Remind those who have not confirmed a post
+      description: >
+        Tells each of the post's audience who has not confirmed it yet, once per call. Refused
+        `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+      responses:
+        "200":
+          description: Reminded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReminded" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/replies:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: listPostReplies
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post replies"
+      summary: A post's discussion
+      description: >
+        The replies under the post, oldest first, one level deep, each with its reactions counted
+        and whether the caller gave them.
+      responses:
+        "200":
+          description: The discussion
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReplyList" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [pages]
+      operationId: addPostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post reply"
+      summary: Reply in a post's discussion
+      description: >
+        Adds a reply under a published post whose discussion is open, or an answer to a reply.
+        Anybody the post is for may reply.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostReplyCreate" }
+      responses:
+        "201":
+          description: Replied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/replies/{replyId}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: replyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [pages]
+      operationId: deletePostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post reply-rm"
+      summary: Take a reply back
+      description: The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+      responses:
+        "204":
+          description: Taken back
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /posts/{pageId}/replies/{replyId}/reactions/{reaction}:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: replyId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: reaction
+        in: path
+        required: true
+        schema: { type: string, enum: [THANKS, AGREE, CELEBRATE, IDEA] }
+    put:
+      tags: [pages]
+      operationId: reactToPostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post react"
+      summary: React to a reply
+      description: Gives one of the few fixed reactions to a reply, once per person and kind.
+      responses:
+        "200":
+          description: Reacted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [pages]
+      operationId: unreactToPostReply
+      x-hubtask-rest: generated
+      x-hubtask-cli: "post unreact"
+      summary: Take a reaction back
+      description: Takes the caller's reaction of that kind back.
+      responses:
+        "200":
+          description: Taken back
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostReply" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /pages/{pageId}/backlinks:
     parameters:
       - $ref: "#/components/parameters/PageId"
@@ -42874,6 +43185,144 @@ components:
               id: { type: string }
               creator: { type: string, description: Who made the picture, as the library names them. }
               preview: { type: string, description: "A small rendition as a data: URL." }
+
+    PostSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        template: { type: [string, "null"], enum: [ANNOUNCEMENT, RELEASE_NOTE, MONTHLY_REVIEW, WELCOME, null] }
+        publish_at: { type: [string, "null"], format: date-time, description: "When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft." }
+        featured_until: { type: [string, "null"], format: date-time, description: "Keeps it on top of the hub's posts until then." }
+        audience: { type: string, enum: [HUB, GROUPS], default: HUB, description: "The hub's readers, or those of them in the groups named." }
+        group_ids:
+          type: array
+          maxItems: 20
+          items: { type: string, format: uuid }
+        discussion: { type: boolean, default: true, description: Whether the discussion under it is open. }
+        notify: { type: boolean, default: true, description: "Whether the hub's followers are told once it is published." }
+        confirm_by: { type: [string, "null"], format: date-time, description: "Asks its audience to confirm they read it by then." }
+
+    PostCreate:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 500 }
+        body: { type: string, maxLength: 1048576, description: "Markdown; without it, the template's." }
+        template: { type: [string, "null"], enum: [ANNOUNCEMENT, RELEASE_NOTE, MONTHLY_REVIEW, WELCOME, null] }
+        publish_at: { type: [string, "null"], format: date-time }
+        featured_until: { type: [string, "null"], format: date-time }
+        audience: { type: string, enum: [HUB, GROUPS], default: HUB }
+        group_ids:
+          type: array
+          maxItems: 20
+          items: { type: string, format: uuid }
+        discussion: { type: boolean, default: true }
+        notify: { type: boolean, default: true }
+        confirm_by: { type: [string, "null"], format: date-time }
+
+    Post:
+      type: object
+      required: [page_id, hub_id, title, icon, template, state, publish_at, published_at, featured_until,
+        featured, audience, group_ids, everyone_in_workspace, discussion, notify, confirm_by, created_by,
+        created_at, seen_count, seen, confirmed, may_write]
+      properties:
+        page_id: { type: string, format: uuid, description: "The page that holds its words." }
+        hub_id: { type: string, format: uuid }
+        title: { type: string }
+        icon: { type: [string, "null"] }
+        template: { type: [string, "null"], enum: [ANNOUNCEMENT, RELEASE_NOTE, MONTHLY_REVIEW, WELCOME, null] }
+        state: { type: string, enum: [DRAFT, SCHEDULED, PUBLISHED] }
+        publish_at: { type: [string, "null"], format: date-time }
+        published_at: { type: [string, "null"], format: date-time }
+        featured_until: { type: [string, "null"], format: date-time }
+        featured: { type: boolean, description: Whether it stands on top of the hub's posts now. }
+        audience: { type: string, enum: [HUB, GROUPS] }
+        group_ids:
+          type: array
+          items: { type: string, format: uuid }
+        everyone_in_workspace: { type: boolean, description: "For a writer: the audience is the hub's readers and every member of the workspace reads the hub." }
+        discussion: { type: boolean }
+        notify: { type: boolean }
+        confirm_by: { type: [string, "null"], format: date-time }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        seen_count: { type: integer, description: How many have seen it; never who. }
+        seen: { type: boolean, description: Whether the caller has seen it. }
+        confirmed: { type: boolean, description: Whether the caller confirmed reading it. }
+        may_write: { type: boolean, description: Whether the caller writes in the hub. }
+        confirmations:
+          description: For a writer of the hub, how the read confirmation stands.
+          oneOf:
+            - { $ref: "#/components/schemas/PostConfirmations" }
+            - { type: "null" }
+
+    PostList:
+      type: object
+      required: [data, may_write, workspace_wide]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+        may_write: { type: boolean, description: Whether the caller may write posts here. }
+        workspace_wide: { type: boolean, description: "For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace." }
+
+    PostConfirmations:
+      type: object
+      required: [confirmed, audience, confirm_by, may_remind, overdue]
+      properties:
+        confirmed: { type: integer }
+        audience: { type: integer }
+        confirm_by: { type: string, format: date-time }
+        may_remind: { type: boolean }
+        overdue: { type: boolean }
+        confirmed_ids:
+          type: array
+          description: Who confirmed it, for the post's writers.
+          items: { type: string, format: uuid }
+
+    PostReminded:
+      type: object
+      required: [reminded]
+      properties:
+        reminded: { type: integer, description: How many were reminded. }
+
+    PostReply:
+      type: object
+      required: [id, page_id, parent_id, author_id, body, created_at, deleted, reactions]
+      properties:
+        id: { type: string, format: uuid }
+        page_id: { type: string, format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
+        author_id: { type: [string, "null"], format: uuid }
+        body: { type: string, description: "Markdown; empty once taken back." }
+        created_at: { type: string, format: date-time }
+        deleted: { type: boolean }
+        reactions:
+          type: array
+          items:
+            type: object
+            required: [reaction, count, mine]
+            properties:
+              reaction: { type: string, enum: [THANKS, AGREE, CELEBRATE, IDEA] }
+              count: { type: integer }
+              mine: { type: boolean }
+
+    PostReplyList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/PostReply" }
+
+    PostReplyCreate:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 65536 }
+        parent_id: { type: [string, "null"], format: uuid, description: The reply it answers. }
 
     CoverImageFetched:
       type: object

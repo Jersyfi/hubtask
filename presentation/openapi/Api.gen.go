@@ -8278,6 +8278,186 @@ func (e PortfolioWriteStatus) Valid() bool {
 	}
 }
 
+// Defines values for PostAudience.
+const (
+	PostAudienceGROUPS PostAudience = "GROUPS"
+	PostAudienceHUB    PostAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostAudience enum.
+func (e PostAudience) Valid() bool {
+	switch e {
+	case PostAudienceGROUPS:
+		return true
+	case PostAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostState.
+const (
+	PostStateDRAFT     PostState = "DRAFT"
+	PostStatePUBLISHED PostState = "PUBLISHED"
+	PostStateSCHEDULED PostState = "SCHEDULED"
+)
+
+// Valid indicates whether the value is a known member of the PostState enum.
+func (e PostState) Valid() bool {
+	switch e {
+	case PostStateDRAFT:
+		return true
+	case PostStatePUBLISHED:
+		return true
+	case PostStateSCHEDULED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostTemplate.
+const (
+	PostTemplateANNOUNCEMENT  PostTemplate = "ANNOUNCEMENT"
+	PostTemplateLessThannil   PostTemplate = "<nil>"
+	PostTemplateMONTHLYREVIEW PostTemplate = "MONTHLY_REVIEW"
+	PostTemplateRELEASENOTE   PostTemplate = "RELEASE_NOTE"
+	PostTemplateWELCOME       PostTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostTemplate enum.
+func (e PostTemplate) Valid() bool {
+	switch e {
+	case PostTemplateANNOUNCEMENT:
+		return true
+	case PostTemplateLessThannil:
+		return true
+	case PostTemplateMONTHLYREVIEW:
+		return true
+	case PostTemplateRELEASENOTE:
+		return true
+	case PostTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateAudience.
+const (
+	PostCreateAudienceGROUPS PostCreateAudience = "GROUPS"
+	PostCreateAudienceHUB    PostCreateAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateAudience enum.
+func (e PostCreateAudience) Valid() bool {
+	switch e {
+	case PostCreateAudienceGROUPS:
+		return true
+	case PostCreateAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateTemplate.
+const (
+	PostCreateTemplateANNOUNCEMENT  PostCreateTemplate = "ANNOUNCEMENT"
+	PostCreateTemplateLessThannil   PostCreateTemplate = "<nil>"
+	PostCreateTemplateMONTHLYREVIEW PostCreateTemplate = "MONTHLY_REVIEW"
+	PostCreateTemplateRELEASENOTE   PostCreateTemplate = "RELEASE_NOTE"
+	PostCreateTemplateWELCOME       PostCreateTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateTemplate enum.
+func (e PostCreateTemplate) Valid() bool {
+	switch e {
+	case PostCreateTemplateANNOUNCEMENT:
+		return true
+	case PostCreateTemplateLessThannil:
+		return true
+	case PostCreateTemplateMONTHLYREVIEW:
+		return true
+	case PostCreateTemplateRELEASENOTE:
+		return true
+	case PostCreateTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostReplyReactionsReaction.
+const (
+	AGREE     PostReplyReactionsReaction = "AGREE"
+	CELEBRATE PostReplyReactionsReaction = "CELEBRATE"
+	IDEA      PostReplyReactionsReaction = "IDEA"
+	THANKS    PostReplyReactionsReaction = "THANKS"
+)
+
+// Valid indicates whether the value is a known member of the PostReplyReactionsReaction enum.
+func (e PostReplyReactionsReaction) Valid() bool {
+	switch e {
+	case AGREE:
+		return true
+	case CELEBRATE:
+		return true
+	case IDEA:
+		return true
+	case THANKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsAudience.
+const (
+	PostSettingsAudienceGROUPS PostSettingsAudience = "GROUPS"
+	PostSettingsAudienceHUB    PostSettingsAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsAudience enum.
+func (e PostSettingsAudience) Valid() bool {
+	switch e {
+	case PostSettingsAudienceGROUPS:
+		return true
+	case PostSettingsAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsTemplate.
+const (
+	PostSettingsTemplateANNOUNCEMENT  PostSettingsTemplate = "ANNOUNCEMENT"
+	PostSettingsTemplateLessThannil   PostSettingsTemplate = "<nil>"
+	PostSettingsTemplateMONTHLYREVIEW PostSettingsTemplate = "MONTHLY_REVIEW"
+	PostSettingsTemplateRELEASENOTE   PostSettingsTemplate = "RELEASE_NOTE"
+	PostSettingsTemplateWELCOME       PostSettingsTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsTemplate enum.
+func (e PostSettingsTemplate) Valid() bool {
+	switch e {
+	case PostSettingsTemplateANNOUNCEMENT:
+		return true
+	case PostSettingsTemplateLessThannil:
+		return true
+	case PostSettingsTemplateMONTHLYREVIEW:
+		return true
+	case PostSettingsTemplateRELEASENOTE:
+		return true
+	case PostSettingsTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PresetKey.
 const (
 	PresetKeyFLOW    PresetKey = "FLOW"
@@ -12097,6 +12277,30 @@ func (e ListCiAlertsParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListHubPostsParamsFilter.
+const (
+	ListHubPostsParamsFilterALL       ListHubPostsParamsFilter = "ALL"
+	ListHubPostsParamsFilterMINE      ListHubPostsParamsFilter = "MINE"
+	ListHubPostsParamsFilterSCHEDULED ListHubPostsParamsFilter = "SCHEDULED"
+	ListHubPostsParamsFilterUNREAD    ListHubPostsParamsFilter = "UNREAD"
+)
+
+// Valid indicates whether the value is a known member of the ListHubPostsParamsFilter enum.
+func (e ListHubPostsParamsFilter) Valid() bool {
+	switch e {
+	case ListHubPostsParamsFilterALL:
+		return true
+	case ListHubPostsParamsFilterMINE:
+		return true
+	case ListHubPostsParamsFilterSCHEDULED:
+		return true
+	case ListHubPostsParamsFilterUNREAD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListReleasesParamsState.
 const (
 	ListReleasesParamsStatePLANNED  ListReleasesParamsState = "PLANNED"
@@ -12339,16 +12543,16 @@ func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
 
 // Defines values for ListMyRequestsParamsScope.
 const (
-	MINE         ListMyRequestsParamsScope = "MINE"
-	ORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
+	ListMyRequestsParamsScopeMINE         ListMyRequestsParamsScope = "MINE"
+	ListMyRequestsParamsScopeORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
 )
 
 // Valid indicates whether the value is a known member of the ListMyRequestsParamsScope enum.
 func (e ListMyRequestsParamsScope) Valid() bool {
 	switch e {
-	case MINE:
+	case ListMyRequestsParamsScopeMINE:
 		return true
-	case ORGANISATION:
+	case ListMyRequestsParamsScopeORGANISATION:
 		return true
 	default:
 		return false
@@ -23305,6 +23509,172 @@ type PortfolioWriteItemsStatus string
 // PortfolioWriteStatus defines model for PortfolioWrite.Status.
 type PortfolioWriteStatus string
 
+// Post defines model for Post.
+type Post struct {
+	Audience  PostAudience `json:"audience"`
+	ConfirmBy *time.Time   `json:"confirm_by"`
+
+	// Confirmations For a writer of the hub, how the read confirmation stands.
+	Confirmations *PostConfirmations `json:"confirmations,omitempty"`
+
+	// Confirmed Whether the caller confirmed reading it.
+	Confirmed  bool                `json:"confirmed"`
+	CreatedAt  time.Time           `json:"created_at"`
+	CreatedBy  *openapi_types.UUID `json:"created_by"`
+	Discussion bool                `json:"discussion"`
+
+	// EveryoneInWorkspace For a writer: the audience is the hub's readers and every member of the workspace reads the hub.
+	EveryoneInWorkspace bool `json:"everyone_in_workspace"`
+
+	// Featured Whether it stands on top of the hub's posts now.
+	Featured      bool                 `json:"featured"`
+	FeaturedUntil *time.Time           `json:"featured_until"`
+	GroupIds      []openapi_types.UUID `json:"group_ids"`
+	HubId         openapi_types.UUID   `json:"hub_id"`
+	Icon          *string              `json:"icon"`
+
+	// MayWrite Whether the caller writes in the hub.
+	MayWrite bool `json:"may_write"`
+	Notify   bool `json:"notify"`
+
+	// PageId The page that holds its words.
+	PageId      openapi_types.UUID `json:"page_id"`
+	PublishAt   *time.Time         `json:"publish_at"`
+	PublishedAt *time.Time         `json:"published_at"`
+
+	// Seen Whether the caller has seen it.
+	Seen bool `json:"seen"`
+
+	// SeenCount How many have seen it; never who.
+	SeenCount int           `json:"seen_count"`
+	State     PostState     `json:"state"`
+	Template  *PostTemplate `json:"template"`
+	Title     string        `json:"title"`
+}
+
+// PostAudience defines model for Post.Audience.
+type PostAudience string
+
+// PostState defines model for Post.State.
+type PostState string
+
+// PostTemplate defines model for Post.Template.
+type PostTemplate string
+
+// PostConfirmations defines model for PostConfirmations.
+type PostConfirmations struct {
+	Audience  int       `json:"audience"`
+	ConfirmBy time.Time `json:"confirm_by"`
+	Confirmed int       `json:"confirmed"`
+
+	// ConfirmedIds Who confirmed it, for the post's writers.
+	ConfirmedIds *[]openapi_types.UUID `json:"confirmed_ids,omitempty"`
+	MayRemind    bool                  `json:"may_remind"`
+	Overdue      bool                  `json:"overdue"`
+}
+
+// PostCreate defines model for PostCreate.
+type PostCreate struct {
+	Audience *PostCreateAudience `json:"audience,omitempty"`
+
+	// Body Markdown; without it, the template's.
+	Body          *string               `json:"body,omitempty"`
+	ConfirmBy     *time.Time            `json:"confirm_by,omitempty"`
+	Discussion    *bool                 `json:"discussion,omitempty"`
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+	Notify        *bool                 `json:"notify,omitempty"`
+	PublishAt     *time.Time            `json:"publish_at,omitempty"`
+	Template      *PostCreateTemplate   `json:"template,omitempty"`
+	Title         string                `json:"title"`
+}
+
+// PostCreateAudience defines model for PostCreate.Audience.
+type PostCreateAudience string
+
+// PostCreateTemplate defines model for PostCreate.Template.
+type PostCreateTemplate string
+
+// PostList defines model for PostList.
+type PostList struct {
+	Data []Post `json:"data"`
+
+	// MayWrite Whether the caller may write posts here.
+	MayWrite bool `json:"may_write"`
+
+	// WorkspaceWide For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace.
+	WorkspaceWide bool `json:"workspace_wide"`
+}
+
+// PostReminded defines model for PostReminded.
+type PostReminded struct {
+	// Reminded How many were reminded.
+	Reminded int `json:"reminded"`
+}
+
+// PostReply defines model for PostReply.
+type PostReply struct {
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	Deleted   bool                `json:"deleted"`
+	Id        openapi_types.UUID  `json:"id"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+	ParentId  *openapi_types.UUID `json:"parent_id"`
+	Reactions []struct {
+		Count    int                        `json:"count"`
+		Mine     bool                       `json:"mine"`
+		Reaction PostReplyReactionsReaction `json:"reaction"`
+	} `json:"reactions"`
+}
+
+// PostReplyReactionsReaction defines model for PostReply.Reactions.Reaction.
+type PostReplyReactionsReaction string
+
+// PostReplyCreate defines model for PostReplyCreate.
+type PostReplyCreate struct {
+	Body string `json:"body"`
+
+	// ParentId The reply it answers.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PostReplyList defines model for PostReplyList.
+type PostReplyList struct {
+	Data []PostReply `json:"data"`
+}
+
+// PostSettings defines model for PostSettings.
+type PostSettings struct {
+	// Audience The hub's readers, or those of them in the groups named.
+	Audience *PostSettingsAudience `json:"audience,omitempty"`
+
+	// ConfirmBy Asks its audience to confirm they read it by then.
+	ConfirmBy *time.Time `json:"confirm_by,omitempty"`
+
+	// Discussion Whether the discussion under it is open.
+	Discussion *bool `json:"discussion,omitempty"`
+
+	// FeaturedUntil Keeps it on top of the hub's posts until then.
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+
+	// Notify Whether the hub's followers are told once it is published.
+	Notify *bool `json:"notify,omitempty"`
+
+	// PublishAt When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft.
+	PublishAt *time.Time            `json:"publish_at,omitempty"`
+	Template  *PostSettingsTemplate `json:"template,omitempty"`
+}
+
+// PostSettingsAudience The hub's readers, or those of them in the groups named.
+type PostSettingsAudience string
+
+// PostSettingsTemplate defines model for PostSettings.Template.
+type PostSettingsTemplate string
+
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
 	// Id A saved preset's id. Absent on one of Hubtask's.
@@ -29729,6 +30099,14 @@ type ListPagesParams struct {
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
 }
 
+// ListHubPostsParams defines parameters for ListHubPosts.
+type ListHubPostsParams struct {
+	Filter *ListHubPostsParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
+}
+
+// ListHubPostsParamsFilter defines parameters for ListHubPosts.
+type ListHubPostsParamsFilter string
+
 // ListReleasesParams defines parameters for ListReleases.
 type ListReleasesParams struct {
 	// State Only releases in this state.
@@ -32040,6 +32418,9 @@ type SetSpaceDraftsJSONRequestBody SetSpaceDraftsJSONBody
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
 
+// CreatePostJSONRequestBody defines body for CreatePost for application/json ContentType.
+type CreatePostJSONRequestBody = PostCreate
+
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
@@ -32360,6 +32741,12 @@ type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
 
 // SetPublicRoadmapsPolicyJSONRequestBody defines body for SetPublicRoadmapsPolicy for application/json ContentType.
 type SetPublicRoadmapsPolicyJSONRequestBody SetPublicRoadmapsPolicyJSONBody
+
+// SetPostSettingsJSONRequestBody defines body for SetPostSettings for application/json ContentType.
+type SetPostSettingsJSONRequestBody = PostSettings
+
+// AddPostReplyJSONRequestBody defines body for AddPostReply for application/json ContentType.
+type AddPostReplyJSONRequestBody = PostReplyCreate
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -34304,6 +34691,12 @@ type ServerInterface interface {
 	// CreatePage Write a new page
 	// (POST /hubs/{hubId}/pages)
 	CreatePage(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// ListHubPosts A hub's posts
+	// (GET /hubs/{hubId}/posts)
+	ListHubPosts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, params ListHubPostsParams)
+	// CreatePost Write a new post
+	// (POST /hubs/{hubId}/posts)
+	CreatePost(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListHubQueues A hub's queues with their counts
 	// (GET /hubs/{hubId}/queues)
 	ListHubQueues(w http.ResponseWriter, r *http.Request, hubId HubId)
@@ -35086,6 +35479,42 @@ type ServerInterface interface {
 	// SetPublicRoadmapsPolicy Allow public links to roadmaps, or not
 	// (PUT /portfolios:public-links)
 	SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request)
+	// ReadPost Read a post
+	// (GET /posts/{pageId})
+	ReadPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SetPostSettings Schedule, feature or narrow a post
+	// (PUT /posts/{pageId})
+	SetPostSettings(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ReadPostConfirmations Who confirmed a post
+	// (GET /posts/{pageId}/confirmations)
+	ReadPostConfirmations(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ListPostReplies A post's discussion
+	// (GET /posts/{pageId}/replies)
+	ListPostReplies(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// AddPostReply Reply in a post's discussion
+	// (POST /posts/{pageId}/replies)
+	AddPostReply(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// DeletePostReply Take a reply back
+	// (DELETE /posts/{pageId}/replies/{replyId})
+	DeletePostReply(w http.ResponseWriter, r *http.Request, pageId PageId, replyId openapi_types.UUID)
+	// UnreactToPostReply Take a reaction back
+	// (DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction})
+	UnreactToPostReply(w http.ResponseWriter, r *http.Request, pageId PageId, replyId openapi_types.UUID, reaction string)
+	// ReactToPostReply React to a reply
+	// (PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction})
+	ReactToPostReply(w http.ResponseWriter, r *http.Request, pageId PageId, replyId openapi_types.UUID, reaction string)
+	// ConfirmPost Confirm having read a post
+	// (POST /posts/{pageId}:confirm)
+	ConfirmPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// PublishPost Publish a post now
+	// (POST /posts/{pageId}:publish)
+	PublishPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// RemindPost Remind those who have not confirmed a post
+	// (POST /posts/{pageId}:remind)
+	RemindPost(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// MarkPostSeen Mark a post seen
+	// (POST /posts/{pageId}:seen)
+	MarkPostSeen(w http.ResponseWriter, r *http.Request, pageId PageId)
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
@@ -49136,6 +49565,74 @@ func (siw *ServerInterfaceWrapper) CreatePage(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ListHubPosts operation middleware
+func (siw *ServerInterfaceWrapper) ListHubPosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListHubPostsParams
+
+	// ------------- Optional query parameter "filter" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "filter", r.URL.Query(), &params.Filter, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "filter"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "filter", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListHubPosts(w, r, hubId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePost operation middleware
+func (siw *ServerInterfaceWrapper) CreatePost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePost(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListHubQueues operation middleware
 func (siw *ServerInterfaceWrapper) ListHubQueues(w http.ResponseWriter, r *http.Request) {
 
@@ -58230,6 +58727,363 @@ func (siw *ServerInterfaceWrapper) SetPublicRoadmapsPolicy(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ReadPost operation middleware
+func (siw *ServerInterfaceWrapper) ReadPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetPostSettings operation middleware
+func (siw *ServerInterfaceWrapper) SetPostSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPostSettings(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadPostConfirmations operation middleware
+func (siw *ServerInterfaceWrapper) ReadPostConfirmations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadPostConfirmations(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPostReplies operation middleware
+func (siw *ServerInterfaceWrapper) ListPostReplies(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPostReplies(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddPostReply operation middleware
+func (siw *ServerInterfaceWrapper) AddPostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddPostReply(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePostReply operation middleware
+func (siw *ServerInterfaceWrapper) DeletePostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "replyId" -------------
+	var replyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "replyId", r.PathValue("replyId"), &replyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "replyId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePostReply(w, r, pageId, replyId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnreactToPostReply operation middleware
+func (siw *ServerInterfaceWrapper) UnreactToPostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "replyId" -------------
+	var replyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "replyId", r.PathValue("replyId"), &replyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "replyId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "reaction" -------------
+	var reaction string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "reaction", r.PathValue("reaction"), &reaction, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "reaction", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnreactToPostReply(w, r, pageId, replyId, reaction)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReactToPostReply operation middleware
+func (siw *ServerInterfaceWrapper) ReactToPostReply(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "replyId" -------------
+	var replyId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "replyId", r.PathValue("replyId"), &replyId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "replyId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "reaction" -------------
+	var reaction string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "reaction", r.PathValue("reaction"), &reaction, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "reaction", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReactToPostReply(w, r, pageId, replyId, reaction)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmPost operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PublishPost operation middleware
+func (siw *ServerInterfaceWrapper) PublishPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PublishPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemindPost operation middleware
+func (siw *ServerInterfaceWrapper) RemindPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemindPost(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MarkPostSeen operation middleware
+func (siw *ServerInterfaceWrapper) MarkPostSeen(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MarkPostSeen(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPresets operation middleware
 func (siw *ServerInterfaceWrapper) ListPresets(w http.ResponseWriter, r *http.Request) {
 
@@ -65392,6 +66246,20 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/comments", wrapper.AddPageComment)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.DeletePageComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.ChangePageComment)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.ListHubPosts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.CreatePost)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}", wrapper.ReadPost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/posts/{pageId}", wrapper.SetPostSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:publish", wrapper.PublishPost)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:seen", wrapper.MarkPostSeen)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:confirm", wrapper.ConfirmPost)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}/confirmations", wrapper.ReadPostConfirmations)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:remind", wrapper.RemindPost)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}/replies", wrapper.ListPostReplies)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}/replies", wrapper.AddPostReply)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/posts/{pageId}/replies/{replyId}", wrapper.DeletePostReply)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/posts/{pageId}/replies/{replyId}/reactions/{reaction}", wrapper.UnreactToPostReply)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/posts/{pageId}/replies/{replyId}/reactions/{reaction}", wrapper.ReactToPostReply)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/backlinks", wrapper.ListPageBacklinks)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/labels", wrapper.ListPageLabels)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}:label", wrapper.SetPageLabels)

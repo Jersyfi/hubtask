@@ -8284,6 +8284,186 @@ func (e PortfolioWriteStatus) Valid() bool {
 	}
 }
 
+// Defines values for PostAudience.
+const (
+	PostAudienceGROUPS PostAudience = "GROUPS"
+	PostAudienceHUB    PostAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostAudience enum.
+func (e PostAudience) Valid() bool {
+	switch e {
+	case PostAudienceGROUPS:
+		return true
+	case PostAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostState.
+const (
+	PostStateDRAFT     PostState = "DRAFT"
+	PostStatePUBLISHED PostState = "PUBLISHED"
+	PostStateSCHEDULED PostState = "SCHEDULED"
+)
+
+// Valid indicates whether the value is a known member of the PostState enum.
+func (e PostState) Valid() bool {
+	switch e {
+	case PostStateDRAFT:
+		return true
+	case PostStatePUBLISHED:
+		return true
+	case PostStateSCHEDULED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostTemplate.
+const (
+	PostTemplateANNOUNCEMENT  PostTemplate = "ANNOUNCEMENT"
+	PostTemplateLessThannil   PostTemplate = "<nil>"
+	PostTemplateMONTHLYREVIEW PostTemplate = "MONTHLY_REVIEW"
+	PostTemplateRELEASENOTE   PostTemplate = "RELEASE_NOTE"
+	PostTemplateWELCOME       PostTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostTemplate enum.
+func (e PostTemplate) Valid() bool {
+	switch e {
+	case PostTemplateANNOUNCEMENT:
+		return true
+	case PostTemplateLessThannil:
+		return true
+	case PostTemplateMONTHLYREVIEW:
+		return true
+	case PostTemplateRELEASENOTE:
+		return true
+	case PostTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateAudience.
+const (
+	PostCreateAudienceGROUPS PostCreateAudience = "GROUPS"
+	PostCreateAudienceHUB    PostCreateAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateAudience enum.
+func (e PostCreateAudience) Valid() bool {
+	switch e {
+	case PostCreateAudienceGROUPS:
+		return true
+	case PostCreateAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostCreateTemplate.
+const (
+	PostCreateTemplateANNOUNCEMENT  PostCreateTemplate = "ANNOUNCEMENT"
+	PostCreateTemplateLessThannil   PostCreateTemplate = "<nil>"
+	PostCreateTemplateMONTHLYREVIEW PostCreateTemplate = "MONTHLY_REVIEW"
+	PostCreateTemplateRELEASENOTE   PostCreateTemplate = "RELEASE_NOTE"
+	PostCreateTemplateWELCOME       PostCreateTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostCreateTemplate enum.
+func (e PostCreateTemplate) Valid() bool {
+	switch e {
+	case PostCreateTemplateANNOUNCEMENT:
+		return true
+	case PostCreateTemplateLessThannil:
+		return true
+	case PostCreateTemplateMONTHLYREVIEW:
+		return true
+	case PostCreateTemplateRELEASENOTE:
+		return true
+	case PostCreateTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostReplyReactionsReaction.
+const (
+	AGREE     PostReplyReactionsReaction = "AGREE"
+	CELEBRATE PostReplyReactionsReaction = "CELEBRATE"
+	IDEA      PostReplyReactionsReaction = "IDEA"
+	THANKS    PostReplyReactionsReaction = "THANKS"
+)
+
+// Valid indicates whether the value is a known member of the PostReplyReactionsReaction enum.
+func (e PostReplyReactionsReaction) Valid() bool {
+	switch e {
+	case AGREE:
+		return true
+	case CELEBRATE:
+		return true
+	case IDEA:
+		return true
+	case THANKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsAudience.
+const (
+	PostSettingsAudienceGROUPS PostSettingsAudience = "GROUPS"
+	PostSettingsAudienceHUB    PostSettingsAudience = "HUB"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsAudience enum.
+func (e PostSettingsAudience) Valid() bool {
+	switch e {
+	case PostSettingsAudienceGROUPS:
+		return true
+	case PostSettingsAudienceHUB:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PostSettingsTemplate.
+const (
+	PostSettingsTemplateANNOUNCEMENT  PostSettingsTemplate = "ANNOUNCEMENT"
+	PostSettingsTemplateLessThannil   PostSettingsTemplate = "<nil>"
+	PostSettingsTemplateMONTHLYREVIEW PostSettingsTemplate = "MONTHLY_REVIEW"
+	PostSettingsTemplateRELEASENOTE   PostSettingsTemplate = "RELEASE_NOTE"
+	PostSettingsTemplateWELCOME       PostSettingsTemplate = "WELCOME"
+)
+
+// Valid indicates whether the value is a known member of the PostSettingsTemplate enum.
+func (e PostSettingsTemplate) Valid() bool {
+	switch e {
+	case PostSettingsTemplateANNOUNCEMENT:
+		return true
+	case PostSettingsTemplateLessThannil:
+		return true
+	case PostSettingsTemplateMONTHLYREVIEW:
+		return true
+	case PostSettingsTemplateRELEASENOTE:
+		return true
+	case PostSettingsTemplateWELCOME:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PresetKey.
 const (
 	PresetKeyFLOW    PresetKey = "FLOW"
@@ -12103,6 +12283,30 @@ func (e ListCiAlertsParamsStatus) Valid() bool {
 	}
 }
 
+// Defines values for ListHubPostsParamsFilter.
+const (
+	ListHubPostsParamsFilterALL       ListHubPostsParamsFilter = "ALL"
+	ListHubPostsParamsFilterMINE      ListHubPostsParamsFilter = "MINE"
+	ListHubPostsParamsFilterSCHEDULED ListHubPostsParamsFilter = "SCHEDULED"
+	ListHubPostsParamsFilterUNREAD    ListHubPostsParamsFilter = "UNREAD"
+)
+
+// Valid indicates whether the value is a known member of the ListHubPostsParamsFilter enum.
+func (e ListHubPostsParamsFilter) Valid() bool {
+	switch e {
+	case ListHubPostsParamsFilterALL:
+		return true
+	case ListHubPostsParamsFilterMINE:
+		return true
+	case ListHubPostsParamsFilterSCHEDULED:
+		return true
+	case ListHubPostsParamsFilterUNREAD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListReleasesParamsState.
 const (
 	ListReleasesParamsStatePLANNED  ListReleasesParamsState = "PLANNED"
@@ -12345,16 +12549,16 @@ func (e ReportPortfolioStatusJSONBodyStatus) Valid() bool {
 
 // Defines values for ListMyRequestsParamsScope.
 const (
-	MINE         ListMyRequestsParamsScope = "MINE"
-	ORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
+	ListMyRequestsParamsScopeMINE         ListMyRequestsParamsScope = "MINE"
+	ListMyRequestsParamsScopeORGANISATION ListMyRequestsParamsScope = "ORGANISATION"
 )
 
 // Valid indicates whether the value is a known member of the ListMyRequestsParamsScope enum.
 func (e ListMyRequestsParamsScope) Valid() bool {
 	switch e {
-	case MINE:
+	case ListMyRequestsParamsScopeMINE:
 		return true
-	case ORGANISATION:
+	case ListMyRequestsParamsScopeORGANISATION:
 		return true
 	default:
 		return false
@@ -23311,6 +23515,172 @@ type PortfolioWriteItemsStatus string
 // PortfolioWriteStatus defines model for PortfolioWrite.Status.
 type PortfolioWriteStatus string
 
+// Post defines model for Post.
+type Post struct {
+	Audience  PostAudience `json:"audience"`
+	ConfirmBy *time.Time   `json:"confirm_by"`
+
+	// Confirmations For a writer of the hub, how the read confirmation stands.
+	Confirmations *PostConfirmations `json:"confirmations,omitempty"`
+
+	// Confirmed Whether the caller confirmed reading it.
+	Confirmed  bool                `json:"confirmed"`
+	CreatedAt  time.Time           `json:"created_at"`
+	CreatedBy  *openapi_types.UUID `json:"created_by"`
+	Discussion bool                `json:"discussion"`
+
+	// EveryoneInWorkspace For a writer: the audience is the hub's readers and every member of the workspace reads the hub.
+	EveryoneInWorkspace bool `json:"everyone_in_workspace"`
+
+	// Featured Whether it stands on top of the hub's posts now.
+	Featured      bool                 `json:"featured"`
+	FeaturedUntil *time.Time           `json:"featured_until"`
+	GroupIds      []openapi_types.UUID `json:"group_ids"`
+	HubId         openapi_types.UUID   `json:"hub_id"`
+	Icon          *string              `json:"icon"`
+
+	// MayWrite Whether the caller writes in the hub.
+	MayWrite bool `json:"may_write"`
+	Notify   bool `json:"notify"`
+
+	// PageId The page that holds its words.
+	PageId      openapi_types.UUID `json:"page_id"`
+	PublishAt   *time.Time         `json:"publish_at"`
+	PublishedAt *time.Time         `json:"published_at"`
+
+	// Seen Whether the caller has seen it.
+	Seen bool `json:"seen"`
+
+	// SeenCount How many have seen it; never who.
+	SeenCount int           `json:"seen_count"`
+	State     PostState     `json:"state"`
+	Template  *PostTemplate `json:"template"`
+	Title     string        `json:"title"`
+}
+
+// PostAudience defines model for Post.Audience.
+type PostAudience string
+
+// PostState defines model for Post.State.
+type PostState string
+
+// PostTemplate defines model for Post.Template.
+type PostTemplate string
+
+// PostConfirmations defines model for PostConfirmations.
+type PostConfirmations struct {
+	Audience  int       `json:"audience"`
+	ConfirmBy time.Time `json:"confirm_by"`
+	Confirmed int       `json:"confirmed"`
+
+	// ConfirmedIds Who confirmed it, for the post's writers.
+	ConfirmedIds *[]openapi_types.UUID `json:"confirmed_ids,omitempty"`
+	MayRemind    bool                  `json:"may_remind"`
+	Overdue      bool                  `json:"overdue"`
+}
+
+// PostCreate defines model for PostCreate.
+type PostCreate struct {
+	Audience *PostCreateAudience `json:"audience,omitempty"`
+
+	// Body Markdown; without it, the template's.
+	Body          *string               `json:"body,omitempty"`
+	ConfirmBy     *time.Time            `json:"confirm_by,omitempty"`
+	Discussion    *bool                 `json:"discussion,omitempty"`
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+	Notify        *bool                 `json:"notify,omitempty"`
+	PublishAt     *time.Time            `json:"publish_at,omitempty"`
+	Template      *PostCreateTemplate   `json:"template,omitempty"`
+	Title         string                `json:"title"`
+}
+
+// PostCreateAudience defines model for PostCreate.Audience.
+type PostCreateAudience string
+
+// PostCreateTemplate defines model for PostCreate.Template.
+type PostCreateTemplate string
+
+// PostList defines model for PostList.
+type PostList struct {
+	Data []Post `json:"data"`
+
+	// MayWrite Whether the caller may write posts here.
+	MayWrite bool `json:"may_write"`
+
+	// WorkspaceWide For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace.
+	WorkspaceWide bool `json:"workspace_wide"`
+}
+
+// PostReminded defines model for PostReminded.
+type PostReminded struct {
+	// Reminded How many were reminded.
+	Reminded int `json:"reminded"`
+}
+
+// PostReply defines model for PostReply.
+type PostReply struct {
+	AuthorId *openapi_types.UUID `json:"author_id"`
+
+	// Body Markdown; empty once taken back.
+	Body      string              `json:"body"`
+	CreatedAt time.Time           `json:"created_at"`
+	Deleted   bool                `json:"deleted"`
+	Id        openapi_types.UUID  `json:"id"`
+	PageId    openapi_types.UUID  `json:"page_id"`
+	ParentId  *openapi_types.UUID `json:"parent_id"`
+	Reactions []struct {
+		Count    int                        `json:"count"`
+		Mine     bool                       `json:"mine"`
+		Reaction PostReplyReactionsReaction `json:"reaction"`
+	} `json:"reactions"`
+}
+
+// PostReplyReactionsReaction defines model for PostReply.Reactions.Reaction.
+type PostReplyReactionsReaction string
+
+// PostReplyCreate defines model for PostReplyCreate.
+type PostReplyCreate struct {
+	Body string `json:"body"`
+
+	// ParentId The reply it answers.
+	ParentId *openapi_types.UUID `json:"parent_id,omitempty"`
+}
+
+// PostReplyList defines model for PostReplyList.
+type PostReplyList struct {
+	Data []PostReply `json:"data"`
+}
+
+// PostSettings defines model for PostSettings.
+type PostSettings struct {
+	// Audience The hub's readers, or those of them in the groups named.
+	Audience *PostSettingsAudience `json:"audience,omitempty"`
+
+	// ConfirmBy Asks its audience to confirm they read it by then.
+	ConfirmBy *time.Time `json:"confirm_by,omitempty"`
+
+	// Discussion Whether the discussion under it is open.
+	Discussion *bool `json:"discussion,omitempty"`
+
+	// FeaturedUntil Keeps it on top of the hub's posts until then.
+	FeaturedUntil *time.Time            `json:"featured_until,omitempty"`
+	GroupIds      *[]openapi_types.UUID `json:"group_ids,omitempty"`
+
+	// Notify Whether the hub's followers are told once it is published.
+	Notify *bool `json:"notify,omitempty"`
+
+	// PublishAt When it goes out: now or earlier publishes at once, ahead schedules it, none keeps a draft.
+	PublishAt *time.Time            `json:"publish_at,omitempty"`
+	Template  *PostSettingsTemplate `json:"template,omitempty"`
+}
+
+// PostSettingsAudience The hub's readers, or those of them in the groups named.
+type PostSettingsAudience string
+
+// PostSettingsTemplate defines model for PostSettings.Template.
+type PostSettingsTemplate string
+
 // Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
 	// Id A saved preset's id. Absent on one of Hubtask's.
@@ -29735,6 +30105,14 @@ type ListPagesParams struct {
 	Templates       *bool `form:"templates,omitempty" json:"templates,omitempty"`
 }
 
+// ListHubPostsParams defines parameters for ListHubPosts.
+type ListHubPostsParams struct {
+	Filter *ListHubPostsParamsFilter `form:"filter,omitempty" json:"filter,omitempty"`
+}
+
+// ListHubPostsParamsFilter defines parameters for ListHubPosts.
+type ListHubPostsParamsFilter string
+
 // ListReleasesParams defines parameters for ListReleases.
 type ListReleasesParams struct {
 	// State Only releases in this state.
@@ -32046,6 +32424,9 @@ type SetSpaceDraftsJSONRequestBody SetSpaceDraftsJSONBody
 // CreatePageJSONRequestBody defines body for CreatePage for application/json ContentType.
 type CreatePageJSONRequestBody = PageCreate
 
+// CreatePostJSONRequestBody defines body for CreatePost for application/json ContentType.
+type CreatePostJSONRequestBody = PostCreate
+
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
@@ -32366,6 +32747,12 @@ type ReportPortfolioStatusJSONRequestBody ReportPortfolioStatusJSONBody
 
 // SetPublicRoadmapsPolicyJSONRequestBody defines body for SetPublicRoadmapsPolicy for application/json ContentType.
 type SetPublicRoadmapsPolicyJSONRequestBody SetPublicRoadmapsPolicyJSONBody
+
+// SetPostSettingsJSONRequestBody defines body for SetPostSettings for application/json ContentType.
+type SetPostSettingsJSONRequestBody = PostSettings
+
+// AddPostReplyJSONRequestBody defines body for AddPostReply for application/json ContentType.
+type AddPostReplyJSONRequestBody = PostReplyCreate
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -38936,6 +39323,31 @@ type ClientInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePage(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListHubPosts A hub's posts
+	//
+	// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+	//
+	// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+	ListHubPosts(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePostWithBody Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePostWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreatePost Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePost(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListHubQueues A hub's queues with their counts
 	//
 	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
@@ -41992,6 +42404,112 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 	SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPost Read a post
+	//
+	// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+	//
+	// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+	ReadPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPostSettingsWithBody Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettingsWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetPostSettings Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettings(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadPostConfirmations Who confirmed a post
+	//
+	// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+	//
+	// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+	ReadPostConfirmations(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPostReplies A post's discussion
+	//
+	// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+	//
+	// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+	ListPostReplies(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddPostReplyWithBody Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReplyWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddPostReply Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReply(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeletePostReply Take a reply back
+	//
+	// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+	DeletePostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UnreactToPostReply Take a reaction back
+	//
+	// Takes the caller's reaction of that kind back.
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+	UnreactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReactToPostReply React to a reply
+	//
+	// Gives one of the few fixed reactions to a reply, once per person and kind.
+	//
+	// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+	ReactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmPost Confirm having read a post
+	//
+	// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+	//
+	// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+	ConfirmPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PublishPost Publish a post now
+	//
+	// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+	//
+	// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+	PublishPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemindPost Remind those who have not confirmed a post
+	//
+	// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+	RemindPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MarkPostSeen Mark a post seen
+	//
+	// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+	//
+	// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+	MarkPostSeen(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -56709,6 +57227,61 @@ func (c *Client) CreatePage(ctx context.Context, hubId openapi_types.UUID, body 
 	return c.Client.Do(req)
 }
 
+// ListHubPosts A hub's posts
+//
+// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+//
+// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+func (c *Client) ListHubPosts(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListHubPostsRequest(c.Server, hubId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePostWithBody Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *Client) CreatePostWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePostRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreatePost Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *Client) CreatePost(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreatePostRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListHubQueues A hub's queues with their counts
 //
 // The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
@@ -63415,6 +63988,252 @@ func (c *Client) SetPublicRoadmapsPolicyWithBody(ctx context.Context, contentTyp
 // Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 func (c *Client) SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetPublicRoadmapsPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPost Read a post
+//
+// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+//
+// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+func (c *Client) ReadPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPostSettingsWithBody Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *Client) SetPostSettingsWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPostSettingsRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetPostSettings Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *Client) SetPostSettings(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetPostSettingsRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadPostConfirmations Who confirmed a post
+//
+// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+//
+// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+func (c *Client) ReadPostConfirmations(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadPostConfirmationsRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPostReplies A post's discussion
+//
+// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+//
+// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+func (c *Client) ListPostReplies(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPostRepliesRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddPostReplyWithBody Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *Client) AddPostReplyWithBody(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddPostReplyRequestWithBody(c.Server, pageId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddPostReply Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *Client) AddPostReply(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddPostReplyRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeletePostReply Take a reply back
+//
+// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+func (c *Client) DeletePostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeletePostReplyRequest(c.Server, pageId, replyId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UnreactToPostReply Take a reaction back
+//
+// Takes the caller's reaction of that kind back.
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+func (c *Client) UnreactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUnreactToPostReplyRequest(c.Server, pageId, replyId, reaction)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReactToPostReply React to a reply
+//
+// Gives one of the few fixed reactions to a reply, once per person and kind.
+//
+// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+func (c *Client) ReactToPostReply(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReactToPostReplyRequest(c.Server, pageId, replyId, reaction)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmPost Confirm having read a post
+//
+// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+//
+// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+func (c *Client) ConfirmPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PublishPost Publish a post now
+//
+// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+//
+// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+func (c *Client) PublishPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPublishPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemindPost Remind those who have not confirmed a post
+//
+// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+func (c *Client) RemindPost(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemindPostRequest(c.Server, pageId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MarkPostSeen Mark a post seen
+//
+// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+//
+// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+func (c *Client) MarkPostSeen(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMarkPostSeenRequest(c.Server, pageId)
 	if err != nil {
 		return nil, err
 	}
@@ -88521,6 +89340,114 @@ func NewCreatePageRequestWithBody(server string, hubId openapi_types.UUID, conte
 	return req, nil
 }
 
+// NewListHubPostsRequest constructs an http.Request for the ListHubPosts method
+func NewListHubPostsRequest(server string, hubId openapi_types.UUID, params *ListHubPostsParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/posts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Filter != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "filter", *params.Filter, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreatePostRequest calls the generic CreatePost builder with application/json body
+func NewCreatePostRequest(server string, hubId openapi_types.UUID, body CreatePostJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreatePostRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewCreatePostRequestWithBody constructs an http.Request for the CreatePost method, with any body, and a specified content type
+func NewCreatePostRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/posts", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListHubQueuesRequest constructs an http.Request for the ListHubQueues method
 func NewListHubQueuesRequest(server string, hubId HubId) (*http.Request, error) {
 	var err error
@@ -100726,6 +101653,475 @@ func NewSetPublicRoadmapsPolicyRequestWithBody(server string, contentType string
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadPostRequest constructs an http.Request for the ReadPost method
+func NewReadPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetPostSettingsRequest calls the generic SetPostSettings builder with application/json body
+func NewSetPostSettingsRequest(server string, pageId PageId, body SetPostSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetPostSettingsRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewSetPostSettingsRequestWithBody constructs an http.Request for the SetPostSettings method, with any body, and a specified content type
+func NewSetPostSettingsRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadPostConfirmationsRequest constructs an http.Request for the ReadPostConfirmations method
+func NewReadPostConfirmationsRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/confirmations", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListPostRepliesRequest constructs an http.Request for the ListPostReplies method
+func NewListPostRepliesRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddPostReplyRequest calls the generic AddPostReply builder with application/json body
+func NewAddPostReplyRequest(server string, pageId PageId, body AddPostReplyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddPostReplyRequestWithBody(server, pageId, "application/json", bodyReader)
+}
+
+// NewAddPostReplyRequestWithBody constructs an http.Request for the AddPostReply method, with any body, and a specified content type
+func NewAddPostReplyRequestWithBody(server string, pageId PageId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeletePostReplyRequest constructs an http.Request for the DeletePostReply method
+func NewDeletePostReplyRequest(server string, pageId PageId, replyId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "replyId", replyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewUnreactToPostReplyRequest constructs an http.Request for the UnreactToPostReply method
+func NewUnreactToPostReplyRequest(server string, pageId PageId, replyId openapi_types.UUID, reaction string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "replyId", replyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "reaction", reaction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies/%s/reactions/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReactToPostReplyRequest constructs an http.Request for the ReactToPostReply method
+func NewReactToPostReplyRequest(server string, pageId PageId, replyId openapi_types.UUID, reaction string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "replyId", replyId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam2 string
+
+	pathParam2, err = runtime.StyleParamWithOptions("simple", false, "reaction", reaction, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s/replies/%s/reactions/%s", pathParam0, pathParam1, pathParam2)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConfirmPostRequest constructs an http.Request for the ConfirmPost method
+func NewConfirmPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:confirm", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPublishPostRequest constructs an http.Request for the PublishPost method
+func NewPublishPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:publish", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRemindPostRequest constructs an http.Request for the RemindPost method
+func NewRemindPostRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:remind", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewMarkPostSeenRequest constructs an http.Request for the MarkPostSeen method
+func NewMarkPostSeenRequest(server string, pageId PageId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts/%s:seen", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -116313,6 +117709,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/pages (the `CreatePage` operationId).
 	CreatePageWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePageJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePageResult, error)
 
+	// ListHubPostsWithResponse A hub's posts
+	//
+	// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+	ListHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*ListHubPostsResult, error)
+
+	// CreatePostWithBodyWithResponse Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePostWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePostResult, error)
+
+	// CreatePostWithResponse Write a new post
+	//
+	// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+	CreatePostWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePostResult, error)
+
 	// ListHubQueuesWithResponse A hub's queues with their counts
 	//
 	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
@@ -119711,6 +121134,132 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 	SetPublicRoadmapsPolicyWithResponse(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error)
+
+	// ReadPostWithResponse Read a post
+	//
+	// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+	ReadPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostResult, error)
+
+	// SetPostSettingsWithBodyWithResponse Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettingsWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error)
+
+	// SetPostSettingsWithResponse Schedule, feature or narrow a post
+	//
+	// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+	SetPostSettingsWithResponse(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error)
+
+	// ReadPostConfirmationsWithResponse Who confirmed a post
+	//
+	// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+	ReadPostConfirmationsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostConfirmationsResult, error)
+
+	// ListPostRepliesWithResponse A post's discussion
+	//
+	// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+	ListPostRepliesWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPostRepliesResult, error)
+
+	// AddPostReplyWithBodyWithResponse Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReplyWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error)
+
+	// AddPostReplyWithResponse Reply in a post's discussion
+	//
+	// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+	AddPostReplyWithResponse(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error)
+
+	// DeletePostReplyWithResponse Take a reply back
+	//
+	// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+	DeletePostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePostReplyResult, error)
+
+	// UnreactToPostReplyWithResponse Take a reaction back
+	//
+	// Takes the caller's reaction of that kind back.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+	UnreactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*UnreactToPostReplyResult, error)
+
+	// ReactToPostReplyWithResponse React to a reply
+	//
+	// Gives one of the few fixed reactions to a reply, once per person and kind.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+	ReactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*ReactToPostReplyResult, error)
+
+	// ConfirmPostWithResponse Confirm having read a post
+	//
+	// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+	ConfirmPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ConfirmPostResult, error)
+
+	// PublishPostWithResponse Publish a post now
+	//
+	// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+	PublishPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*PublishPostResult, error)
+
+	// RemindPostWithResponse Remind those who have not confirmed a post
+	//
+	// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+	RemindPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RemindPostResult, error)
+
+	// MarkPostSeenWithResponse Mark a post seen
+	//
+	// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+	MarkPostSeenWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*MarkPostSeenResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -142618,6 +144167,102 @@ func (r CreatePageResult) ContentType() string {
 	return ""
 }
 
+type ListHubPostsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListHubPostsResult) GetJSON200() *PostList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListHubPostsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListHubPostsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListHubPostsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListHubPostsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListHubPostsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreatePostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreatePostResult) GetJSON201() *Post {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreatePostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreatePostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreatePostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreatePostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreatePostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListHubQueuesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -155209,6 +156854,575 @@ func (r SetPublicRoadmapsPolicyResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetPublicRoadmapsPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPostResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetPostSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetPostSettingsResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetPostSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetPostSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetPostSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetPostSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetPostSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadPostConfirmationsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostConfirmations
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadPostConfirmationsResult) GetJSON200() *PostConfirmations {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadPostConfirmationsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadPostConfirmationsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadPostConfirmationsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadPostConfirmationsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadPostConfirmationsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListPostRepliesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReplyList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPostRepliesResult) GetJSON200() *PostReplyList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPostRepliesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPostRepliesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPostRepliesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPostRepliesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPostRepliesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddPostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *PostReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddPostReplyResult) GetJSON201() *PostReply {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddPostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddPostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddPostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddPostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddPostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeletePostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeletePostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeletePostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeletePostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeletePostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeletePostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UnreactToPostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UnreactToPostReplyResult) GetJSON200() *PostReply {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UnreactToPostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UnreactToPostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UnreactToPostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UnreactToPostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UnreactToPostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReactToPostReplyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReply
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReactToPostReplyResult) GetJSON200() *PostReply {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReactToPostReplyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReactToPostReplyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReactToPostReplyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReactToPostReplyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReactToPostReplyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfirmPostResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PublishPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PublishPostResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PublishPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PublishPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PublishPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PublishPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PublishPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemindPostResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostReminded
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemindPostResult) GetJSON200() *PostReminded {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemindPostResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemindPostResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemindPostResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemindPostResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemindPostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MarkPostSeenResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Post
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MarkPostSeenResult) GetJSON200() *Post {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MarkPostSeenResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MarkPostSeenResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MarkPostSeenResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MarkPostSeenResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MarkPostSeenResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -174764,6 +176978,51 @@ func (c *ClientWithResponses) CreatePageWithResponse(ctx context.Context, hubId 
 	return ParseCreatePageResult(rsp)
 }
 
+// ListHubPostsWithResponse A hub's posts
+//
+// The hub's posts the caller sees, featured ones first, then newest first: published ones for their audience, drafts and scheduled ones for the hub's writers only. `filter` narrows to the unread ones, the caller's own, or the scheduled ones. A post never reaches anybody who may not read its hub. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /hubs/{hubId}/posts (the `ListHubPosts` operationId).
+func (c *ClientWithResponses) ListHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, params *ListHubPostsParams, reqEditors ...RequestEditorFn) (*ListHubPostsResult, error) {
+	rsp, err := c.ListHubPosts(ctx, hubId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListHubPostsResult(rsp)
+}
+
+// CreatePostWithBodyWithResponse Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *ClientWithResponses) CreatePostWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreatePostResult, error) {
+	rsp, err := c.CreatePostWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePostResult(rsp)
+}
+
+// CreatePostWithResponse Write a new post
+//
+// Writes a post in the hub: a page with a date, started from one of the post templates or empty, published now (`publish_at` now or earlier), scheduled (`publish_at` ahead) or kept as a draft (no `publish_at`). Its audience is the hub's readers or those of them in the groups named. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
+func (c *ClientWithResponses) CreatePostWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePostResult, error) {
+	rsp, err := c.CreatePost(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreatePostResult(rsp)
+}
+
 // ListHubQueuesWithResponse A hub's queues with their counts
 //
 // The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
@@ -180357,6 +182616,216 @@ func (c *ClientWithResponses) SetPublicRoadmapsPolicyWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseSetPublicRoadmapsPolicyResult(rsp)
+}
+
+// ReadPostWithResponse Read a post
+//
+// The post's date, audience and state, how many have seen it, and whether the caller has seen and confirmed it; its words are its page's. A writer of the hub also gets the read confirmation's standing. Not found for anybody it is not for.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts/{pageId} (the `ReadPost` operationId).
+func (c *ClientWithResponses) ReadPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostResult, error) {
+	rsp, err := c.ReadPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPostResult(rsp)
+}
+
+// SetPostSettingsWithBodyWithResponse Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *ClientWithResponses) SetPostSettingsWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error) {
+	rsp, err := c.SetPostSettingsWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPostSettingsResult(rsp)
+}
+
+// SetPostSettingsWithResponse Schedule, feature or narrow a post
+//
+// Sets when the post goes out, until when it stays on top, for whom, whether it is discussed, whether the hub's followers are told and until when its readers are asked to confirm it. A published post keeps its publishing moment. Needs WRITE_ITEMS on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /posts/{pageId} (the `SetPostSettings` operationId).
+func (c *ClientWithResponses) SetPostSettingsWithResponse(ctx context.Context, pageId PageId, body SetPostSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPostSettingsResult, error) {
+	rsp, err := c.SetPostSettings(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetPostSettingsResult(rsp)
+}
+
+// ReadPostConfirmationsWithResponse Who confirmed a post
+//
+// How many of the post's audience confirmed it by when, and who did. Needs WRITE_ITEMS on the hub: read confirmations are shown to the post's writers only.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts/{pageId}/confirmations (the `ReadPostConfirmations` operationId).
+func (c *ClientWithResponses) ReadPostConfirmationsWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ReadPostConfirmationsResult, error) {
+	rsp, err := c.ReadPostConfirmations(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadPostConfirmationsResult(rsp)
+}
+
+// ListPostRepliesWithResponse A post's discussion
+//
+// The replies under the post, oldest first, one level deep, each with its reactions counted and whether the caller gave them.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts/{pageId}/replies (the `ListPostReplies` operationId).
+func (c *ClientWithResponses) ListPostRepliesWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ListPostRepliesResult, error) {
+	rsp, err := c.ListPostReplies(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPostRepliesResult(rsp)
+}
+
+// AddPostReplyWithBodyWithResponse Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *ClientWithResponses) AddPostReplyWithBodyWithResponse(ctx context.Context, pageId PageId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error) {
+	rsp, err := c.AddPostReplyWithBody(ctx, pageId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddPostReplyResult(rsp)
+}
+
+// AddPostReplyWithResponse Reply in a post's discussion
+//
+// Adds a reply under a published post whose discussion is open, or an answer to a reply. Anybody the post is for may reply.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}/replies (the `AddPostReply` operationId).
+func (c *ClientWithResponses) AddPostReplyWithResponse(ctx context.Context, pageId PageId, body AddPostReplyJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPostReplyResult, error) {
+	rsp, err := c.AddPostReply(ctx, pageId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddPostReplyResult(rsp)
+}
+
+// DeletePostReplyWithResponse Take a reply back
+//
+// The caller's own reply, or any for a writer of the hub; its place stays, its words go.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId} (the `DeletePostReply` operationId).
+func (c *ClientWithResponses) DeletePostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reqEditors ...RequestEditorFn) (*DeletePostReplyResult, error) {
+	rsp, err := c.DeletePostReply(ctx, pageId, replyId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeletePostReplyResult(rsp)
+}
+
+// UnreactToPostReplyWithResponse Take a reaction back
+//
+// Takes the caller's reaction of that kind back.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `UnreactToPostReply` operationId).
+func (c *ClientWithResponses) UnreactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*UnreactToPostReplyResult, error) {
+	rsp, err := c.UnreactToPostReply(ctx, pageId, replyId, reaction, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUnreactToPostReplyResult(rsp)
+}
+
+// ReactToPostReplyWithResponse React to a reply
+//
+// Gives one of the few fixed reactions to a reply, once per person and kind.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /posts/{pageId}/replies/{replyId}/reactions/{reaction} (the `ReactToPostReply` operationId).
+func (c *ClientWithResponses) ReactToPostReplyWithResponse(ctx context.Context, pageId PageId, replyId openapi_types.UUID, reaction string, reqEditors ...RequestEditorFn) (*ReactToPostReplyResult, error) {
+	rsp, err := c.ReactToPostReply(ctx, pageId, replyId, reaction, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReactToPostReplyResult(rsp)
+}
+
+// ConfirmPostWithResponse Confirm having read a post
+//
+// Confirms that the caller read a published post that asks its audience for it; refused `posts.confirmation_not_asked` for one that does not. Shown to the hub's writers only.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:confirm (the `ConfirmPost` operationId).
+func (c *ClientWithResponses) ConfirmPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*ConfirmPostResult, error) {
+	rsp, err := c.ConfirmPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmPostResult(rsp)
+}
+
+// PublishPostWithResponse Publish a post now
+//
+// Publishes a draft or a scheduled post at once for its audience. Needs WRITE_ITEMS on the hub; a published post answers as it stands.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:publish (the `PublishPost` operationId).
+func (c *ClientWithResponses) PublishPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*PublishPostResult, error) {
+	rsp, err := c.PublishPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePublishPostResult(rsp)
+}
+
+// RemindPostWithResponse Remind those who have not confirmed a post
+//
+// Tells each of the post's audience who has not confirmed it yet, once per call. Refused `posts.nobody_to_remind` when everybody has. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:remind (the `RemindPost` operationId).
+func (c *ClientWithResponses) RemindPostWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*RemindPostResult, error) {
+	rsp, err := c.RemindPost(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemindPostResult(rsp)
+}
+
+// MarkPostSeenWithResponse Mark a post seen
+//
+// Counts the caller among those who have seen the published post; the count is shown to everybody, the names to nobody.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /posts/{pageId}:seen (the `MarkPostSeen` operationId).
+func (c *ClientWithResponses) MarkPostSeenWithResponse(ctx context.Context, pageId PageId, reqEditors ...RequestEditorFn) (*MarkPostSeenResult, error) {
+	rsp, err := c.MarkPostSeen(ctx, pageId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMarkPostSeenResult(rsp)
 }
 
 // ListPresetsWithResponse The presets a hub or collection can start from
@@ -199229,6 +201698,72 @@ func ParseCreatePageResult(rsp *http.Response) (*CreatePageResult, error) {
 	return response, nil
 }
 
+// ParseListHubPostsResult parses an HTTP response from a ListHubPostsWithResponse call
+func ParseListHubPostsResult(rsp *http.Response) (*ListHubPostsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListHubPostsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreatePostResult parses an HTTP response from a CreatePostWithResponse call
+func ParseCreatePostResult(rsp *http.Response) (*CreatePostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreatePostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListHubQueuesResult parses an HTTP response from a ListHubQueuesWithResponse call
 func ParseListHubQueuesResult(rsp *http.Response) (*ListHubQueuesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -208177,6 +210712,398 @@ func ParseSetPublicRoadmapsPolicyResult(rsp *http.Response) (*SetPublicRoadmapsP
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPostResult parses an HTTP response from a ReadPostWithResponse call
+func ParseReadPostResult(rsp *http.Response) (*ReadPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetPostSettingsResult parses an HTTP response from a SetPostSettingsWithResponse call
+func ParseSetPostSettingsResult(rsp *http.Response) (*SetPostSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetPostSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadPostConfirmationsResult parses an HTTP response from a ReadPostConfirmationsWithResponse call
+func ParseReadPostConfirmationsResult(rsp *http.Response) (*ReadPostConfirmationsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadPostConfirmationsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostConfirmations
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPostRepliesResult parses an HTTP response from a ListPostRepliesWithResponse call
+func ParseListPostRepliesResult(rsp *http.Response) (*ListPostRepliesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPostRepliesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReplyList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddPostReplyResult parses an HTTP response from a AddPostReplyWithResponse call
+func ParseAddPostReplyResult(rsp *http.Response) (*AddPostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddPostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest PostReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeletePostReplyResult parses an HTTP response from a DeletePostReplyWithResponse call
+func ParseDeletePostReplyResult(rsp *http.Response) (*DeletePostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeletePostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUnreactToPostReplyResult parses an HTTP response from a UnreactToPostReplyWithResponse call
+func ParseUnreactToPostReplyResult(rsp *http.Response) (*UnreactToPostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UnreactToPostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReactToPostReplyResult parses an HTTP response from a ReactToPostReplyWithResponse call
+func ParseReactToPostReplyResult(rsp *http.Response) (*ReactToPostReplyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReactToPostReplyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReply
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmPostResult parses an HTTP response from a ConfirmPostWithResponse call
+func ParseConfirmPostResult(rsp *http.Response) (*ConfirmPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParsePublishPostResult parses an HTTP response from a PublishPostWithResponse call
+func ParsePublishPostResult(rsp *http.Response) (*PublishPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PublishPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemindPostResult parses an HTTP response from a RemindPostWithResponse call
+func ParseRemindPostResult(rsp *http.Response) (*RemindPostResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemindPostResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostReminded
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMarkPostSeenResult parses an HTTP response from a MarkPostSeenWithResponse call
+func ParseMarkPostSeenResult(rsp *http.Response) (*MarkPostSeenResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MarkPostSeenResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Post
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
