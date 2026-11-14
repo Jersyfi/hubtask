@@ -1791,7 +1791,7 @@
           <IconButton size="sm" icon="move-up-right" label={t('app.whiteboards.arrow_from')} data-bar="arrow" onclick={arrowFrom} />
         {/if}
         <IconButton size="sm" icon="message-circle" label={t('app.whiteboards.comment_here')} data-bar="comment" onclick={commentHere} />
-        <IconButton size="sm" icon="lock" tone={chosenAll.every((e) => e.locked) ? 'primary' : 'subtle'} aria-pressed={chosenAll.every((e) => e.locked)} label={t(chosenAll.every((e) => e.locked) ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')} data-bar="lock" onclick={lockAll} />
+        <IconButton size="sm" icon="lock" tone="subtle" aria-pressed={chosenAll.every((e) => e.locked)} label={t(chosenAll.every((e) => e.locked) ? 'app.whiteboards.unlock' : 'app.whiteboards.lock')} data-bar="lock" onclick={lockAll} />
         {#if selected.length > 1}
           <IconButton size="sm" icon="align-start-vertical" label={t('app.whiteboards.align_top')} onclick={alignTop} />
           <IconButton size="sm" icon="layout-grid" label={t('app.whiteboards.arrange')} onclick={arrangeGrid} />
@@ -1934,7 +1934,7 @@
                 <Avatar name={peer.name} size="sm" />
                 <span class="person-name">{peer.name}</span>
                 {#if peer.view}
-                  <Button size="sm" tone={following === peer.id ? 'primary' : 'subtle'} aria-pressed={following === peer.id} onclick={() => { following = following === peer.id ? undefined : peer.id; peersChanged(); }}>
+                  <Button size="sm" tone="subtle" aria-pressed={following === peer.id} onclick={() => { following = following === peer.id ? undefined : peer.id; peersChanged(); }}>
                     {t(following === peer.id ? 'app.whiteboards.following_you' : 'app.whiteboards.follow')}
                   </Button>
                 {/if}
@@ -1947,15 +1947,15 @@
         <span class="seam" aria-hidden="true"></span>
       {/if}
       {#if !viewport.isCompact || voting || timerState}
-        <Button size="sm" tone={sheet === 'session' ? 'primary' : 'subtle'} icon="timer" aria-label={viewport.isCompact || isTablet ? t('app.whiteboards.moderate') : undefined} aria-pressed={sheet === 'session'} data-board-sheet="session" onclick={() => toggleSheet('session')}>
+        <Button size="sm" tone="subtle" icon="timer" aria-label={viewport.isCompact || isTablet ? t('app.whiteboards.moderate') : undefined} aria-pressed={sheet === 'session'} data-board-sheet="session" onclick={() => toggleSheet('session')}>
           {viewport.isCompact || isTablet ? '' : t('app.whiteboards.moderate')}
         </Button>
       {/if}
-      <Button size="sm" tone={sheet === 'comments' ? 'primary' : 'subtle'} icon="message-square" aria-pressed={sheet === 'comments'} aria-label={openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')} data-board-sheet="comments" onclick={() => toggleSheet('comments')}>
+      <Button size="sm" tone="subtle" icon="message-square" aria-pressed={sheet === 'comments'} aria-label={openThreads > 0 ? t('app.whiteboards.comments_open', { count: openThreads }) : t('app.whiteboards.comments_button')} data-board-sheet="comments" onclick={() => toggleSheet('comments')}>
         {openThreads > 0 ? String(openThreads) : ''}
       </Button>
       {#if !viewport.isCompact}
-        <IconButton size="sm" icon="rotate-ccw-clock" tone={sheet === 'history' ? 'primary' : 'subtle'} aria-pressed={sheet === 'history'} label={t('app.whiteboards.history')} data-board-sheet="history" onclick={() => toggleSheet('history')} />
+        <IconButton size="sm" icon="rotate-ccw-clock" tone="subtle" aria-pressed={sheet === 'history'} label={t('app.whiteboards.history')} data-board-sheet="history" onclick={() => toggleSheet('history')} />
       {/if}
     </div>
 
@@ -2027,7 +2027,7 @@
                 <IconButton
                   size="sm"
                   icon={ICONS[each.tool]}
-                  tone={tool === each.tool ? 'primary' : 'subtle'}
+                  tone="subtle"
                   aria-pressed={tool === each.tool}
                   aria-keyshortcuts={each.key}
                   label={`${t(`app.whiteboards.tool_${each.tool.toLowerCase()}`)} (${each.key})`}
@@ -2083,15 +2083,15 @@
       {/if}
       <div class="island zoombar" role="group" aria-label={t('app.whiteboards.view_controls')} bind:this={zoombar}>
         {#if !viewport.isCompact && view.width >= 1100}
-          <Button size="sm" tone={sheet === 'frames' ? 'primary' : 'subtle'} icon="frame" aria-pressed={sheet === 'frames'} data-board-sheet="frames" onclick={() => toggleSheet('frames')}>{t('app.whiteboards.tool_frame')}</Button>
+          <Button size="sm" tone="subtle" icon="frame" aria-pressed={sheet === 'frames'} data-board-sheet="frames" onclick={() => toggleSheet('frames')}>{t('app.whiteboards.tool_frame')}</Button>
         {:else if !viewport.isCompact}
-          <IconButton size="sm" icon="frame" tone={sheet === 'frames' ? 'primary' : 'subtle'} aria-pressed={sheet === 'frames'} label={t('app.whiteboards.frames')} data-board-sheet="frames" onclick={() => toggleSheet('frames')} />
+          <IconButton size="sm" icon="frame" tone="subtle" aria-pressed={sheet === 'frames'} label={t('app.whiteboards.frames')} data-board-sheet="frames" onclick={() => toggleSheet('frames')} />
         {/if}
         <IconButton size="sm" icon="minus" label={t('app.whiteboards.zoom_out')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1 / 1.25))} />
         <span class="zoom">{Math.round(view.zoom * 100)} %</span>
         <IconButton size="sm" icon="plus" label={t('app.whiteboards.zoom_in')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1.25))} />
         <IconButton size="sm" icon="maximize-2" label={t('app.whiteboards.fit')} onclick={() => { const all = bounds(elements); if (all) view = fit(view, all); }} />
-        <IconButton size="sm" icon="map" tone={isMapShown ? 'primary' : 'subtle'} aria-pressed={isMapShown} label={t('app.whiteboards.minimap')} onclick={() => (isMapShown = !isMapShown)} />
+        <IconButton size="sm" icon="map" tone="subtle" aria-pressed={isMapShown} label={t('app.whiteboards.minimap')} onclick={() => (isMapShown = !isMapShown)} />
       </div>
     </div>
 
@@ -2475,7 +2475,6 @@
   .selbar { translate: -50% -100%; z-index: 1; white-space: nowrap; }
   .selbar.below { translate: -50% 0; }
   /* The bar's one primary act, tinted as the brand while its form is shut (scene wsel). */
-  .selbar :global([data-bar='task'][data-tone='secondary']) { background: var(--accent-primary-subtle); border-color: transparent; color: var(--text-brand); }
   .bar-words { padding-inline: var(--sp-050); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .make {
     position: absolute;

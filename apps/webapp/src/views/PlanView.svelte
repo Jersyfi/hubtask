@@ -1081,7 +1081,7 @@
 {#snippet queryLine()}
   <div class="query-line" data-plan-query>
     <QueryChips line={setup.line} {names} onchange={(next) => (setup = { ...setup, line: next })} />
-    <Button size="sm" tone={setup.line.trim() ? 'primary' : 'subtle'} icon="funnel" data-opener="view" aria-expanded={isPanelOpen} onclick={() => (isPanelOpen = true)}>{t('app.planning.filter')}</Button>
+    <Button size="sm" tone="secondary" icon="funnel" data-opener="view" aria-expanded={isPanelOpen} onclick={() => (isPanelOpen = true)}>{t('app.planning.filter')}</Button>
   </div>
 {/snippet}
 

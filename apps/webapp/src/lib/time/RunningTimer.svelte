@@ -129,7 +129,7 @@
     <div class="card-line">
       <span class="elapsed" role={timer.running ? 'status' : undefined}>{minutesText(elapsed)}</span>
       {#if !timer.running}
-        <Button tone="primary" icon="play" {isBusy} busyLabel={t('app.time.start')}
+        <Button tone="secondary" icon="play" {isBusy} busyLabel={t('app.time.start')}
           disabledReason={offline ?? (firstKind ? undefined : t('app.time.no_work_types'))} onclick={start}>{t('app.time.start')}</Button>
       {:else if isTooLong}
         <Button tone="primary" disabledReason={offline} onclick={openUntil}>{t('app.time.record_until')}</Button>
@@ -185,6 +185,9 @@
 <style>
   /* The timer in the time colour (work-surface scene time): the start and the running time. */
   .timer[data-timer='idle'] :global(button) { border-color: transparent; background: var(--product-time-surface); color: var(--product-time-ink); }
+  /* The same start at every width (scene time): on the card, which is itself in the time colour,
+     its edge in the time's ink keeps it a button. */
+  .card[data-timer='idle'] .card-line :global(button) { border-color: var(--product-time-ink); background: var(--product-time-surface); color: var(--product-time-ink); }
   .running { color: var(--product-time-ink); }
   .timer { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .running { display: inline-flex; align-items: center; gap: var(--sp-050); font-size: var(--fs-075); font-variant-numeric: tabular-nums; font-weight: var(--fw-medium); }

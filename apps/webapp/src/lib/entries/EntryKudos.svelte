@@ -69,7 +69,7 @@
   <span class="kudos" data-kudos="give">
     <Button
       size="sm"
-      tone={current.given ? 'primary' : 'secondary'}
+      tone="secondary"
       icon="hand"
       aria-pressed={current.given}
       aria-label={t('app.kudos.give_to', { name: completer })}

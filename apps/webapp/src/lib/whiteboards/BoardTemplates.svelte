@@ -83,7 +83,7 @@
               {t('app.whiteboards.start_use')}<VisuallyHidden>{` ${nameOf(each)}`}</VisuallyHidden>
             </Button>
           {:else}
-            <Button size="sm" tone={chosen === each ? 'primary' : 'secondary'} icon={chosen === each ? 'check' : undefined} aria-pressed={chosen === each} onclick={() => (chosen = each)}>
+            <Button size="sm" tone="secondary" icon={chosen === each ? 'check' : undefined} aria-pressed={chosen === each} onclick={() => (chosen = each)}>
               {t('app.whiteboards.start_pick')}<VisuallyHidden>{` ${nameOf(each)}`}</VisuallyHidden>
             </Button>
           {/if}

@@ -52,3 +52,11 @@ test('a menu given a close name opens as a bottom sheet on a phone’s width, an
   assert.match(menu, /<Sheet[\s\S]*?\{items\}/);
   assert.match(menu, /\.item \{[^}]*min-block-size: var\(--density-control-sm-min\)/);
 });
+
+test('a pressed toggle has one look in every tone: the subtle tint with the accent edge, never the primary fill', () => {
+  for (const [file, cls] of [['Button.svelte', 'button'], ['IconButton.svelte', 'icon-button']]) {
+    const text = source(file);
+    assert.match(text, new RegExp(`\\.${cls}\\[aria-pressed='true'\\] \\{[^}]*background: var\\(--accent-primary-subtle\\)`), file);
+    assert.match(text, new RegExp(`\\.${cls}\\[aria-pressed='true'\\] \\{[^}]*border-color: var\\(--accent-primary\\)`), file);
+  }
+});

@@ -1486,14 +1486,14 @@
       {#if isDesk && modulesOn.includes('SERVICE_DESK')}<Button size="sm" tone="subtle" icon="external-link" onclick={() => onnavigate(`/portal/${container.id}`)}>{t('app.nav.open_portal')}</Button>{/if}
     {/snippet}
     {#snippet filterTool()}
-      <Button size="sm" tone={viewChanged > 0 ? 'primary' : 'secondary'} icon="sliders-horizontal" data-opener="view" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+      <Button size="sm" tone="secondary" icon="sliders-horizontal" data-opener="view" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
     {/snippet}
     {#snippet compactTools()}
       {@render insideToggle()}
       <!-- A phone (scene board 4): *Filter* on the chip's line opens the strip's sheet, and *View*
            is reached from there; selecting is in ⋯. -->
       {#if container.type === 'COLLECTION'}
-        <Button size="sm" tone={queryPieces.length > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isPhoneFilterOpen} onclick={() => (isPhoneFilterOpen = true)}>{t('app.viewcfg.phone_filter', { count: String(queryPieces.length) })}</Button>
+        <Button size="sm" tone="secondary" icon="funnel" data-opener="filter" aria-expanded={isPhoneFilterOpen} onclick={() => (isPhoneFilterOpen = true)}>{t('app.viewcfg.phone_filter', { count: String(queryPieces.length) })}</Button>
       {/if}
     {/snippet}
     {#snippet phoneViewRow()}

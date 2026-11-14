@@ -207,6 +207,16 @@
 
   .button:active:not([aria-disabled='true']) { transform: scale(0.98); }
 
+  /* The one selected look of a toggle - a board's chosen tool, a pressed format - whatever its
+     tone: the chips' subtle tint with the accent's edge, never the primary's fill, which means
+     "the next step" (WB-2). The edge keeps it apart without the tint (rule 3). */
+  .button[aria-pressed='true'] {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-subtle);
+    color: var(--text-brand);
+  }
+  .button[aria-pressed='true']:hover:not([aria-disabled='true']) { background: var(--accent-primary-subtle); color: var(--text-brand); }
+
   .button[aria-disabled='true'] {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
