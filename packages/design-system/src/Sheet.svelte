@@ -114,6 +114,19 @@
       onClose?.();
     };
   });
+
+  /** Up, Down, Home and End move among the action rows, the ends wrapping round. */
+  function moveAmongItems(event: KeyboardEvent): void {
+    const rows = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]')];
+    const at = rows.indexOf(document.activeElement as HTMLElement);
+    const to = event.key === 'ArrowDown' ? (at + 1) % rows.length
+      : event.key === 'ArrowUp' ? (at - 1 + rows.length) % rows.length
+        : event.key === 'Home' ? 0
+          : event.key === 'End' ? rows.length - 1 : -1;
+    if (to < 0 || rows.length === 0) return;
+    event.preventDefault();
+    rows[to]?.focus();
+  }
 </script>
 
 <dialog
@@ -155,11 +168,14 @@
     </header>
     <div class="body">
       {#if items}
-        <ul class="items">
+        <!-- A list of actions is the menu it stands for on a phone: its rows are menu items, the
+             arrows move between them as in the anchored menu (WAI-ARIA menu pattern). -->
+        <ul class="items" role="menu" aria-labelledby={titleId} onkeydown={moveAmongItems}>
           {#each items as item (item.id)}
-            <li>
+            <li role="none">
               <button
                 type="button"
+                role="menuitem"
                 class="item"
                 data-destructive={item.isDestructive ? '' : undefined}
                 data-separated={item.hasSeparatorBefore ? '' : undefined}

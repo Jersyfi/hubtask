@@ -100,3 +100,12 @@ test('an empty section is one line, and a work object\'s parts take the entry\'s
 test('a head\'s next step is the Button of its size, no local type of its own (B-4)', () => {
   assert.doesNotMatch(source('ObjectHead.svelte'), /\.step :global\(\.button\) \{[^}]*font-(size|weight)/u);
 });
+
+// D-1: a menu on a phone is a sheet; its actions stay menu items, moved by the arrows.
+test('a sheet\'s list of actions is a menu of menu items, the arrows moving among them', () => {
+  const sheet = source('Sheet.svelte');
+  assert.match(sheet, /<ul class="items" role="menu" aria-labelledby=\{titleId\} onkeydown=\{moveAmongItems\}>/);
+  assert.match(sheet, /<li role="none">\s*<button\s*type="button"\s*role="menuitem"/);
+  for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End']) assert.match(sheet, new RegExp(`event\\.key === '${key}'`));
+});
+
