@@ -56,6 +56,8 @@
   import CapacityEditor from '../lib/time/CapacityEditor.svelte';
   import RunningTimer from '../lib/time/RunningTimer.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
+  import TemplateDialog from '../lib/settings/TemplateDialog.svelte';
+  import { WorkspaceStarts } from '../lib/product/workspaceStarts.svelte.ts';
 
   interface Props {
     /** The tab the address names (`?tab=`); the week where it names none or an unknown one. */
@@ -114,6 +116,9 @@
   $effect(() => untrack(() => engine.subscribe<WorkTypeList>({ path: WORK_TYPES }, (next) => { if (next.status === 'ready') kinds = next.data.data; })));
   const kindName = (key: string) => kinds.find((each) => each.key === key)?.name ?? key;
   const offeredKinds = $derived(kinds.filter((each) => !each.archived));
+  // The sets of kinds of work the workspace may start from (scene emptytime), beside the usual kinds
+  // the first visit writes (kinds.ts), for whoever may change the workspace's structure.
+  const starts = new WorkspaceStarts('TIME', () => holdsHere('STRUCTURE') === true);
 
   // --- My week ------------------------------------------------------------------------------------
 
@@ -449,6 +454,7 @@
       {#if sheet.records.length === 0}
         <ProductEmpty product="TIME" place={{ type: 'TENANT' }} kind={isOpen ? 'unused' : 'settled'} icon="clock" title={t('app.time.week_empty')}
           description={isOpen ? t('app.time.week_empty_body') : undefined} create={recordPrimary} isInHead={current === 'week'} isProductHome
+          templates={isOpen ? starts.cards : []} templateShape="row"
           side={maySetUp ? { label: t('app.time.empty_side_kinds'), onclick: () => select('settings') } : { label: t('app.time.empty_side'), onclick: () => select('capacity') }} />
       {:else}
         {#if !viewport.isCompact}
@@ -582,6 +588,8 @@
     <CapacityEditor />
   {/if}
 </WorkPage>
+
+<TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 
 {#snippet gridCell(row: GridLine, column: DataColumn, columnDays: readonly string[], isLinked: boolean)}
   {#if row.isAdd}

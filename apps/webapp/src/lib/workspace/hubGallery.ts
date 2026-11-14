@@ -16,9 +16,10 @@ export type Family = (typeof FAMILIES)[number] | 'installation' | 'workspace' | 
 const FAMILY_OF: Readonly<Record<string, (typeof FAMILIES)[number]>> = {
   household: 'personal', shopping: 'personal', habits: 'personal', travel: 'personal',
   kanban_team: 'teams', scrum_team: 'teams', bug_tracking: 'teams', content_calendar: 'teams', event_planning: 'teams',
-  team_wiki: 'teams',
+  team_wiki: 'teams', time_standard: 'teams', time_consulting: 'teams',
   classic_project: 'projects', hybrid_project: 'projects', client_project: 'projects',
   portfolio: 'programmes', okr: 'programmes', scaled_agile: 'programmes',
+  goals_customer_okr: 'programmes', goals_team_health: 'programmes', goals_period: 'programmes',
   itil_service_desk: 'service', internal_it: 'service', facility_requests: 'service', hr_requests: 'service', customer_support: 'service',
   approvals: 'processes', onboarding: 'processes', procurement: 'processes', capa: 'processes', risk_controls: 'processes',
   records_of_processing: 'processes',
@@ -46,9 +47,10 @@ export function familyOf(template: Offered): Family {
 const MARK_OF: Readonly<Record<string, IconName>> = {
   household: 'house', shopping: 'shopping-cart', habits: 'repeat', travel: 'plane',
   kanban_team: 'columns-3', scrum_team: 'rocket', bug_tracking: 'circle-alert', content_calendar: 'calendar', event_planning: 'flag',
-  team_wiki: 'book-open',
+  team_wiki: 'book-open', time_standard: 'clock', time_consulting: 'wallet',
   classic_project: 'briefcase', hybrid_project: 'shapes', client_project: 'users',
   portfolio: 'folder', okr: 'gauge', scaled_agile: 'dependency',
+  goals_customer_okr: 'flag', goals_team_health: 'heart', goals_period: 'calendar',
   itil_service_desk: 'inbox', internal_it: 'wrench', facility_requests: 'hammer', hr_requests: 'user-check', customer_support: 'message-square',
   approvals: 'vote', onboarding: 'user-plus', procurement: 'wallet', capa: 'square-check', risk_controls: 'shield',
   records_of_processing: 'file-text',
@@ -101,7 +103,7 @@ export function prefilledName(current: string, filled: string, next: string): st
 /** The parts a template's *Preview* names, in the order a person meets them. */
 export const CREATES = [
   'types', 'workflows', 'fields', 'roles', 'views', 'rules', 'sla_policies', 'business_calendars', 'reply_templates', 'template_pages',
-  'ci_classes', 'samples',
+  'ci_classes', 'goal_sets', 'time_work_types', 'samples',
 ] as const;
 export type Creates = (typeof CREATES)[number];
 
@@ -124,6 +126,14 @@ export function createsOf(template: {
     for (const document of documents) {
       for (const [key, block] of Object.entries(document?.[part] ?? {})) {
         if (block === null || named.has(key)) continue;
+        if (part === 'goal_sets') {
+          // A goal set says the goals it writes; one without any, its period.
+          const { goals, name } = block as { readonly goals?: readonly { readonly title?: unknown }[]; readonly name?: unknown };
+          const titles = (goals ?? []).map((goal) => goal.title).filter((title): title is string => typeof title === 'string');
+          titles.forEach((title, at) => named.set(`${key}.${at}`, title));
+          if (titles.length === 0) named.set(key, typeof name === 'string' ? name : key);
+          continue;
+        }
         const { name, title } = block as { readonly name?: unknown; readonly title?: unknown };
         named.set(key, typeof name === 'string' ? name : typeof title === 'string' ? title : key);
       }

@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 
-import { afterTaking, productTemplates, tryTemplateOf } from './templates.ts';
+import { afterTaking, productTemplates, tryTemplateOf, workspaceTemplates } from './templates.ts';
 
 const of = (key: string, modules: Record<string, string>, origin = 'HUBTASK', hub = true) => ({
   key,
@@ -29,6 +29,23 @@ test('a product offers the templates that switch its module on, Hubtask\'s first
   ];
   assert.deepEqual(productTemplates(list, 'SERVICE_DESK').map((each) => each.key), ['itil_service_desk', 'internal_it', 'hr_requests']);
   assert.deepEqual(productTemplates(list, 'GOALS'), []);
+});
+
+// configuration.md §6: goals and time start from templates of the workspace alone - goal sets,
+// kinds of work - which the workspace takes; a template a hub takes is no such start.
+test('goals and time offer the workspace templates that bring their own section', () => {
+  const ws = (key: string, document: Record<string, unknown>, origin = 'HUBTASK') => ({ key, origin, document, hub_document: null });
+  const list = [
+    ws('own_kinds', { time_work_types: { a: {} } }, 'WORKSPACE'),
+    ws('time_standard', { modules: { time: { switch: 'ON' } }, time_work_types: { development: {} } }),
+    ws('time_consulting', { time_work_types: { consulting: {} } }),
+    ws('goals_period', { goal_sets: { quarter: {} } }),
+    { ...ws('okr', { modules: { goals: { switch: 'ON' } } }), hub_document: {} },
+    { ...ws('hub_goals', { goal_sets: { quarter: {} } }), hub_document: {} },
+  ];
+  assert.deepEqual(workspaceTemplates(list, 'TIME').map((each) => each.key), ['time_standard', 'time_consulting', 'own_kinds']);
+  assert.deepEqual(workspaceTemplates(list, 'GOALS').map((each) => each.key), ['goals_period']);
+  assert.deepEqual(workspaceTemplates(list, 'SERVICE_DESK'), []);
 });
 
 test('the workflows every template switches on is no product of its own here', () => {

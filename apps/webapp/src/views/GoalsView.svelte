@@ -24,6 +24,8 @@
     DataTable, type DataColumn, type ViewLink,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
+  import TemplateDialog from '../lib/settings/TemplateDialog.svelte';
+  import { WorkspaceStarts } from '../lib/product/workspaceStarts.svelte.ts';
   import type { DashboardList, Goal, GoalList, GoalPeriod, GoalPeriodList, KeyResult, PortfolioList } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -131,6 +133,8 @@
   let periods = $state<GoalPeriod[] | undefined>(undefined);
   let periodsRefusal = $state<string | undefined>(undefined);
   follow<GoalPeriodList>(() => PERIODS, (data) => (periods = data ? [...data.data] : undefined), (m) => (periodsRefusal = m));
+  // The goal sets a workspace without a period starts from (scene emptygoals), for whoever may take one.
+  const starts = new WorkspaceStarts('GOALS', () => mayStructure && periods?.length === 0);
   /** The period asked for, else the open one that started last, else the last of all. */
   const chosen = $derived.by(() => {
     if (!periods || periods.length === 0) return undefined;
@@ -320,7 +324,7 @@
     {:else if periods.length === 0}
       <ProductEmpty product="GOALS" kind="unused" icon="flag" title={t('app.goals.no_periods_title')} description={t('app.goals.no_periods')}
         create={mayStructure ? { label: t('app.goals.start_quarter', { name: quarterName }), onclick: () => void startQuarter() } : undefined}
-        isProductHome
+        isProductHome templates={starts.cards} templateShape="row"
         side={mayStructure ? { label: t('app.goals.another_period'), onclick: () => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; } } : undefined}
         whoCan={t('app.goals.who_starts_periods')} />
     {:else}
@@ -430,6 +434,8 @@
     {/if}
   {/if}
 </WorkPage>
+
+<TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 
 {#if isDefining}
   <Dialog size="m" bind:isOpen={isDefining} title={t('app.goals.new_period')} dismissLabel={t('app.links.cancel')}>

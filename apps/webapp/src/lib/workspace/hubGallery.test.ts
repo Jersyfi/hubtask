@@ -85,6 +85,20 @@ test('a template says what it creates, per part, each block once, from every par
   assert.deepEqual(createsOf({}), []);
 });
 
+// configuration.md §6: a goal set says the goals it writes, one without any its period; kinds of
+// work are named as their blocks name them.
+test('a workspace template says the goals and kinds of work it brings', () => {
+  assert.deepEqual(createsOf({
+    document: {
+      goal_sets: { okr: { name: '2026 Q4', goals: [{ title: 'Raise customer satisfaction' }, { title: 'Keep customers longer' }] }, empty: { name: '2026 Q4' } },
+      time_work_types: { development: { name: 'Development' } },
+    },
+  }), [
+    { part: 'goal_sets', names: ['Raise customer satisfaction', 'Keep customers longer', '2026 Q4'] },
+    { part: 'time_work_types', names: ['Development'] },
+  ]);
+});
+
 // §5.2: a card's mark tells the templates apart - every shipped template has a drawing of its own
 // from the icon set, none shared within its family; another origin's takes its family's.
 test('every shipped template is drawn by a mark of its own', () => {
