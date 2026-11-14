@@ -801,7 +801,7 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   t.after(() => browser.close());
   const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING'] });
   t.after(close);
-  const plan = page.getByRole('button', { name: 'Plan a sprint' });
+  const plan = page.getByRole('button', { name: 'Plan a sprint', exact: true });
   await plan.waitFor({ timeout: 10_000 });
   // The plans' band (E-1): its tile and figures - the sprints running, the releases due, the plans late.
   await page.waitForFunction(() => [...document.querySelectorAll('.band .figure')].map((each) => each.textContent?.trim()).join('|') === '1 sprint running|2 releases due|1 plan late', null, { timeout: 10_000 });
