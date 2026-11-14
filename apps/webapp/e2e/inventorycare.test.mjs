@@ -112,6 +112,9 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
   await run.waitFor({ state: 'detached', timeout: 5_000 });
   assert.equal(await sources.getByRole('link', { name: 'Manage sources' }).getAttribute('href'), '/assets/sources');
   assert.equal(await sources.getByRole('link', { name: 'Import' }).getAttribute('href'), `/hubs/${HUB.id}/inventory/import`);
+  // *Connect a source* and *Import* are the scene's two equal quiet acts.
+  const look = (locator) => locator.evaluate((each) => { const style = getComputedStyle(each); return [style.fontSize, style.fontWeight, style.color]; });
+  assert.deepEqual(await look(sources.getByRole('link', { name: 'Import' })), await look(sources.getByRole('button', { name: 'Connect a source' })));
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/invcare.1280.png`, fullPage: true });
   // Connecting a source is today's connector dialog on its part.
   await sources.getByRole('button', { name: 'Connect a source' }).click();

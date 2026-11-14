@@ -377,7 +377,7 @@
       </div>
       <div class="acts" id={mayImport ? 'care-import' : undefined} data-care-part={mayImport ? 'import' : undefined}>
         {#if mayConnect}<Button size="sm" tone="subtle" icon="plus" onclick={() => onask('connector')}>{t('app.care.connect')}</Button>{/if}
-        {#if mayImport && mayChange}<a class="act" href={inventoryPath(hubId, 'import')}><Icon name="cloud-upload" size="sm" /> {t('app.inventory.import')}</a>{/if}
+        {#if mayImport && mayChange}<a class="quiet" href={inventoryPath(hubId, 'import')}><Icon name="cloud-upload" size="sm" />{t('app.inventory.import')}</a>{/if}
         <span class="links">
           <a class="more" href={inventoryPath(hubId, 'runs')}>{t('app.care.runs_all')}</a>
           {#if parts.includes('connectors')}<a class="more" href={inventoryPath(hubId, 'connectors')}>{t('app.care.connectors_all')}</a>{/if}
@@ -468,6 +468,14 @@
   .act:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
   .act:hover, .more:hover { text-decoration: underline; }
   .more { color: var(--text-secondary); font-size: var(--fs-090); text-decoration: none; }
+  /* A link drawn as the quiet button beside it (Button sm, subtle): the two acts look alike. */
+  .quiet {
+    display: inline-flex; align-items: center; gap: var(--sp-100); min-block-size: var(--density-control-sm-min);
+    padding: var(--density-control-sm-block) var(--sp-150); border-radius: var(--r-md);
+    color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); text-decoration: none;
+  }
+  .quiet:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+  .quiet:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
   .acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-200); scroll-margin-block-start: var(--sp-400); }
   .links { display: inline-flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); margin-inline-start: auto; }
   .line { margin: 0; color: var(--text-secondary); }
