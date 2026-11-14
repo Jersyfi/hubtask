@@ -8,7 +8,7 @@
   // with the space's outline beside it and its path above (scene `portalext` 5).
 
   import { untrack } from 'svelte';
-  import { Breadcrumb, Button, PageHeader, DetailPage, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Breadcrumb, Button, PageHeader, DetailPage, Skeleton } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { Article, PortalKnowledge } from '@hubtask/sync-engine';
 
@@ -59,18 +59,17 @@
 
 <DetailPage>
   {#snippet top()}
-  <PageHeader title={read ? `${read.icon ? `${read.icon} ` : ''}${read.title}` : t('app.portal.article')} isTitleInBar={viewport.isCompact} />
+    {#if viewport.isCompact || !read}
+      <PageHeader title={read ? `${read.icon ? `${read.icon} ` : ''}${read.title}` : t('app.portal.article')} isTitleInBar={viewport.isCompact} />
+    {/if}
   {/snippet}
   {#if failure}
     <FailureState problem={failure} onRetry={() => void article.refresh()} />
   {:else if !read}
     <div aria-busy="true"><Skeleton lines={6} /></div>
   {:else}
-    <Breadcrumb label={t('app.portal.article_path')} expandLabel={t('app.portal.article_path_more')} trail={[
-      { id: `/portal/${collectionId}/knowledge`, label: t('app.portal.knowledge'), href: `/portal/${collectionId}/knowledge` },
-      ...trail.slice(0, -1).map((each) => ({ id: href(each.id), label: each.title, href: href(each.id) })),
-      { id: 'here', label: read.title },
-    ]} onnavigate={(path) => onnavigate?.(path)} />
+    <!-- Scene `portalext` 5: the space's outline beside one column of crumbs, title, text and the
+         question whether it helped. -->
     <div class="read" data-portal-article data-spaced={space ? '' : undefined}>
       {#if space}
         <nav class="outline" aria-label={t('app.portal.space_outline', { name: space.title })} data-portal-outline>
@@ -86,27 +85,37 @@
           </ul>
         </nav>
       {/if}
-      <article class="body" lang={read.content_language ?? undefined}>{articleText(read.body)}</article>
-    </div>
-    <section aria-labelledby="article-helped">
-      <Stack gap="100">
-        <h2 class="heading" id="article-helped">{t('app.portal.helped')}</h2>
+      <div class="column">
+        <Breadcrumb label={t('app.portal.article_path')} expandLabel={t('app.portal.article_path_more')} trail={[
+          { id: `/portal/${collectionId}/knowledge`, label: t('app.portal.knowledge'), href: `/portal/${collectionId}/knowledge` },
+          ...trail.slice(0, -1).map((each) => ({ id: href(each.id), label: each.title, href: href(each.id) })),
+          { id: 'here', label: read.title },
+        ]} onnavigate={(path) => onnavigate?.(path)} />
+        {#if !viewport.isCompact}<h1 class="title">{read.icon ? `${read.icon} ` : ''}{read.title}</h1>{/if}
+        <article class="body" lang={read.content_language ?? undefined}>{articleText(read.body)}</article>
+        <section class="helped" aria-labelledby="article-helped">
+          <h2 class="ask" id="article-helped">{t('app.portal.helped')}</h2>
+          <div class="answers">
+            <Button tone="secondary" onclick={() => void rate(true)}>{t('app.portal.yes')}</Button>
+            <Button tone="secondary" onclick={() => void rate(false)}>{t('app.portal.no')}</Button>
+            <Button tone="primary" onclick={() => onnavigate?.(`/portal/${collectionId}`)}>{t('app.portal.ask_anyway')}</Button>
+          </div>
+        </section>
         {#if answered !== undefined}
           <p class="quiet" role="status">{answered ? t('app.portal.helped_yes') : t('app.portal.helped_no')}</p>
         {/if}
-        <div class="answers">
-          <Button tone="secondary" icon="circle-check" onclick={() => void rate(true)}>{t('app.portal.yes')}</Button>
-          <Button tone="secondary" icon="circle-x" onclick={() => void rate(false)}>{t('app.portal.no')}</Button>
-          <Button tone={answered === false ? 'primary' : 'secondary'} icon="send" onclick={() => onnavigate?.(`/portal/${collectionId}`)}>{t('app.portal.ask_anyway')}</Button>
-        </div>
         {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
-      </Stack>
-    </section>
+      </div>
+    </div>
   {/if}
 </DetailPage>
 
 <style>
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .column { display: flex; flex-direction: column; gap: var(--sp-200); min-inline-size: 0; max-inline-size: 72ch; }
+  .title { margin: 0; font-size: var(--fs-500); font-weight: var(--fw-bold); }
+  .helped { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-block-start: var(--sp-200); }
+  .ask { margin: 0; flex: 1; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
+  .answers { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
   .body { margin: 0; max-inline-size: 72ch; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -115,7 +124,7 @@
   @media (min-width: 600px) {
     .read[data-spaced] { grid-template-columns: minmax(var(--layout-field-sm), var(--layout-list-title)) minmax(0, 1fr); }
   }
-  .outline { display: flex; flex-direction: column; gap: var(--sp-050); font-size: var(--fs-075); }
+  .outline { display: flex; flex-direction: column; gap: var(--sp-050); font-size: var(--fs-090); }
   .outline ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-025); }
   .outline a { display: block; padding: var(--sp-050) var(--sp-100); border-radius: var(--r-sm); color: inherit; text-decoration: none; }
   .outline a:hover { background: var(--bg-surface-hover); }
@@ -123,5 +132,4 @@
   .outline .root { font-weight: var(--fw-semibold); }
   .outline li[data-depth='2'] { padding-inline-start: var(--sp-200); }
   .outline li[data-depth='3'], .outline li[data-depth='4'] { padding-inline-start: var(--sp-400); }
-  .answers { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 </style>
