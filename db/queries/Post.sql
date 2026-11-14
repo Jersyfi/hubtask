@@ -73,6 +73,28 @@ ORDER BY (po.published_at IS NOT NULL AND po.featured_until > sqlc.arg('now')::t
          coalesce(po.publish_at, p.created_at) DESC, po.page_id
 LIMIT sqlc.arg('batch');
 
+-- name: SearchPosts :many
+-- The posts a text finds by their page's title and body, read as the page search reads them, in
+-- one hub or every hub, best first, with the passage that matched: only those gone out by now - a
+-- draft or a scheduled post is no hit - and neither trashed nor archived. Who of them a reader is
+-- for is the application's to judge (rule 2).
+SELECT po.page_id, po.hub_id, po.template, po.publish_at, po.published_at, po.featured_until,
+       po.audience, po.group_ids, po.discussion, po.notify, po.confirm_by,
+       p.title, p.icon, p.created_by, p.updated_at,
+       ts_rank_cd(p.search_document, q.query)::float8 AS rank,
+       ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+                   'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text AS excerpt
+FROM post po
+JOIN page p ON p.tenant_id = po.tenant_id AND p.id = po.page_id
+CROSS JOIN LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), sqlc.arg('text')::text)
+                        || websearch_to_tsquery('simple', sqlc.arg('text')::text) AS query) q
+WHERE po.tenant_id = current_tenant_id() AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR po.hub_id = sqlc.narg('hub_id')::uuid)
+  AND (po.published_at IS NOT NULL OR po.publish_at <= sqlc.arg('now')::timestamptz)
+  AND p.search_document @@ q.query
+ORDER BY rank DESC, coalesce(po.published_at, po.publish_at) DESC, po.page_id
+LIMIT sqlc.arg('batch');
+
 -- name: MarkPostSeen :exec
 INSERT INTO post_read (tenant_id, page_id, account_id, read_at)
 VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('account_id'), sqlc.arg('at'))

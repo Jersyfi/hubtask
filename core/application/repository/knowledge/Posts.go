@@ -39,6 +39,16 @@ type PostFilter struct {
 	PageID    shared.ID
 }
 
+// PostHit is a post a search found, with the passage that matched between « and ».
+type PostHit struct {
+	Post      knowledge.Post
+	Title     string
+	Icon      string
+	CreatedBy shared.ID
+	UpdatedAt time.Time
+	Excerpt   string
+}
+
 // Reply is one reply in a post's discussion; a taken-back one keeps its place without its words.
 type Reply struct {
 	ID        shared.ID
@@ -72,6 +82,10 @@ type Posts interface {
 	// List answers a hub's posts that are not trashed - every hub's for a zero hubID - featured
 	// first, then newest first.
 	List(ctx context.Context, hubID, account shared.ID, filter PostFilter, now time.Time, limit int) ([]PostRow, error)
+	// Search answers the posts gone out by now whose title or body holds the text, as the page
+	// search reads it - one hub's, every hub's for a zero hubID - best first, at most limit; neither
+	// trashed nor archived ones.
+	Search(ctx context.Context, text string, hubID shared.ID, now time.Time, limit int) ([]PostHit, error)
 	MarkSeen(ctx context.Context, pageID, account shared.ID, at time.Time) error
 	Confirm(ctx context.Context, pageID, account shared.ID, at time.Time) error
 	// ConfirmedBy answers who confirmed the post, for its writers alone.

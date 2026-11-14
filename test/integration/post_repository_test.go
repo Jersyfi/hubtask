@@ -415,3 +415,68 @@ func TestFollowingAHubsPostsStaysInItsWorkspace(t *testing.T) {
 		t.Error("unfollowing left the row")
 	}
 }
+
+// A post is found by its words once it has gone out - neither as a draft nor before its moment -
+// with the passage that matched, in its hub and across hubs; another hub and the workspace next
+// door find nothing (rule 3).
+func TestAPostIsFoundByItsWordsOnceItHasGoneOut(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, page, _, at := seedPost(ctx, t)
+	posts := postgres.NewPostRepository()
+	found := func(tenant, hubID shared.ID, words string, now time.Time) []repository.PostHit {
+		var hits []repository.PostHit
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			var err error
+			hits, err = posts.Search(ctx, words, hubID, now, 50)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return slices.DeleteFunc(hits, func(h repository.PostHit) bool { return h.Post.PageID != page })
+	}
+	if hits := found(tenantA, hub, "changed", at); len(hits) != 0 {
+		t.Errorf("a scheduled post was found before its moment: %+v", hits)
+	}
+	published := at.Add(time.Hour)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		post, err := posts.FindForUpdate(ctx, page)
+		if err != nil {
+			return err
+		}
+		return posts.Update(ctx, post.Published(published))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	later := at.Add(2 * time.Hour)
+	hits := found(tenantA, hub, "changed", later)
+	if len(hits) != 1 || hits[0].Title != "Release 4.2" || hits[0].CreatedBy != authorA || hits[0].Excerpt != "What «changed»" ||
+		hits[0].Post.PublishedAt == nil || !hits[0].Post.PublishedAt.Equal(published) || hits[0].Post.HubID != hub {
+		t.Errorf("hits %+v", hits)
+	}
+	if hits := found(tenantA, "", "release", later); len(hits) != 1 {
+		t.Errorf("a search across hubs found %+v", hits)
+	}
+	if hits := found(tenantA, freshID(t), "changed", later); len(hits) != 0 {
+		t.Errorf("another hub found the post: %+v", hits)
+	}
+	if hits := found(tenantA, hub, "unrelated", later); len(hits) != 0 {
+		t.Errorf("words the post does not hold found it: %+v", hits)
+	}
+	if hits := found(tenantB, "", "changed", later); len(hits) != 0 {
+		t.Errorf("the workspace next door found the post: %+v", hits)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		post, err := posts.FindForUpdate(ctx, page)
+		if err != nil {
+			return err
+		}
+		post.PublishAt, post.PublishedAt = nil, nil
+		return posts.Update(ctx, post)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if hits := found(tenantA, hub, "changed", later); len(hits) != 0 {
+		t.Errorf("a draft was found: %+v", hits)
+	}
+}

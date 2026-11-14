@@ -236,6 +236,39 @@ func (PostRepository) List(
 	return out, nil
 }
 
+// Search answers the posts gone out by now that the text finds, best first.
+func (PostRepository) Search(ctx context.Context, text string, hubID shared.ID, now time.Time, limit int) ([]repository.PostHit, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hub, err := optionalUUID(hubID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.SearchPosts(ctx, sqlc.SearchPostsParams{
+		Text: text, HubID: hub, Now: timestampOf(now), Batch: boundedInt32(min(limit, 1000)),
+	})
+	if err != nil {
+		return nil, pageFailed("searching the posts", err)
+	}
+	return mapRows(rows, func(row sqlc.SearchPostsRow) (repository.PostHit, error) {
+		post, err := postFrom(postRow{
+			PageID: row.PageID, HubID: row.HubID, Template: row.Template, PublishAt: row.PublishAt,
+			PublishedAt: row.PublishedAt, FeaturedUntil: row.FeaturedUntil, Audience: row.Audience,
+			GroupIds: row.GroupIds, Discussion: row.Discussion, Notify: row.Notify, ConfirmBy: row.ConfirmBy,
+		})
+		if err != nil {
+			return repository.PostHit{}, err
+		}
+		author, err := optionalID(row.CreatedBy)
+		return repository.PostHit{
+			Post: post, Title: row.Title, Icon: row.Icon, CreatedBy: author, UpdatedAt: timeFrom(row.UpdatedAt),
+			Excerpt: row.Excerpt,
+		}, err
+	})
+}
+
 // MarkSeen counts the account among those who have seen the post, once.
 func (PostRepository) MarkSeen(ctx context.Context, pageID, account shared.ID, at time.Time) error {
 	queries, err := queriesFrom(ctx)

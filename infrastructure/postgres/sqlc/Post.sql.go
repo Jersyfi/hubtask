@@ -703,6 +703,99 @@ func (q *Queries) PostReplyReactions(ctx context.Context, arg PostReplyReactions
 	return items, nil
 }
 
+const searchPosts = `-- name: SearchPosts :many
+SELECT po.page_id, po.hub_id, po.template, po.publish_at, po.published_at, po.featured_until,
+       po.audience, po.group_ids, po.discussion, po.notify, po.confirm_by,
+       p.title, p.icon, p.created_by, p.updated_at,
+       ts_rank_cd(p.search_document, q.query)::float8 AS rank,
+       ts_headline(hubtask_text_config(p.content_language), p.body, q.query,
+                   'MaxFragments=1, MaxWords=24, MinWords=8, StartSel=«, StopSel=»')::text AS excerpt
+FROM post po
+JOIN page p ON p.tenant_id = po.tenant_id AND p.id = po.page_id
+CROSS JOIN LATERAL (SELECT websearch_to_tsquery(hubtask_text_config(p.content_language), $1::text)
+                        || websearch_to_tsquery('simple', $1::text) AS query) q
+WHERE po.tenant_id = current_tenant_id() AND p.deleted_at IS NULL AND p.archived_at IS NULL
+  AND ($2::uuid IS NULL OR po.hub_id = $2::uuid)
+  AND (po.published_at IS NOT NULL OR po.publish_at <= $3::timestamptz)
+  AND p.search_document @@ q.query
+ORDER BY rank DESC, coalesce(po.published_at, po.publish_at) DESC, po.page_id
+LIMIT $4
+`
+
+type SearchPostsParams struct {
+	Text  string
+	HubID pgtype.UUID
+	Now   pgtype.Timestamptz
+	Batch int32
+}
+
+type SearchPostsRow struct {
+	PageID        pgtype.UUID
+	HubID         pgtype.UUID
+	Template      *string
+	PublishAt     pgtype.Timestamptz
+	PublishedAt   pgtype.Timestamptz
+	FeaturedUntil pgtype.Timestamptz
+	Audience      string
+	GroupIds      []pgtype.UUID
+	Discussion    bool
+	Notify        bool
+	ConfirmBy     pgtype.Timestamptz
+	Title         string
+	Icon          string
+	CreatedBy     pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	Rank          float64
+	Excerpt       string
+}
+
+// The posts a text finds by their page's title and body, read as the page search reads them, in
+// one hub or every hub, best first, with the passage that matched: only those gone out by now - a
+// draft or a scheduled post is no hit - and neither trashed nor archived. Who of them a reader is
+// for is the application's to judge (rule 2).
+func (q *Queries) SearchPosts(ctx context.Context, arg SearchPostsParams) ([]SearchPostsRow, error) {
+	rows, err := q.db.Query(ctx, searchPosts,
+		arg.Text,
+		arg.HubID,
+		arg.Now,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchPostsRow{}
+	for rows.Next() {
+		var i SearchPostsRow
+		if err := rows.Scan(
+			&i.PageID,
+			&i.HubID,
+			&i.Template,
+			&i.PublishAt,
+			&i.PublishedAt,
+			&i.FeaturedUntil,
+			&i.Audience,
+			&i.GroupIds,
+			&i.Discussion,
+			&i.Notify,
+			&i.ConfirmBy,
+			&i.Title,
+			&i.Icon,
+			&i.CreatedBy,
+			&i.UpdatedAt,
+			&i.Rank,
+			&i.Excerpt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const takeBackPostReply = `-- name: TakeBackPostReply :execrows
 UPDATE post_reply SET body = '', deleted_at = COALESCE(deleted_at, $1), version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = $2

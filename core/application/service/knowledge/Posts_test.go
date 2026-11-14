@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -148,6 +149,17 @@ func (s *postStore) List(_ context.Context, hubID, account shared.ID, f reposito
 			Post: post, Title: s.titles[id], CreatedBy: writer, SeenCount: len(s.seen[id]), Seen: seen,
 			Confirmed: slices.Contains(s.confirmed[id], account),
 		})
+	}
+	return out, nil
+}
+func (s *postStore) Search(_ context.Context, text string, hubID shared.ID, now time.Time, _ int) ([]repository.PostHit, error) {
+	var out []repository.PostHit
+	for id, post := range s.posts {
+		gone := post.PublishedAt != nil || (post.PublishAt != nil && !post.PublishAt.After(now))
+		if !gone || (!hubID.IsZero() && post.HubID != hubID) || !strings.Contains(strings.ToLower(s.titles[id]), strings.ToLower(text)) {
+			continue
+		}
+		out = append(out, repository.PostHit{Post: post, Title: s.titles[id], CreatedBy: writer, Excerpt: "«" + s.titles[id] + "»"})
 	}
 	return out, nil
 }
