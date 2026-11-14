@@ -409,6 +409,8 @@
   async function submit() {
     error = undefined;
     now = Date.now();
+    // Kept before the field closes: closing forgets the door, and with it what it asked to be told.
+    const told = capture.door?.oncreated;
     if (isBusy || text.trim() === '') return;
     if (target.kind === 'pending') {
       isWaiting = true;
@@ -478,6 +480,7 @@
       }
       if (outcome.created.length === 0) return;
       oncreated?.(outcome.created.map((item) => item.id));
+      told?.(outcome.created.map((item) => item.id));
       const only = outcome.created.length === 1 ? outcome.created[0] : undefined;
       offerUndo(
         { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name, title: only?.title },
