@@ -18,6 +18,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
+import { chooseInRow, rowOffers } from './rowmenu.mjs';
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, MANIFEST, OTHER, PAGE, signedIn, stub } from './fixture.mjs';
 
@@ -110,11 +111,15 @@ async function open(browser, { width = 1280, height = 900, path, role = 'OWNER' 
       return route.fulfill({ json: { data: ALERTS.filter((each) => !status || each.status === status) } });
     }
     if (at === `/hubs/${HUB.id}/ci-work`) return route.fulfill({ json: WORK });
-    if (at === `/hubs/${HUB.id}/ci-groups`) return route.fulfill({ json: { data: [NO_OWNER_GROUP] } });
+    if (at === `/hubs/${HUB.id}/ci-groups`) return route.fulfill({ json: { data: written.some((each) => each.method === 'DELETE') ? [] : [NO_OWNER_GROUP] } });
     if (at.startsWith(`/hubs/${HUB.id}/ci-groups/`) && request.method() === 'PUT') {
       const body = request.postDataJSON();
       written.push({ at, body });
       return route.fulfill({ json: { ...NO_OWNER_GROUP, id: id(951), key: decodeURIComponent(at.split('/').pop()), name: body.name, filter: body.filter, members: 1 } });
+    }
+    if (at.startsWith(`/hubs/${HUB.id}/ci-groups/`) && request.method() === 'DELETE') {
+      written.push({ at, method: 'DELETE', ifMatch: request.headers()['if-match'] });
+      return route.fulfill({ status: 204, body: '' });
     }
     if (at === `/hubs/${HUB.id}/assets`) return route.fulfill({ json: { data: REGISTERED, next: null } });
     if (at === `/hubs/${HUB.id}/software`) return route.fulfill({ json: { data: [] } });
@@ -372,6 +377,38 @@ test('chromium: a line is saved as a group, and a line a group cannot hold says 
   assert.deepEqual(failures, []);
 });
 
+test('chromium: a saved group\'s row menu deletes it after a small dialog naming it, and the open group\'s line goes back to the default', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures, written } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
+  t.after(() => context.close());
+
+  await page.locator('[data-ci-row]').first().waitFor({ timeout: 20_000 });
+  const row = page.locator('[data-group=no_owner]');
+  await row.locator('.tree-row').click();
+  await rowsAre(page, ['NB-0422', 'NB-0233'], 'the saved group is open');
+  assert.equal(await rowOffers(row, 'Change'), 1);
+  // Cancelling sends nothing.
+  await chooseInRow(row, 'Delete group');
+  const dialog = page.getByRole('dialog', { name: 'Delete “Without an owner”?' });
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.match(await dialog.innerText(), /the objects it holds stay as they are/u);
+  await dialog.getByRole('button', { name: 'Cancel' }).first().click();
+  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+  assert.equal(written.filter((each) => each.method === 'DELETE').length, 0, 'cancelling deleted');
+
+  await chooseInRow(row, 'Delete group');
+  await dialog.getByRole('button', { name: 'Delete group' }).click();
+  await row.waitFor({ state: 'detached', timeout: 5_000 });
+  const deleted = written.find((each) => each.method === 'DELETE');
+  assert.equal(deleted?.at, `/hubs/${HUB.id}/ci-groups/no_owner`);
+  assert.equal(deleted?.ifMatch, '"1"', 'deleted at the version read');
+  await page.getByRole('status').filter({ hasText: '“Without an owner” deleted.' }).waitFor({ state: 'attached', timeout: 5_000 });
+  // The line the group held goes back to the default.
+  await rowsAre(page, ALL_BUT_DISPOSED, 'the default line');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a reader is offered no create, no import and no group to save', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -383,7 +420,7 @@ test('chromium: a reader is offered no create, no import and no group to save', 
   assert.equal(await page.getByRole('button', { name: 'New object', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Import', exact: true }).count(), 0);
   assert.equal(await page.locator('[data-save-group]').count(), 0);
-  assert.equal(await page.getByRole('button', { name: /^More for / }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: /^More for / }).count(), 0, 'a reader is offered a group\'s menu, Delete group in it');
   assert.equal(await bar(page).getByRole('link', { name: 'Upkeep' }).count(), 0);
   // Reading and narrowing stay theirs.
   await page.locator('[data-group=no_owner] .tree-row').click();

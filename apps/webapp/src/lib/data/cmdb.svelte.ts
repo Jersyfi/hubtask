@@ -204,6 +204,14 @@ class Cmdb {
     });
   }
 
+  /** A saved group deleted at the version last read; the objects it held stay. */
+  deleteGroup(group: CiGroup): Promise<void> {
+    return engine.mutate<void>('DELETE', groupPath(group.hub_id, group.key), undefined, {
+      ifMatch: `"${group.version}"`,
+      invalidates: [groupsPath(group.hub_id), '/ci-groups/', serviceMapPath(group.hub_id)],
+    });
+  }
+
   /** A CI's asset written; a new one without a version, a known one with the version last read. */
   registerAsset(ci: Pick<ConfigurationItem, 'id' | 'hub_id'>, body: CiAssetRegister, version?: number): Promise<CiAsset> {
     return engine.mutate<CiAsset>('PUT', ciAssetPath(ci.id), body, {

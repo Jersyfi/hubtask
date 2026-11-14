@@ -14,7 +14,7 @@
   // no *Save as group* and no group's ⋯ - nor on a phone, where the stock is read only.
   import { untrack } from 'svelte';
   import {
-    Badge, Button, DataTable, Icon, IconButton, Menu, QueryLine, Select, Skeleton, StateLozenge, ViewSwitcher, lineText,
+    Badge, Button, DataTable, Dialog, Icon, IconButton, Menu, QueryLine, Select, Skeleton, StateLozenge, ViewSwitcher, lineText,
     type DataColumn, type QueryToken, type SelectOption,
   } from '@hubtask/design-system/components';
   import { createCatalogue, createLanguage, relabelled, type CountedValue, type QueryKey } from '@hubtask/query';
@@ -32,6 +32,7 @@
     ASSET_KEYS, DEFAULT_LINE, classTree, groupOfLine, highestProtection, holdsAttributes, lineOfGroup, narrowed, readLine, soleValue, valueCounts, withKey,
     type AssetKey, type InventoryFilter,
   } from '../data/inventoryquery.ts';
+  import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -350,6 +351,34 @@
     prefill = undefined;
     isGroupOpen = true;
   }
+  // Deleting a saved group, confirmed in a small dialog naming it; the line it held goes back to
+  // the default.
+  let deleting = $state<CiGroup | undefined>(undefined);
+  let isDeleting = $state(false);
+  let deleteFailure = $state<string | undefined>(undefined);
+  function askDelete(group: CiGroup) {
+    deleteFailure = undefined;
+    deleting = group;
+  }
+  async function deleteGroup() {
+    const group = deleting;
+    if (!group || isDeleting) return;
+    isDeleting = true;
+    try {
+      await cmdb.deleteGroup(group);
+      if (groupActive?.id === group.id) {
+        chosenGroup = undefined;
+        line = DEFAULT_LINE;
+      }
+      saved = saved.filter((each) => each.id !== group.id);
+      deleting = undefined;
+      toast.show({ text: t('app.inventory.group_deleted', { name: group.name }), tone: 'success' });
+    } catch (error) {
+      deleteFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isDeleting = false;
+    }
+  }
   const groupNote = $derived(prefill && !prefill.ok ? t(messages.has(prefill.code) ? prefill.code : 'app.inventory.group_unheld') : undefined);
   const attributesNote = $derived(
     groupActive && Object.keys(groupActive.attributes).length > 0
@@ -456,7 +485,9 @@
             <span class="tree-name">{group.name}</span>{#if group.members !== undefined}<span class="tree-count">{group.members}</span>{/if}
           </button>
           {#if drawsWrites}
-            <Menu label={t('app.inventory.group_more', { name: group.name })} items={[{ id: 'edit', label: t('app.inventory.group_edit'), icon: 'pencil' }]} onselect={() => editGroup(group)}>
+            <Menu label={t('app.inventory.group_more', { name: group.name })}
+              items={[{ id: 'edit', label: t('app.inventory.group_edit'), icon: 'pencil' }, { id: 'delete', label: t('app.inventory.group_delete'), icon: 'trash', isDestructive: true, hasSeparatorBefore: true }]}
+              onselect={(id) => (id === 'delete' ? askDelete(group) : editGroup(group))}>
               {#snippet trigger(props)}
                 <IconButton icon="ellipsis" size="sm" tone="subtle" label={t('app.inventory.group_more', { name: group.name })} {...props} />
               {/snippet}
@@ -585,6 +616,15 @@
   note={groupNote}
   onsaved={(group) => chooseGroup(group)} />
 
+{#if deleting}
+  <Dialog size="s" isOpen={deleting !== undefined} title={t('app.inventory.group_delete_title', { name: deleting.name })} dismissLabel={t('app.assets.cancel')}
+    onClose={() => (deleting = undefined)}
+    primary={{ label: t('app.inventory.group_delete'), tone: 'danger', isBusy: isDeleting, onclick: () => void deleteGroup() }}>
+    <p class="delete-note">{t('app.inventory.group_delete_note')}</p>
+    {#if deleteFailure}<p class="delete-note" role="alert">{deleteFailure}</p>{/if}
+  </Dialog>
+{/if}
+
 {#if isCreating}
   <CreateDialog
     bind:isOpen={isCreating}
@@ -631,6 +671,7 @@
   .tree-row[data-depth='3'] { padding-inline-start: var(--sp-600); }
   .tree-name { flex: 1 1 auto; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-count { color: var(--text-subtle); font-variant-numeric: tabular-nums; }
+  .delete-note { margin: 0; color: var(--text-secondary); }
   .tree-empty { padding-inline: var(--sp-100); color: var(--text-subtle); font-size: var(--fs-075); }
   .saved-row { display: flex; align-items: center; gap: var(--sp-025); }
   .name { display: inline-flex; align-items: center; gap: var(--sp-100); min-inline-size: 0; max-inline-size: 100%; }
