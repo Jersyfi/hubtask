@@ -240,6 +240,35 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   assert.deepEqual(failures, []);
 });
 
+test('390 px: writing a page draws one compact row of tools at the foot, above the keyboard (§7, pwrite)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const handbook = PD_PAGES[0];
+  const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true, width: 390, height: 844, hasTouch: true });
+  t.after(close);
+  await page.context().routeWebSocket(/\/realtime\/documents\/page\//, (ws) => {
+    ws.onMessage(() => {});
+    ws.send(EMPTY_DOCUMENT);
+    ws.send(ASK_STATE);
+  });
+  await page.goto(new URL(`/pages/${handbook.id}`, page.url()).href);
+  const body = page.getByRole('textbox', { name: /Product handbook/ });
+  await body.getByText('Welcome to the team.').waitFor({ timeout: 10_000 });
+  await body.getByText('Welcome to the team.').click();
+  const tools = page.locator('[data-page-tools]');
+  await tools.waitFor({ timeout: 5_000 });
+  const bar = await tools.boundingBox();
+  assert.ok(bar && bar.height <= 64, `the bar is ${bar?.height} px high, not one row`);
+  assert.ok(bar && Math.abs(bar.y + bar.height - 844) <= 1, 'the bar does not stand at the foot');
+  const buttons = await tools.getByRole('button').evaluateAll((all) => all.map((each) => each.getAttribute('aria-label') ?? each.textContent?.trim()));
+  assert.ok(buttons.includes('Bold') && buttons.includes('Insert'), `the row holds ${buttons.join(', ')}`);
+  const sizes = await tools.getByRole('button').evaluateAll((all) => all.map((each) => each.getBoundingClientRect()).map((r) => [Math.round(r.width), Math.round(r.height), Math.round(r.right)]));
+  assert.ok(sizes.every(([w, h, right]) => w >= 44 && w <= 56 && h >= 44 && right <= 390), `the tools are ${JSON.stringify(sizes)}`);
+  await tools.getByRole('button', { name: 'Insert' }).click();
+  await page.locator('[data-page-blocks]').waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
 test('the first writer opens and leaves a whiteboard without saving it; removing a sticky saves', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

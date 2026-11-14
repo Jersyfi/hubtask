@@ -19,7 +19,7 @@
   import { mount, tick, unmount, untrack } from 'svelte';
 
   import './page-text.css';
-  import { BlockHandle, BoxPopover, Button, FloatingToolbar, IconButton, Inline, InsertList, Menu, Toolbar, UploadField } from '@hubtask/design-system/components';
+  import { BlockHandle, BoxPopover, Button, FloatingToolbar, IconButton, InsertList, Menu, Toolbar, UploadField } from '@hubtask/design-system/components';
   import {
     Doc, LiveDocument, actOnLine, createPageEditor, lineAt, insertReference, insertWikiBlock, linkLineToEntry, markdownOf, mirrorCompletion, parseAddress, passageTops,
     replaceFromMarkdown, revealBlock, seedFromMarkdown, setPassages, taskLineOf, type Editor, type LiveSocket, type LiveStatus, type Passage,
@@ -254,9 +254,10 @@
   });
 
   // Writing in the body hides the phone's bottom bar (the navigation concept's §9): the keyboard
-  // and the editor's own toolbar take the room.
+  // and the editor's own toolbar take the room. The writing zone, not the text alone: a press on
+  // the phone's bar moves the focus to it, and a bottom bar coming back would take that press.
   $effect(() => {
-    const element = host;
+    const element = zone;
     if (!element || !page.writable) return;
     let release: (() => void) | undefined;
     const enter = () => {
@@ -355,6 +356,17 @@
   let linkAddress = $state('');
   let marks = $state(0);
   const atText = $derived(page.writable && isLive && !viewport.isCompact);
+  /** How far the on-screen keyboard reaches into the window: the phone's bar stands on it (§7). */
+  let keyboardInset = $state(0);
+  $effect(() => {
+    const seen = window.visualViewport;
+    if (!viewport.isCompact || !seen) return;
+    const measure = () => (keyboardInset = Math.max(0, Math.round(window.innerHeight - seen.height - seen.offsetTop)));
+    measure();
+    seen.addEventListener('resize', measure);
+    seen.addEventListener('scroll', measure);
+    return () => { seen.removeEventListener('resize', measure); seen.removeEventListener('scroll', measure); };
+  });
 
   const boxOf = (element: Element): Box => {
     const r = element.getBoundingClientRect();
@@ -819,34 +831,29 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="writing" bind:this={zone} onpointermove={hover}>
 {#if page.writable && isLive && viewport.isCompact && (isWriting || hasPanel)}
-  <div class="tools" data-page-tools>
+  <!-- One compact row above the keyboard, as the `pwrite` phone scene draws it (§7): the kind of
+       text, the marks, the lists, a mention, "/" for everything else, a picture; the rest of the
+       insert list stays one press away under "/". -->
+  <div class="tools" data-page-tools style:inset-block-end={`${keyboardInset}px`}>
   <Toolbar label={t('app.pages.toolbar')}>
-    <Inline gap="050" isWrapping>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleHeading({ level: 2 }))}>{t('app.pages.tool_heading')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleBold())}>{t('app.pages.tool_bold')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleItalic())}>{t('app.pages.tool_italic')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleBulletList())}>{t('app.pages.tool_list')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleOrderedList())}>{t('app.pages.tool_numbered')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleTaskList())}>{t('app.pages.tool_checklist')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleBlockquote())}>{t('app.pages.tool_quote')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => run((c) => c.toggleCodeBlock())}>{t('app.pages.tool_code')}</Button>
-      <Button size="sm" tone="subtle" icon="link" onclick={() => (isMentioning = true)}>{t('app.pages.tool_mention')}</Button>
-      <Button size="sm" tone="subtle" icon="file-text" onclick={() => (isLinkingPage = !isLinkingPage)}>{t('app.pages.tool_page')}</Button>
-      <Button size="sm" tone="subtle" icon="layout-template" onclick={() => (isEmbedding = !isEmbedding)}>{t('app.pages.tool_view')}</Button>
-      <Button size="sm" tone="subtle" icon="plus" onclick={() => (isAddingBlock ? closeInsert() : openInsert())}>{t('app.pages.tool_block')}</Button>
-      <Button size="sm" tone="subtle" onclick={() => (isPickingEmoji = !isPickingEmoji)}>{t('app.pages.tool_emoji')}</Button>
-      <UploadField
-          variant="button"
-          size="sm"
-          label={t('app.pages.tool_file')}
-          chooseLabel={isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')}
-          disabledReason={isUploading ? t('app.pages.uploading') : undefined}
-          onChoose={(file) => void putFile(file)}
-        />
-      {#if taskLine && !taskLine.entryId && taskLine.text !== ''}
-        <Button size="sm" tone="subtle" icon="square-check" onclick={() => (isMakingTask = !isMakingTask)}>{t('app.pages.tool_task')}</Button>
-      {/if}
-    </Inline>
+    <Menu label={t('app.pages.style')} items={styleItems} onselect={(id) => turnInto(id)}>
+      {#snippet trigger(props)}
+        <IconButton icon="type" tone="subtle" label={t('app.pages.style')} data-page-style {...props} />
+      {/snippet}
+    </Menu>
+    <IconButton icon="bold" tone="subtle" label={t('app.pages.tool_bold')} aria-pressed={active.bold} onclick={() => run((c) => c.toggleBold())} />
+    <IconButton icon="italic" tone="subtle" label={t('app.pages.tool_italic')} aria-pressed={active.italic} onclick={() => run((c) => c.toggleItalic())} />
+    <IconButton icon="list" tone="subtle" label={t('app.pages.tool_list')} onclick={() => run((c) => c.toggleBulletList())} />
+    <IconButton icon="list-checks" tone="subtle" label={t('app.pages.tool_checklist')} onclick={() => run((c) => c.toggleTaskList())} />
+    <IconButton icon="at-sign" tone="subtle" label={t('app.pages.tool_mention')} onclick={() => (isMentioning = true)} />
+    <IconButton icon="plus" tone="subtle" label={t('app.pages.insert')} aria-pressed={isAddingBlock} onclick={() => (isAddingBlock ? closeInsert() : openInsert())} />
+    <!-- Nine full-size targets do not fit a phone's width: while a line can become a task, the
+         picture waits under "+". -->
+    {#if taskLine && !taskLine.entryId && taskLine.text !== ''}
+      <span class="tools-end"><IconButton icon="square-check" tone="subtle" label={t('app.pages.tool_task')} aria-pressed={isMakingTask} onclick={() => (isMakingTask = !isMakingTask)} /></span>
+    {:else}
+      <IconButton icon="image" tone="subtle" label={isUploading ? t('app.pages.uploading') : t('app.pages.tool_file')} disabledReason={isUploading ? t('app.pages.uploading') : undefined} onclick={() => fileChooser?.choose()} />
+    {/if}
   </Toolbar>
   </div>
 {/if}
@@ -992,7 +999,17 @@
   }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
-    .tools { inset-block-start: auto; inset-block-end: 0; overflow-x: auto; }
+    .tools {
+      position: fixed;
+      inset-block-start: auto;
+      inset-inline: 0;
+      border-radius: 0;
+      border-inline: none;
+      overflow-x: auto;
+    }
+    .tools { padding: 0 var(--sp-050); }
+    .tools :global([role='toolbar']) { display: flex; flex-wrap: nowrap; align-items: center; gap: 0; }
+    .tools-end { margin-inline-start: auto; }
   }
   .status { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); }
   .refusal { margin: 0; color: var(--text-danger); }
