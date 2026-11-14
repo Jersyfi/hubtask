@@ -22745,7 +22745,7 @@ paths:
       x-hubtask-rest-to: Wopi
       description: >
         An office file as a PDF, converted by the workspace's document server, for the viewer to
-        draw (UC-MED-05). Readable by whoever may read the file. Refused with
+        draw. Readable by whoever may read the file. Refused with
         `media.conversion_unavailable` where the workspace has no document server that converts,
         and `media.not_an_office_file` for anything else. A download, never a rendering path.
       responses:
@@ -22768,7 +22768,7 @@ paths:
       x-hubtask-rest: delegated
       x-hubtask-rest-to: Wopi
       description: >
-        Opens an office file for editing in the workspace's document server (UC-MED-06): a
+        Opens an office file for editing in the workspace's document server: a
         short-lived access token for this person and this file, and the WOPI source the server
         reads and saves it through. Needs a right to change an entry or a board holding the file;
         refused with `media.document_server_none` where the workspace has chosen none. Saving in

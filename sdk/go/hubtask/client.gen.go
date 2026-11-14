@@ -41502,12 +41502,12 @@ type ClientInterface interface {
 
 	// StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 	//
-	// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 	StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
 	//
-	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
 	ConvertMediaToPdf(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadDocumentServer The workspace's document server
@@ -61956,7 +61956,7 @@ func (c *Client) UploadMediaContentWithBody(ctx context.Context, mediaId MediaId
 
 // StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 //
-// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 func (c *Client) StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartMediaEditingRequest(c.Server, mediaId)
 	if err != nil {
@@ -61971,7 +61971,7 @@ func (c *Client) StartMediaEditing(ctx context.Context, mediaId MediaId, reqEdit
 
 // ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
 //
-// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
 func (c *Client) ConvertMediaToPdf(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConvertMediaToPdfRequest(c.Server, mediaId)
 	if err != nil {
@@ -120839,14 +120839,14 @@ type ClientWithResponsesInterface interface {
 
 	// StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 	//
-	// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error)
 
 	// ConvertMediaToPdfWithResponse performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
 	//
-	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
@@ -182111,7 +182111,7 @@ func (c *ClientWithResponses) UploadMediaContentWithBodyWithResponse(ctx context
 
 // StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 //
-// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error) {
@@ -182124,7 +182124,7 @@ func (c *ClientWithResponses) StartMediaEditingWithResponse(ctx context.Context,
 
 // ConvertMediaToPdfWithResponse performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
 //
-// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
