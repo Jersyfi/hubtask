@@ -9,7 +9,7 @@
 
   import { untrack } from 'svelte';
   import type { DeadlinesKept, HubQueueList, ResourceState } from '@hubtask/sync-engine';
-  import { Button, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, ViewBar, WorkPage, type IconName, type ViewLink } from '@hubtask/design-system/components';
+  import { Button, Dialog, Icon, ListRow, ProductBand, Skeleton, SummaryCard, SummaryStrip, ViewBar, WorkPage, type IconName, type ViewLink } from '@hubtask/design-system/components';
 
   import { capture } from '../capture/capture.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -160,7 +160,8 @@
       {/each}
     </ul>
   {:else}
-    <div class="figures" data-desk-figures>
+    <!-- A phone keeps mine and my deadlines kept, its worst kind only (§7, decision 4). -->
+    <div class="figures" data-desk-figures><SummaryStrip label={t('app.desk_home.figures')} phone={[1, 4]}>
       <SummaryCard lead="figure" title={t('app.desk_home.fig_mine')} figure={totals.mine === undefined ? '…' : String(totals.mine)} line={t('app.desk_home.fig_mine_line')} />
       <SummaryCard lead="figure" title={t('app.desk_home.fig_unassigned')} figure={totals.unassigned === undefined ? '…' : String(totals.unassigned)} line={t('app.desk_home.fig_unassigned_line')} />
       <SummaryCard lead="figure" title={t('app.desk_home.fig_breaching')} figure={totals.breaching === undefined ? '…' : String(totals.breaching)} line={t('app.desk_home.fig_breaching_line')} />
@@ -184,7 +185,7 @@
           {/if}
         </SummaryCard>
       </div>
-    </div>
+    </SummaryStrip></div>
     <Dialog bind:isOpen={isKeptOpen} title={t('app.desk_home.fig_kept')} dismissLabel={t('app.sheet_close')} size="m">
       <p class="kept-window">{t('app.desk_home.kept_window')}</p>
       <ul class="kept-all" aria-label={t('app.desk_home.fig_kept')}>
@@ -203,7 +204,7 @@
 </WorkPage>
 
 <style>
-  .figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-150); margin-block-end: var(--sp-200); }
+  .figures { margin-block-end: var(--sp-200); }
   .kept-rows { display: grid; gap: var(--sp-025); margin: 0; padding: 0; list-style: none; font-size: var(--fs-075); }
   .kept-rows li { display: flex; flex-wrap: wrap; gap: var(--sp-050); align-items: baseline; }
   .kept-kind { color: var(--text-secondary); }
@@ -213,14 +214,8 @@
   .kept-all li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: var(--sp-150); align-items: baseline; padding-block-end: var(--sp-100); border-block-end: var(--bw-hairline) solid var(--border-subtle); }
   .kept-of { color: var(--text-secondary); font-size: var(--fs-075); }
   .kept-window { margin: 0 0 var(--sp-100); color: var(--text-secondary); }
-  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
-  @media (width < 905px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  /* A phone: two figures - mine and my deadlines kept, its worst kind only (§7, decision 4). */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width < 600px) {
-    .figures > :global(:nth-child(2)), .figures > :global(:nth-child(3)) { display: none; }
-    .kept-rows li:not(:first-child) { display: none; }
-  }
+  @media (width < 600px) { .kept-rows li:not(:first-child) { display: none; } }
   .rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   .name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hub { display: block; overflow: hidden; color: var(--text-subtle); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }

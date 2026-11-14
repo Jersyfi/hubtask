@@ -507,7 +507,7 @@ otherwise.
 
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
-`StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
+`StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
 
@@ -625,7 +625,11 @@ checkbox, ⋯, a group's twist and the composer's icons grow to `layout.target` 
 opens its suggestions in the top layer, never clipped; offers *+ Condition* and *+ Group (or)*; and
 on a phone shows one strip with "+n" and the filters in a sheet. `Widget` titles break between
 words only, and `figureTone` sets a lozenge with glyph and word beside a figure that warns. A
-`Property` with `onedit` is an inline select. `SummaryCard` `lead="figure"` is a KPI. The
+`Property` with `onedit` is an inline select. `SummaryCard` `lead="figure"` is a KPI; a product
+home's KPIs stand in a `SummaryStrip` under its band - four in a row, two rows on a tablet, the two
+the home names on a phone (§7). One figure size for a KPI and a `Widget`'s figure (`fs-450`); a
+`Widget` with `href` is a way to its tool, its title the link over the whole tile, a chevron at the
+head's end (scene hub). The
 `ProductBand` sets a 32 px name over its figures, the menu after the primary. The head's action bar
 is one type size; its deadline chip shows a clock until breached. `FoldingSection` clamps whole
 lines. The `Composer` takes `format`, a formatting bar inside its frame, and grows with its text.

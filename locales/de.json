@@ -7379,6 +7379,7 @@
   "app.desk_home.in_desk": "In {desk}",
   "app.desk_home.no_desk": "Noch nimmt kein Desk Anfragen an",
   "app.desk_home.no_desk_body": "Eine Sammlung wird zum Desk, sobald sie einen Typ anbietet, der Anfragen aus dem Portal annimmt. Beginne einen Desk mit einer Vorlage oder gib einer Sammlung in ihren Einstellungen einen solchen Typ.",
+  "app.desk_home.figures": "Deine Desks in Zahlen",
   "app.desk_home.fig_mine": "Meine offenen",
   "app.desk_home.fig_mine_line": "dir zugewiesen",
   "app.desk_home.fig_unassigned": "Nicht zugewiesen",

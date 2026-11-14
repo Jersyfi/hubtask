@@ -7379,6 +7379,7 @@
   "app.desk_home.in_desk": "In {desk}",
   "app.desk_home.no_desk": "No desk takes requests yet",
   "app.desk_home.no_desk_body": "A collection becomes a desk once it offers a type that takes requests from the portal. Start a desk from a template, or give a collection such a type in its settings.",
+  "app.desk_home.figures": "Your desks in figures",
   "app.desk_home.fig_mine": "My open",
   "app.desk_home.fig_mine_line": "assigned to you",
   "app.desk_home.fig_unassigned": "Unassigned",
