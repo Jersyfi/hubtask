@@ -2220,7 +2220,9 @@
     .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 1.5); }
     .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-1000); }
     /* The SLA's bar and its words whole, never cut (*Seit 21 St…*). */
-    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='sla'] { inline-size: calc(var(--sp-1000) * 2.25); }
+    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='sla'] { inline-size: calc(var(--sp-1000) * 2.75); }
+    /* Seven columns beside the request in one row: its title gives up room first (L-2). */
+    .columns[data-desk] .title-head { flex-basis: calc(var(--layout-list-title) * 0.625); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }

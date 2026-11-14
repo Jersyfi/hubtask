@@ -20,3 +20,10 @@ test('the status chip stands in a column of its own, one width in every row, und
 test('the meta line is one line from a tablet\'s width, so a row is two lines at most (N12, N14)', () => {
   assert.match(source, /@media \(width >= 600px\) \{\s*\.meta-line \{ flex-wrap: nowrap; overflow: hidden; \}/u);
 });
+
+// L-2: a desk's queue keeps its seven columns in one row at a desktop's width - the person in
+// charge beside the SLA, the SLA's words whole - so the request's title gives up room first.
+test('a desk\'s queue keeps every column in one row, the SLA whole (L-2)', () => {
+  assert.match(source, /\.columns\[data-desk\] \.title-head \{ flex-basis: calc\(var\(--layout-list-title\) \* 0\.625\); \}/u);
+  assert.match(source, /\.columns\[data-desk\] :is\(\.fields-head, \.level\[data-columns\]\) \.cell\[data-field='sla'\] \{ inline-size: calc\(var\(--sp-1000\) \* 2\.75\); \}/u);
+});
