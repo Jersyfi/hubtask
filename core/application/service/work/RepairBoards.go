@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"time"
 
@@ -168,7 +169,8 @@ func (h RepairBoards) repairColumns(
 }
 
 // repairMapped maps a board that maps no status by the proposal (domain.DefaultMapping), gives
-// each status still no column shows a column of its own, at the right end, and puts every entry
+// each status still no column shows a column of its own, in the workflow's order with the done
+// column last (domain.Board.PlaceOfStatus), and puts every entry
 // into the column showing its status. The shape is every workflow the board's types run
 // (domain.BoardShape). Statuses carry no work-in-progress limit, so the new columns carry none.
 func (h RepairBoards) repairMapped(
@@ -183,19 +185,16 @@ func (h RepairBoards) repairMapped(
 		report.StatusesMapped += proposed
 	}
 	unmapped := board.Unmapped(shape)
-	mapping := append([]domain.ColumnStatus{}, board.Mapping...)
-	last := board.Columns[len(board.Columns)-1].OrderKey
 	for _, key := range unmapped {
 		status, _ := shape.Status(key)
 		name := status.Name
 		if name == "" {
 			name = status.Key
 		}
-		orderKey, err := service.OrderKeyBetween(last, "")
+		orderKey, err := service.OrderKeyBetween(board.PlaceOfStatus(shape, key))
 		if err != nil {
 			return err
 		}
-		last = orderKey
 		column, err := domain.NewBucket(domain.NewBucketInput{
 			ID: w.IDs.NewID(), TenantID: actor.TenantID, CollectionID: collection.ID, Name: name,
 			OrderKey: orderKey, ColorToken: status.ColorToken, Text: w.Text,
@@ -216,11 +215,12 @@ func (h RepairBoards) repairMapped(
 		if err := (CreateBucket{Changes: w.Changes, HLC: w.HLC, Text: w.Text}).recordChange(ctx, column, collection, actor, announcement.Payload); err != nil {
 			return err
 		}
-		mapping = append(mapping, domain.ColumnStatus{BucketID: column.ID, Status: key})
+		board.Columns = slices.Insert(board.Columns, columnPlace(board.Columns, orderKey), column)
+		board.Mapping = append(board.Mapping, domain.ColumnStatus{BucketID: column.ID, Status: key})
 		report.ColumnsAdded++
 	}
 	if len(unmapped) > 0 || proposed > 0 {
-		if err := h.Boards.Statuses.Replace(ctx, collection.ID, mapping); err != nil {
+		if err := h.Boards.Statuses.Replace(ctx, collection.ID, board.Mapping); err != nil {
 			return err
 		}
 		var err error
@@ -240,6 +240,16 @@ func (h RepairBoards) repairMapped(
 		}
 	}
 	return nil
+}
+
+// columnPlace answers where a column with the order key stands among columns ordered left to right.
+func columnPlace(columns []domain.Bucket, orderKey string) int {
+	for index, column := range columns {
+		if column.OrderKey > orderKey {
+			return index
+		}
+	}
+	return len(columns)
 }
 
 // unusedStartingColumns reports a board that is only the starting columns a collection was given

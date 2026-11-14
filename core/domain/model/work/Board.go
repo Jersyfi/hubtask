@@ -413,6 +413,46 @@ func (b Board) Unmapped(shape WorkflowShape) []string {
 	return out
 }
 
+// PlaceOfStatus answers the order keys a new column for a status stands between, either empty for
+// an open end: right of the column showing the nearest status before it in the workflow's order,
+// leftmost where none does. A status that does not complete never stands right of a done column,
+// so the done column stays last.
+func (b Board) PlaceOfStatus(shape WorkflowShape, status string) (after, before string) {
+	at := -1
+	for _, candidate := range shape.Statuses {
+		if candidate.Key == status {
+			break
+		}
+		if column, mapped := b.ColumnOfStatus(candidate.Key); mapped {
+			at = b.columnIndex(column)
+		}
+	}
+	if !shape.Completes(status) {
+		for index, column := range b.Columns {
+			if column.IsDoneBucket || ColumnCompletes(b.StatusesOf(column.ID), shape) {
+				at = min(at, index-1)
+				break
+			}
+		}
+	}
+	if at >= 0 {
+		after = b.Columns[at].OrderKey
+	}
+	if at+1 < len(b.Columns) {
+		before = b.Columns[at+1].OrderKey
+	}
+	return after, before
+}
+
+func (b Board) columnIndex(id shared.ID) int {
+	for index, column := range b.Columns {
+		if column.ID == id {
+			return index
+		}
+	}
+	return -1
+}
+
 // ColumnCompletes reports whether a column is done at L2: it shows statuses and every one of
 // them is of the DONE category.
 func ColumnCompletes(statuses []string, shape WorkflowShape) bool {

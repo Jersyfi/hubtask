@@ -136,9 +136,10 @@ func TestTheBoardRepair(t *testing.T) {
 	completedOutside := seedOnBoard(ctx, t, tenantA, authorA, columns, todo.ID, true, "")
 	openInDone := seedOnBoard(ctx, t, tenantA, authorA, columns, done.ID, false, "")
 
-	// L2: a workflow of three statuses, one mapped, an entry in an unmapped status.
+	// L2: a workflow of three statuses, the first and the last mapped, an entry in the unmapped one.
 	_, mapped := hubWithCollection(ctx, t, tenantA, authorA)
 	first := seedRepairColumn(ctx, t, tenantA, mapped, "a0", false)
+	finished := seedRepairColumn(ctx, t, tenantA, mapped, "a2", true)
 	key := fmt.Sprintf("repair_%d", fixtureCounter.Add(1))
 	flow, err := domain.NewWorkflow(domain.NewWorkflowInput{
 		ID: freshID(t), TenantID: tenantA, Key: key, Name: "Repair",
@@ -160,7 +161,9 @@ func TestTheBoardRepair(t *testing.T) {
 		if err := workflows.SetScheme(ctx, domain.WorkflowScheme{ContainerID: mapped, WorkflowKey: key}, created); err != nil {
 			return err
 		}
-		return bucketStatusRepo().Replace(ctx, mapped, []domain.ColumnStatus{{BucketID: first.ID, Status: "todo"}})
+		return bucketStatusRepo().Replace(ctx, mapped, []domain.ColumnStatus{
+			{BucketID: first.ID, Status: "todo"}, {BucketID: finished.ID, Status: "done"},
+		})
 	}); err != nil {
 		t.Fatalf("seeding the workflow: %v", err)
 	}
@@ -189,7 +192,7 @@ func TestTheBoardRepair(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the dry run: %v", err)
 	}
-	if !dry.DryRun || dry.MovedIntoDone < 1 || dry.Completed < 1 || dry.ColumnsAdded < 2 || dry.ColumnsRemoved < 3 {
+	if !dry.DryRun || dry.MovedIntoDone < 1 || dry.Completed < 1 || dry.ColumnsAdded < 1 || dry.ColumnsRemoved < 3 {
 		t.Fatalf("the dry run counted %+v", dry)
 	}
 	if entry := readEntry(ctx, t, tenantA, openInDone); entry.Completion.IsCompleted {
@@ -228,14 +231,21 @@ func TestTheBoardRepair(t *testing.T) {
 			t.Errorf("no completion in the history by the administrator for the repair: %+v", history.Entries)
 		}
 	})
-	t.Run("L2: a column per unmapped status, entries placed by status", func(t *testing.T) {
+	t.Run("L2: a column per unmapped status in the workflow's order, entries placed by status", func(t *testing.T) {
 		board := liveColumns(ctx, t, tenantA, mapped)
 		mapping := readMapping(ctx, t, tenantA, mapped)
 		if len(board) != 3 || len(mapping) != 3 {
 			t.Fatalf("%d columns, mapping %v", len(board), mapping)
 		}
+		if board[0].ID != first.ID || board[2].ID != finished.ID {
+			t.Errorf("the added column does not stand between to do and done: %+v", board)
+		}
+		shows := false
+		for _, row := range mapping {
+			shows = shows || (row.BucketID == board[1].ID && row.Status == "doing")
+		}
 		entry := readEntry(ctx, t, tenantA, doing)
-		if entry.BucketID != board[1].ID || mapping[1].Status != "doing" || board[1].WipLimit != nil {
+		if entry.BucketID != board[1].ID || !shows || board[1].WipLimit != nil {
 			t.Errorf("the entry in doing stands in %s; board %+v, mapping %v", entry.BucketID, board, mapping)
 		}
 	})

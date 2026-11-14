@@ -479,3 +479,33 @@ func TestABoardChangePreviewsLevelsColumnsAndMoves(t *testing.T) {
 		}
 	})
 }
+
+func TestANewColumnStandsInTheWorkflowsOrder(t *testing.T) {
+	board := threeColumns()
+	for index, key := range []string{"a", "m", "t"} {
+		board.Columns[index].OrderKey = key
+	}
+	board.Mapping = []ColumnStatus{{colTodo, "open"}, {colDoing, "doing"}, {colDone, "done"}, {colDone, "dropped"}}
+	shape := reviewShape()
+	shape.Statuses = append([]WorkflowStatus{{Key: "backlog", Category: CategoryBacklog}}, shape.Statuses...)
+	shape.Statuses = append(shape.Statuses,
+		WorkflowStatus{Key: "parked", Category: CategoryTodo},
+		WorkflowStatus{Key: "archived", Category: CategoryDone},
+	)
+	cases := []struct {
+		status, after, before string
+	}{
+		{"backlog", "", "a"},
+		{"review", "m", "t"},
+		{"parked", "m", "t"},
+		{"archived", "t", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.status, func(t *testing.T) {
+			after, before := board.PlaceOfStatus(shape, c.status)
+			if after != c.after || before != c.before {
+				t.Fatalf("PlaceOfStatus(%s) = (%q, %q), want (%q, %q)", c.status, after, before, c.after, c.before)
+			}
+		})
+	}
+}
