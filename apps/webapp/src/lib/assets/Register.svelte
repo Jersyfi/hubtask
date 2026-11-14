@@ -114,9 +114,9 @@
     {/if}
   </div>
   {#if selected && viewport.isCompact}
-    <Sheet title={open ? `${open.asset_tag} ${open.name}`.trim() : t('app.assets.section.register')} closeLabel={t('app.sheet_close')} isOpen onClose={close}>
+    <Sheet title={open ? [open.asset_tag, open.name, ...(open.assigned_to ? [accounts.nameOf(open.assigned_to) ?? ''] : [])].filter(Boolean).join(' · ') : t('app.assets.section.register')} closeLabel={t('app.sheet_close')} isOpen onClose={close}>
       {#key selected}
-        <RegisterPanel ciId={selected} tag={open?.asset_tag} name={open?.name} mayAct={false} onclose={close} />
+        <RegisterPanel ciId={selected} tag={open?.asset_tag} name={open?.name} mayAct={false} onclose={close} isBare />
       {/key}
     </Sheet>
   {/if}
@@ -125,10 +125,10 @@
 <style>
   .register { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; }
   /* design-system-lint-ignore: `primitive.breakpoint.large` (905px); a media query cannot read a custom property. */
-  @media (width >= 905px) { .register[data-open] { grid-template-columns: minmax(0, 3fr) minmax(var(--layout-rail), 2fr); } }
+  @media (width >= 905px) { .register[data-open] { grid-template-columns: minmax(0, 1fr) var(--layout-rail); } }
   .list { display: grid; gap: var(--sp-100); min-inline-size: 0; }
   .tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
-  .tag { font-family: var(--font-mono); }
+  .tag { font-family: var(--font-mono); white-space: nowrap; }
   .tag[data-selected] { font-weight: var(--fw-semibold); }
   .cost { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }

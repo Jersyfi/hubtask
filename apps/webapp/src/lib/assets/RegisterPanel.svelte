@@ -33,9 +33,11 @@
     /** A writer, online, on a screen that writes. */
     mayAct: boolean;
     onclose: () => void;
+    /** Inside a sheet, whose own head names the device and closes it. */
+    isBare?: boolean;
   }
 
-  const { ciId, tag, name, mayAct, onclose }: Props = $props();
+  const { ciId, tag, name, mayAct, onclose, isBare = false }: Props = $props();
 
   let asset = $state<CiAsset | undefined>(undefined);
   let refusal = $state<string | undefined>(undefined);
@@ -109,14 +111,14 @@
   }
 </script>
 
-<aside class="panel" aria-labelledby="register-panel-title" data-register-panel={ciId}>
-  <div class="head">
+<aside class="panel" aria-labelledby={isBare ? undefined : 'register-panel-title'} data-register-panel={ciId} data-bare={isBare ? '' : undefined}>
+  {#if !isBare}<div class="head">
     <h2 id="register-panel-title" class="title">
       {#if asset?.asset_tag || tag}<span class="tag">{asset?.asset_tag || tag}</span>{/if}
-      <span>{asset?.name ?? name ?? ''}{#if holderName} · {holderName}{/if}</span>
+      <span>{[asset?.name ?? name ?? '', ...(holderName ? [holderName] : [])].join(' · ')}</span>
     </h2>
     <IconButton icon="x" label={t('app.sheet_close')} size="sm" tone="subtle" onclick={onclose} />
-  </div>
+  </div>{/if}
   {#if refusal}
     <FailureNote problem={refusal} />
   {:else if !asset}
@@ -163,6 +165,7 @@
     display: grid; align-content: start; gap: var(--sp-200); padding: var(--sp-200); min-inline-size: 0;
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface);
   }
+  .panel[data-bare] { padding: 0; border: 0; background: none; }
   .head { display: flex; align-items: start; justify-content: space-between; gap: var(--sp-100); }
   .title { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-100); margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
   .tag { font-family: var(--font-mono); font-size: var(--fs-090); font-weight: var(--fw-regular); }
