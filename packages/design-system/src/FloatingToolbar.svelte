@@ -11,6 +11,7 @@
 
   import type { Snippet } from 'svelte';
 
+  import FloatingBar from './FloatingBar.svelte';
   import Toolbar from './Toolbar.svelte';
   import { anchorTo, rectAnchor, type Box, type Placement, type RectAnchor } from './anchor.ts';
 
@@ -57,20 +58,12 @@
 
 {#if box}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="floating" bind:this={bar} onpointerdown={keep} onmousedown={keep as never} data-floating-toolbar>
+  <FloatingBar bind:element={bar} onpointerdown={keep} onmousedown={keep as never} data-floating-toolbar>
     <Toolbar {label}>{@render children()}</Toolbar>
-  </div>
+  </FloatingBar>
 {/if}
 
 <style>
-  .floating {
-    margin: 0;
-    margin-block: var(--sp-100);
-    padding: var(--sp-050);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    color: var(--text-primary);
-    box-shadow: var(--shadow-overlay);
-  }
+  /* Clear of the selected line it stands over. */
+  :global(.floating-bar[data-floating-toolbar]) { margin: 0; margin-block: var(--sp-100); }
 </style>

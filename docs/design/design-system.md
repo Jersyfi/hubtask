@@ -508,7 +508,7 @@ otherwise.
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
 `StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `SummaryStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
-`DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingToolbar` ·
+`DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingBar` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
 
 The shared blocks of the work-surface concept ([`docs/backlog/work-surface/`](../backlog/work-surface/README.md)
@@ -633,6 +633,8 @@ head's end (scene hub). The
 `ProductBand` sets a 32 px name over its figures, the menu after the primary. The head's action bar
 is one type size; its deadline chip shows a clock until breached. `FoldingSection` clamps whole
 lines. The `Composer` takes `format`, a formatting bar inside its frame, and grows with its text.
+`FloatingBar` is the one floating surface - `FloatingToolbar`, a board's islands and its selection
+bar - at `r-lg` on `bg-raised`.
 The status sheet's rows are 64 px with hairlines.
 
 **The work surface's tokens.** `product.<id>.surface` and `.ink` for the eight products alias the

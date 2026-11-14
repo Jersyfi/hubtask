@@ -279,6 +279,7 @@ export { default as Composer, type ComposerMode } from './Composer.svelte';
 export { default as QueryLine } from './QueryLine.svelte';
 export { default as TrustLine } from './TrustLine.svelte';
 export { default as PageOutline } from './PageOutline.svelte';
+export { default as FloatingBar } from './FloatingBar.svelte';
 export { default as FloatingToolbar } from './FloatingToolbar.svelte';
 export { default as BlockHandle } from './BlockHandle.svelte';
 export { default as BoxPopover } from './BoxPopover.svelte';

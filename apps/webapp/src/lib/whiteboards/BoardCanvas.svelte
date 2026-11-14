@@ -22,7 +22,7 @@
   import { tick as settled, untrack, type Snippet } from 'svelte';
   import { tokens } from '@hubtask/design-system';
   import {
-    Avatar, AvatarGroup, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, Kbd, Menu, Popover, ProductTile, Select, Stack, VisuallyHidden, type MenuItem,
+    Avatar, AvatarGroup, Button, Checkbox, Dialog, FloatingBar, Icon, IconButton, Inline, Input, Kbd, Menu, Popover, ProductTile, Select, Stack, VisuallyHidden, type MenuItem,
   } from '@hubtask/design-system/components';
   import { LiveDocument, type LiveSocket, type LiveStatus } from '@hubtask/editor';
   import type {
@@ -139,14 +139,14 @@
   let view = $state<Viewport>({ x: -80, y: -80, zoom: 1, width: 1, height: 1 });
   let surface = $state<SVGSVGElement | undefined>(undefined);
   let toolbar = $state<HTMLDivElement | undefined>(undefined);
-  let zoombar = $state<HTMLDivElement | undefined>(undefined);
+  let zoombar = $state<HTMLElement | null>(null);
   /** A tablet: the frame's middle widths, where the dock and the corner share the foot only one above the other. */
   const isTablet = $derived(!viewport.isCompact && viewport.isBelowExpanded);
   /** On a touch screen the pen, finger and two-finger tap are said once above the dock, until first used. */
   let hasTouched = $state(false);
   /** The session bar stands level with the top islands at the centre, below them where it would touch one (W-5). */
-  let titleIsland = $state<HTMLDivElement | undefined>(undefined);
-  let peopleIsland = $state<HTMLDivElement | undefined>(undefined);
+  let titleIsland = $state<HTMLElement | null>(null);
+  let peopleIsland = $state<HTMLElement | null>(null);
   let titleWidth = $state(0);
   let peopleWidth = $state(0);
   let sessionWidth = $state(0);
@@ -1762,14 +1762,12 @@
     </svg>
     {#if showsBar && writable && selectionOnScreen}
       <!-- The bar above the selection, in a fixed order (W-4): colour, size, arrow, comment, lock, task from it, ⋯. -->
-      <div
-        class="selbar"
-        class:below={selectionOnScreen.top < 120}
+      <FloatingBar
+        class={['selbar', selectionOnScreen.top < 120 && 'below']}
         role="toolbar"
         aria-label={selected.length > 1 ? t('app.whiteboards.several', { count: String(selected.length) }) : t(`app.whiteboards.kind_${chosen?.kind.toLowerCase() ?? 'sticky'}`)}
-        bind:clientWidth={barWidth}
-        style:inset-inline-start={`${Math.min(Math.max(selectionOnScreen.x, barWidth / 2 + 8), view.width - barWidth / 2 - 8)}px`}
-        style:inset-block-start={`${selectionOnScreen.top < 120 ? selectionOnScreen.bottom + 16 : selectionOnScreen.top - 16}px`}
+        bind:width={barWidth}
+        at={{ inlineStart: `${Math.min(Math.max(selectionOnScreen.x, barWidth / 2 + 8), view.width - barWidth / 2 - 8)}px`, blockStart: `${selectionOnScreen.top < 120 ? selectionOnScreen.bottom + 16 : selectionOnScreen.top - 16}px` }}
         data-board-bar
       >
         {#if selected.length > 1}
@@ -1835,7 +1833,7 @@
             {/if}
           </div>
         {/if}
-      </div>
+      </FloatingBar>
     {/if}
     {#if editingElement}
       <textarea
@@ -1903,7 +1901,7 @@
     {/if}
 
     <!-- The four islands and the dock (W-1): no head above the board. -->
-    <div class="island top-left" data-board-island="title" bind:this={titleIsland} bind:offsetWidth={titleWidth}>
+    <FloatingBar class="island top-left" data-board-island="title" bind:element={titleIsland} bind:width={titleWidth}>
       {#if back}<IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.back_to_boards')} onclick={() => onnavigate(back)} />{/if}
       <div class="name">{@render heading()}</div>
       <span class="status" class:live={isLive && unsent === 0 && status !== 'offline'} aria-live="polite" data-board-status>
@@ -1920,9 +1918,9 @@
           <IconButton size="sm" icon="ellipsis" label={t('app.whiteboards.board_menu')} data-board-menu {...props} />
         {/snippet}
       </Menu>
-    </div>
+    </FloatingBar>
 
-    <div class="island top-right" data-board-island="people" bind:this={peopleIsland} bind:offsetWidth={peopleWidth}>
+    <FloatingBar class="island top-right" data-board-island="people" bind:element={peopleIsland} bind:width={peopleWidth}>
       {#if peers.length > 0}
         <Popover label={t('app.whiteboards.here_now')} bind:isOpen={isPeopleOpen} placement={{ side: 'block-end', align: 'end' }}>
           {#snippet trigger(props)}
@@ -1961,7 +1959,7 @@
       {#if !viewport.isCompact}
         <IconButton size="sm" icon="rotate-ccw-clock" tone="subtle" aria-pressed={sheet === 'history'} label={t('app.whiteboards.history')} data-board-sheet="history" onclick={() => toggleSheet('history')} />
       {/if}
-    </div>
+    </FloatingBar>
 
     {#if followed}
       <p class="follow-note" data-board-following>{t('app.whiteboards.following_note', { name: followed.name })}</p>
@@ -1969,16 +1967,16 @@
 
     {#if viewport.isCompact && frames.length > 1 && mode === 'surface'}
       <!-- On a phone the frames are paged at the top (§7). -->
-      <div class="island pager" role="group" aria-label={t('app.whiteboards.frames')} data-board-pager>
+      <FloatingBar class="island pager" role="group" aria-label={t('app.whiteboards.frames')} data-board-pager>
         <IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.frame_previous')} disabledReason={framePage > 0 ? undefined : t('app.whiteboards.frame_first')} onclick={() => showFrame(framePage - 1)} />
         <span class="pager-name">{frames[framePage]?.text || t('app.whiteboards.kind_frame')} · {framePage + 1}/{frames.length}</span>
         <IconButton size="sm" icon="chevron-right" label={t('app.whiteboards.frame_next')} disabledReason={framePage < frames.length - 1 ? undefined : t('app.whiteboards.frame_last')} onclick={() => showFrame(framePage + 1)} />
-      </div>
+      </FloatingBar>
     {/if}
 
     {#if remaining || voting}
       <!-- The session bar: the running timer and vote, the same for everyone (W-5). -->
-      <div class="island session-bar" class:below={!isSessionLevel} class:beside={!isSessionLevel && !!sheet && sheet !== 'frames' && !viewport.isCompact} role="group" aria-label={t('app.whiteboards.session')} data-board-session bind:offsetWidth={sessionWidth}>
+      <FloatingBar class={['island session-bar', !isSessionLevel && 'below', !isSessionLevel && !!sheet && sheet !== 'frames' && !viewport.isCompact && 'beside']} role="group" aria-label={t('app.whiteboards.session')} data-board-session bind:width={sessionWidth}>
         {#if remaining}
           <Icon name="timer" size="sm" />
           <span class="clock" class:over={!remaining.running && remaining.left === 0} role="timer" aria-label={t('app.whiteboards.timer_left', { time: clockOf(remaining.left) })}>{clockOf(remaining.left)}</span>
@@ -2005,21 +2003,21 @@
             <Button size="sm" tone="subtle" onclick={() => session.clearVoting()}>{t('app.whiteboards.voting_clear')}</Button>
           {/if}
         {/if}
-      </div>
+      </FloatingBar>
     {/if}
 
     {#if isFileHintShown}
-      <div class="island file-hint" role="status" data-board-file-hint>
+      <FloatingBar class="island file-hint" role="status" data-board-file-hint>
         <div><strong>{t('app.whiteboards.file_hint_title')}</strong><p>{t('app.whiteboards.file_hint')}</p></div>
         <IconButton icon="x" size="sm" tone="subtle" label={t('app.whiteboards.file_hint_close')} onclick={() => (isFileHintShown = false)} />
-      </div>
+      </FloatingBar>
     {/if}
-    <div class="island bottom-left" role="group" aria-label={t('app.whiteboards.history_steps')}>
-      {#if writable}
+    {#if writable}
+      <FloatingBar class="island bottom-left" role="group" aria-label={t('app.whiteboards.history_steps')}>
         <IconButton size="sm" icon="undo-2" label={t('app.whiteboards.undo')} aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo} />
         {#if !viewport.isCompact}<IconButton size="sm" icon="redo-2" label={t('app.whiteboards.redo')} aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" disabledReason={canRedo ? undefined : t('app.whiteboards.nothing_to_redo')} onclick={redo} />{/if}
-      {/if}
-    </div>
+      </FloatingBar>
+    {/if}
 
     {#if mode === 'surface'}
       <div class="dock" role="toolbar" aria-label={t('app.whiteboards.tools')} bind:this={toolbar} data-board-tools>
@@ -2085,7 +2083,7 @@
           <rect class="mini-view" x={map.view.left} y={map.view.top} width={map.view.width} height={map.view.height} />
         </svg>
       {/if}
-      <div class="island zoombar" role="group" aria-label={t('app.whiteboards.view_controls')} bind:this={zoombar}>
+      <FloatingBar class="island zoombar" role="group" aria-label={t('app.whiteboards.view_controls')} bind:element={zoombar}>
         {#if !viewport.isCompact && view.width >= 1100}
           <Button size="sm" tone="subtle" icon="frame" aria-pressed={sheet === 'frames'} data-board-sheet="frames" onclick={() => toggleSheet('frames')}>{t('app.whiteboards.tool_frame')}</Button>
         {:else if !viewport.isCompact}
@@ -2096,7 +2094,7 @@
         <IconButton size="sm" icon="plus" label={t('app.whiteboards.zoom_in')} onclick={() => (view = zoomAt(view, { x: view.width / 2, y: view.height / 2 }, 1.25))} />
         <IconButton size="sm" icon="maximize-2" label={t('app.whiteboards.fit')} onclick={() => { const all = bounds(elements); if (all) view = fit(view, all); }} />
         <IconButton size="sm" icon="map" tone="subtle" aria-pressed={isMapShown} label={t('app.whiteboards.minimap')} onclick={() => (isMapShown = !isMapShown)} />
-      </div>
+      </FloatingBar>
     </div>
 
     {#if sheet}
@@ -2328,9 +2326,11 @@
   /* Following someone: a frame in their colour round the board (W-5). */
   .stage.following { box-shadow: inset 0 0 0 var(--bw-ring) var(--follow); }
 
-  .file-hint { inset-inline-start: var(--sp-200); inset-block-end: calc(var(--sp-1000) + var(--sp-200)); align-items: start; max-inline-size: calc(var(--sp-1600) * 5); padding: var(--sp-150); }
-  .file-hint p { margin: var(--sp-050) 0 0; color: var(--text-secondary); font-size: var(--fs-090); }
-  .island, .dock, .fan, .selbar {
+  .board :global(.file-hint) { inset-inline-start: var(--sp-200); inset-block-end: calc(var(--sp-1000) + var(--sp-200)); align-items: start; max-inline-size: calc(var(--sp-1600) * 5); padding: var(--sp-150); }
+  .board :global(.file-hint p) { margin: var(--sp-050) 0 0; color: var(--text-secondary); font-size: var(--fs-090); }
+  /* The islands and the selection bar are the one FloatingBar; here only where they stand. */
+  .board :global(:is(.island, .selbar)) { position: absolute; }
+  .dock, .fan {
     position: absolute;
     display: flex;
     align-items: center;
@@ -2342,10 +2342,9 @@
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
   }
-  .top-left { inset-block-start: var(--sp-200); inset-inline-start: var(--sp-200); max-inline-size: calc(50% - var(--sp-300)); }
-  .top-right { inset-block-start: var(--sp-200); inset-inline-end: var(--sp-200); }
-  .bottom-left { inset-block-end: var(--sp-200); inset-inline-start: var(--sp-200); }
-  .bottom-left:empty { display: none; }
+  .board :global(.top-left) { inset-block-start: var(--sp-200); inset-inline-start: var(--sp-200); max-inline-size: calc(50% - var(--sp-300)); }
+  .board :global(.top-right) { inset-block-start: var(--sp-200); inset-inline-end: var(--sp-200); }
+  .board :global(.bottom-left) { inset-block-end: var(--sp-200); inset-inline-start: var(--sp-200); }
   .name { min-inline-size: 0; flex: 0 1 auto; padding-inline: var(--sp-050); }
   /* A long status gives way before the board's name does. */
   .status { display: inline-block; flex: 0 100 auto; min-inline-size: 0; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
@@ -2385,7 +2384,7 @@
     font-size: var(--fs-075);
     font-weight: var(--fw-semibold);
   }
-  .session-bar {
+  .board :global(.session-bar) {
     inset-block-start: var(--sp-200);
     inset-inline: 0;
     margin-inline: auto;
@@ -2394,14 +2393,14 @@
     gap: var(--sp-100);
     padding-inline: var(--sp-150);
   }
-  .session-bar.below { inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200)); }
+  .board :global(.session-bar.below) { inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200)); }
   /* Below the islands an open sheet stands at the same height: the bar centres in the room beside it. */
-  .session-bar.beside {
+  .board :global(.session-bar.beside) {
     inset-inline-end: calc(var(--sp-200) + min(var(--layout-pane-width), calc(100% - 2 * var(--sp-200))) + var(--sp-200));
     max-inline-size: calc(100% - min(var(--layout-pane-width), calc(100% - 2 * var(--sp-200))) - 4 * var(--sp-200));
   }
   .vote-words { display: grid; line-height: var(--lh-tight); }
-  .pager { inset-block-start: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-200)); inset-inline: 0; margin-inline: auto; inline-size: fit-content; }
+  .board :global(.pager) { inset-block-start: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-200)); inset-inline: 0; margin-inline: auto; inline-size: fit-content; }
   .pager-name { font-size: var(--fs-075); padding-inline: var(--sp-050); }
 
   /* The dock at the foot, grouped, each tool with its key (W-2). */
@@ -2444,7 +2443,7 @@
     justify-items: end;
     gap: var(--sp-100);
   }
-  .corner .island { position: static; }
+  .corner :global(.island) { position: static; }
   /* On a tablet the dock takes the foot's middle and the corner stands above it. */
   .corner.raised { inset-block-end: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-300)); }
   .touch-hint {
@@ -2476,8 +2475,8 @@
   }
 
   /* The bar above the selection (W-4), its foot on the selection's top edge. */
-  .selbar { translate: -50% -100%; z-index: 1; white-space: nowrap; }
-  .selbar.below { translate: -50% 0; }
+  .board :global(.selbar) { translate: -50% -100%; z-index: 1; white-space: nowrap; }
+  .board :global(.selbar.below) { translate: -50% 0; }
   /* The bar's one primary act, tinted as the brand while its form is shut (scene wsel). */
   .bar-words { padding-inline: var(--sp-050); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .make {
@@ -2563,11 +2562,11 @@
 
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
-    .top-left { inset-block-start: var(--sp-100); inset-inline-start: var(--sp-100); max-inline-size: calc(100% - 2 * var(--sp-100) - var(--sp-1600)); }
-    .top-right { inset-block-start: var(--sp-100); inset-inline-end: var(--sp-100); }
+    .board :global(.top-left) { inset-block-start: var(--sp-100); inset-inline-start: var(--sp-100); max-inline-size: calc(100% - 2 * var(--sp-100) - var(--sp-1600)); }
+    .board :global(.top-right) { inset-block-start: var(--sp-100); inset-inline-end: var(--sp-100); }
     .status { display: none; }
     .dock { inset-block-end: var(--sp-100); }
-    .bottom-left { display: none; }
+    .board :global(.bottom-left) { display: none; }
     .corner { inset-block-end: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-300)); inset-inline-end: var(--sp-100); }
     .sheet {
       inset-block: auto 0;
