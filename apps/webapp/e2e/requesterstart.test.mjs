@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// A requester who holds nothing but portals (UC-SVC-05): with one portal they start in it, with
-// several the start and the navigation list them - and neither says they have no access.
+// A requester who holds nothing but portals (UC-SVC-05): they start in a portal, in the portal's
+// frame, and with several choose the others at the top (check 11) - none says they have no access.
 // Chromium only.
 
 import { test } from 'node:test';
@@ -55,17 +55,17 @@ test('chromium: a requester with one portal starts in it', async (t) => {
   assert.equal(await page.getByText('still has to give you access').count(), 0, 'the portal says there is no access');
 });
 
-test('chromium: a requester with several portals finds them on the start and in the navigation', async (t) => {
+test('chromium: a requester with several portals starts in the first and chooses the others at the top', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page } = await requester(browser, [DESK, FACILITIES]);
   t.after(() => context.close());
-
   await page.goto(`${served.origin}/`);
-  await page.getByText('This is where you get help').waitFor({ timeout: 15_000 });
+  // The portal frame alone (PO-2): no sidebar, the portals chosen at the top.
+  await page.waitForURL(`**/portal/${DESK.collection_id}`, { timeout: 15_000 });
   assert.equal(await page.getByText('still has to give you access').count(), 0);
-  const nav = page.locator('aside.sidenav').getByRole('list', { name: 'Your portals' });
-  assert.equal(await nav.getByText(FACILITIES.name).count(), 1, 'the navigation does not list the portal');
-  await page.getByRole('button', { name: FACILITIES.name }).click();
+  assert.equal(await page.locator('aside.sidenav').count(), 0, 'an outsider has no sidebar');
+  await page.locator('[data-portal-switch]').click();
+  await page.getByRole('menuitem', { name: FACILITIES.name }).click();
   await page.waitForURL(`**/portal/${FACILITIES.collection_id}`, { timeout: 5_000 });
 });
