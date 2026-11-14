@@ -533,6 +533,7 @@ var restDoors = map[string]restDoor{
 	"readDashboard":                     {UseCase: "ReadDashboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboardDigest":               {UseCase: "ReadDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboardFigures":              {UseCase: "ReadDashboardFigures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readDocumentServer":                {UseCase: "ReadDocumentServer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEncryptionStatus":              {UseCase: "ReadEncryptionStatus", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEntryApprovals":                {UseCase: "ReadEntryApprovals", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readEntryRequester":                {UseCase: "ReadEntryRequester", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -710,6 +711,7 @@ var restDoors = map[string]restDoor{
 	"setDashboardDigest":                {UseCase: "SetDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour", "weekday"}},
 	"setDependencyTiming":               {UseCase: "SetDependencyTiming", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"lag_days"}},
 	"setDeskLogo":                       {UseCase: "SetDeskLogo", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setDocumentServer":                 {UseCase: "SetDocumentServer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setDueDate":                        {UseCase: "SetDueDate", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryEstimate":                  {UseCase: "SetEntryEstimate", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setEntryScheduling":                {UseCase: "SetEntryScheduling", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1290,6 +1292,15 @@ func (c *RestController) CheckRules(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["checkRules"], usecase.Input{}, nil, nil, answerBy(checkedRulesResponse))
 }
 
+// CheckWopiFileInfo answers GET /wopi/files/{mediaId} by the adapter in Wopi, which holds the connection.
+func (c *RestController) CheckWopiFileInfo(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.CheckWopiFileInfoParams) {
+	if c.Wopi == nil {
+		c.pending.CheckWopiFileInfo(w, r, mediaId, params)
+		return
+	}
+	c.Wopi.CheckWopiFileInfo(w, r, mediaId, params)
+}
+
 // ChooseAiSource answers PUT /ai-source by the generated mapping.
 func (c *RestController) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
 	var body openapi.ChooseAiSourceJSONRequestBody
@@ -1526,6 +1537,15 @@ func (c *RestController) ConnectMailbox(w http.ResponseWriter, r *http.Request, 
 func (c *RestController) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params openapi.ConvertJumbleEntryParams) {
 	var body openapi.ConvertJumbleEntryJSONRequestBody
 	c.door(w, r, restDoors["convertJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, &body, answerBy(jumbleEntryResponse))
+}
+
+// ConvertMediaToPdf answers GET /media/{mediaId}:pdf by the adapter in Wopi, which holds the connection.
+func (c *RestController) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId) {
+	if c.Wopi == nil {
+		c.pending.ConvertMediaToPdf(w, r, mediaId)
+		return
+	}
+	c.Wopi.ConvertMediaToPdf(w, r, mediaId)
 }
 
 // CopyCustomFieldHere answers POST /custom-fields/{fieldId}:copy-here by the generated mapping.
@@ -2752,6 +2772,15 @@ func (c *RestController) GetWebhookSubscription(w http.ResponseWriter, r *http.R
 	c.door(w, r, restDoors["getWebhookSubscription"], usecase.Input{"webhook_id": webhookId.String()}, nil, nil, answerBy(webhookResponse))
 }
 
+// GetWopiFile answers GET /wopi/files/{mediaId}/contents by the adapter in Wopi, which holds the connection.
+func (c *RestController) GetWopiFile(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.GetWopiFileParams) {
+	if c.Wopi == nil {
+		c.pending.GetWopiFile(w, r, mediaId, params)
+		return
+	}
+	c.Wopi.GetWopiFile(w, r, mediaId, params)
+}
+
 // GetWorkItem answers GET /items/{itemId} by the generated mapping.
 func (c *RestController) GetWorkItem(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.GetWorkItemParams) {
 	c.door(w, r, restDoors["getWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, answerBy(workItemResponse))
@@ -3773,6 +3802,15 @@ func (c *RestController) LocateOidcFlow(w http.ResponseWriter, r *http.Request) 
 	c.door(w, r, restDoors["locateOidcFlow"], usecase.Input{}, nil, &body, &answer)
 }
 
+// LockWopiFile answers POST /wopi/files/{mediaId} by the adapter in Wopi, which holds the connection.
+func (c *RestController) LockWopiFile(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.LockWopiFileParams) {
+	if c.Wopi == nil {
+		c.pending.LockWopiFile(w, r, mediaId, params)
+		return
+	}
+	c.Wopi.LockWopiFile(w, r, mediaId, params)
+}
+
 // LogTime answers POST /time-records by the generated mapping.
 func (c *RestController) LogTime(w http.ResponseWriter, r *http.Request) {
 	var body openapi.LogTimeJSONRequestBody
@@ -4092,6 +4130,15 @@ func (c *RestController) PurgeWorkItem(w http.ResponseWriter, r *http.Request, i
 	c.door(w, r, restDoors["purgeWorkItem"], usecase.Input{"item_id": itemId.String()}, params, nil, nil)
 }
 
+// PutWopiFile answers POST /wopi/files/{mediaId}/contents by the adapter in Wopi, which holds the connection.
+func (c *RestController) PutWopiFile(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.PutWopiFileParams) {
+	if c.Wopi == nil {
+		c.pending.PutWopiFile(w, r, mediaId, params)
+		return
+	}
+	c.Wopi.PutWopiFile(w, r, mediaId, params)
+}
+
 // QueryItems answers POST /items:query by the generated mapping.
 func (c *RestController) QueryItems(w http.ResponseWriter, r *http.Request) {
 	var body openapi.QueryItemsJSONRequestBody
@@ -4263,6 +4310,12 @@ func (c *RestController) ReadDashboardDigest(w http.ResponseWriter, r *http.Requ
 func (c *RestController) ReadDashboardFigures(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId) {
 	var answer openapi.DashboardFigures
 	c.door(w, r, restDoors["readDashboardFigures"], usecase.Input{"dashboard_id": dashboardId.String()}, nil, nil, &answer)
+}
+
+// ReadDocumentServer answers GET /media:document-server by the generated mapping.
+func (c *RestController) ReadDocumentServer(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.DocumentServer
+	c.door(w, r, restDoors["readDocumentServer"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ReadEncryptionStatus answers GET /admin/encryption by the generated mapping.
@@ -5347,6 +5400,13 @@ func (c *RestController) SetDeskLogo(w http.ResponseWriter, r *http.Request, con
 	c.door(w, r, restDoors["setDeskLogo"], usecase.Input{"container_id": containerId.String()}, nil, &body, &answer)
 }
 
+// SetDocumentServer answers PUT /media:document-server by the generated mapping.
+func (c *RestController) SetDocumentServer(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetDocumentServerJSONRequestBody
+	var answer openapi.DocumentServer
+	c.door(w, r, restDoors["setDocumentServer"], usecase.Input{}, nil, &body, &answer)
+}
+
 // SetDueDate answers PUT /items/{itemId}/due by the generated mapping.
 func (c *RestController) SetDueDate(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetDueDateParams) {
 	var body openapi.SetDueDateJSONRequestBody
@@ -5607,6 +5667,15 @@ func (c *RestController) StartJumbleIntake(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	c.Intake.StartJumbleIntake(w, r, token)
+}
+
+// StartMediaEditing answers POST /media/{mediaId}:edit by the adapter in Wopi, which holds the connection.
+func (c *RestController) StartMediaEditing(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId) {
+	if c.Wopi == nil {
+		c.pending.StartMediaEditing(w, r, mediaId)
+		return
+	}
+	c.Wopi.StartMediaEditing(w, r, mediaId)
 }
 
 // StartOidcSignIn answers POST /auth/oidc:start by the generated mapping.

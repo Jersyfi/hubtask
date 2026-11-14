@@ -42,6 +42,7 @@ var privateHubExemptions = map[string]string{
 	"AiTranslate": asksOnItsPath,
 	// Reads no hub at all: the question and the query's keys go to the provider, nothing else.
 	"AskQuery":                     "reads nothing of a hub",
+	"ReadDocumentServer":           "the workspace's document server: a kind and an origin, nothing of a hub",
 	"ExportView":                   asksOnItsPath,
 	"ExportItems":                  asksOnItsPath,
 	"GetRecurrence":                asksOnItsPath,

@@ -4606,6 +4606,33 @@ func (e DeprecatedFieldIn) Valid() bool {
 	}
 }
 
+// Defines values for DocumentServerKind.
+const (
+	DocumentServerKindCOLLABORAONLINE DocumentServerKind = "COLLABORA_ONLINE"
+	DocumentServerKindEUROOFFICE      DocumentServerKind = "EURO_OFFICE"
+	DocumentServerKindMICROSOFT365    DocumentServerKind = "MICROSOFT_365"
+	DocumentServerKindNONE            DocumentServerKind = "NONE"
+	DocumentServerKindONLYOFFICE      DocumentServerKind = "ONLYOFFICE"
+)
+
+// Valid indicates whether the value is a known member of the DocumentServerKind enum.
+func (e DocumentServerKind) Valid() bool {
+	switch e {
+	case DocumentServerKindCOLLABORAONLINE:
+		return true
+	case DocumentServerKindEUROOFFICE:
+		return true
+	case DocumentServerKindMICROSOFT365:
+		return true
+	case DocumentServerKindNONE:
+		return true
+	case DocumentServerKindONLYOFFICE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DropAnswerOutcome.
 const (
 	DropAnswerOutcomeCHOOSE    DropAnswerOutcome = "CHOOSE"
@@ -17963,6 +17990,17 @@ type DeviceListEntryState struct {
 	Host        string `json:"host"`
 }
 
+// DocumentServer defines model for DocumentServer.
+type DocumentServer struct {
+	Kind DocumentServerKind `json:"kind"`
+
+	// Url The server's https origin; absent for NONE.
+	Url *string `json:"url,omitempty"`
+}
+
+// DocumentServerKind defines model for DocumentServer.Kind.
+type DocumentServerKind string
+
 // DropAnswer defines model for DropAnswer.
 type DropAnswer struct {
 	Item    WorkItem          `json:"item"`
@@ -21164,6 +21202,19 @@ type ManagedAccountCreated struct {
 	StartPassword string `json:"start_password"`
 }
 
+// MediaEditingSession defines model for MediaEditingSession.
+type MediaEditingSession struct {
+	// AccessToken Shown once, to hand to the document server; never logged.
+	AccessToken string `json:"access_token"`
+
+	// AccessTokenTtl When the token expires, in milliseconds since the epoch - the protocol's unit.
+	AccessTokenTtl int64          `json:"access_token_ttl"`
+	Server         DocumentServer `json:"server"`
+
+	// WopiSrc The file's WOPI address the document server reads and saves through.
+	WopiSrc string `json:"wopi_src"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -21176,12 +21227,18 @@ type MediaObject struct {
 	// Download Where to fetch the bytes, present on a GET once the object is READY.
 	Download *MediaTransfer `json:"download,omitempty"`
 
+	// Editable Whether this person may open the file for editing in the workspace's document server (`:edit`): an office file, a server chosen, and a right to change what holds it.
+	Editable *bool `json:"editable,omitempty"`
+
 	// FileName The name the file arrived under, for the download - never a storage path.
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 
 	// Inline Whether a browser may decode the bytes itself from the download URL: a READY image, audio or video in a format whose decoding executes nothing. Every other file is fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or downloaded; none is ever opened as a document.
 	Inline *bool `json:"inline,omitempty"`
+
+	// Office Whether the file is an office document - shown as a PDF converted by the workspace's document server (`:pdf`), or as a card where there is none.
+	Office *bool `json:"office,omitempty"`
 
 	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
@@ -27898,6 +27955,21 @@ type WhiteboardVersionRead struct {
 	Title        string              `json:"title"`
 }
 
+// WopiFileInfo defines model for WopiFileInfo.
+type WopiFileInfo struct {
+	BaseFileName            string `json:"BaseFileName"`
+	OwnerId                 string `json:"OwnerId"`
+	ReadOnly                *bool  `json:"ReadOnly,omitempty"`
+	Size                    int64  `json:"Size"`
+	SupportsGetLock         *bool  `json:"SupportsGetLock,omitempty"`
+	SupportsLocks           *bool  `json:"SupportsLocks,omitempty"`
+	SupportsUpdate          *bool  `json:"SupportsUpdate,omitempty"`
+	UserCanNotWriteRelative *bool  `json:"UserCanNotWriteRelative,omitempty"`
+	UserCanWrite            *bool  `json:"UserCanWrite,omitempty"`
+	UserId                  string `json:"UserId"`
+	Version                 string `json:"Version"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -28820,6 +28892,9 @@ type WeekOfTimesheet = openapi_types.Date
 
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
+
+// WopiAccessToken defines model for WopiAccessToken.
+type WopiAccessToken = string
 
 // ScimError A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimError = ScimErrorBody
@@ -31844,6 +31919,30 @@ type MoveWhiteboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CheckWopiFileInfoParams defines parameters for CheckWopiFileInfo.
+type CheckWopiFileInfoParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// LockWopiFileParams defines parameters for LockWopiFile.
+type LockWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// GetWopiFileParams defines parameters for GetWopiFile.
+type GetWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// PutWopiFileParams defines parameters for PutWopiFile.
+type PutWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -32686,6 +32785,9 @@ type SaveMailSettingsJSONRequestBody = MailSettings
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
+
+// SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
+type SetDocumentServerJSONRequestBody = DocumentServer
 
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
@@ -35259,6 +35361,18 @@ type ServerInterface interface {
 
 	// (PUT /media/{mediaId}:content)
 	UploadMediaContent(w http.ResponseWriter, r *http.Request, mediaId MediaId, params UploadMediaContentParams)
+
+	// (POST /media/{mediaId}:edit)
+	StartMediaEditing(w http.ResponseWriter, r *http.Request, mediaId MediaId)
+
+	// (GET /media/{mediaId}:pdf)
+	ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, mediaId MediaId)
+	// ReadDocumentServer The workspace's document server
+	// (GET /media:document-server)
+	ReadDocumentServer(w http.ResponseWriter, r *http.Request)
+	// SetDocumentServer Choose the workspace's document server
+	// (PUT /media:document-server)
+	SetDocumentServer(w http.ResponseWriter, r *http.Request)
 	// ListMemberships Who holds a role at a scope
 	// (GET /memberships)
 	ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams)
@@ -36138,6 +36252,18 @@ type ServerInterface interface {
 	// RestoreWhiteboard Bring a whiteboard back from the trash
 	// (POST /whiteboards/{whiteboardId}:restore)
 	RestoreWhiteboard(w http.ResponseWriter, r *http.Request, whiteboardId WhiteboardId)
+
+	// (GET /wopi/files/{mediaId})
+	CheckWopiFileInfo(w http.ResponseWriter, r *http.Request, mediaId MediaId, params CheckWopiFileInfoParams)
+
+	// (POST /wopi/files/{mediaId})
+	LockWopiFile(w http.ResponseWriter, r *http.Request, mediaId MediaId, params LockWopiFileParams)
+
+	// (GET /wopi/files/{mediaId}/contents)
+	GetWopiFile(w http.ResponseWriter, r *http.Request, mediaId MediaId, params GetWopiFileParams)
+
+	// (POST /wopi/files/{mediaId}/contents)
+	PutWopiFile(w http.ResponseWriter, r *http.Request, mediaId MediaId, params PutWopiFileParams)
 	// SetWorkflowScheme Use a workflow in a hub or collection
 	// (PUT /workflow-scheme)
 	SetWorkflowScheme(w http.ResponseWriter, r *http.Request)
@@ -56058,6 +56184,86 @@ func (siw *ServerInterfaceWrapper) UploadMediaContent(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// StartMediaEditing operation middleware
+func (siw *ServerInterfaceWrapper) StartMediaEditing(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartMediaEditing(w, r, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConvertMediaToPdf operation middleware
+func (siw *ServerInterfaceWrapper) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConvertMediaToPdf(w, r, mediaId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadDocumentServer operation middleware
+func (siw *ServerInterfaceWrapper) ReadDocumentServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadDocumentServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetDocumentServer operation middleware
+func (siw *ServerInterfaceWrapper) SetDocumentServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetDocumentServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMemberships operation middleware
 func (siw *ServerInterfaceWrapper) ListMemberships(w http.ResponseWriter, r *http.Request) {
 
@@ -65135,6 +65341,174 @@ func (siw *ServerInterfaceWrapper) RestoreWhiteboard(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// CheckWopiFileInfo operation middleware
+func (siw *ServerInterfaceWrapper) CheckWopiFileInfo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckWopiFileInfoParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckWopiFileInfo(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LockWopiFile operation middleware
+func (siw *ServerInterfaceWrapper) LockWopiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LockWopiFileParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LockWopiFile(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetWopiFile operation middleware
+func (siw *ServerInterfaceWrapper) GetWopiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetWopiFileParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetWopiFile(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutWopiFile operation middleware
+func (siw *ServerInterfaceWrapper) PutWopiFile(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mediaId" -------------
+	var mediaId MediaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mediaId", r.PathValue("mediaId"), &mediaId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mediaId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutWopiFileParams
+
+	// ------------- Required query parameter "access_token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "access_token", r.URL.Query(), &params.AccessToken, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "access_token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "access_token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutWopiFile(w, r, mediaId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetWorkflowScheme operation middleware
 func (siw *ServerInterfaceWrapper) SetWorkflowScheme(w http.ResponseWriter, r *http.Request) {
 
@@ -66310,6 +66684,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:confirm", wrapper.ConfirmMediaUpload)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:pdf", wrapper.ConvertMediaToPdf)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:edit", wrapper.StartMediaEditing)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media:document-server", wrapper.ReadDocumentServer)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media:document-server", wrapper.SetDocumentServer)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/wopi/files/{mediaId}", wrapper.CheckWopiFileInfo)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/wopi/files/{mediaId}", wrapper.LockWopiFile)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/wopi/files/{mediaId}/contents", wrapper.GetWopiFile)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/wopi/files/{mediaId}/contents", wrapper.PutWopiFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/stream", wrapper.StreamChanges)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/probe", wrapper.ProbeRealtime)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/realtime/documents/{kind}/{documentId}", wrapper.OpenRealtimeDocument)

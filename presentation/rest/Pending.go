@@ -1041,6 +1041,30 @@ func (pending) DownloadMediaContent(w http.ResponseWriter, r *http.Request, _ op
 	notAvailable(w, r)
 }
 
+func (pending) StartMediaEditing(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, _ openapi.MediaId) {
+	notAvailable(w, r)
+}
+
+func (pending) CheckWopiFileInfo(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.CheckWopiFileInfoParams) {
+	notAvailable(w, r)
+}
+
+func (pending) LockWopiFile(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.LockWopiFileParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetWopiFile(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.GetWopiFileParams) {
+	notAvailable(w, r)
+}
+
+func (pending) PutWopiFile(w http.ResponseWriter, r *http.Request, _ openapi.MediaId, _ openapi.PutWopiFileParams) {
+	notAvailable(w, r)
+}
+
 func (pending) DownloadWorkspaceArchive(w http.ResponseWriter, r *http.Request, _ openapi.DownloadWorkspaceArchiveParams) {
 	notAvailable(w, r)
 }
@@ -2919,6 +2943,8 @@ func (pending) DeletePagePublicLink(w http.ResponseWriter, r *http.Request, _ op
 }
 
 func (pending) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) ReadDocumentServer(w http.ResponseWriter, r *http.Request)    { notAvailable(w, r) }
+func (pending) SetDocumentServer(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
 
 func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

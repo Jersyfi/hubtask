@@ -951,6 +951,18 @@ func (q *Queries) ClearMediaObject(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearMediaVersions = `-- name: ClearMediaVersions :execrows
+DELETE FROM media_version
+`
+
+func (q *Queries) ClearMediaVersions(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearMediaVersions)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearMembership = `-- name: ClearMembership :execrows
 DELETE FROM membership
 `
@@ -2675,6 +2687,21 @@ SELECT EXISTS (SELECT 1 FROM media_object WHERE id = ($1::jsonb->>'id')::uuid) A
 
 func (q *Queries) HoldsMediaObject(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsMediaObject, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsMediaVersion = `-- name: HoldsMediaVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM media_version
+  WHERE media_id = ($1::jsonb->>'media_id')::uuid
+    AND earlier_media_id = ($1::jsonb->>'earlier_media_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsMediaVersion(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsMediaVersion, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6399,6 +6426,24 @@ type ImportMediaObjectParams struct {
 
 func (q *Queries) ImportMediaObject(ctx context.Context, arg ImportMediaObjectParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importMediaObject, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importMediaVersion = `-- name: ImportMediaVersion :execrows
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+SELECT r.tenant_id, r.media_id, r.number, r.earlier_media_id, r.saved_by, r.saved_at
+FROM jsonb_populate_record(
+  NULL::media_version,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, media_id, number) DO NOTHING
+`
+
+func (q *Queries) ImportMediaVersion(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importMediaVersion, payload)
 	if err != nil {
 		return 0, err
 	}

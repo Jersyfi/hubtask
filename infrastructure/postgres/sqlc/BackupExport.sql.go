@@ -3667,6 +3667,53 @@ func (q *Queries) ExportMediaObjects(ctx context.Context, arg ExportMediaObjects
 	return items, nil
 }
 
+const exportMediaVersions = `-- name: ExportMediaVersions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (v.media_id::text || '/' || v.earlier_media_id::text)::text AS record_id,
+         v.saved_at AS changed_at,
+         (to_jsonb(v) - 'tenant_id')::jsonb AS payload,
+         v.media_id AS key_1,
+         v.earlier_media_id AS key_2
+  FROM media_version v
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportMediaVersionsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportMediaVersionsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportMediaVersions(ctx context.Context, arg ExportMediaVersionsParams) ([]ExportMediaVersionsRow, error) {
+	rows, err := q.db.Query(ctx, exportMediaVersions, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportMediaVersionsRow{}
+	for rows.Next() {
+		var i ExportMediaVersionsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportMemberships = `-- name: ExportMemberships :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

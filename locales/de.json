@@ -15848,5 +15848,19 @@
   "app.whiteboards.file_pages": "{count} Seiten",
   "app.whiteboards.file_hint_title": "Datei ablegen",
   "app.whiteboards.file_hint": "Bilder (PNG, JPG, GIF, WebP, SVG) liegen als Bild auf der Fläche. PDF, Office, Markdown, Video und Archive werden zur Karte mit Vorschau der ersten Seite; Doppelklick öffnet die Dateiansicht.",
-  "app.whiteboards.file_hint_close": "Hinweis schließen"
+  "app.whiteboards.file_hint_close": "Hinweis schließen",
+  "dependency.document_server_refused": "Der Dokumentenserver des Arbeitsbereichs hat nicht wie erwartet geantwortet. Versuche es erneut oder bitte eine Administration, den Server zu prüfen.",
+  "media.agent_decides_document_server_not": "Ein Agent kann den Dokumentenserver nicht wählen; das tut eine Person mit STRUCTURE im Arbeitsbereich.",
+  "media.conversion_unavailable": "Dieser Arbeitsbereich hat keinen Dokumentenserver, der diese Datei zeigen kann. Lade sie stattdessen herunter.",
+  "media.conversion_failed": "Die Datei konnte nicht zur Ansicht umgewandelt werden. Lade sie stattdessen herunter.",
+  "media.document_server_none": "Dieser Arbeitsbereich hat keinen Dokumentenserver, in dem Office-Dateien bearbeitet werden.",
+  "media.edit_forbidden": "Du darfst diese Datei lesen, aber nicht ändern.",
+  "media.not_an_office_file": "Nur Office-Dateien öffnen sich im Dokumentenserver.",
+  "media.document_server_kind": "Wähle keinen oder einen der aufgeführten Dokumentenserver.",
+  "media.document_server_url": "Gib die Adresse des Servers mit https:// an, ohne Anmeldung, Abfrage oder Fragment.",
+  "media.document_server_read": "Dokumentenserver gelesen",
+  "media.document_server_set": "Dokumentenserver geändert",
+  "media.edit": "Datei zum Bearbeiten geöffnet",
+  "wopi.operation_unknown": "Der Dokumentenserver hat etwas verlangt, das dieser Arbeitsbereich nicht anbietet.",
+  "wopi.token_invalid": "Der Link zu dieser Datei ist abgelaufen. Öffne die Datei erneut."
 }

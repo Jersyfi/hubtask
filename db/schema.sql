@@ -2353,7 +2353,7 @@ ALTER TABLE media_version ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media_version FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON media_version
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT ON media_version TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON media_version TO hubtask_app;
 -- A page's pictures and files (migration 0272, UC-DOC-14).
 CREATE TABLE page_media (
   tenant_id uuid NOT NULL,

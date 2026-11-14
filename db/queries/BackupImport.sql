@@ -4327,3 +4327,22 @@ SELECT EXISTS (
 
 -- name: ClearPostFollow :execrows
 DELETE FROM post_follow;
+
+-- name: ImportMediaVersion :execrows
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+SELECT r.tenant_id, r.media_id, r.number, r.earlier_media_id, r.saved_by, r.saved_at
+FROM jsonb_populate_record(
+  NULL::media_version,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, media_id, number) DO NOTHING;
+
+-- name: HoldsMediaVersion :one
+SELECT EXISTS (
+  SELECT 1 FROM media_version
+  WHERE media_id = (sqlc.arg('payload')::jsonb->>'media_id')::uuid
+    AND earlier_media_id = (sqlc.arg('payload')::jsonb->>'earlier_media_id')::uuid
+) AS held;
+
+-- name: ClearMediaVersions :execrows
+DELETE FROM media_version;

@@ -602,6 +602,8 @@ func Descriptors() []usecase.Descriptor {
 		work.DetachMedia{}.Descriptor(),
 		mediaservice.ListAttachments{}.Descriptor(),
 		mediaservice.GetMedia{}.Descriptor(),
+		mediaservice.ReadDocumentServer{}.Descriptor(),
+		mediaservice.SetDocumentServer{}.Descriptor(),
 		mediaservice.DeleteMedia{}.Descriptor(),
 		backupservice.CreateBackupTarget{}.Descriptor(),
 		backupservice.DeleteBackupTarget{}.Descriptor(),

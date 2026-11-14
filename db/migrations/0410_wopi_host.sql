@@ -63,7 +63,7 @@ ALTER TABLE media_version FORCE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS tenant_isolation ON media_version;
 CREATE POLICY tenant_isolation ON media_version
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
-GRANT SELECT, INSERT ON media_version TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON media_version TO hubtask_app;
 
 -- +goose Down
 -- +goose StatementBegin

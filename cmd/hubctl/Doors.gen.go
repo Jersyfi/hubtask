@@ -1797,6 +1797,14 @@ var generatedCommands = []door{
 			{Name: "mediaId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"item_id"}},
+	{Group: "media", Verb: "document-server", OperationID: "readDocumentServer", Method: "GET", Path: "/media:document-server", Summary: "The workspace's document server",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"kind"}},
+	{Group: "media", Verb: "document-server set", OperationID: "setDocumentServer", Method: "PUT", Path: "/media:document-server", Summary: "Choose the workspace's document server",
+		Body: []doorParam{
+			{Name: "kind", Kind: "string", Help: "", Required: true},
+			{Name: "url", Kind: "string", Help: "The server's https origin; absent for NONE", Required: false},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"kind"}},
 	{Group: "module", Verb: "here", OperationID: "listContainerModules", Method: "GET", Path: "/containers/{containerId}/modules", Summary: "The modules on where a hub or a collection is",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},

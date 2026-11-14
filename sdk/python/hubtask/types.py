@@ -4814,6 +4814,29 @@ class CustomFieldValue(TypedDict, total=False):
     """One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither."""
     value: Required[Any]
 
+class DocumentServer(TypedDict, total=False):
+    kind: Required[Literal["NONE", "COLLABORA_ONLINE", "ONLYOFFICE", "EURO_OFFICE", "MICROSOFT_365"]]
+    url: str
+
+class MediaEditingSession(TypedDict, total=False):
+    access_token: Required[str]
+    access_token_ttl: Required[int]
+    wopi_src: Required[str]
+    server: Required["DocumentServer"]
+
+class WopiFileInfo(TypedDict, total=False):
+    BaseFileName: Required[str]
+    Size: Required[int]
+    OwnerId: Required[str]
+    UserId: Required[str]
+    Version: Required[str]
+    UserCanWrite: bool
+    ReadOnly: bool
+    SupportsLocks: bool
+    SupportsGetLock: bool
+    SupportsUpdate: bool
+    UserCanNotWriteRelative: bool
+
 class MediaObject(TypedDict, total=False):
     id: Required[str]
     file_name: str | None
@@ -4826,6 +4849,8 @@ class MediaObject(TypedDict, total=False):
     created_by: Required[str]
     created_at: Required[str]
     inline: bool
+    office: bool
+    editable: bool
     upload: "MediaTransfer" | Any
     download: "MediaTransfer" | Any
 

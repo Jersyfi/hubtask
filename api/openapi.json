@@ -33120,6 +33120,261 @@
         }
       }
     },
+    "/media/{mediaId}:pdf": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/MediaId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "convertMediaToPdf",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Wopi",
+        "description": "An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.\n",
+        "responses": {
+          "200": {
+            "description": "The PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/media/{mediaId}:edit": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/MediaId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "startMediaEditing",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Wopi",
+        "description": "Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.\n",
+        "responses": {
+          "200": {
+            "description": "The editing session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaEditingSession"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/media:document-server": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "readDocumentServer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "media document-server",
+        "summary": "The workspace's document server",
+        "description": "Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.\n",
+        "responses": {
+          "200": {
+            "description": "The choice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentServer"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "setDocumentServer",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "media document-server set",
+        "summary": "Choose the workspace's document server",
+        "description": "NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentServer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentServer"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/wopi/files/{mediaId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/MediaId"
+        },
+        {
+          "$ref": "#/components/parameters/WopiAccessToken"
+        }
+      ],
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "checkWopiFileInfo",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Wopi",
+        "security": [],
+        "description": "WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.\n",
+        "responses": {
+          "200": {
+            "description": "The file's information",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WopiFileInfo"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The token does not open this file"
+          },
+          "404": {
+            "description": "No such file, or not readable by the token's person"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "lockWopiFile",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Wopi",
+        "security": [],
+        "description": "WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.\n",
+        "responses": {
+          "200": {
+            "description": "Done; GetLock answers the lock in `X-WOPI-Lock`"
+          },
+          "401": {
+            "description": "The token does not open this file"
+          },
+          "409": {
+            "description": "Another lock holds the file"
+          }
+        }
+      }
+    },
+    "/wopi/files/{mediaId}/contents": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/MediaId"
+        },
+        {
+          "$ref": "#/components/parameters/WopiAccessToken"
+        }
+      ],
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "getWopiFile",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Wopi",
+        "security": [],
+        "description": "WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.",
+        "responses": {
+          "200": {
+            "description": "The bytes",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The token does not open this file"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "operationId": "putWopiFile",
+        "x-hubtask-rest": "delegated",
+        "x-hubtask-rest-to": "Wopi",
+        "security": [],
+        "description": "WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved; the new version in `X-WOPI-ItemVersion`"
+          },
+          "401": {
+            "description": "The token does not open this file"
+          },
+          "409": {
+            "description": "Another lock holds the file"
+          },
+          "413": {
+            "description": "Larger than the installation takes"
+          }
+        }
+      }
+    },
     "/stream": {
       "get": {
         "tags": [
@@ -37434,6 +37689,15 @@
         "schema": {
           "type": "string",
           "format": "uuid"
+        }
+      },
+      "WopiAccessToken": {
+        "name": "access_token",
+        "in": "query",
+        "required": true,
+        "description": "The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.\n",
+        "schema": {
+          "type": "string"
         }
       },
       "CollectionId": {
@@ -63381,6 +63645,102 @@
           }
         }
       },
+      "DocumentServer": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NONE",
+              "COLLABORA_ONLINE",
+              "ONLYOFFICE",
+              "EURO_OFFICE",
+              "MICROSOFT_365"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "description": "The server's https origin; absent for NONE."
+          }
+        }
+      },
+      "MediaEditingSession": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "access_token_ttl",
+          "wopi_src",
+          "server"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "description": "Shown once, to hand to the document server; never logged."
+          },
+          "access_token_ttl": {
+            "type": "integer",
+            "format": "int64",
+            "description": "When the token expires, in milliseconds since the epoch - the protocol's unit."
+          },
+          "wopi_src": {
+            "type": "string",
+            "description": "The file's WOPI address the document server reads and saves through."
+          },
+          "server": {
+            "$ref": "#/components/schemas/DocumentServer"
+          }
+        }
+      },
+      "WopiFileInfo": {
+        "type": "object",
+        "required": [
+          "BaseFileName",
+          "Size",
+          "OwnerId",
+          "UserId",
+          "Version"
+        ],
+        "properties": {
+          "BaseFileName": {
+            "type": "string"
+          },
+          "Size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "OwnerId": {
+            "type": "string"
+          },
+          "UserId": {
+            "type": "string"
+          },
+          "Version": {
+            "type": "string"
+          },
+          "UserCanWrite": {
+            "type": "boolean"
+          },
+          "ReadOnly": {
+            "type": "boolean"
+          },
+          "SupportsLocks": {
+            "type": "boolean"
+          },
+          "SupportsGetLock": {
+            "type": "boolean"
+          },
+          "SupportsUpdate": {
+            "type": "boolean"
+          },
+          "UserCanNotWriteRelative": {
+            "type": "boolean"
+          }
+        }
+      },
       "MediaObject": {
         "type": "object",
         "required": [
@@ -63456,6 +63816,14 @@
           "inline": {
             "type": "boolean",
             "description": "Whether a browser may decode the bytes itself from the download URL: a READY image, audio or video in a format whose decoding executes nothing. Every other file is fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or downloaded; none is ever opened as a document.\n"
+          },
+          "office": {
+            "type": "boolean",
+            "description": "Whether the file is an office document - shown as a PDF converted by the workspace's document server (`:pdf`), or as a card where there is none.\n"
+          },
+          "editable": {
+            "type": "boolean",
+            "description": "Whether this person may open the file for editing in the workspace's document server (`:edit`): an office file, a server chosen, and a right to change what holds it.\n"
           },
           "upload": {
             "oneOf": [

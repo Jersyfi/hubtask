@@ -82,6 +82,14 @@ type GetMedia struct {
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Editing answers whether the reader may open the file in the document server; nil answers
+	// no (UC-MED-06).
+	Editing Editability
+}
+
+// Editability is the WOPI host's answer to whether a reader may edit a file (WopiHost.Editable).
+type Editability interface {
+	Editable(ctx context.Context, actor appshared.ActorContext, object media.Object, served reach) (bool, error)
 }
 
 // MediaQuery is the input, typed.
@@ -94,6 +102,8 @@ type ViewedMedia struct {
 	// bytes worth handing out a capability for: nothing has judged them, and T-11 forbids serving
 	// what no sniff has decided the delivery of.
 	Download storage.Transfer
+	// Editable is whether the reader may open the file in the document server.
+	Editable bool
 }
 
 // Execute reads the object.
@@ -124,7 +134,13 @@ func (h GetMedia) Execute(
 	if err != nil {
 		return ViewedMedia{}, err
 	}
-	return ViewedMedia{Object: object, Download: download}, nil
+	editable := false
+	if h.Editing != nil {
+		if editable, err = h.Editing.Editable(ctx, actor, object, served); err != nil {
+			return ViewedMedia{}, err
+		}
+	}
+	return ViewedMedia{Object: object, Download: download, Editable: editable}, nil
 }
 
 // reach is what the object serves, for the permission question: the paths of the entries it covers
@@ -354,6 +370,7 @@ func mediaIDRequired() error {
 // capability was minted, and there is nothing to mint here.
 func viewedOutput(viewed ViewedMedia) usecase.Output {
 	out := mediaOutput(viewed.Object)
+	out["editable"] = viewed.Editable
 	if viewed.Download.URL != "" {
 		out["download"] = transferOutput(viewed.Download)
 	}

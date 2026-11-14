@@ -4612,6 +4612,33 @@ func (e DeprecatedFieldIn) Valid() bool {
 	}
 }
 
+// Defines values for DocumentServerKind.
+const (
+	DocumentServerKindCOLLABORAONLINE DocumentServerKind = "COLLABORA_ONLINE"
+	DocumentServerKindEUROOFFICE      DocumentServerKind = "EURO_OFFICE"
+	DocumentServerKindMICROSOFT365    DocumentServerKind = "MICROSOFT_365"
+	DocumentServerKindNONE            DocumentServerKind = "NONE"
+	DocumentServerKindONLYOFFICE      DocumentServerKind = "ONLYOFFICE"
+)
+
+// Valid indicates whether the value is a known member of the DocumentServerKind enum.
+func (e DocumentServerKind) Valid() bool {
+	switch e {
+	case DocumentServerKindCOLLABORAONLINE:
+		return true
+	case DocumentServerKindEUROOFFICE:
+		return true
+	case DocumentServerKindMICROSOFT365:
+		return true
+	case DocumentServerKindNONE:
+		return true
+	case DocumentServerKindONLYOFFICE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DropAnswerOutcome.
 const (
 	DropAnswerOutcomeCHOOSE    DropAnswerOutcome = "CHOOSE"
@@ -17969,6 +17996,17 @@ type DeviceListEntryState struct {
 	Host        string `json:"host"`
 }
 
+// DocumentServer defines model for DocumentServer.
+type DocumentServer struct {
+	Kind DocumentServerKind `json:"kind"`
+
+	// Url The server's https origin; absent for NONE.
+	Url *string `json:"url,omitempty"`
+}
+
+// DocumentServerKind defines model for DocumentServer.Kind.
+type DocumentServerKind string
+
 // DropAnswer defines model for DropAnswer.
 type DropAnswer struct {
 	Item    WorkItem          `json:"item"`
@@ -21170,6 +21208,19 @@ type ManagedAccountCreated struct {
 	StartPassword string `json:"start_password"`
 }
 
+// MediaEditingSession defines model for MediaEditingSession.
+type MediaEditingSession struct {
+	// AccessToken Shown once, to hand to the document server; never logged.
+	AccessToken string `json:"access_token"`
+
+	// AccessTokenTtl When the token expires, in milliseconds since the epoch - the protocol's unit.
+	AccessTokenTtl int64          `json:"access_token_ttl"`
+	Server         DocumentServer `json:"server"`
+
+	// WopiSrc The file's WOPI address the document server reads and saves through.
+	WopiSrc string `json:"wopi_src"`
+}
+
 // MediaObject defines model for MediaObject.
 type MediaObject struct {
 	Checksum *string `json:"checksum,omitempty"`
@@ -21182,12 +21233,18 @@ type MediaObject struct {
 	// Download Where to fetch the bytes, present on a GET once the object is READY.
 	Download *MediaTransfer `json:"download,omitempty"`
 
+	// Editable Whether this person may open the file for editing in the workspace's document server (`:edit`): an office file, a server chosen, and a right to change what holds it.
+	Editable *bool `json:"editable,omitempty"`
+
 	// FileName The name the file arrived under, for the download - never a storage path.
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 
 	// Inline Whether a browser may decode the bytes itself from the download URL: a READY image, audio or video in a format whose decoding executes nothing. Every other file is fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or downloaded; none is ever opened as a document.
 	Inline *bool `json:"inline,omitempty"`
+
+	// Office Whether the file is an office document - shown as a PDF converted by the workspace's document server (`:pdf`), or as a card where there is none.
+	Office *bool `json:"office,omitempty"`
 
 	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
@@ -27904,6 +27961,21 @@ type WhiteboardVersionRead struct {
 	Title        string              `json:"title"`
 }
 
+// WopiFileInfo defines model for WopiFileInfo.
+type WopiFileInfo struct {
+	BaseFileName            string `json:"BaseFileName"`
+	OwnerId                 string `json:"OwnerId"`
+	ReadOnly                *bool  `json:"ReadOnly,omitempty"`
+	Size                    int64  `json:"Size"`
+	SupportsGetLock         *bool  `json:"SupportsGetLock,omitempty"`
+	SupportsLocks           *bool  `json:"SupportsLocks,omitempty"`
+	SupportsUpdate          *bool  `json:"SupportsUpdate,omitempty"`
+	UserCanNotWriteRelative *bool  `json:"UserCanNotWriteRelative,omitempty"`
+	UserCanWrite            *bool  `json:"UserCanWrite,omitempty"`
+	UserId                  string `json:"UserId"`
+	Version                 string `json:"Version"`
+}
+
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
 	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
@@ -28826,6 +28898,9 @@ type WeekOfTimesheet = openapi_types.Date
 
 // WhiteboardId defines model for WhiteboardId.
 type WhiteboardId = openapi_types.UUID
+
+// WopiAccessToken defines model for WopiAccessToken.
+type WopiAccessToken = string
 
 // ScimError A SCIM error (RFC 7644 section 3.12): the status, a `scimType` where the RFC names one, and as `detail` the message code - never a sentence.
 type ScimError = ScimErrorBody
@@ -31850,6 +31925,30 @@ type MoveWhiteboardParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// CheckWopiFileInfoParams defines parameters for CheckWopiFileInfo.
+type CheckWopiFileInfoParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// LockWopiFileParams defines parameters for LockWopiFile.
+type LockWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// GetWopiFileParams defines parameters for GetWopiFile.
+type GetWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
+// PutWopiFileParams defines parameters for PutWopiFile.
+type PutWopiFileParams struct {
+	// AccessToken The WOPI access token: one person, one file, read or write, for a short while. The protocol carries it in the query; it is never logged.
+	AccessToken WopiAccessToken `form:"access_token" json:"access_token"`
+}
+
 // SaveWorkflowDraftParams defines parameters for SaveWorkflowDraft.
 type SaveWorkflowDraftParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -32692,6 +32791,9 @@ type SaveMailSettingsJSONRequestBody = MailSettings
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
+
+// SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
+type SetDocumentServerJSONRequestBody = DocumentServer
 
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
@@ -41398,6 +41500,41 @@ type ClientInterface interface {
 	// The upload target of a local-storage installation: the bytes, streamed, judged by the upload guard as they pass. On an object-storage installation the upload goes to the presigned URL instead and this route answers that the token is not one it minted.
 	UploadMediaContentWithBody(ctx context.Context, mediaId MediaId, params *UploadMediaContentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+	//
+	// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdf(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadDocumentServer The workspace's document server
+	//
+	// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+	//
+	// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+	ReadDocumentServer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDocumentServerWithBody Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetDocumentServer Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServer(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListMemberships Who holds a role at a scope
 	//
 	// The memberships granted **at** the scope named — an account or a group, a role, an
@@ -45242,6 +45379,27 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 	RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckWopiFileInfo performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+	//
+	// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+	CheckWopiFileInfo(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// LockWopiFile performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+	//
+	// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+	LockWopiFile(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetWopiFile performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+	//
+	// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+	GetWopiFile(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PutWopiFileWithBody performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+	PutWopiFileWithBody(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetWorkflowSchemeWithBody Use a workflow in a hub or collection
 	//
@@ -61796,6 +61954,91 @@ func (c *Client) UploadMediaContentWithBody(ctx context.Context, mediaId MediaId
 	return c.Client.Do(req)
 }
 
+// StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+//
+// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+func (c *Client) StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewStartMediaEditingRequest(c.Server, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *Client) ConvertMediaToPdf(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConvertMediaToPdfRequest(c.Server, mediaId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadDocumentServer The workspace's document server
+//
+// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+//
+// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+func (c *Client) ReadDocumentServer(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadDocumentServerRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDocumentServerWithBody Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *Client) SetDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDocumentServerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetDocumentServer Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *Client) SetDocumentServer(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetDocumentServerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListMemberships Who holds a role at a scope
 //
 // The memberships granted **at** the scope named — an account or a group, a role, an
@@ -69871,6 +70114,67 @@ func (c *Client) MoveWhiteboard(ctx context.Context, whiteboardId WhiteboardId, 
 // Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 func (c *Client) RestoreWhiteboard(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewRestoreWhiteboardRequest(c.Server, whiteboardId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckWopiFileInfo performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+//
+// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+func (c *Client) CheckWopiFileInfo(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckWopiFileInfoRequest(c.Server, mediaId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// LockWopiFile performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+//
+// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+func (c *Client) LockWopiFile(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewLockWopiFileRequest(c.Server, mediaId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetWopiFile performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+//
+// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+func (c *Client) GetWopiFile(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetWopiFileRequest(c.Server, mediaId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PutWopiFileWithBody performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+// with any type of body and a specified content type.
+//
+// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+func (c *Client) PutWopiFileWithBody(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPutWopiFileRequestWithBody(c.Server, mediaId, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -97885,6 +98189,141 @@ func NewUploadMediaContentRequestWithBody(server string, mediaId MediaId, params
 	return req, nil
 }
 
+// NewStartMediaEditingRequest constructs an http.Request for the StartMediaEditing method
+func NewStartMediaEditingRequest(server string, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media/%s:edit", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConvertMediaToPdfRequest constructs an http.Request for the ConvertMediaToPdf method
+func NewConvertMediaToPdfRequest(server string, mediaId MediaId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media/%s:pdf", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadDocumentServerRequest constructs an http.Request for the ReadDocumentServer method
+func NewReadDocumentServerRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media:document-server")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetDocumentServerRequest calls the generic SetDocumentServer builder with application/json body
+func NewSetDocumentServerRequest(server string, body SetDocumentServerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetDocumentServerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetDocumentServerRequestWithBody constructs an http.Request for the SetDocumentServer method, with any body, and a specified content type
+func NewSetDocumentServerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media:document-server")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListMembershipsRequest constructs an http.Request for the ListMemberships method
 func NewListMembershipsRequest(server string, params *ListMembershipsParams) (*http.Request, error) {
 	var err error
@@ -111172,6 +111611,236 @@ func NewRestoreWhiteboardRequest(server string, whiteboardId WhiteboardId) (*htt
 	return req, nil
 }
 
+// NewCheckWopiFileInfoRequest constructs an http.Request for the CheckWopiFileInfo method
+func NewCheckWopiFileInfoRequest(server string, mediaId MediaId, params *CheckWopiFileInfoParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewLockWopiFileRequest constructs an http.Request for the LockWopiFile method
+func NewLockWopiFileRequest(server string, mediaId MediaId, params *LockWopiFileParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGetWopiFileRequest constructs an http.Request for the GetWopiFile method
+func NewGetWopiFileRequest(server string, mediaId MediaId, params *GetWopiFileParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s/contents", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewPutWopiFileRequestWithBody constructs an http.Request for the PutWopiFile method, with any body, and a specified content type
+func NewPutWopiFileRequestWithBody(server string, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mediaId", mediaId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/wopi/files/%s/contents", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "access_token", params.AccessToken, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewSetWorkflowSchemeRequest calls the generic SetWorkflowScheme builder with application/json body
 func NewSetWorkflowSchemeRequest(server string, body SetWorkflowSchemeJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -120168,6 +120837,47 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	UploadMediaContentWithBodyWithResponse(ctx context.Context, mediaId MediaId, params *UploadMediaContentParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UploadMediaContentResult, error)
 
+	// StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+	//
+	// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error)
+
+	// ConvertMediaToPdfWithResponse performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
+
+	// ReadDocumentServerWithResponse The workspace's document server
+	//
+	// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+	ReadDocumentServerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadDocumentServerResult, error)
+
+	// SetDocumentServerWithBodyWithResponse Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error)
+
+	// SetDocumentServerWithResponse Choose the workspace's document server
+	//
+	// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+	SetDocumentServerWithResponse(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error)
+
 	// ListMembershipsWithResponse Who holds a role at a scope
 	//
 	// The memberships granted **at** the scope named — an account or a group, a role, an
@@ -124366,6 +125076,35 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /whiteboards/{whiteboardId}:restore (the `RestoreWhiteboard` operationId).
 	RestoreWhiteboardWithResponse(ctx context.Context, whiteboardId WhiteboardId, reqEditors ...RequestEditorFn) (*RestoreWhiteboardResult, error)
+
+	// CheckWopiFileInfoWithResponse performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+	//
+	// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	CheckWopiFileInfoWithResponse(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*CheckWopiFileInfoResult, error)
+
+	// LockWopiFileWithResponse performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+	//
+	// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	LockWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*LockWopiFileResult, error)
+
+	// GetWopiFileWithResponse performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+	//
+	// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GetWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*GetWopiFileResult, error)
+
+	// PutWopiFileWithBodyWithResponse performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PutWopiFileWithBodyWithResponse(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWopiFileResult, error)
 
 	// SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
 	//
@@ -152907,6 +153646,191 @@ func (r UploadMediaContentResult) ContentType() string {
 	return ""
 }
 
+type StartMediaEditingResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MediaEditingSession
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r StartMediaEditingResult) GetJSON200() *MediaEditingSession {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r StartMediaEditingResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r StartMediaEditingResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r StartMediaEditingResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r StartMediaEditingResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r StartMediaEditingResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConvertMediaToPdfResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConvertMediaToPdfResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConvertMediaToPdfResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConvertMediaToPdfResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConvertMediaToPdfResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConvertMediaToPdfResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadDocumentServerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DocumentServer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadDocumentServerResult) GetJSON200() *DocumentServer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadDocumentServerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadDocumentServerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadDocumentServerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadDocumentServerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadDocumentServerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetDocumentServerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DocumentServer
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetDocumentServerResult) GetJSON200() *DocumentServer {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetDocumentServerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetDocumentServerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetDocumentServerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetDocumentServerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetDocumentServerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListMembershipsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -166888,6 +167812,149 @@ func (r RestoreWhiteboardResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r RestoreWhiteboardResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckWopiFileInfoResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WopiFileInfo
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckWopiFileInfoResult) GetJSON200() *WopiFileInfo {
+	return r.JSON200
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckWopiFileInfoResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckWopiFileInfoResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckWopiFileInfoResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckWopiFileInfoResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type LockWopiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r LockWopiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r LockWopiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r LockWopiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r LockWopiFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetWopiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r GetWopiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetWopiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetWopiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetWopiFileResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PutWopiFileResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+}
+
+// GetBody returns the raw response body bytes
+func (r PutWopiFileResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PutWopiFileResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PutWopiFileResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PutWopiFileResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -181042,6 +182109,77 @@ func (c *ClientWithResponses) UploadMediaContentWithBodyWithResponse(ctx context
 	return ParseUploadMediaContentResult(rsp)
 }
 
+// StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
+//
+// Opens an office file for editing in the workspace's document server (UC-MED-06): a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error) {
+	rsp, err := c.StartMediaEditing(ctx, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseStartMediaEditingResult(rsp)
+}
+
+// ConvertMediaToPdfWithResponse performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw (UC-MED-05). Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
+	rsp, err := c.ConvertMediaToPdf(ctx, mediaId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConvertMediaToPdfResult(rsp)
+}
+
+// ReadDocumentServerWithResponse The workspace's document server
+//
+// Where the workspace's office files are shown and edited: none, or a server's kind and its https origin. Readable by every member - the viewer asks it; set under STRUCTURE.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /media:document-server (the `ReadDocumentServer` operationId).
+func (c *ClientWithResponses) ReadDocumentServerWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadDocumentServerResult, error) {
+	rsp, err := c.ReadDocumentServer(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadDocumentServerResult(rsp)
+}
+
+// SetDocumentServerWithBodyWithResponse Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *ClientWithResponses) SetDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error) {
+	rsp, err := c.SetDocumentServerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDocumentServerResult(rsp)
+}
+
+// SetDocumentServerWithResponse Choose the workspace's document server
+//
+// NONE, or a kind with the server's https origin - no credentials, query or fragment. Needs STRUCTURE at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
+func (c *ClientWithResponses) SetDocumentServerWithResponse(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error) {
+	rsp, err := c.SetDocumentServer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetDocumentServerResult(rsp)
+}
+
 // ListMembershipsWithResponse Who holds a role at a scope
 //
 // The memberships granted **at** the scope named — an account or a group, a role, an
@@ -187783,6 +188921,59 @@ func (c *ClientWithResponses) RestoreWhiteboardWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseRestoreWhiteboardResult(rsp)
+}
+
+// CheckWopiFileInfoWithResponse performs a GET /wopi/files/{mediaId} (the `CheckWopiFileInfo` operationId) request.
+//
+// WOPI CheckFileInfo, called by the document server with the access token: the file's name, size, version and whether this person may save. Answers in the protocol's own shape, not as a Hubtask resource.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) CheckWopiFileInfoWithResponse(ctx context.Context, mediaId MediaId, params *CheckWopiFileInfoParams, reqEditors ...RequestEditorFn) (*CheckWopiFileInfoResult, error) {
+	rsp, err := c.CheckWopiFileInfo(ctx, mediaId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckWopiFileInfoResult(rsp)
+}
+
+// LockWopiFileWithResponse performs a POST /wopi/files/{mediaId} (the `LockWopiFile` operationId) request.
+//
+// WOPI Lock, RefreshLock, Unlock, UnlockAndRelock and GetLock, by `X-WOPI-Override`, with the lock in `X-WOPI-Lock` and the replaced one in `X-WOPI-OldLock`. A mismatch answers 409 with the lock that holds in `X-WOPI-Lock`.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) LockWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *LockWopiFileParams, reqEditors ...RequestEditorFn) (*LockWopiFileResult, error) {
+	rsp, err := c.LockWopiFile(ctx, mediaId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseLockWopiFileResult(rsp)
+}
+
+// GetWopiFileWithResponse performs a GET /wopi/files/{mediaId}/contents (the `GetWopiFile` operationId) request.
+//
+// WOPI GetFile - the file's bytes, with its version in `X-WOPI-ItemVersion`.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GetWopiFileWithResponse(ctx context.Context, mediaId MediaId, params *GetWopiFileParams, reqEditors ...RequestEditorFn) (*GetWopiFileResult, error) {
+	rsp, err := c.GetWopiFile(ctx, mediaId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetWopiFileResult(rsp)
+}
+
+// PutWopiFileWithBodyWithResponse performs a POST /wopi/files/{mediaId}/contents (the `PutWopiFile` operationId) request,
+// with any type of body and a specified content type.
+//
+// WOPI PutFile - the document server saves; the file keeps its identity and the bytes it had become its earlier version. Only under the lock that holds (or into an empty file), and only for a person who may still change what holds it.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PutWopiFileWithBodyWithResponse(ctx context.Context, mediaId MediaId, params *PutWopiFileParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PutWopiFileResult, error) {
+	rsp, err := c.PutWopiFileWithBody(ctx, mediaId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePutWopiFileResult(rsp)
 }
 
 // SetWorkflowSchemeWithBodyWithResponse Use a workflow in a hub or collection
@@ -208213,6 +209404,131 @@ func ParseUploadMediaContentResult(rsp *http.Response) (*UploadMediaContentResul
 	return response, nil
 }
 
+// ParseStartMediaEditingResult parses an HTTP response from a StartMediaEditingWithResponse call
+func ParseStartMediaEditingResult(rsp *http.Response) (*StartMediaEditingResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &StartMediaEditingResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MediaEditingSession
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConvertMediaToPdfResult parses an HTTP response from a ConvertMediaToPdfWithResponse call
+func ParseConvertMediaToPdfResult(rsp *http.Response) (*ConvertMediaToPdfResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConvertMediaToPdfResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadDocumentServerResult parses an HTTP response from a ReadDocumentServerWithResponse call
+func ParseReadDocumentServerResult(rsp *http.Response) (*ReadDocumentServerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadDocumentServerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DocumentServer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetDocumentServerResult parses an HTTP response from a SetDocumentServerWithResponse call
+func ParseSetDocumentServerResult(rsp *http.Response) (*SetDocumentServerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetDocumentServerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DocumentServer
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListMembershipsResult parses an HTTP response from a ListMembershipsWithResponse call
 func ParseListMembershipsResult(rsp *http.Response) (*ListMembershipsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -217981,6 +219297,86 @@ func ParseRestoreWhiteboardResult(rsp *http.Response) (*RestoreWhiteboardResult,
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseCheckWopiFileInfoResult parses an HTTP response from a CheckWopiFileInfoWithResponse call
+func ParseCheckWopiFileInfoResult(rsp *http.Response) (*CheckWopiFileInfoResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckWopiFileInfoResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WopiFileInfo
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case rsp.StatusCode == 401:
+		break // No content-type
+
+	case rsp.StatusCode == 404:
+		break // No content-type
+
+	}
+
+	return response, nil
+}
+
+// ParseLockWopiFileResult parses an HTTP response from a LockWopiFileWithResponse call
+func ParseLockWopiFileResult(rsp *http.Response) (*LockWopiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &LockWopiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParseGetWopiFileResult parses an HTTP response from a GetWopiFileWithResponse call
+func ParseGetWopiFileResult(rsp *http.Response) (*GetWopiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetWopiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	return response, nil
+}
+
+// ParsePutWopiFileResult parses an HTTP response from a PutWopiFileWithResponse call
+func ParsePutWopiFileResult(rsp *http.Response) (*PutWopiFileResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PutWopiFileResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
 	}
 
 	return response, nil

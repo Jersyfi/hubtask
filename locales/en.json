@@ -15848,5 +15848,19 @@
   "app.whiteboards.file_pages": "{count} pages",
   "app.whiteboards.file_hint_title": "Dropping a file",
   "app.whiteboards.file_hint": "Pictures (PNG, JPG, GIF, WebP, SVG) lie on the board as pictures. PDF, office files, Markdown, video and archives become a card with a preview of the first page; a double click opens the file viewer.",
-  "app.whiteboards.file_hint_close": "Close the hint"
+  "app.whiteboards.file_hint_close": "Close the hint",
+  "dependency.document_server_refused": "The workspace's document server did not answer as expected. Try again, or ask an administrator to check the server.",
+  "media.agent_decides_document_server_not": "An agent cannot choose the document server; a person with STRUCTURE at the workspace does.",
+  "media.conversion_unavailable": "This workspace has no document server that can show this file. Download it instead.",
+  "media.conversion_failed": "The file could not be converted for viewing. Download it instead.",
+  "media.document_server_none": "This workspace has no document server to edit office files in.",
+  "media.edit_forbidden": "You may read this file but not change it.",
+  "media.not_an_office_file": "Only office files open in the document server.",
+  "media.document_server_kind": "Choose none or one of the listed document servers.",
+  "media.document_server_url": "Enter the server's address, starting with https://, without a login, query or fragment.",
+  "media.document_server_read": "Read the document server",
+  "media.document_server_set": "Changed the document server",
+  "media.edit": "Opened a file for editing",
+  "wopi.operation_unknown": "The document server asked for something this workspace does not offer.",
+  "wopi.token_invalid": "The link to this file has expired. Open the file again."
 }

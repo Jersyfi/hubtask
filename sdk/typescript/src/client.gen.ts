@@ -4085,6 +4085,50 @@ export class HubtaskClient {
     return this.call("GET", "/media/{mediaId}:content", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "raw", options.signal);
   }
 
+  /** GET /media/{mediaId}:pdf */
+  convertMediaToPdf(mediaId: string, options: CallOptions = {}): Promise<Response> {
+    return this.call("GET", "/media/{mediaId}:pdf", { "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
+  /** POST /media/{mediaId}:edit */
+  startMediaEditing(mediaId: string, options: CallOptions = {}): Promise<operations["startMediaEditing"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/media/{mediaId}:edit", { "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The workspace's document server */
+  readDocumentServer(options: CallOptions = {}): Promise<operations["readDocumentServer"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/media:document-server", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Choose the workspace's document server */
+  setDocumentServer(body: NonNullable<operations["setDocumentServer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setDocumentServer"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/media:document-server", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** GET /wopi/files/{mediaId}
+   * Public: sent without a bearer where the client holds none. */
+  checkWopiFileInfo(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["checkWopiFileInfo"]['parameters']['query']> } = {}): Promise<operations["checkWopiFileInfo"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/wopi/files/{mediaId}", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** POST /wopi/files/{mediaId}
+   * Public: sent without a bearer where the client holds none. */
+  lockWopiFile(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["lockWopiFile"]['parameters']['query']> } = {}): Promise<void> {
+    return this.call("POST", "/wopi/files/{mediaId}", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** GET /wopi/files/{mediaId}/contents
+   * Public: sent without a bearer where the client holds none. */
+  getWopiFile(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["getWopiFile"]['parameters']['query']> } = {}): Promise<Response> {
+    return this.call("GET", "/wopi/files/{mediaId}/contents", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "raw", options.signal);
+  }
+
+  /** POST /wopi/files/{mediaId}/contents
+   * Public: sent without a bearer where the client holds none. */
+  putWopiFile(mediaId: string, body: BodyInit, options: CallOptions & { readonly query?: NonNullable<operations["putWopiFile"]['parameters']['query']> } = {}): Promise<void> {
+    return this.call("POST", "/wopi/files/{mediaId}/contents", { "mediaId": mediaId }, options.query, {  }, body, "raw", "application/octet-stream", "void", options.signal);
+  }
+
   /** The change stream, as server-sent events */
   streamChanges(options: CallOptions & { readonly lastEventId?: string } = {}): Promise<Response> {
     return this.call("GET", "/stream", {  }, undefined, { "Last-Event-ID": options.lastEventId }, undefined, "none", undefined, "raw", options.signal);

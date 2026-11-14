@@ -3247,6 +3247,38 @@ class Client:
         """GET /media/{mediaId}:content"""
         return self._call("GET", "/media/{mediaId}:content", {"mediaId": media_id}, query, {}, None, "none", None, "raw")
 
+    def convert_media_to_pdf(self, media_id: str) -> bytes:
+        """GET /media/{mediaId}:pdf"""
+        return self._call("GET", "/media/{mediaId}:pdf", {"mediaId": media_id}, None, {}, None, "none", None, "raw")
+
+    def start_media_editing(self, media_id: str) -> "MediaEditingSession":
+        """POST /media/{mediaId}:edit"""
+        return self._call("POST", "/media/{mediaId}:edit", {"mediaId": media_id}, None, {}, None, "none", None, "json")
+
+    def read_document_server(self) -> "DocumentServer":
+        """The workspace's document server"""
+        return self._call("GET", "/media:document-server", {}, None, {}, None, "none", None, "json")
+
+    def set_document_server(self, body: "DocumentServer") -> "DocumentServer":
+        """Choose the workspace's document server"""
+        return self._call("PUT", "/media:document-server", {}, None, {}, body, "json", "application/json", "json")
+
+    def check_wopi_file_info(self, media_id: str, *, query: dict[str, Any] | None = None) -> "WopiFileInfo":
+        """GET /wopi/files/{mediaId}"""
+        return self._call("GET", "/wopi/files/{mediaId}", {"mediaId": media_id}, query, {}, None, "none", None, "json")
+
+    def lock_wopi_file(self, media_id: str, *, query: dict[str, Any] | None = None) -> None:
+        """POST /wopi/files/{mediaId}"""
+        return self._call("POST", "/wopi/files/{mediaId}", {"mediaId": media_id}, query, {}, None, "none", None, "void")
+
+    def get_wopi_file(self, media_id: str, *, query: dict[str, Any] | None = None) -> bytes:
+        """GET /wopi/files/{mediaId}/contents"""
+        return self._call("GET", "/wopi/files/{mediaId}/contents", {"mediaId": media_id}, query, {}, None, "none", None, "raw")
+
+    def put_wopi_file(self, media_id: str, body: bytes, *, query: dict[str, Any] | None = None) -> None:
+        """POST /wopi/files/{mediaId}/contents"""
+        return self._call("POST", "/wopi/files/{mediaId}/contents", {"mediaId": media_id}, query, {}, body, "raw", "application/octet-stream", "void")
+
     def stream_changes(self, *, last_event_id: str | None = None) -> bytes:
         """The change stream, as server-sent events"""
         return self._call("GET", "/stream", {}, None, {"Last-Event-ID": last_event_id}, None, "none", None, "raw")

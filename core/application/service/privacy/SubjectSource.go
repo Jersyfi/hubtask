@@ -34,7 +34,9 @@ var subjectColumns = map[string][]string{
 	"account":              {"id"},
 	"membership":           {"account_id"},
 	"account_group_member": {"account_id"},
-	"item_member":          {"account_id"},
+	// Who saved a file's version in the document server (UC-MED-06).
+	"media_version": {"saved_by"},
+	"item_member":   {"account_id"},
 	// What they were told, what they asked to be told, and what they agreed to.
 	"notification_preference": {"account_id"},
 	"account_star":            {"account_id"},

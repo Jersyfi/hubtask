@@ -2,8 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package wopi is the port for a document server (UC-MED-06, ADR-0104): the access tokens it
-// presents to the WOPI host, and what Hubtask asks of it - which actions it offers per file
-// ending, and a file converted to PDF for the viewer.
+// presents to the WOPI host, and what Hubtask asks of it - a file converted to PDF for the viewer.
 package wopi
 
 import (
@@ -37,19 +36,9 @@ func ErrInvalidToken() error {
 	return shared.ErrUnauthenticated.WithDetail("wopi.token_invalid")
 }
 
-// Action is where a document server opens a file of one ending: its URL template from the
-// discovery, with the WOPI source still to be placed.
-type Action struct {
-	Name   string
-	Ending string
-	URL    string
-}
-
 // Server is a document server as Hubtask asks it things, through GuardedClient with a deadline
 // (rules 6, 7).
 type Server interface {
-	// Discover reads the server's actions.
-	Discover(ctx context.Context, choice media.DocumentServerChoice) ([]Action, error)
 	// ConvertToPDF sends the file and streams back its PDF. ErrUnsupported when the server's kind
 	// converts nothing Hubtask can reach.
 	ConvertToPDF(ctx context.Context, choice media.DocumentServerChoice, source Source) (io.ReadCloser, error)
@@ -58,6 +47,8 @@ type Server interface {
 // Source is the file a conversion reads: its bytes, and where the server may fetch them when its
 // kind fetches rather than receives (a WOPI GetFile address with a read token).
 type Source struct {
+	// Key names this version of the file for a server that caches conversions.
+	Key     string
 	Name    string
 	Content io.Reader
 	Size    int64

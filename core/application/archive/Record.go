@@ -824,6 +824,15 @@ var entities = []Entity{
 			{Field: "media_id", Table: "media_object"},
 		},
 	},
+	// A file's versions saved from a document server (migration 0410), after the objects they
+	// name: the earlier bytes are media objects of their own.
+	{
+		Name: "media_versions", Table: "media_version", Whole: true, Later: true, Keys: []string{"media_id", "earlier_media_id"},
+		References: []Reference{
+			{Field: "media_id", Table: "media_object"},
+			{Field: "earlier_media_id", Table: "media_object"},
+		},
+	},
 	// A board's comments pinned to its objects and places (migration 0273), after the boards; a
 	// reply's thread comes first in the file.
 	{
@@ -1626,6 +1635,8 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"calendar_push_event":         "what a push wrote at the provider, which only that push's grant reaches; a push connected again writes its feed anew",
 	"calendar_push_authorization": "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
 	"file_store_connection":       "a file store connection's grant is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - its owner connects the store again",
+	"media_lock":                  "a document server's hold on a file for thirty minutes; the editing session that took it is gone by the time anything is restored",
+	"document_server":             "the document server is an origin outside the installation that the workspace's files are sent to; restored elsewhere it may not reach that server or be trusted by it - it is chosen again on the workspace's settings page",
 	"file_store_authorization":    "a connection waiting ten minutes for a store's answer; the browser that would bring it is gone by the time anything is restored",
 	"satisfaction_link":           "a resolution mail's one-time rating link, a credential for 30 days; restored it would let an old mail rate again - the next resolution mails a new one; an address's own copy carries its links, without the token, as a section",
 	"chat_bot":                    "a chat bot's token is sealed under one installation's key and opens nowhere else; restored elsewhere it would read no room - it is seated again on the hub",

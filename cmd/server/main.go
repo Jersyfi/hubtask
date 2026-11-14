@@ -121,6 +121,7 @@ import (
 	coverimagesadapter "github.com/Jersyfi/hubtask/infrastructure/coverimages"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	dnsadapter "github.com/Jersyfi/hubtask/infrastructure/dns"
+	"github.com/Jersyfi/hubtask/infrastructure/documentserver"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
@@ -2433,6 +2434,25 @@ func run() error {
 	// The own domain as the main address and back (UC-INS-15 checks 6 and 8): the change of
 	// address's lockout rule, proof, audience and notices.
 	mainAddress := adminservice.MainAddress{OwnDomains: ownDomains, Change: changeAddress, Authorizer: authorizer}
+	// The WOPI host (UC-MED-06, ADR-0104): a document server reaches a file at the installation's
+	// address, server to server, with a token that names the workspace.
+	mediaRead := mediaservice.GetMedia{
+		Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
+		Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Pages: knowledgeservice.PageMediaReach{Space: pageSpace},
+	}
+	wopiHost := mediaservice.WopiHost{
+		Read: mediaRead, Wopi: postgres.WopiRepository{}, Store: mediaStore, Guard: mediaGuard,
+		Tokens: security.NewWopiTokenIssuer(cfg.SecretKey), UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, SizeLimit: cfg.Request.MaxUploadBytes,
+		Files:  strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/wopi/files/",
+		Server: documentserver.Server{Client: outboundClient},
+	}
+	mediaRead.Editing = wopiHost
+	documentServers := mediaservice.DocumentServers{
+		Wopi: postgres.WopiRepository{}, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
 		agentservice.Gate{Desk: agentDesk}.Wrap(
@@ -3849,11 +3869,9 @@ func run() error {
 		setCustomField.Descriptor(),
 		work.DetachMedia{Writer: attachmentWriter}.Descriptor(),
 
-		mediaservice.GetMedia{
-			Objects: mediaObjects, Containers: containers, Transfers: mediaTransfers,
-			Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-			Pages: knowledgeservice.PageMediaReach{Space: pageSpace},
-		}.Descriptor(),
+		mediaRead.Descriptor(),
+		mediaservice.ReadDocumentServer{Servers: documentServers}.Descriptor(),
+		mediaservice.SetDocumentServer{Servers: documentServers}.Descriptor(),
 		mediaservice.DeleteMedia{
 			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -4101,6 +4119,7 @@ func run() error {
 				SchemaVersion: schemaVersion(), ProductVersion: version,
 			},
 		}}
+		controller.Wopi = &rest.WopiDoor{Host: wopiHost}
 		controller.Media = &rest.MediaDoor{
 			Content: mediaservice.MediaContent{
 				Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard,
