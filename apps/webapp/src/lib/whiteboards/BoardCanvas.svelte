@@ -1182,6 +1182,9 @@
     );
   });
   const pins = $derived(threadsOf(comments, withResolved).map(({ thread, replies }) => ({ thread, count: 1 + replies.length, at: pinOf(thread, byId) })));
+  /** The objects a comment is pinned to: their vote count steps aside from the pin at the same corner. */
+  const pinned = $derived(new Set(pins.map((pin) => pin.thread.element_id).filter((id): id is string => !!id)));
+  const voteX = (e: { id: string; x: number; width: number }) => e.x + e.width - (pinned.has(e.id) ? 36 / view.zoom : 0);
 
   /** A new thread stands at the chosen object's corner, or in the middle of the view. */
   function pinHere(): { element_id?: string; x: number; y: number } {
@@ -1617,8 +1620,8 @@
         {/if}
         {#if results.counts.get(e.id)}
           <g class="votes" aria-label={t('app.whiteboards.votes_on', { count: String(results.counts.get(e.id)) })}>
-            <circle cx={e.x + e.width} cy={e.y} r={14 / view.zoom} />
-            <text x={e.x + e.width} y={e.y + 5 / view.zoom} text-anchor="middle" font-size={13 / view.zoom}>{results.counts.get(e.id)}</text>
+            <circle cx={voteX(e)} cy={e.y} r={14 / view.zoom} />
+            <text x={voteX(e)} y={e.y + 5 / view.zoom} text-anchor="middle" font-size={13 / view.zoom}>{results.counts.get(e.id)}</text>
           </g>
         {/if}
       {/each}
