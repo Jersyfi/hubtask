@@ -45,3 +45,10 @@ test('every native button the design system draws with words takes the page font
   const outside = missing.filter((name) => !/^(Nav|SideNav)/.test(name));
   assert.deepEqual(outside, []);
 });
+
+test('a menu given a close name opens as a bottom sheet on a phone’s width, and its rows reach the target', () => {
+  const menu = source('Menu.svelte');
+  assert.match(menu, /isSheet = closeLabel !== undefined && isCompactWidth\(\)/);
+  assert.match(menu, /<Sheet[\s\S]*?\{items\}/);
+  assert.match(menu, /\.item \{[^}]*min-block-size: var\(--density-control-sm-min\)/);
+});

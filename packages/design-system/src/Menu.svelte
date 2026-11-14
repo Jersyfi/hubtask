@@ -17,6 +17,8 @@
   import type { Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
+  import Sheet from './Sheet.svelte';
+  import { isCompactWidth } from './media.ts';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
   import type { Placement } from './anchor.ts';
@@ -39,6 +41,11 @@
      * the list, and takes no focus.
      */
     head?: Snippet;
+    /**
+     * The name of the sheet's close control. Given, the menu opens as a bottom sheet on a phone's
+     * width (work-surface concept §7): a menu drawn at its trigger there runs off the screen.
+     */
+    closeLabel?: string;
   }
 
   let {
@@ -49,6 +56,7 @@
     onselect,
     trigger,
     head,
+    closeLabel,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -61,6 +69,8 @@
   /** The `menu` element itself: what the keyboard walks and what takes focus when it opens. */
   let list = $state<HTMLElement | null>(null);
   let active = $state(-1);
+  /** Opened as a sheet: decided at the moment it opens, as a status's steps are. */
+  let isSheet = $state(false);
   let opener: Element | null = null;
 
   const labels = $derived(items.map((item) => item.label));
@@ -99,6 +109,7 @@
    */
   export function open(index = 0) {
     if (!isOpen) opener = document.activeElement;
+    isSheet = closeLabel !== undefined && isCompactWidth();
     active = Math.max(0, Math.min(index, items.length - 1));
     isOpen = true;
   }
@@ -138,12 +149,12 @@
   // Focus follows the active index rather than being moved at every call site: there are five
   // places that change it, and four of them would eventually forget.
   $effect(() => {
-    if (!isOpen || !list || active < 0) return;
+    if (!isOpen || isSheet || !list || active < 0) return;
     list.querySelectorAll<HTMLElement>('[role="menuitem"]')[active]?.focus();
   });
 
   $effect(() => {
-    if (!isOpen || !anchor || !surface) return;
+    if (!isOpen || isSheet || !anchor || !surface) return;
     return openOverlay({ layer: 'popover', trigger: anchor, surface, placement, onDismiss: close });
   });
 </script>
@@ -151,7 +162,16 @@
 <span class="anchor" bind:this={anchor}>
   {@render trigger(triggerProps)}
 </span>
-{#if isOpen}
+{#if isSheet && closeLabel !== undefined}
+  <Sheet
+    bind:isOpen
+    title={label}
+    {closeLabel}
+    {items}
+    onClose={() => { isSheet = false; active = -1; }}
+    onselect={(id) => onselect?.(id)}
+  />
+{:else if isOpen}
   <div class="surface" bind:this={surface}>
     {#if head}<div class="head">{@render head()}</div>{/if}
   <!-- The keydown listener is on the list rather than on each item: the arrows are a property of
@@ -267,6 +287,8 @@
     font-size: var(--fs-090);
     text-align: start;
     cursor: pointer;
+    /* Under a thumb the row grows to the target (the spacious density's small control). */
+    min-block-size: var(--density-control-sm-min);
   }
 
   .item:hover { background: var(--bg-surface-hover); }

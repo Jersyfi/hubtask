@@ -169,6 +169,7 @@
                 {#if item.icon}<Icon name={item.icon} size="sm" />{/if}
                 <span class="item-text">
                   <span>{item.label}</span>
+                  {#if item.description}<span class="reason">{item.description}</span>{/if}
                   {#if item.disabledReason !== undefined}
                     <span class="reason" id={`${titleId}-${item.id}`}>{item.disabledReason}</span>
                   {/if}
