@@ -120,6 +120,18 @@ test('a request reads by its status name and its next step, never by a key', () 
   assert.deepEqual(nextStep({ ...base, completed_at: '2026-11-03T09:00:00Z', is_completed: true }), { kind: 'done', at: '2026-11-03T09:00:00Z' });
 });
 
+// UC-SVC-05 check 12 (P-12): the line says when the team replied, else by when it answers, as the
+// mockup's "replied 09:40" and "we answer by 14:00"; a closed request says neither.
+test('the next step names the team\'s reply first, then the promised answer', () => {
+  const base = { completed_at: null, created_at: '2026-11-01T09:00:00Z', updated_at: '2026-11-02T09:00:00Z', status_category: 'IN_PROGRESS', is_completed: false };
+  const replied = '2026-11-02T09:40:00Z';
+  const due = '2026-11-02T14:00:00Z';
+  assert.deepEqual(nextStep({ ...base, last_reply_at: replied, next_due_at: due }), { kind: 'replied', at: replied });
+  assert.deepEqual(nextStep({ ...base, status_category: 'TODO', last_reply_at: null, next_due_at: due }), { kind: 'promised', at: due });
+  assert.deepEqual(nextStep({ ...base, last_reply_at: null, next_due_at: null }), { kind: 'working', at: base.updated_at });
+  assert.deepEqual(nextStep({ ...base, is_completed: true, completed_at: '2026-11-03T09:00:00Z', last_reply_at: replied, next_due_at: due }), { kind: 'done', at: '2026-11-03T09:00:00Z' });
+});
+
 // UC-SVC-14 checks 2 and 3 (PO-1): one search over every department's request types and
 // articles; my requests everywhere, newest first, each once.
 test('the directory finds by every word and lists my requests everywhere newest first', () => {

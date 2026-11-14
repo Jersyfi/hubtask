@@ -254,15 +254,29 @@ export function requestState(request: Stateful, words: { readonly received: stri
   return { label: name !== undefined && name !== '' ? name : fallback, category };
 }
 
-/** What comes next for a request, as one line under its title: its number and the step the reader waits for. */
+/**
+ * What comes next for a request, as one line under its title (P-12): closed on its day; else when
+ * the team last replied; else by when the desk promised to answer - its running SLA goal, which
+ * the server never takes from a team's OLA -; else when it arrived or last moved.
+ */
 export type NextStep =
   | { readonly kind: 'done'; readonly at: string }
+  | { readonly kind: 'replied'; readonly at: string }
+  | { readonly kind: 'promised'; readonly at: string }
   | { readonly kind: 'working'; readonly at: string }
   | { readonly kind: 'received'; readonly at: string };
 
-export function nextStep(request: Stateful & { readonly completed_at: string | null; readonly created_at: string; readonly updated_at: string }): NextStep {
+export function nextStep(request: Stateful & {
+  readonly completed_at: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+  readonly last_reply_at?: string | null;
+  readonly next_due_at?: string | null;
+}): NextStep {
   const { category } = requestState(request, { received: '', working: '', done: '' });
   if (category === 'done') return { kind: 'done', at: request.completed_at ?? request.updated_at };
+  if (request.last_reply_at) return { kind: 'replied', at: request.last_reply_at };
+  if (request.next_due_at) return { kind: 'promised', at: request.next_due_at };
   if (category === 'progress') return { kind: 'working', at: request.updated_at };
   return { kind: 'received', at: request.created_at };
 }
