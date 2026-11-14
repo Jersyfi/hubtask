@@ -842,8 +842,12 @@ called objects (ITIL)*, the empty inventory's hint); no display text says "Asset
 Completeness 100 %*), work-surface §6.10. The operator's former sections - runs, duplicates,
 connectors, rounds, the import - are gathered under the tab *Upkeep* (IN-4), drawn for whoever may
 run them, the import for a writer only. A lifecycle state is a non-interactive lozenge, never a
-bordered pill that reads as a button. An object's detail shows its relations as a small graph with
-the list beside it.
+bordered pill that reads as a button. An object's page has the entry's shape (IN-2, scene `ci`): one
+head with the stage as a step bar and *Change stage*, jump marks, the main column - attributes with
+the source of each, the relations as a picture *or* a list (the reader's choice, kept on the device;
+a phone opens on the list), the impact both ways, *Work on it* with each entry's reason and *Report
+an incident* (IN-3), the register record with the device's life - and the rail with responsibility,
+protection need, origin and the saved groups holding it.
 
 As built: the hub's *Inventory* has the tool's head with the trail, the figure from the health read,
 *Import* as the secondary act and *New object* as the primary, whose list holds *New connector*,

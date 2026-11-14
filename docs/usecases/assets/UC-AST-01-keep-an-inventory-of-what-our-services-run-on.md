@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/work/LinksCi_test.go, core/application/service/cmdb/Backlinks_test.go, core/application/service/cmdb/Changes_test.go, core/application/service/sync/InitialSyncCmdb_test.go, apps/webapp/src/lib/data/replica.test.ts, core/application/archive/Carried_test.go, apps/webapp/e2e/assetsscreen.test.mjs, apps/webapp/src/lib/data/inventoryquery.test.ts, apps/webapp/e2e/inventorystock.test.mjs]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/work/LinksCi_test.go, core/application/service/cmdb/Backlinks_test.go, core/application/service/cmdb/Changes_test.go, core/application/service/sync/InitialSyncCmdb_test.go, apps/webapp/src/lib/data/replica.test.ts, core/application/archive/Carried_test.go, apps/webapp/e2e/assetsscreen.test.mjs, apps/webapp/src/lib/data/inventoryquery.test.ts, apps/webapp/e2e/inventorystock.test.mjs, apps/webapp/e2e/inventoryobject.test.mjs, apps/webapp/src/lib/assets/objectpage.test.ts]
 ---
 
 # Keep an inventory of what our services run on
@@ -31,7 +31,7 @@ Dana runs IT for a practice of forty people. She records the booking application
 5. Reading an object answers its relations both ways and the attribute's source that last wrote each value.
 6. A member of another hub, or of another workspace, finds none of the hub's objects, relations or identifiers.
 7. The workspace's archive holds every object type, relation type, source, object, identifier, relation, run, hold and duplicate, and a restore brings them back (tenant-export.md §6).
-8. The *Inventory* screen of a hub lists its objects by object type and shows one with its attributes, relations and compliance fields, editable by a member who may write.
+8. The *Inventory* screen of a hub lists its objects by object type, and an object's page shows its stage as a step bar, its attributes with the source that wrote each, its relations as a picture or as a list, and its owner, location, protection need and review in its rail - each editable there by a member who may write, nothing editable for a reader or on a phone.
 9. An entry's notes or comments, a page or a whiteboard point at an object with `hubtask:ci/<id>`; the reference shows the object's name, object type and stage to a reader of its hub and only its address to anyone else, and the object's screen lists what points at it that the reader may see.
 10. A device that holds a copy of the workspace reads a hub's inventory while the server is away: the objects by object type, an object with its relations, the protection need it inherits and its impact, and the object types and relation types; only a hub the reader may read reaches the device, every write of an object or a relation reaches it, and nothing is written offline.
 11. Writing a comment or a page, a member mentions an object of a hub they may read, found by its name, inline or as a card; an object of a hub out of their reach, or one merged away, is not offered.

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/cmdb/Work_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/cmdb/Work_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/e2e/inventoryobject.test.mjs, apps/webapp/src/lib/assets/objectpage.test.ts]
 ---
 
 # See what an incident or a change touches
@@ -29,6 +29,7 @@ Kai opens the incident "Booking is slow" and names the booking application as af
 5. An entry's affected objects travel to a device filed under the object's hub and never to a reader of another hub.
 6. The entry's screen shows its affected objects, the services they reach, the related entries and the collisions, and a writer names and removes an object there.
 7. An object lists every entry that names it, or names an object beneath it - one whose failure it suffers, up to eight steps -, each once with its reason (it names the object itself, or the nearest object beneath it names), open ones first: only entries the reader may see, never archived ones.
+8. An object's page shows the work on it, each entry with its reason - it names this object, or it names the object beneath that is named -, the completed ones folded; a member who may write reports an incident there, and the entry it makes names the object as affected.
 
 ## Where it ends
 
