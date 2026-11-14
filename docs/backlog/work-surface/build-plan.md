@@ -163,3 +163,12 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
   only (conversion, WOPI). Every other private target stays refused. Entering it needs structure rights,
   never an agent, and is audited; the operator can switch the exception off for the whole installation
   (default on for self-hosting).
+* **Owner's decision of 2026-11-14 (inventory naming and meaning):** the product is **Inventar** (en:
+  Inventory), an object database that maps any structure as related objects - hardware, software, services,
+  contracts, locations, people's equipment, anything a process needs - so that processes can be automated
+  over connected information; it is not only an inventory tool. Words everywhere (UI, use cases, docs, API
+  descriptions): **Objekt** (object; replaces Element, configuration item, CI, Asset), **Objekttyp** (object
+  type; replaces class), **Attribut**, **Beziehung** / **Beziehungstyp**. "Configuration item" stays only in
+  the help as the ITIL word for objects in IT operations; code identifiers (`cmdb`) stay. The use cases state
+  this meaning explicitly (UC-AST-01's Goal and the assets area's introduction) so it cannot be read as a mere
+  inventory tool.
