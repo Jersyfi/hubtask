@@ -299,6 +299,11 @@ Rules trigger HTTP calls and agents write, so:
    holds its condition as sentences the server compiles, every value an escaped literal; it drafts no
    branch condition, dedupe key, outbound request or webhook, and only entry-level steps from an
    allowlist ([ai-first.md](./ai-first.md) §2).
+8. **An image library for covers is opt-in per workspace** (`knowledge.cover_images`, off by
+   default; UC-DOC-16 check 5): the server searches and fetches through `GuardedClient` with its
+   deadline and an 8 MiB response limit; the browser never calls the library, and neither the
+   query nor the library's address reaches a log or an error's cause (rule 10). The picture is then
+   uploaded as any other cover image, through the upload's checks.
 
 ---
 

@@ -5,7 +5,10 @@ package knowledge
 
 import (
 	"errors"
+	"strings"
 	"testing"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -61,5 +64,51 @@ func TestAPagesCoverIsChanged(t *testing.T) {
 	gone, fields, _ := next.Changed(Change{Cover: &CoverChange{}}, shared.ID(""), page.UpdatedAt, nil)
 	if gone.Cover != nil || len(fields) != 1 {
 		t.Fatalf("taking it away: %+v %v", gone.Cover, fields)
+	}
+}
+
+// An image library's picture names who made it at the cover; nothing else carries a credit
+// (UC-DOC-16 check 5).
+func TestACoversCreditNamesWhoMadeAnImage(t *testing.T) {
+	image := Cover{Source: CoverImage, Key: "01936f2a-7c1e-7000-8000-00000000d001", Position: 50}
+	cases := []struct {
+		name   string
+		cover  Cover
+		credit string
+		want   string
+		code   string
+	}{
+		{"an image's maker", image, "  Ada Lovelace ", "Ada Lovelace", ""},
+		{"nobody", image, "", "", ""},
+		{"a gradient has no maker", Cover{Source: CoverGradient, Key: "x"}, "Ada", "", "pages.cover_credit_not_image"},
+		{"a line break", image, "Ada\nLovelace", "", "pages.cover_credit_malformed"},
+		{"too long", image, strings.Repeat("a", MaxCreditLength+1), "", "pages.cover_credit_malformed"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.cover.WithCredit(c.credit)
+			if c.code == "" {
+				if err != nil || got.Credit != c.want {
+					t.Fatalf("WithCredit = %q, %v", got.Credit, err)
+				}
+				return
+			}
+			var e *shared.Error
+			if !errors.As(err, &e) || e.DetailCode != c.code {
+				t.Fatalf("WithCredit answered %v, want %s", err, c.code)
+			}
+		})
+	}
+}
+
+// The image library is off unless the workspace, a plan or the installation chooses one.
+func TestCoverImagesAreOffUnlessChosen(t *testing.T) {
+	definition := CoverImagesDefinition()
+	if got := CoverImagesOf(setting.Resolve(definition)); got != CoverImagesOff {
+		t.Fatalf("default = %s", got)
+	}
+	chosen := setting.Layer{Level: setting.LevelWorkspace, Entries: map[setting.Key]setting.Entry{CoverImagesKey: {Value: CoverImagesOpenverse, Hold: setting.HoldSet}}}
+	if got := CoverImagesOf(setting.Resolve(definition, chosen)); got != CoverImagesOpenverse {
+		t.Fatalf("chosen = %s", got)
 	}
 }

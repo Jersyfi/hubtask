@@ -3985,6 +3985,45 @@ func (e CoverKind) Valid() bool {
 	}
 }
 
+// Defines values for CoverImageFetchedContentType.
+const (
+	Imagejpeg CoverImageFetchedContentType = "image/jpeg"
+	Imagepng  CoverImageFetchedContentType = "image/png"
+	Imagewebp CoverImageFetchedContentType = "image/webp"
+)
+
+// Valid indicates whether the value is a known member of the CoverImageFetchedContentType enum.
+func (e CoverImageFetchedContentType) Valid() bool {
+	switch e {
+	case Imagejpeg:
+		return true
+	case Imagepng:
+		return true
+	case Imagewebp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CoverImagesPolicyLibrary.
+const (
+	CoverImagesPolicyLibraryOFF       CoverImagesPolicyLibrary = "OFF"
+	CoverImagesPolicyLibraryOPENVERSE CoverImagesPolicyLibrary = "OPENVERSE"
+)
+
+// Valid indicates whether the value is a known member of the CoverImagesPolicyLibrary enum.
+func (e CoverImagesPolicyLibrary) Valid() bool {
+	switch e {
+	case CoverImagesPolicyLibraryOFF:
+		return true
+	case CoverImagesPolicyLibraryOPENVERSE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CoverInputKind.
 const (
 	CoverInputKindCOLOR CoverInputKind = "COLOR"
@@ -12265,6 +12304,24 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	}
 }
 
+// Defines values for SetCoverImagesPolicyJSONBodyLibrary.
+const (
+	SetCoverImagesPolicyJSONBodyLibraryOFF       SetCoverImagesPolicyJSONBodyLibrary = "OFF"
+	SetCoverImagesPolicyJSONBodyLibraryOPENVERSE SetCoverImagesPolicyJSONBodyLibrary = "OPENVERSE"
+)
+
+// Valid indicates whether the value is a known member of the SetCoverImagesPolicyJSONBodyLibrary enum.
+func (e SetCoverImagesPolicyJSONBodyLibrary) Valid() bool {
+	switch e {
+	case SetCoverImagesPolicyJSONBodyLibraryOFF:
+		return true
+	case SetCoverImagesPolicyJSONBodyLibraryOPENVERSE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReportPortfolioStatusJSONBodyStatus.
 const (
 	ReportPortfolioStatusJSONBodyStatusATRISK   ReportPortfolioStatusJSONBodyStatus = "AT_RISK"
@@ -16874,6 +16931,46 @@ type Cover struct {
 
 // CoverKind defines model for Cover.Kind.
 type CoverKind string
+
+// CoverImageFetched defines model for CoverImageFetched.
+type CoverImageFetched struct {
+	ContentBase64 []byte                       `json:"content_base64"`
+	ContentType   CoverImageFetchedContentType `json:"content_type"`
+
+	// Credit Who made the picture
+	Credit string `json:"credit"`
+}
+
+// CoverImageFetchedContentType defines model for CoverImageFetched.ContentType.
+type CoverImageFetchedContentType string
+
+// CoverImageSearch defines model for CoverImageSearch.
+type CoverImageSearch struct {
+	// Offered Whether the workspace offers an image library for covers.
+	Offered  bool `json:"offered"`
+	Pictures []struct {
+		// Creator Who made the picture
+		Creator string `json:"creator"`
+		Id      string `json:"id"`
+
+		// Preview A small rendition as a data: URL.
+		Preview string `json:"preview"`
+	} `json:"pictures"`
+}
+
+// CoverImagesPolicy defines model for CoverImagesPolicy.
+type CoverImagesPolicy struct {
+	Library CoverImagesPolicyLibrary `json:"library"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+}
+
+// CoverImagesPolicyLibrary defines model for CoverImagesPolicy.Library.
+type CoverImagesPolicyLibrary string
 
 // CoverInput What the cover shall be: a colour token from the design system's vocabulary, or an image by its media identifier - exactly one of the two, matching the kind.
 type CoverInput struct {
@@ -21757,6 +21854,9 @@ type PageCommentList struct {
 
 // PageCover A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there.
 type PageCover struct {
+	// Credit Who made an image library's picture, named at the cover; only an image carries one.
+	Credit *string `json:"credit,omitempty"`
+
 	// Key A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
 	Key string `json:"key"`
 
@@ -30414,6 +30514,11 @@ type PublishPageToPortalJSONBody struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 }
 
+// SearchCoverImagesParams defines parameters for SearchCoverImages.
+type SearchCoverImagesParams struct {
+	Query *string `form:"query,omitempty" json:"query,omitempty"`
+}
+
 // ListPageVersionsParams defines parameters for ListPageVersions.
 type ListPageVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
@@ -30451,6 +30556,14 @@ type PublishPageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// SetCoverImagesPolicyJSONBody defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBody struct {
+	Library SetCoverImagesPolicyJSONBodyLibrary `json:"library"`
+}
+
+// SetCoverImagesPolicyJSONBodyLibrary defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBodyLibrary string
 
 // SetPublicLinksPolicyJSONBody defines parameters for SetPublicLinksPolicy.
 type SetPublicLinksPolicyJSONBody struct {
@@ -32208,6 +32321,9 @@ type RestrictPageJSONRequestBody = PageRestrict
 
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
+
+// SetCoverImagesPolicyJSONRequestBody defines body for SetCoverImagesPolicy for application/json ContentType.
+type SetCoverImagesPolicyJSONRequestBody SetCoverImagesPolicyJSONBody
 
 // SetPublicLinksPolicyJSONRequestBody defines body for SetPublicLinksPolicy for application/json ContentType.
 type SetPublicLinksPolicyJSONRequestBody SetPublicLinksPolicyJSONBody
@@ -41168,6 +41284,20 @@ type ClientInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageComment(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SearchCoverImages Search an image library for a page's cover
+	//
+	// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+	SearchCoverImages(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FetchCoverImage Fetch an image library's picture for a page's cover
+	//
+	// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+	FetchCoverImage(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DiscardPageDraft Throw a page's draft away
 	//
 	// The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
@@ -41431,6 +41561,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 	VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadCoverImagesPolicy Which image library covers may take pictures from
+	//
+	// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+	ReadCoverImagesPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCoverImagesPolicyWithBody Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetCoverImagesPolicy Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicy(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadPersonalSpace My own notes' space
 	//
@@ -61691,6 +61846,40 @@ func (c *Client) AddPageComment(ctx context.Context, pageId PageId, body AddPage
 	return c.Client.Do(req)
 }
 
+// SearchCoverImages Search an image library for a page's cover
+//
+// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+//
+// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+func (c *Client) SearchCoverImages(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSearchCoverImagesRequest(c.Server, pageId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FetchCoverImage Fetch an image library's picture for a page's cover
+//
+// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+//
+// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+func (c *Client) FetchCoverImage(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFetchCoverImageRequest(c.Server, pageId, pictureId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // DiscardPageDraft Throw a page's draft away
 //
 // The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
@@ -62265,6 +62454,61 @@ func (c *Client) VerifyPageWithBody(ctx context.Context, pageId PageId, contentT
 // Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 func (c *Client) VerifyPage(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewVerifyPageRequest(c.Server, pageId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadCoverImagesPolicy Which image library covers may take pictures from
+//
+// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+func (c *Client) ReadCoverImagesPolicy(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadCoverImagesPolicyRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCoverImagesPolicyWithBody Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *Client) SetCoverImagesPolicyWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCoverImagesPolicyRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetCoverImagesPolicy Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *Client) SetCoverImagesPolicy(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetCoverImagesPolicyRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -97740,6 +97984,108 @@ func NewAddPageCommentRequestWithBody(server string, pageId PageId, contentType 
 	return req, nil
 }
 
+// NewSearchCoverImagesRequest constructs an http.Request for the SearchCoverImages method
+func NewSearchCoverImagesRequest(server string, pageId PageId, params *SearchCoverImagesParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/cover-images", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Query != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "query", *params.Query, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewFetchCoverImageRequest constructs an http.Request for the FetchCoverImage method
+func NewFetchCoverImageRequest(server string, pageId PageId, pictureId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "pageId", pageId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "pictureId", pictureId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages/%s/cover-images/%s:fetch", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDiscardPageDraftRequest constructs an http.Request for the DiscardPageDraft method
 func NewDiscardPageDraftRequest(server string, pageId PageId) (*http.Request, error) {
 	var err error
@@ -98721,6 +99067,73 @@ func NewVerifyPageRequestWithBody(server string, pageId PageId, contentType stri
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadCoverImagesPolicyRequest constructs an http.Request for the ReadCoverImagesPolicy method
+func NewReadCoverImagesPolicyRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:cover-images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetCoverImagesPolicyRequest calls the generic SetCoverImagesPolicy builder with application/json body
+func NewSetCoverImagesPolicyRequest(server string, body SetCoverImagesPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetCoverImagesPolicyRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetCoverImagesPolicyRequestWithBody constructs an http.Request for the SetCoverImagesPolicy method, with any body, and a specified content type
+func NewSetCoverImagesPolicyRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/pages:cover-images")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -118516,6 +118929,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /pages/{pageId}/comments (the `AddPageComment` operationId).
 	AddPageCommentWithResponse(ctx context.Context, pageId PageId, body AddPageCommentJSONRequestBody, reqEditors ...RequestEditorFn) (*AddPageCommentResult, error)
 
+	// SearchCoverImagesWithResponse Search an image library for a page's cover
+	//
+	// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+	SearchCoverImagesWithResponse(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*SearchCoverImagesResult, error)
+
+	// FetchCoverImageWithResponse Fetch an image library's picture for a page's cover
+	//
+	// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+	FetchCoverImageWithResponse(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*FetchCoverImageResult, error)
+
 	// DiscardPageDraftWithResponse Throw a page's draft away
 	//
 	// The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
@@ -118803,6 +119234,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /pages/{pageId}:verify (the `VerifyPage` operationId).
 	VerifyPageWithResponse(ctx context.Context, pageId PageId, body VerifyPageJSONRequestBody, reqEditors ...RequestEditorFn) (*VerifyPageResult, error)
+
+	// ReadCoverImagesPolicyWithResponse Which image library covers may take pictures from
+	//
+	// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+	ReadCoverImagesPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadCoverImagesPolicyResult, error)
+
+	// SetCoverImagesPolicyWithBodyWithResponse Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error)
+
+	// SetCoverImagesPolicyWithResponse Offer an image library for covers, or none
+	//
+	// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+	SetCoverImagesPolicyWithResponse(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error)
 
 	// ReadPersonalSpaceWithResponse My own notes' space
 	//
@@ -151837,6 +152295,102 @@ func (r AddPageCommentResult) ContentType() string {
 	return ""
 }
 
+type SearchCoverImagesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImageSearch
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SearchCoverImagesResult) GetJSON200() *CoverImageSearch {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SearchCoverImagesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SearchCoverImagesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SearchCoverImagesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SearchCoverImagesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SearchCoverImagesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type FetchCoverImageResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImageFetched
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r FetchCoverImageResult) GetJSON200() *CoverImageFetched {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r FetchCoverImageResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r FetchCoverImageResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r FetchCoverImageResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FetchCoverImageResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r FetchCoverImageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type DiscardPageDraftResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -152859,6 +153413,102 @@ func (r VerifyPageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r VerifyPageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadCoverImagesPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImagesPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadCoverImagesPolicyResult) GetJSON200() *CoverImagesPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadCoverImagesPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadCoverImagesPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadCoverImagesPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadCoverImagesPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadCoverImagesPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetCoverImagesPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CoverImagesPolicy
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetCoverImagesPolicyResult) GetJSON200() *CoverImagesPolicy {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetCoverImagesPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetCoverImagesPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetCoverImagesPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetCoverImagesPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetCoverImagesPolicyResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -178404,6 +179054,36 @@ func (c *ClientWithResponses) AddPageCommentWithResponse(ctx context.Context, pa
 	return ParseAddPageCommentResult(rsp)
 }
 
+// SearchCoverImagesWithResponse Search an image library for a page's cover
+//
+// Whether the workspace offers an image library for covers and, with a query, up to twelve of its openly licensed pictures, each with who made it and a small preview the server fetched. Without a query or with the library switched off it asks nothing outside. Needs WRITE_ITEMS on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages/{pageId}/cover-images (the `SearchCoverImages` operationId).
+func (c *ClientWithResponses) SearchCoverImagesWithResponse(ctx context.Context, pageId PageId, params *SearchCoverImagesParams, reqEditors ...RequestEditorFn) (*SearchCoverImagesResult, error) {
+	rsp, err := c.SearchCoverImages(ctx, pageId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSearchCoverImagesResult(rsp)
+}
+
+// FetchCoverImageWithResponse Fetch an image library's picture for a page's cover
+//
+// The picture's larger rendition, fetched by the server, with who made it: the client uploads it as the page's cover image and names its maker as the cover's credit. Refused `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the page's hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /pages/{pageId}/cover-images/{pictureId}:fetch (the `FetchCoverImage` operationId).
+func (c *ClientWithResponses) FetchCoverImageWithResponse(ctx context.Context, pageId PageId, pictureId string, reqEditors ...RequestEditorFn) (*FetchCoverImageResult, error) {
+	rsp, err := c.FetchCoverImage(ctx, pageId, pictureId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFetchCoverImageResult(rsp)
+}
+
 // DiscardPageDraftWithResponse Throw a page's draft away
 //
 // The page stays as published. A page never published has no draft to throw away (`pages.nothing_to_discard`): it is put in the trash instead. Needs WRITE_ITEMS on the hub.
@@ -178882,6 +179562,51 @@ func (c *ClientWithResponses) VerifyPageWithResponse(ctx context.Context, pageId
 		return nil, err
 	}
 	return ParseVerifyPageResult(rsp)
+}
+
+// ReadCoverImagesPolicyWithResponse Which image library covers may take pictures from
+//
+// The workspace's choice of an image library offered as a cover's fourth source, the level that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /pages:cover-images (the `ReadCoverImagesPolicy` operationId).
+func (c *ClientWithResponses) ReadCoverImagesPolicyWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadCoverImagesPolicyResult, error) {
+	rsp, err := c.ReadCoverImagesPolicy(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadCoverImagesPolicyResult(rsp)
+}
+
+// SetCoverImagesPolicyWithBodyWithResponse Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *ClientWithResponses) SetCoverImagesPolicyWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error) {
+	rsp, err := c.SetCoverImagesPolicyWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCoverImagesPolicyResult(rsp)
+}
+
+// SetCoverImagesPolicyWithResponse Offer an image library for covers, or none
+//
+// Off by default, since every search leaves the installation; the installation or the plan may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never decides it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /pages:cover-images (the `SetCoverImagesPolicy` operationId).
+func (c *ClientWithResponses) SetCoverImagesPolicyWithResponse(ctx context.Context, body SetCoverImagesPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCoverImagesPolicyResult, error) {
+	rsp, err := c.SetCoverImagesPolicy(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetCoverImagesPolicyResult(rsp)
 }
 
 // ReadPersonalSpaceWithResponse My own notes' space
@@ -205455,6 +206180,72 @@ func ParseAddPageCommentResult(rsp *http.Response) (*AddPageCommentResult, error
 	return response, nil
 }
 
+// ParseSearchCoverImagesResult parses an HTTP response from a SearchCoverImagesWithResponse call
+func ParseSearchCoverImagesResult(rsp *http.Response) (*SearchCoverImagesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SearchCoverImagesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImageSearch
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseFetchCoverImageResult parses an HTTP response from a FetchCoverImageWithResponse call
+func ParseFetchCoverImageResult(rsp *http.Response) (*FetchCoverImageResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FetchCoverImageResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImageFetched
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDiscardPageDraftResult parses an HTTP response from a DiscardPageDraftWithResponse call
 func ParseDiscardPageDraftResult(rsp *http.Response) (*DiscardPageDraftResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -206148,6 +206939,72 @@ func ParseVerifyPageResult(rsp *http.Response) (*VerifyPageResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Page
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadCoverImagesPolicyResult parses an HTTP response from a ReadCoverImagesPolicyWithResponse call
+func ParseReadCoverImagesPolicyResult(rsp *http.Response) (*ReadCoverImagesPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadCoverImagesPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImagesPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetCoverImagesPolicyResult parses an HTTP response from a SetCoverImagesPolicyWithResponse call
+func ParseSetCoverImagesPolicyResult(rsp *http.Response) (*SetCoverImagesPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetCoverImagesPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CoverImagesPolicy
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

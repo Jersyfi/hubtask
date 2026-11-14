@@ -1225,13 +1225,14 @@ type storedCover struct {
 	Source   string `json:"source"`
 	Key      string `json:"key"`
 	Position int    `json:"position"`
+	Credit   string `json:"credit,omitempty"`
 }
 
 func pageCoverDocument(cover *knowledge.Cover) ([]byte, error) {
 	if cover == nil {
 		return nil, nil
 	}
-	document, err := json.Marshal(storedCover{Source: string(cover.Source), Key: cover.Key, Position: cover.Position})
+	document, err := json.Marshal(storedCover{Source: string(cover.Source), Key: cover.Key, Position: cover.Position, Credit: cover.Credit})
 	if err != nil {
 		return nil, pageFailed("writing the cover", err)
 	}
@@ -1246,5 +1247,5 @@ func pageCoverFrom(document []byte) (*knowledge.Cover, error) {
 	if err := json.Unmarshal(document, &stored); err != nil {
 		return nil, pageFailed("reading the cover", err)
 	}
-	return &knowledge.Cover{Source: knowledge.CoverSource(stored.Source), Key: stored.Key, Position: stored.Position}, nil
+	return &knowledge.Cover{Source: knowledge.CoverSource(stored.Source), Key: stored.Key, Position: stored.Position, Credit: stored.Credit}, nil
 }

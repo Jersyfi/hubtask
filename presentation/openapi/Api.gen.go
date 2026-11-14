@@ -3979,6 +3979,45 @@ func (e CoverKind) Valid() bool {
 	}
 }
 
+// Defines values for CoverImageFetchedContentType.
+const (
+	Imagejpeg CoverImageFetchedContentType = "image/jpeg"
+	Imagepng  CoverImageFetchedContentType = "image/png"
+	Imagewebp CoverImageFetchedContentType = "image/webp"
+)
+
+// Valid indicates whether the value is a known member of the CoverImageFetchedContentType enum.
+func (e CoverImageFetchedContentType) Valid() bool {
+	switch e {
+	case Imagejpeg:
+		return true
+	case Imagepng:
+		return true
+	case Imagewebp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CoverImagesPolicyLibrary.
+const (
+	CoverImagesPolicyLibraryOFF       CoverImagesPolicyLibrary = "OFF"
+	CoverImagesPolicyLibraryOPENVERSE CoverImagesPolicyLibrary = "OPENVERSE"
+)
+
+// Valid indicates whether the value is a known member of the CoverImagesPolicyLibrary enum.
+func (e CoverImagesPolicyLibrary) Valid() bool {
+	switch e {
+	case CoverImagesPolicyLibraryOFF:
+		return true
+	case CoverImagesPolicyLibraryOPENVERSE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CoverInputKind.
 const (
 	CoverInputKindCOLOR CoverInputKind = "COLOR"
@@ -12259,6 +12298,24 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 	}
 }
 
+// Defines values for SetCoverImagesPolicyJSONBodyLibrary.
+const (
+	SetCoverImagesPolicyJSONBodyLibraryOFF       SetCoverImagesPolicyJSONBodyLibrary = "OFF"
+	SetCoverImagesPolicyJSONBodyLibraryOPENVERSE SetCoverImagesPolicyJSONBodyLibrary = "OPENVERSE"
+)
+
+// Valid indicates whether the value is a known member of the SetCoverImagesPolicyJSONBodyLibrary enum.
+func (e SetCoverImagesPolicyJSONBodyLibrary) Valid() bool {
+	switch e {
+	case SetCoverImagesPolicyJSONBodyLibraryOFF:
+		return true
+	case SetCoverImagesPolicyJSONBodyLibraryOPENVERSE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ReportPortfolioStatusJSONBodyStatus.
 const (
 	ReportPortfolioStatusJSONBodyStatusATRISK   ReportPortfolioStatusJSONBodyStatus = "AT_RISK"
@@ -16868,6 +16925,46 @@ type Cover struct {
 
 // CoverKind defines model for Cover.Kind.
 type CoverKind string
+
+// CoverImageFetched defines model for CoverImageFetched.
+type CoverImageFetched struct {
+	ContentBase64 []byte                       `json:"content_base64"`
+	ContentType   CoverImageFetchedContentType `json:"content_type"`
+
+	// Credit Who made the picture
+	Credit string `json:"credit"`
+}
+
+// CoverImageFetchedContentType defines model for CoverImageFetched.ContentType.
+type CoverImageFetchedContentType string
+
+// CoverImageSearch defines model for CoverImageSearch.
+type CoverImageSearch struct {
+	// Offered Whether the workspace offers an image library for covers.
+	Offered  bool `json:"offered"`
+	Pictures []struct {
+		// Creator Who made the picture
+		Creator string `json:"creator"`
+		Id      string `json:"id"`
+
+		// Preview A small rendition as a data: URL.
+		Preview string `json:"preview"`
+	} `json:"pictures"`
+}
+
+// CoverImagesPolicy defines model for CoverImagesPolicy.
+type CoverImagesPolicy struct {
+	Library CoverImagesPolicyLibrary `json:"library"`
+
+	// LockedBy The level that locked it
+	LockedBy *string `json:"locked_by,omitempty"`
+
+	// Source The level whose value is in force.
+	Source string `json:"source"`
+}
+
+// CoverImagesPolicyLibrary defines model for CoverImagesPolicy.Library.
+type CoverImagesPolicyLibrary string
 
 // CoverInput What the cover shall be: a colour token from the design system's vocabulary, or an image by its media identifier - exactly one of the two, matching the kind.
 type CoverInput struct {
@@ -21751,6 +21848,9 @@ type PageCommentList struct {
 
 // PageCover A page's cover: one of the gradients or gallery pictures the clients draw by their key, or an image of the media context by its id. A key a client does not know draws as no cover there.
 type PageCover struct {
+	// Credit Who made an image library's picture, named at the cover; only an image carries one.
+	Credit *string `json:"credit,omitempty"`
+
 	// Key A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
 	Key string `json:"key"`
 
@@ -30408,6 +30508,11 @@ type PublishPageToPortalJSONBody struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 }
 
+// SearchCoverImagesParams defines parameters for SearchCoverImages.
+type SearchCoverImagesParams struct {
+	Query *string `form:"query,omitempty" json:"query,omitempty"`
+}
+
 // ListPageVersionsParams defines parameters for ListPageVersions.
 type ListPageVersionsParams struct {
 	Before *int `form:"before,omitempty" json:"before,omitempty"`
@@ -30445,6 +30550,14 @@ type PublishPageParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// SetCoverImagesPolicyJSONBody defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBody struct {
+	Library SetCoverImagesPolicyJSONBodyLibrary `json:"library"`
+}
+
+// SetCoverImagesPolicyJSONBodyLibrary defines parameters for SetCoverImagesPolicy.
+type SetCoverImagesPolicyJSONBodyLibrary string
 
 // SetPublicLinksPolicyJSONBody defines parameters for SetPublicLinksPolicy.
 type SetPublicLinksPolicyJSONBody struct {
@@ -32202,6 +32315,9 @@ type RestrictPageJSONRequestBody = PageRestrict
 
 // VerifyPageJSONRequestBody defines body for VerifyPage for application/json ContentType.
 type VerifyPageJSONRequestBody = PageVerify
+
+// SetCoverImagesPolicyJSONRequestBody defines body for SetCoverImagesPolicy for application/json ContentType.
+type SetCoverImagesPolicyJSONRequestBody SetCoverImagesPolicyJSONBody
 
 // SetPublicLinksPolicyJSONRequestBody defines body for SetPublicLinksPolicy for application/json ContentType.
 type SetPublicLinksPolicyJSONRequestBody SetPublicLinksPolicyJSONBody
@@ -34784,6 +34900,12 @@ type ServerInterface interface {
 	// AddPageComment Comment on a page
 	// (POST /pages/{pageId}/comments)
 	AddPageComment(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// SearchCoverImages Search an image library for a page's cover
+	// (GET /pages/{pageId}/cover-images)
+	SearchCoverImages(w http.ResponseWriter, r *http.Request, pageId PageId, params SearchCoverImagesParams)
+	// FetchCoverImage Fetch an image library's picture for a page's cover
+	// (POST /pages/{pageId}/cover-images/{pictureId}:fetch)
+	FetchCoverImage(w http.ResponseWriter, r *http.Request, pageId PageId, pictureId string)
 	// DiscardPageDraft Throw a page's draft away
 	// (DELETE /pages/{pageId}/draft)
 	DiscardPageDraft(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -34850,6 +34972,12 @@ type ServerInterface interface {
 	// VerifyPage Mark a page as checked
 	// (POST /pages/{pageId}:verify)
 	VerifyPage(w http.ResponseWriter, r *http.Request, pageId PageId)
+	// ReadCoverImagesPolicy Which image library covers may take pictures from
+	// (GET /pages:cover-images)
+	ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request)
+	// SetCoverImagesPolicy Offer an image library for covers, or none
+	// (PUT /pages:cover-images)
+	SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request)
 	// ReadPersonalSpace My own notes' space
 	// (GET /pages:personal)
 	ReadPersonalSpace(w http.ResponseWriter, r *http.Request)
@@ -56216,6 +56344,83 @@ func (siw *ServerInterfaceWrapper) AddPageComment(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// SearchCoverImages operation middleware
+func (siw *ServerInterfaceWrapper) SearchCoverImages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchCoverImagesParams
+
+	// ------------- Optional query parameter "query" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "query", r.URL.Query(), &params.Query, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "query"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "query", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SearchCoverImages(w, r, pageId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FetchCoverImage operation middleware
+func (siw *ServerInterfaceWrapper) FetchCoverImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "pageId" -------------
+	var pageId PageId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pageId", r.PathValue("pageId"), &pageId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "pictureId" -------------
+	var pictureId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "pictureId", r.PathValue("pictureId"), &pictureId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pictureId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FetchCoverImage(w, r, pageId, pictureId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DiscardPageDraft operation middleware
 func (siw *ServerInterfaceWrapper) DiscardPageDraft(w http.ResponseWriter, r *http.Request) {
 
@@ -56916,6 +57121,34 @@ func (siw *ServerInterfaceWrapper) VerifyPage(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyPage(w, r, pageId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadCoverImagesPolicy operation middleware
+func (siw *ServerInterfaceWrapper) ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadCoverImagesPolicy(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCoverImagesPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCoverImagesPolicy(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -65173,6 +65406,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.DeletePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/public-link", wrapper.CreatePagePublicLink)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/media", wrapper.AttachPageMedia)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/cover-images", wrapper.SearchCoverImages)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/cover-images/{pictureId}:fetch", wrapper.FetchCoverImage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages:cover-images", wrapper.ReadCoverImagesPolicy)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/pages:cover-images", wrapper.SetCoverImagesPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/pages/{pageId}/articles", wrapper.PublishPageToPortal)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}/articles/{collectionId}", wrapper.UnpublishPageFromPortal)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/pages/{pageId}/language-variants", wrapper.ListPageLanguageVariants)

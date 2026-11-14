@@ -121,6 +121,9 @@ type Space struct {
 	Drafting Drafting
 	// Boards are the whiteboards standing among the pages (UC-CNV-10); nil is a space without.
 	Boards BoardPlaces
+	// Covers offers an image library as a cover's fourth source where the workspace chooses one
+	// (UC-DOC-16 check 5); its zero value offers none.
+	Covers CoverLibrary
 }
 
 // Drafting is what a space with drafts needs beside the pages.

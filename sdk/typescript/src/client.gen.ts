@@ -4302,6 +4302,26 @@ export class HubtaskClient {
     return this.call("POST", "/pages/{pageId}/media", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Search an image library for a page's cover */
+  searchCoverImages(pageId: string, options: CallOptions & { readonly query?: NonNullable<operations["searchCoverImages"]['parameters']['query']> } = {}): Promise<operations["searchCoverImages"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages/{pageId}/cover-images", { "pageId": pageId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Fetch an image library's picture for a page's cover */
+  fetchCoverImage(pageId: string, pictureId: string, options: CallOptions = {}): Promise<operations["fetchCoverImage"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/pages/{pageId}/cover-images/{pictureId}:fetch", { "pageId": pageId, "pictureId": pictureId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Which image library covers may take pictures from */
+  readCoverImagesPolicy(options: CallOptions = {}): Promise<operations["readCoverImagesPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/pages:cover-images", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Offer an image library for covers, or none */
+  setCoverImagesPolicy(body: NonNullable<operations["setCoverImagesPolicy"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setCoverImagesPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/pages:cover-images", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Publish a page to a service's portal */
   publishPageToPortal(pageId: string, body: NonNullable<operations["publishPageToPortal"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["publishPageToPortal"]['responses'][201]['content']["application/json"]> {
     return this.call("POST", "/pages/{pageId}/articles", { "pageId": pageId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

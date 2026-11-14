@@ -3419,6 +3419,22 @@ class Client:
         """Attach an uploaded picture or file to a page"""
         return self._call("POST", "/pages/{pageId}/media", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")
 
+    def search_cover_images(self, page_id: str, *, query: dict[str, Any] | None = None) -> "CoverImageSearch":
+        """Search an image library for a page's cover"""
+        return self._call("GET", "/pages/{pageId}/cover-images", {"pageId": page_id}, query, {}, None, "none", None, "json")
+
+    def fetch_cover_image(self, page_id: str, picture_id: str) -> "CoverImageFetched":
+        """Fetch an image library's picture for a page's cover"""
+        return self._call("POST", "/pages/{pageId}/cover-images/{pictureId}:fetch", {"pageId": page_id, "pictureId": picture_id}, None, {}, None, "none", None, "json")
+
+    def read_cover_images_policy(self) -> "CoverImagesPolicy":
+        """Which image library covers may take pictures from"""
+        return self._call("GET", "/pages:cover-images", {}, None, {}, None, "none", None, "json")
+
+    def set_cover_images_policy(self, body: dict[str, Any]) -> "CoverImagesPolicy":
+        """Offer an image library for covers, or none"""
+        return self._call("PUT", "/pages:cover-images", {}, None, {}, body, "json", "application/json", "json")
+
     def publish_page_to_portal(self, page_id: str, body: dict[str, Any]) -> "PageArticle":
         """Publish a page to a service's portal"""
         return self._call("POST", "/pages/{pageId}/articles", {"pageId": page_id}, None, {}, body, "json", "application/json", "json")

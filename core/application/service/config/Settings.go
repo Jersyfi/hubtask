@@ -48,6 +48,7 @@ func settingAreas() []settingArea {
 		{read: "ReadAgentPolicy", prefixes: []string{agentPolicyPrefix}, rows: agentPolicyRows, write: agentPolicyOp},
 		{read: "ReadWorkspaceTolerance", prefixes: []string{planningPrefix}, rows: toleranceRows, write: toleranceOp},
 		{read: "ReadPublicLinksPolicy", prefixes: []string{publicLinksKey}, rows: publicLinksRows, write: publicLinksOp},
+		{read: "ReadCoverImagesPolicy", prefixes: []string{coverImagesKey}, rows: coverImagesRows, write: coverImagesOp},
 		{read: "ReadPublicFormsPolicy", prefixes: []string{publicFormsKey}, rows: publicFormsRows, write: publicFormsOp},
 		{read: "ReadPublicRoadmapsPolicy", prefixes: []string{publicRoadmapsKey}, rows: publicRoadmapsRows, write: publicRoadmapsOp},
 		{read: "ReadTimePolicy", prefixes: []string{timePrefix}, rows: timePolicyRows, write: timePolicyOp},
@@ -119,6 +120,24 @@ func publicLinksOp(change domain.BlockChange, _ map[string]any) (operation, erro
 	}
 	on, _ := change.After[settingValueField].(bool)
 	return operation{UseCase: "SetPublicLinksPolicy", Path: change.Path(), Input: usecase.Input{"allowed": on}}, nil
+}
+
+// coverImagesKey is the knowledge module's choice of an image library for covers (UC-DOC-16 check 5).
+const coverImagesKey = "knowledge.cover_images"
+
+func coverImagesRows(answer map[string]any) map[string]map[string]any {
+	return map[string]map[string]any{coverImagesKey: {
+		settingValueField: answer["library"], "source": answer["source"], "locked_by": answer["locked_by"],
+	}}
+}
+
+// coverImagesOp chooses the library; removing the choice is choosing none.
+func coverImagesOp(change domain.BlockChange, _ map[string]any) (operation, error) {
+	library := "OFF"
+	if change.Op != domain.OpRemove {
+		library, _ = change.After[settingValueField].(string)
+	}
+	return operation{UseCase: "SetCoverImagesPolicy", Path: change.Path(), Input: usecase.Input{"library": library}}, nil
 }
 
 // publicRoadmapsKey is the goals module's switch for a portfolio roadmap's public link

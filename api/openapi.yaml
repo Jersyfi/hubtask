@@ -23947,6 +23947,108 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /pages/{pageId}/cover-images:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+    get:
+      tags: [pages]
+      operationId: searchCoverImages
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-images"
+      summary: Search an image library for a page's cover
+      description: >
+        Whether the workspace offers an image library for covers and, with a query, up to twelve
+        of its openly licensed pictures, each with who made it and a small preview the server
+        fetched. Without a query or with the library switched off it asks nothing outside.
+        Needs WRITE_ITEMS on the page's hub.
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, maxLength: 100 }
+      responses:
+        "200":
+          description: The pictures found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImageSearch" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages/{pageId}/cover-images/{pictureId}:fetch:
+    parameters:
+      - $ref: "#/components/parameters/PageId"
+      - name: pictureId
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[0-9a-fA-F-]{8,64}$" }
+    post:
+      tags: [pages]
+      operationId: fetchCoverImage
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-image-fetch"
+      summary: Fetch an image library's picture for a page's cover
+      description: >
+        The picture's larger rendition, fetched by the server, with who made it: the client uploads
+        it as the page's cover image and names its maker as the cover's credit. Refused
+        `pages.cover_images_off` while the workspace offers no library. Needs WRITE_ITEMS on the
+        page's hub.
+      responses:
+        "200":
+          description: The picture
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImageFetched" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /pages:cover-images:
+    get:
+      tags: [pages]
+      operationId: readCoverImagesPolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-images-policy"
+      summary: Which image library covers may take pictures from
+      description: >
+        The workspace's choice of an image library offered as a cover's fourth source, the level
+        that decided it and the level that locked it. Needs MANAGE_MEMBERS at the workspace.
+      responses:
+        "200":
+          description: The policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImagesPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [pages]
+      operationId: setCoverImagesPolicy
+      x-hubtask-rest: generated
+      x-hubtask-cli: "page cover-images-policy set"
+      summary: Offer an image library for covers, or none
+      description: >
+        Off by default, since every search leaves the installation; the installation or the plan
+        may lock it (`setting.locked`). Needs MANAGE_MEMBERS at the workspace; an agent never
+        decides it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [library]
+              properties:
+                library: { type: string, enum: [OFF, OPENVERSE] }
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CoverImagesPolicy" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /pages/{pageId}/articles:
     parameters:
       - $ref: "#/components/parameters/PageId"
@@ -42569,6 +42671,7 @@ components:
           maxLength: 40
           description: A gradient's or a gallery picture's key (lowercase letters, digits, hyphens), or the image's media id.
         position: { type: integer, minimum: 0, maximum: 100, description: "How far down the picture is shown from: 0 its top, 100 its foot." }
+        credit: { type: string, maxLength: 120, description: "Who made an image library's picture, named at the cover; only an image carries one." }
 
     PageMove:
       type: object
@@ -42747,6 +42850,38 @@ components:
           required: [token]
           properties:
             token: { type: string, description: "The credential; the address is /api/v1/public/roadmaps/{token}." }
+
+    CoverImagesPolicy:
+      type: object
+      required: [library, source]
+      properties:
+        library: { type: string, enum: [OFF, OPENVERSE] }
+        source: { type: string, description: The level whose value is in force. }
+        locked_by: { type: string, description: The level that locked it, where one did. }
+
+    CoverImageSearch:
+      type: object
+      required: [offered, pictures]
+      properties:
+        offered: { type: boolean, description: Whether the workspace offers an image library for covers. }
+        pictures:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            required: [id, creator, preview]
+            properties:
+              id: { type: string }
+              creator: { type: string, description: Who made the picture, as the library names them. }
+              preview: { type: string, description: "A small rendition as a data: URL." }
+
+    CoverImageFetched:
+      type: object
+      required: [content_base64, content_type, credit]
+      properties:
+        content_base64: { type: string, format: byte }
+        content_type: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        credit: { type: string, maxLength: 120, description: Who made the picture, for the cover's credit. }
 
     PublicLinksPolicy:
       type: object

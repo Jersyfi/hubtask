@@ -6115,6 +6115,7 @@ class PageCover(TypedDict, total=False):
     source: Required[Literal["GRADIENT", "GALLERY", "IMAGE"]]
     key: Required[str]
     position: Required[int]
+    credit: str
 
 class PageMove(TypedDict, total=False):
     parent_id: str
@@ -6209,6 +6210,20 @@ class PortfolioPublicLinkMinted(TypedDict, total=False):
     created_by: Required[str | None]
     created_at: Required[str]
     token: Required[str]
+
+class CoverImagesPolicy(TypedDict, total=False):
+    library: Required[Literal["OFF", "OPENVERSE"]]
+    source: Required[str]
+    locked_by: str
+
+class CoverImageSearch(TypedDict, total=False):
+    offered: Required[bool]
+    pictures: Required[list[dict[str, Any]]]
+
+class CoverImageFetched(TypedDict, total=False):
+    content_base64: Required[str]
+    content_type: Required[Literal["image/jpeg", "image/png", "image/webp"]]
+    credit: Required[str]
 
 class PublicLinksPolicy(TypedDict, total=False):
     allowed: Required[bool]

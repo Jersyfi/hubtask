@@ -3356,3 +3356,13 @@ func (pending) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, _ opena
 func (pending) SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request, _ openapi.SwitchBackFromOwnDomainParams) {
 	notAvailable(w, r)
 }
+
+// The image library for covers (UC-DOC-16 check 5).
+func (pending) SearchCoverImages(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ openapi.SearchCoverImagesParams) {
+	notAvailable(w, r)
+}
+func (pending) FetchCoverImage(w http.ResponseWriter, r *http.Request, _ openapi.PageId, _ string) {
+	notAvailable(w, r)
+}
+func (pending) ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request)  { notAvailable(w, r) }

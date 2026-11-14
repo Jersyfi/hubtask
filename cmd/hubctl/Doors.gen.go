@@ -1904,6 +1904,27 @@ var generatedCommands = []door{
 			{Name: "title", Kind: "string", Help: "The copy's title; omitted keeps the page's", Required: false},
 		},
 		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "title", "version"}},
+	{Group: "page", Verb: "cover-image-fetch", OperationID: "fetchCoverImage", Method: "POST", Path: "/pages/{pageId}/cover-images/{pictureId}:fetch", Summary: "Fetch an image library's picture for a page's cover",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+			{Name: "pictureId", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"content_base64", "content_type", "credit"}},
+	{Group: "page", Verb: "cover-images", OperationID: "searchCoverImages", Method: "GET", Path: "/pages/{pageId}/cover-images", Summary: "Search an image library for a page's cover",
+		PathParams: []doorParam{
+			{Name: "pageId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "query", Kind: "string", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"offered"}},
+	{Group: "page", Verb: "cover-images-policy", OperationID: "readCoverImagesPolicy", Method: "GET", Path: "/pages:cover-images", Summary: "Which image library covers may take pictures from",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"library", "locked_by", "source"}},
+	{Group: "page", Verb: "cover-images-policy set", OperationID: "setCoverImagesPolicy", Method: "PUT", Path: "/pages:cover-images", Summary: "Offer an image library for covers, or none",
+		Body: []doorParam{
+			{Name: "library", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"library", "locked_by", "source"}},
 	{Group: "page", Verb: "create", OperationID: "createPage", Method: "POST", Path: "/hubs/{hubId}/pages", Summary: "Write a new page",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

@@ -810,6 +810,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page.article_unpublished` | UnpublishPageFromPortal | `page` | INFO | Every time |
 | `page.changed` | SetPageLabels | `page` | INFO | Every time |
 | `page.changed` | UpdatePage | `page` | INFO | Every time |
+| `page.cover_image_fetched` | FetchCoverImage | `page` | INFO | When refused |
+| `page.cover_images_searched` | SearchCoverImages | `page` | INFO | When refused |
 | `page.created` | CopyPage | `page` | INFO | Every time |
 | `page.created` | CreatePage | `page` | INFO | Every time |
 | `page.created` | OpenDailyNote | `page` | INFO | Every time |
@@ -860,6 +862,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `page_comment.added` | AddPageComment | `page_comment` | INFO | Every time |
 | `page_comment.changed` | ChangePageComment | `page_comment` | INFO | Every time |
 | `page_comment.deleted` | DeletePageComment | `page_comment` | INFO | Every time |
+
+## Page_cover_images
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `page_cover_images.policy_read` | ReadCoverImagesPolicy | `page_cover_images` | INFO | When refused |
+| `page_cover_images.policy_set` | SetCoverImagesPolicy | `page_cover_images` | NOTICE | Every time |
 
 ## Page_public_links
 

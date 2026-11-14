@@ -260,6 +260,7 @@ var restDoors = map[string]restDoor{
 	"exportView":                        {UseCase: "ExportView", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Writer: (*RestController).exportViewWriter, WriterMembers: []string{"format", "time_zone"}},
 	"exportWhiteboard":                  {UseCase: "ExportWhiteboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"extendDataSubjectRequest":          {UseCase: "ExtendDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"fetchCoverImage":                   {UseCase: "FetchCoverImage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"findDuplicatesByTitle":             {UseCase: "FindDuplicatesByTitle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NoStore: true},
 	"forgetPassword":                    {UseCase: "ForgetPassword", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host", "tenant_header"}, Empty: true},
 	"forgetSyncDevice":                  {UseCase: "ForgetSyncDevice", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -517,6 +518,7 @@ var restDoors = map[string]restDoor{
 	"readConfigSandbox":                 {UseCase: "ReadConfigSandbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigSchema":                  {UseCase: "ReadConfigSchema", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readConfigVersion":                 {UseCase: "ReadConfigVersion", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"readCoverImagesPolicy":             {UseCase: "ReadCoverImagesPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboard":                     {UseCase: "ReadDashboard", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboardDigest":               {UseCase: "ReadDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"readDashboardFigures":              {UseCase: "ReadDashboardFigures", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -669,6 +671,7 @@ var restDoors = map[string]restDoor{
 	"saveVoiceSettings":                 {UseCase: "SaveVoiceSettings", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), ReadOnly: []string{"installation_skill"}},
 	"saveWorkflowDraft":                 {UseCase: "SaveWorkflowDraft", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"searchAll":                         {UseCase: "SearchAll", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
+	"searchCoverImages":                 {UseCase: "SearchCoverImages", Status: 200, Query: []string{"query"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"searchEverywhere":                  {UseCase: "SearchEverywhere", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"searchItems":                       {UseCase: "SearchItems", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, Flatten: map[string]map[string]string{"page": {"cursor": "cursor", "size": "size"}}},
 	"searchPages":                       {UseCase: "SearchPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
@@ -688,6 +691,7 @@ var restDoors = map[string]restDoor{
 	"setContainerStructure":             {UseCase: "SetContainerStructure", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCostRate":                       {UseCase: "SetCostRate", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour_minor"}},
 	"setCover":                          {UseCase: "SetCover", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"setCoverImagesPolicy":              {UseCase: "SetCoverImagesPolicy", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setCustomField":                    {UseCase: "SetCustomField", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"setDashboardDigest":                {UseCase: "SetDashboardDigest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"hour", "weekday"}},
 	"setDependencyTiming":               {UseCase: "SetDependencyTiming", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"lag_days"}},
@@ -2453,6 +2457,12 @@ func (c *RestController) ExtendDataSubjectRequest(w http.ResponseWriter, r *http
 	c.door(w, r, restDoors["extendDataSubjectRequest"], usecase.Input{"request_id": requestId.String()}, params, &body, answerBy(dataSubjectRequestResponse))
 }
 
+// FetchCoverImage answers POST /pages/{pageId}/cover-images/{pictureId}:fetch by the generated mapping.
+func (c *RestController) FetchCoverImage(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, pictureId string) {
+	var answer openapi.CoverImageFetched
+	c.door(w, r, restDoors["fetchCoverImage"], usecase.Input{"page_id": pageId.String(), "picture_id": pictureId}, nil, nil, &answer)
+}
+
 // FindDuplicatesByTitle answers POST /items:duplicates by the generated mapping.
 func (c *RestController) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 	var body openapi.FindDuplicatesByTitleJSONRequestBody
@@ -4147,6 +4157,12 @@ func (c *RestController) ReadConfigVersion(w http.ResponseWriter, r *http.Reques
 	c.door(w, r, restDoors["readConfigVersion"], usecase.Input{"version": version}, nil, nil, &answer)
 }
 
+// ReadCoverImagesPolicy answers GET /pages:cover-images by the generated mapping.
+func (c *RestController) ReadCoverImagesPolicy(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.CoverImagesPolicy
+	c.door(w, r, restDoors["readCoverImagesPolicy"], usecase.Input{}, nil, nil, &answer)
+}
+
 // ReadDashboard answers GET /dashboards/{dashboardId} by the generated mapping.
 func (c *RestController) ReadDashboard(w http.ResponseWriter, r *http.Request, dashboardId openapi.DashboardId) {
 	var answer openapi.Dashboard
@@ -5062,6 +5078,12 @@ func (c *RestController) SearchAll(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["searchAll"], usecase.Input{}, nil, &body, &answer)
 }
 
+// SearchCoverImages answers GET /pages/{pageId}/cover-images by the generated mapping.
+func (c *RestController) SearchCoverImages(w http.ResponseWriter, r *http.Request, pageId openapi.PageId, params openapi.SearchCoverImagesParams) {
+	var answer openapi.CoverImageSearch
+	c.door(w, r, restDoors["searchCoverImages"], usecase.Input{"page_id": pageId.String()}, params, nil, &answer)
+}
+
 // SearchEverywhere answers POST /glance:search by the generated mapping.
 func (c *RestController) SearchEverywhere(w http.ResponseWriter, r *http.Request) {
 	var body openapi.SearchEverywhereJSONRequestBody
@@ -5187,6 +5209,13 @@ func (c *RestController) SetCostRate(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) SetCover(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.SetCoverParams) {
 	var body openapi.SetCoverJSONRequestBody
 	c.door(w, r, restDoors["setCover"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(workItemResponse))
+}
+
+// SetCoverImagesPolicy answers PUT /pages:cover-images by the generated mapping.
+func (c *RestController) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request) {
+	var body openapi.SetCoverImagesPolicyJSONRequestBody
+	var answer openapi.CoverImagesPolicy
+	c.door(w, r, restDoors["setCoverImagesPolicy"], usecase.Input{}, nil, &body, &answer)
 }
 
 // SetCustomField answers PUT /items/{itemId}/custom-fields/{key} by the generated mapping.

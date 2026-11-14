@@ -1789,6 +1789,36 @@
       ]
     },
     {
+      "key": "knowledge.cover_images",
+      "kind": "CHOICE",
+      "levels": [
+        "INSTANCE",
+        "PLAN",
+        "WORKSPACE"
+      ],
+      "lockable": true,
+      "may": "REPLACE",
+      "options": [
+        "OPENVERSE",
+        "OFF"
+      ],
+      "restrictable": false,
+      "writers": [
+        {
+          "level": "INSTANCE",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "PLAN",
+          "permission": "admin:instance"
+        },
+        {
+          "level": "WORKSPACE",
+          "permission": "MANAGE_MEMBERS"
+        }
+      ]
+    },
+    {
       "key": "knowledge.drafts",
       "kind": "FLAG",
       "levels": [

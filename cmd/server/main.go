@@ -118,6 +118,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/clamd"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	connectoradapter "github.com/Jersyfi/hubtask/infrastructure/connector"
+	coverimagesadapter "github.com/Jersyfi/hubtask/infrastructure/coverimages"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
 	dnsadapter "github.com/Jersyfi/hubtask/infrastructure/dns"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
@@ -2072,6 +2073,12 @@ func run() error {
 		Media: mediaObjects,
 		// A space's drafts until they are published (UC-DOC-15).
 		Drafting: knowledgeservice.Drafting{Drafts: postgres.NewPageDraftRepository(), Settings: postgres.SettingRepository{}},
+		// An image library a cover may take a picture from, where the workspace chooses one
+		// (UC-DOC-16 check 5): through the guarded client, with room for a cover-sized picture.
+		Covers: knowledgeservice.CoverLibrary{
+			Library:  coverimagesadapter.NewOpenverse(coverImagesClient(cfg.Outbound), cfg.Outbound.Timeout),
+			Settings: postgres.SettingRepository{},
+		},
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -2486,6 +2493,10 @@ func run() error {
 		knowledgeservice.DeletePagePublicLink{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPublicLinksPolicy{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SetPublicLinksPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ReadCoverImagesPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SetCoverImagesPolicy{Space: pageSpace}.Descriptor(),
+		knowledgeservice.SearchCoverImages{Space: pageSpace}.Descriptor(),
+		knowledgeservice.FetchCoverImage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.PublishPageToPortal{Space: pageSpace}.Descriptor(),
 		knowledgeservice.UnpublishPageFromPortal{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPageLanguageVariants{Space: pageSpace}.Descriptor(),
@@ -6951,3 +6962,13 @@ func jobConcurrency(ctx context.Context, cfg envport.Config) int {
 		slog.Int("configured", cfg.Queue.Concurrency), slog.Int("running", fits))
 	return fits
 }
+
+// coverImagesClient is the guarded client for an image library: the outbound limits, with room for
+// a cover-sized picture where the general limit holds a webhook's answer.
+func coverImagesClient(outbound envport.OutboundConfig) *httpclient.GuardedClient {
+	outbound.MaxResponseBytes = max(outbound.MaxResponseBytes, coverImageBytes)
+	return httpclient.NewGuardedClient(outbound, httpclient.NewGuard(outbound))
+}
+
+// coverImageBytes is the largest picture a cover takes from an image library.
+const coverImageBytes = 8 << 20

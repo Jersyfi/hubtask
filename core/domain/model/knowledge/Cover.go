@@ -5,7 +5,10 @@ package knowledge
 
 import (
 	"regexp"
+	"strings"
+	"unicode/utf8"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -33,6 +36,8 @@ type Cover struct {
 	Source   CoverSource
 	Key      string
 	Position int
+	// Credit names who made an image library's picture, shown at the cover; empty otherwise.
+	Credit string
 }
 
 // NewCover checks a cover as asked for.
@@ -55,4 +60,58 @@ func NewCover(source CoverSource, key string, position int) (Cover, error) {
 		return Cover{}, invalid("/cover/position", "pages.cover_position_out_of_range")
 	}
 	return Cover{Source: source, Key: key, Position: position}, nil
+}
+
+// MaxCreditLength bounds the name of whoever made an image library's picture, as the library gives it.
+const MaxCreditLength = 120
+
+// WithCredit names who made the picture, for an image taken from an image library (UC-DOC-16
+// check 5); only an image carries one, and an empty credit names nobody.
+func (c Cover) WithCredit(credit string) (Cover, error) {
+	credit = strings.TrimSpace(credit)
+	if credit == "" {
+		c.Credit = ""
+		return c, nil
+	}
+	if c.Source != CoverImage {
+		return Cover{}, invalid("/cover/credit", "pages.cover_credit_not_image")
+	}
+	if utf8.RuneCountInString(credit) > MaxCreditLength || strings.ContainsAny(credit, "\n\r\t") {
+		return Cover{}, invalid("/cover/credit", "pages.cover_credit_malformed")
+	}
+	c.Credit = credit
+	return c, nil
+}
+
+// CoverImagesKey is the workspace's choice of an image library offered as a cover's fourth source
+// (E-18): none by default, since every search leaves the installation.
+const CoverImagesKey setting.Key = "knowledge.cover_images"
+
+// The choices of CoverImagesKey: none, or the one library Hubtask can ask.
+const (
+	CoverImagesOff       = "OFF"
+	CoverImagesOpenverse = "OPENVERSE"
+)
+
+// CoverImagesDefinition declares the choice: off by default; the installation and a plan may set
+// and lock it, the workspace chooses inside that.
+func CoverImagesDefinition() setting.Definition {
+	return setting.Definition{
+		Key: CoverImagesKey, Kind: setting.KindChoice,
+		Options:  []string{CoverImagesOpenverse, CoverImagesOff},
+		Levels:   []setting.Level{setting.LevelInstance, setting.LevelPlan, setting.LevelWorkspace},
+		Lockable: true, May: setting.MayReplace, Default: CoverImagesOff,
+		Writers: map[setting.Level]string{
+			setting.LevelInstance: "admin:instance", setting.LevelPlan: "admin:instance",
+			setting.LevelWorkspace: "MANAGE_MEMBERS",
+		},
+	}
+}
+
+// CoverImagesOf reads the resolved choice; anything but a known library is off.
+func CoverImagesOf(r setting.Resolution) string {
+	if chosen, _ := r.Effective.(string); chosen == CoverImagesOpenverse {
+		return chosen
+	}
+	return CoverImagesOff
 }

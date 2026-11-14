@@ -668,7 +668,7 @@ func (h UpdatePage) Descriptor() usecase.Descriptor {
 			{Name: "template", Kind: usecase.KindBool, Description: "Offer the page as a template of the space."},
 			{Name: "content_language", Kind: usecase.KindString, Description: "The BCP-47 tag search stems the page by; empty for the workspace's."},
 			{Name: "archived", Kind: usecase.KindBool, Description: "Archive (true) or bring back (false)."},
-			{Name: "cover", Kind: usecase.KindObject, Description: "The picture over the content: {source: GRADIENT|GALLERY|IMAGE, key, position 0-100}; null takes it away."},
+			{Name: "cover", Kind: usecase.KindObject, Description: "The picture over the content: {source: GRADIENT|GALLERY|IMAGE, key, position 0-100, credit for a library's picture}; null takes it away."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; a page changed since is refused."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PageChangedAction, TargetType: pageTarget, Severity: audit.SeverityInfo, Required: true},
@@ -1220,6 +1220,10 @@ func coverChange(in usecase.Input) (*domain.CoverChange, error) {
 	if err != nil {
 		return nil, err
 	}
+	credit, _ := document["credit"].(string)
+	if cover, err = cover.WithCredit(credit); err != nil {
+		return nil, err
+	}
 	return &domain.CoverChange{Cover: &cover}, nil
 }
 
@@ -1227,5 +1231,9 @@ func coverOutput(cover *domain.Cover) any {
 	if cover == nil {
 		return nil
 	}
-	return usecase.Output{"source": string(cover.Source), "key": cover.Key, "position": cover.Position}
+	out := usecase.Output{"source": string(cover.Source), "key": cover.Key, "position": cover.Position}
+	if cover.Credit != "" {
+		out["credit"] = cover.Credit
+	}
+	return out
 }
