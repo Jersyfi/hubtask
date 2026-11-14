@@ -146,6 +146,15 @@ func TestAPostIsReadAsItWasWritten(t *testing.T) {
 		if found, err := posts.FindReply(ctx, answer); err != nil || found.Body != "Indeed" {
 			t.Errorf("reply %+v, %v", found, err)
 		}
+		// What a list shows of it: its page's opening, length, labels and cover, its live replies.
+		if err := pages.SetLabels(ctx, page, []string{"release", "app"}); err != nil {
+			return err
+		}
+		listed, err := posts.List(ctx, hub, authorA, repository.PostFilter{}, at.Add(3*time.Hour), 10)
+		if err != nil || len(listed) != 1 || listed[0].Lead != "What changed" || listed[0].Words != 2 ||
+			!slices.Equal(listed[0].Labels, []string{"app", "release"}) || listed[0].Replies != 1 || listed[0].Cover != nil {
+			t.Errorf("listed %+v, %v", listed, err)
+		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)

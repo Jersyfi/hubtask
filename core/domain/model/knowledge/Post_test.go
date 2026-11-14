@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,5 +137,26 @@ func TestReactionsAndConfirmations(t *testing.T) {
 	all := Confirmations{Confirmed: 45, Audience: 45, ConfirmBy: postNow}
 	if all.MayRemind() || all.IsOverdue(postNow.Add(time.Hour)) {
 		t.Fatal("everybody confirmed, yet a reminder is offered")
+	}
+}
+
+func TestAPostsListShowsItsOpeningAndReadingTime(t *testing.T) {
+	long := strings.Repeat("word ", 80)
+	cases := []struct {
+		name, lead, want string
+	}{
+		{"marks go", "## Was neu ist\n\nAb dem **1. Dezember** gilt [das](https://x.example).", "Was neu ist Ab dem 1. Dezember gilt das."},
+		{"empty stays empty", "", ""},
+		{"cut at a word", long, strings.TrimSpace(strings.Repeat("word ", 47)) + "…"},
+	}
+	for _, c := range cases {
+		if got := PostExcerpt(c.lead); got != c.want {
+			t.Errorf("%s: PostExcerpt = %q, want %q", c.name, got, c.want)
+		}
+	}
+	for words, want := range map[int]int{0: 1, 99: 1, 300: 2, 1000: 5} {
+		if got := ReadingMinutes(words); got != want {
+			t.Errorf("ReadingMinutes(%d) = %d, want %d", words, got, want)
+		}
 	}
 }

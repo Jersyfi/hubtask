@@ -40,13 +40,19 @@ SELECT page_id FROM post
 WHERE tenant_id = current_tenant_id() AND page_id = ANY(sqlc.arg('ids')::uuid[]);
 
 -- name: ListHubPosts :many
--- A hub's posts that are not trashed - or, without a hub, every hub's - with how many have seen each
--- and whether the account has seen and confirmed it, featured ones first, then newest first. Who
--- sees which is the application's to judge (rule 2); `mine`, `unread` and `published_only` narrow
+-- A hub's posts that are not trashed - or, without a hub, every hub's - with their cover, opening,
+-- length, labels and replies, how many have seen each and whether the account has seen and
+-- confirmed it, featured ones first, then newest first. Who sees which is the application's to judge (rule 2); `mine`, `unread` and `published_only` narrow
 -- here.
 SELECT po.page_id, po.hub_id, po.template, po.publish_at, po.published_at, po.featured_until,
        po.audience, po.group_ids, po.discussion, po.notify, po.confirm_by,
-       p.title, p.icon, p.created_by, p.created_at,
+       p.title, p.icon, p.created_by, p.created_at, p.cover,
+       left(p.body, 1200)::text AS lead,
+       coalesce(array_length(regexp_split_to_array(btrim(p.body), '\s+'), 1), 0)::int AS words,
+       (SELECT count(*) FROM post_reply y WHERE y.tenant_id = po.tenant_id AND y.page_id = po.page_id
+          AND y.deleted_at IS NULL)::int AS reply_count,
+       coalesce((SELECT array_agg(l.label ORDER BY l.label) FROM page_label l
+                  WHERE l.tenant_id = po.tenant_id AND l.page_id = po.page_id), '{}')::text[] AS labels,
        (SELECT count(*) FROM post_read r WHERE r.tenant_id = po.tenant_id AND r.page_id = po.page_id)::int AS seen_count,
        EXISTS (SELECT 1 FROM post_read r WHERE r.tenant_id = po.tenant_id AND r.page_id = po.page_id
                  AND r.account_id = sqlc.arg('account_id')) AS seen,

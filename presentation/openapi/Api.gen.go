@@ -23524,7 +23524,10 @@ type Post struct {
 	Confirmations *PostConfirmations `json:"confirmations,omitempty"`
 
 	// Confirmed Whether the caller confirmed reading it.
-	Confirmed  bool                `json:"confirmed"`
+	Confirmed bool `json:"confirmed"`
+
+	// Cover The picture over its words, as its page carries it.
+	Cover      *PageCover          `json:"cover"`
 	CreatedAt  time.Time           `json:"created_at"`
 	CreatedBy  *openapi_types.UUID `json:"created_by"`
 	Discussion bool                `json:"discussion"`
@@ -23532,12 +23535,18 @@ type Post struct {
 	// EveryoneInWorkspace For a writer: the audience is the hub's readers and every member of the workspace reads the hub.
 	EveryoneInWorkspace bool `json:"everyone_in_workspace"`
 
+	// Excerpt Its opening words without their marks, for a list.
+	Excerpt string `json:"excerpt"`
+
 	// Featured Whether it stands on top of the hub's posts now.
 	Featured      bool                 `json:"featured"`
 	FeaturedUntil *time.Time           `json:"featured_until"`
 	GroupIds      []openapi_types.UUID `json:"group_ids"`
 	HubId         openapi_types.UUID   `json:"hub_id"`
 	Icon          *string              `json:"icon"`
+
+	// Labels Its page's labels.
+	Labels []string `json:"labels"`
 
 	// MayWrite Whether the caller writes in the hub.
 	MayWrite bool `json:"may_write"`
@@ -23547,6 +23556,12 @@ type Post struct {
 	PageId      openapi_types.UUID `json:"page_id"`
 	PublishAt   *time.Time         `json:"publish_at"`
 	PublishedAt *time.Time         `json:"published_at"`
+
+	// ReadingMinutes About how long reading it takes.
+	ReadingMinutes int `json:"reading_minutes"`
+
+	// ReplyCount How many replies its discussion holds.
+	ReplyCount int `json:"reply_count"`
 
 	// Seen Whether the caller has seen it.
 	Seen bool `json:"seen"`

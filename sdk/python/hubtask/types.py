@@ -6265,6 +6265,11 @@ class Post(TypedDict, total=False):
     seen: Required[bool]
     confirmed: Required[bool]
     may_write: Required[bool]
+    cover: Required["PageCover" | Any]
+    excerpt: Required[str]
+    reading_minutes: Required[int]
+    reply_count: Required[int]
+    labels: Required[list[str]]
     confirmations: "PostConfirmations" | Any
 
 class UnreadPostList(TypedDict, total=False):

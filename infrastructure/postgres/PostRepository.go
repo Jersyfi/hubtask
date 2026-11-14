@@ -223,9 +223,14 @@ func (PostRepository) List(
 		if err != nil {
 			return nil, err
 		}
+		cover, err := pageCoverFrom(row.Cover)
+		if err != nil {
+			return nil, err
+		}
 		out = append(out, repository.PostRow{
 			Post: post, Title: row.Title, Icon: row.Icon, CreatedBy: author, CreatedAt: row.CreatedAt.Time.UTC(),
 			SeenCount: int(row.SeenCount), Seen: row.Seen, Confirmed: row.Confirmed,
+			Cover: cover, Lead: row.Lead, Words: int(row.Words), Labels: row.Labels, Replies: int(row.ReplyCount),
 		})
 	}
 	return out, nil

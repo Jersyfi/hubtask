@@ -22,6 +22,12 @@ type PostRow struct {
 	SeenCount int
 	Seen      bool
 	Confirmed bool
+	// Cover, Lead (the body's first part), Words, Labels and Replies are what a list shows of it.
+	Cover   *knowledge.Cover
+	Lead    string
+	Words   int
+	Labels  []string
+	Replies int
 }
 
 // PostFilter narrows a hub's posts: the account's own, those it has not seen, or one post.

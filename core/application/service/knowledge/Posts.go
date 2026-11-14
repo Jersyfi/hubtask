@@ -252,6 +252,10 @@ func PostOutput(row repository.PostRow, writes, workspaceWide bool, confirmation
 	if groups == nil {
 		groups = []string{}
 	}
+	labels := row.Labels
+	if labels == nil {
+		labels = []string{}
+	}
 	return usecase.Output{
 		"page_id": p.PageID.String(), "hub_id": p.HubID.String(), "title": row.Title, "icon": nilIfEmpty(row.Icon),
 		"template": nilIfEmpty(string(p.Template)), "state": string(p.State(now)),
@@ -263,6 +267,8 @@ func PostOutput(row repository.PostRow, writes, workspaceWide bool, confirmation
 		"created_by": idOrNil(row.CreatedBy), "created_at": row.CreatedAt, "seen_count": row.SeenCount,
 		"seen": row.Seen, "confirmed": row.Confirmed, "may_write": writes,
 		"confirmations": confirmationsOutput(confirmations, nil, now),
+		"cover":         coverOutput(row.Cover), "excerpt": domain.PostExcerpt(row.Lead),
+		"reading_minutes": domain.ReadingMinutes(row.Words), "reply_count": row.Replies, "labels": labels,
 	}
 }
 

@@ -43245,7 +43245,7 @@ components:
       type: object
       required: [page_id, hub_id, title, icon, template, state, publish_at, published_at, featured_until,
         featured, audience, group_ids, everyone_in_workspace, discussion, notify, confirm_by, created_by,
-        created_at, seen_count, seen, confirmed, may_write]
+        created_at, seen_count, seen, confirmed, may_write, cover, excerpt, reading_minutes, reply_count, labels]
       properties:
         page_id: { type: string, format: uuid, description: "The page that holds its words." }
         hub_id: { type: string, format: uuid }
@@ -43271,6 +43271,18 @@ components:
         seen: { type: boolean, description: Whether the caller has seen it. }
         confirmed: { type: boolean, description: Whether the caller confirmed reading it. }
         may_write: { type: boolean, description: Whether the caller writes in the hub. }
+        cover:
+          description: The picture over its words, as its page carries it.
+          oneOf:
+            - { $ref: "#/components/schemas/PageCover" }
+            - { type: "null" }
+        excerpt: { type: string, maxLength: 240, description: "Its opening words without their marks, for a list." }
+        reading_minutes: { type: integer, minimum: 1, description: "About how long reading it takes." }
+        reply_count: { type: integer, description: How many replies its discussion holds. }
+        labels:
+          type: array
+          description: Its page's labels.
+          items: { type: string }
         confirmations:
           description: For a writer of the hub, how the read confirmation stands.
           oneOf:

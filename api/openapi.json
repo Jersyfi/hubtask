@@ -71317,7 +71317,12 @@
           "seen_count",
           "seen",
           "confirmed",
-          "may_write"
+          "may_write",
+          "cover",
+          "excerpt",
+          "reading_minutes",
+          "reply_count",
+          "labels"
         ],
         "properties": {
           "page_id": {
@@ -71441,6 +71446,38 @@
           "may_write": {
             "type": "boolean",
             "description": "Whether the caller writes in the hub."
+          },
+          "cover": {
+            "description": "The picture over its words, as its page carries it.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PageCover"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "excerpt": {
+            "type": "string",
+            "maxLength": 240,
+            "description": "Its opening words without their marks, for a list."
+          },
+          "reading_minutes": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "About how long reading it takes."
+          },
+          "reply_count": {
+            "type": "integer",
+            "description": "How many replies its discussion holds."
+          },
+          "labels": {
+            "type": "array",
+            "description": "Its page's labels.",
+            "items": {
+              "type": "string"
+            }
           },
           "confirmations": {
             "description": "For a writer of the hub, how the read confirmation stands.",

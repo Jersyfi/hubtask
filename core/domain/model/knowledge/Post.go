@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -225,4 +226,26 @@ func (c Confirmations) MayRemind() bool { return c.Confirmed < c.Audience }
 // IsOverdue answers whether the deadline passed with somebody still to confirm.
 func (c Confirmations) IsOverdue(now time.Time) bool {
 	return c.MayRemind() && now.After(c.ConfirmBy)
+}
+
+// PostExcerptRunes bounds a post's opening words in a list.
+const PostExcerptRunes = 240
+
+// PostExcerpt is a post's opening as a list shows it: its body's first part without marks, cut at
+// the last whole word before the bound, an ellipsis where it was cut.
+func PostExcerpt(lead string) string {
+	text := []rune(PlainExcerpt(lead))
+	if len(text) <= PostExcerptRunes {
+		return string(text)
+	}
+	cut := string(text[:PostExcerptRunes-1])
+	if at := strings.LastIndexByte(cut, ' '); at > 0 {
+		cut = cut[:at]
+	}
+	return strings.TrimRight(cut, " ,;:-") + "…"
+}
+
+// ReadingMinutes is about how long reading takes, at two hundred words a minute, at least one.
+func ReadingMinutes(words int) int {
+	return max(1, (words+100)/200)
 }
