@@ -366,6 +366,13 @@ test('chromium: the workspace\'s Files section tests a document server, says a p
   await page.goto(`${served.origin}/administration/workspace/files`);
   const kind = page.getByLabel('Document server', { exact: true });
   await kind.waitFor({ timeout: 15_000 });
+  // One h1 at every width: below 905 px the section stands alone and the page's head gives way.
+  for (const width of [1280, 820, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(100);
+    assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1, `h1s at ${width} px`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
   await kind.selectOption('COLLABORA_ONLINE');
   const address = page.getByLabel('Address', { exact: true });
   await address.fill('https://office.example');
