@@ -116,3 +116,20 @@ test('a row’s and a card’s state chip follow its entry type’s own level, a
   const board = sources.find(({ path }) => path === 'lib/entries/Board.svelte')?.text ?? '';
   assert.match(board, /chipOf\(own\?\.mode \?\? level, card/u);
 });
+
+test('the reader’s own acts in the hub’s activity are sentences of their own, one for every verb (V-1)', () => {
+  const de = JSON.parse(readFileSync(new URL('../../../../locales/de.json', import.meta.url), 'utf8')) as Record<string, string>;
+  const verbs = Object.keys(de).filter((key) => key.startsWith('app.hub_overview.did_')).map((key) => key.slice('app.hub_overview.did_'.length));
+  for (const verb of verbs) assert.match(de[`app.hub_overview.you_did_${verb}`] ?? '', /^Du hast /u, verb);
+});
+
+test('the products are named as the navigation names them, and the app says du (V-2, V-4)', () => {
+  const de = JSON.parse(readFileSync(new URL('../../../../locales/de.json', import.meta.url), 'utf8')) as Record<string, string>;
+  assert.equal(de['app.modules.name_service_desk'], de['app.nav.desk']);
+  assert.equal(de['app.modules.name_planning'], de['app.nav.plans']);
+  // Formal address: an imperative with "Sie" or a "Sie" before a verb of the reader. The
+  // inventory's screens are their own family's (concept §6.10) and are swept there.
+  const formal = /\b(Wählen|Geben|Nennen|Bitten|Prüfen|Versuchen|Kopieren|Planen|Verschieben|Halten|Legen|Fügen|Haken|Übernehmen|Erfassen|Holen) Sie\b|\b(mit|als) Ihnen\b|\bSie (haben|dürfen)\b/u;
+  const offenders = Object.entries(de).filter(([key, text]) => key.startsWith('app.') && !key.startsWith('app.assets.') && !key.startsWith('app.cmdb_admin.') && formal.test(text));
+  assert.deepEqual(offenders.map(([key]) => key), []);
+});

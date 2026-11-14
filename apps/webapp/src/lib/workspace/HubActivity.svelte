@@ -91,7 +91,12 @@
   function partsOf(each: Happening): [string, string] {
     const marker = '\u0001';
     const status = each.statusKey ? statusNameOf(each, hubId, workflows.list, t) : '';
-    const said = t(`app.hub_overview.did_${happenedVerb(each)}`, { actor: whoOf(each), object: marker, status });
+    // The reader's own acts are sentences of their own ("Du hast …"): German conjugates the verb by
+    // its subject, so "you" in place of a name would read "Du hat".
+    const isYou = each.actorId !== undefined && each.actorId === actor.account?.id;
+    const said = isYou
+      ? t(`app.hub_overview.you_did_${happenedVerb(each)}`, { object: marker, status })
+      : t(`app.hub_overview.did_${happenedVerb(each)}`, { actor: whoOf(each), object: marker, status });
     const at = said.indexOf(marker);
     return at < 0 ? [said, ''] : [said.slice(0, at), said.slice(at + marker.length)];
   }
