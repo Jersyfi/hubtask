@@ -55,6 +55,10 @@
   import { entryTypes, entryTypesOffered, offeredTypes, typesShown } from '../data/entrytypes.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { media } from '../data/media.svelte.ts';
+  import { firstPageOf, type FirstPage } from '../files/firstPage.ts';
+  import { viewer } from '../files/viewer.svelte.ts';
+  import { markOf, viewOf as fileViewOf } from '../files/viewing.ts';
+  import { formatFileSize } from '../i18n/bytes.ts';
   import { resolveRequest } from '../data/links.svelte.ts';
   import {
     BOARD_COLOURS, backlinkHref, linkAddress, boardCommentsPath, boardFileName, cardEntries, clockOf, entryOfNote, notesInFrame, peerColour, pictureColours, pinOf,
@@ -839,8 +843,8 @@
     try {
       const object = await media.upload(file, 'ATTACHMENT', { idempotencyKey: crypto.randomUUID() });
       await whiteboards.placeMedia(board.id, object.id);
-      const picture = (object.content_type ?? '').startsWith('image/');
-      put(picture ? 'IMAGE' : 'FILE', at, { media_id: object.id });
+      put(PICTURES.has(object.content_type ?? '') ? 'IMAGE' : 'FILE', at, { media_id: object.id });
+      showFileHint();
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
     } finally {
@@ -848,16 +852,55 @@
     }
   }
 
-  async function openFile(mediaId: string | undefined) {
+  /** What lies on the board as a picture (F-4); every other file is a card. */
+  const PICTURES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml']);
+
+  /** Opens the file viewer on one of the board's files, with every other file of the board beside it (F-1). */
+  function openFile(mediaId: string | undefined) {
     if (!mediaId) return;
-    const url = await media.downloadUrl(mediaId, Date.now());
-    if (url) window.open(url, '_blank', 'noopener');
-    else toast.show({ text: t('app.whiteboards.file_unavailable'), tone: 'danger' });
+    const files = elements
+      .filter((e) => (e.kind === 'FILE' || e.kind === 'IMAGE') && e.media_id)
+      .map((e) => media.recordOf(e.media_id))
+      .filter((record): record is NonNullable<typeof record> => record !== undefined);
+    const index = files.findIndex((each) => each.id === mediaId);
+    if (index < 0) {
+      toast.show({ text: t('app.whiteboards.file_unavailable'), tone: 'danger' });
+      return;
+    }
+    viewer.open({ files, index, owner: { title: board.title } });
   }
 
   $effect(() => {
     media.resolve(elements.filter((e) => e.kind === 'FILE' || e.kind === 'IMAGE').map((e) => e.media_id));
   });
+
+  // A PDF card shows its first page and its page count, drawn once per file.
+  let firstPages = $state<Record<string, FirstPage>>({});
+  $effect(() => {
+    for (const e of elements) {
+      const record = e.kind === 'FILE' ? media.recordOf(e.media_id) : undefined;
+      if (!record || record.id in firstPages || fileViewOf(record) !== 'pdf') continue;
+      void firstPageOf(record.id, record.size).then((page) => { if (page) firstPages = { ...firstPages, [record.id]: page }; });
+    }
+  });
+
+  /** The card's second line: pages where known, and the size. */
+  function fileLineOf(mediaId: string | undefined): string {
+    const record = media.recordOf(mediaId);
+    if (!record) return '';
+    const size = formatFileSize(record.size, messages.locale, t);
+    const pages = firstPages[record.id]?.pages;
+    return pages ? `${t('app.whiteboards.file_pages', { count: String(pages) })} · ${size}` : size;
+  }
+
+  // The one-time hint (scene `wbfiles`): what happens to a dropped file, once per device.
+  const FILE_HINT = 'hubtask.board.file-hint';
+  let isFileHintShown = $state(false);
+  function showFileHint() {
+    let seen = false;
+    try { seen = localStorage.getItem(FILE_HINT) === 'seen'; localStorage.setItem(FILE_HINT, 'seen'); } catch { /* shown this visit only */ }
+    if (!seen) isFileHintShown = true;
+  }
 
   // --- Templates (research §4.3) -------------------------------------------------------------------
 
@@ -1499,7 +1542,11 @@
       onpointerup={up}
       onwheel={wheel}
       onkeydown={key}
-      ondblclick={(event) => { const target = hit(elements, pointOf(event)); if (target) edit(target.id); }}
+      ondblclick={(event) => {
+        const target = hit(elements, pointOf(event));
+        if (target && (target.kind === 'FILE' || target.kind === 'IMAGE')) openFile(target.media_id);
+        else if (target) edit(target.id);
+      }}
     >
       <defs>
         <marker id="wb-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
@@ -1557,18 +1604,31 @@
             {#if e.text}<text x={e.x} y={e.y + e.height + 18} class="words">{e.text}</text>{/if}
           </g>
         {:else if e.kind === 'FILE'}
-          <g class="card" class:chosen={selected.includes(e.id)}>
+          {@const record = media.recordOf(e.media_id)}
+          {@const page = record ? firstPages[record.id] : undefined}
+          {@const foot = Math.min(e.height * 0.4, 64)}
+          {@const mark = record ? markOf(record) : ''}
+          <!-- The scene's file card: the first page above, the mark, the name and pages · size below (F-4). -->
+          <g class="card file" class:chosen={selected.includes(e.id)} data-board-file={record ? fileViewOf(record) : 'card'}>
             <path d={outlinePath(e)} />
-            <text x={e.x + 12} y={e.y + 28} class="words">{lines(media.fileNameOf(e.media_id) ?? t('app.whiteboards.card_unavailable'), e.width - 48, 14)[0] ?? ''}</text>
-            {#if e.text}<text x={e.x + 12} y={e.y + 50} class="key">{lines(e.text, e.width - 48, 11)[0] ?? ''}</text>{/if}
+            <rect x={e.x + 1} y={e.y + 1} width={Math.max(e.width - 2, 0)} height={Math.max(e.height - foot - 1, 0)} class="file-top" />
+            {#if page}
+              <image href={page.url} x={e.x + e.width * 0.3} y={e.y + 12} width={e.width * 0.4} height={Math.max(e.height - foot - 18, 0)} preserveAspectRatio="xMidYMin meet" />
+            {/if}
+            {#if mark}
+              <rect x={e.x + 10} y={e.y + 10} width={mark.length * 8 + 12} height={18} rx={3} class="file-mark" />
+              <text x={e.x + 16} y={e.y + 23} class="file-mark-text">{mark}</text>
+            {/if}
+            <text x={e.x + 12} y={e.y + e.height - foot + 24} class="words">{lines(media.fileNameOf(e.media_id) ?? t('app.whiteboards.card_unavailable'), e.width - 48, 14)[0] ?? ''}</text>
+            <text x={e.x + 12} y={e.y + e.height - foot + 46} class="key">{e.text ? (lines(e.text, e.width - 48, 11)[0] ?? '') : fileLineOf(e.media_id)}</text>
             <g
               role="button"
               tabindex="-1"
               class="open"
               aria-label={t('app.whiteboards.file_open', { name: media.fileNameOf(e.media_id) ?? '' })}
-              onclick={() => void openFile(e.media_id)}
-              onkeydown={(event) => { if (event.key === 'Enter') void openFile(e.media_id); }}
-            ><text x={e.x + e.width - 12} y={e.y + 28} text-anchor="end" class="open">↗</text></g>
+              onclick={() => openFile(e.media_id)}
+              onkeydown={(event) => { if (event.key === 'Enter') openFile(e.media_id); }}
+            ><text x={e.x + e.width - 12} y={e.y + e.height - foot + 24} text-anchor="end" class="open">↗</text></g>
           </g>
         {:else if e.kind === 'CARD'}
           {@const target = cardOf(e)}
@@ -1944,6 +2004,12 @@
       </div>
     {/if}
 
+    {#if isFileHintShown}
+      <div class="island file-hint" role="status" data-board-file-hint>
+        <div><strong>{t('app.whiteboards.file_hint_title')}</strong><p>{t('app.whiteboards.file_hint')}</p></div>
+        <IconButton icon="x" size="sm" tone="subtle" label={t('app.whiteboards.file_hint_close')} onclick={() => (isFileHintShown = false)} />
+      </div>
+    {/if}
     <div class="island bottom-left" role="group" aria-label={t('app.whiteboards.history_steps')}>
       {#if writable}
         <IconButton size="sm" icon="undo-2" label={t('app.whiteboards.undo')} aria-keyshortcuts="Control+Z Meta+Z" disabledReason={canUndo ? undefined : t('app.whiteboards.nothing_to_undo')} onclick={undo} />
@@ -2258,6 +2324,8 @@
   /* Following someone: a frame in their colour round the board (W-5). */
   .stage.following { box-shadow: inset 0 0 0 var(--bw-ring) var(--follow); }
 
+  .file-hint { inset-inline-start: var(--sp-200); inset-block-end: calc(var(--sp-1000) + var(--sp-200)); align-items: start; max-inline-size: calc(var(--sp-1600) * 5); padding: var(--sp-150); }
+  .file-hint p { margin: var(--sp-050) 0 0; color: var(--text-secondary); font-size: var(--fs-090); }
   .island, .dock, .fan, .selbar {
     position: absolute;
     display: flex;
@@ -2549,6 +2617,9 @@
   .maker { fill: var(--text-secondary); font-size: var(--fs-065); }
   .card path { fill: var(--bg-raised); stroke: var(--border-default); }
   .card path.pending { stroke-dasharray: 4 4; }
+  .card .file-top { fill: var(--bg-surface-sunken); }
+  .card .file-mark { fill: var(--bg-emphasis); }
+  .card .file-mark-text { fill: var(--text-inverse); font-size: var(--fs-065); font-weight: var(--fw-bold); }
   .card.done .words { text-decoration: line-through; fill: var(--text-subtle); }
   .card .key { fill: var(--text-subtle); font-size: var(--fs-075); }
   .card .open { fill: var(--text-brand); font-size: var(--fs-100); }
