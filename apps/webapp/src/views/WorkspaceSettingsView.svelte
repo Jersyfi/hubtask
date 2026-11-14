@@ -69,7 +69,7 @@
   import { viewAsFileAction } from '../lib/settings/viewasfile.svelte.ts';
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import type { DocumentServer } from '@hubtask/sync-engine';
-  import { resource } from '../lib/data/resource.svelte.ts';
+  import { resourceWhen } from '../lib/data/resource.svelte.ts';
   import { DOCUMENT_SERVER_KINDS, choiceOf, isTestable, movedFrom, type DocumentServerKind } from '../lib/files/documentServer.ts';
   import { documentServerPath, documentServers } from '../lib/files/documentServer.svelte.ts';
 
@@ -283,7 +283,8 @@
   }
 
   // *Files*: what is stored, and the two values while they are being changed.
-  const storedServer = resource<DocumentServer>(documentServerPath);
+  // Read where the section is shown: the other sections ask nothing of the media module.
+  const storedServer = resourceWhen<DocumentServer>(() => (shown === 'files' ? documentServerPath : undefined));
   const serverHeld = $derived(storedServer.state.status === 'ready' ? storedServer.state.data : undefined);
   let chosenKind = $state<DocumentServerKind | undefined>(undefined);
   let chosenUrl = $state<string | undefined>(undefined);
