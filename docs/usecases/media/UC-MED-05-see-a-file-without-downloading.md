@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-13]
 state: partial
 tasks: []
-checked_by: [apps/webapp/src/lib/files/viewing.test.ts, core/domain/model/media/Delivery_test.go, infrastructure/storage/LocalTransfers_test.go, infrastructure/documentserver/Server_test.go]
+checked_by: [apps/webapp/src/lib/files/viewing.test.ts, apps/webapp/e2e/fileviewer.test.mjs, core/domain/model/media/Delivery_test.go, infrastructure/storage/LocalTransfers_test.go, infrastructure/documentserver/Server_test.go]
 ---
 
 # See a file without downloading it

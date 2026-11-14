@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-19]
 state: verified
 tasks: []
-checked_by: [packages/editor/test/markdown.test.ts, core/application/service/knowledge/Media_test.go, core/application/service/media/ReadMedia_test.go, test/integration/page_repository_test.go, infrastructure/importer/Wiki_test.go]
+checked_by: [apps/webapp/e2e/fileviewer.test.mjs, packages/editor/test/markdown.test.ts, core/application/service/knowledge/Media_test.go, core/application/service/media/ReadMedia_test.go, test/integration/page_repository_test.go, infrastructure/importer/Wiki_test.go]
 ---
 
 # Put pictures and files on a page
@@ -28,8 +28,9 @@ arrives with its diagrams in place.
 ## How to check
 
 1. Whoever may write a page puts a picture or a file into it: a picture the server serves inline
-   is drawn as itself where it was put, anything else as a card with the file's name that opens
-   it; the body keeps it as an image of `hubtask:media/<id>` on a line of its own.
+   is drawn as itself where it was put, anything else as a card with the file's name; either
+   opens the one viewer (UC-MED-05) with every file the page draws at its foot. The body keeps it
+   as an image of `hubtask:media/<id>` on a line of its own.
 2. Only an upload of their own, or one that a page they may read already holds, can be put on a
    page; anything else is answered as not existing, and somebody who may not write in the page's
    hub puts nothing there.
@@ -40,6 +41,8 @@ arrives with its diagrams in place.
 
 ## Where it ends
 
+* A page's office file is edited in the document server by whoever may write the page
+  (UC-MED-06); a share of the page only reads.
 * At most 500 files per page; the bytes count towards the workspace's storage ceiling at the upload.
 * A file stays with the page as long as the page exists, even after the body drops it - a version
   brought back draws it again.

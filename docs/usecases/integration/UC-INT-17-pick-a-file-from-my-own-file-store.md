@@ -47,7 +47,9 @@ Microsoft account the same way and picks from the library of a site he follows.
 
 ## Where it ends
 
-* Only names, sizes and addresses are read; no file is fetched, previewed, uploaded or copied.
+* Only names, sizes and addresses are read; no file is fetched, previewed, uploaded or copied. A
+  linked file keeps its store's own preview, under the person's right there; Hubtask's file
+  viewer (UC-MED-05) shows only uploads.
 * A share is taken back in Nextcloud; the product does not list or remove the shares it made.
 * Google Drive, a WebDAV store's folders and Microsoft's share links are not offered; their files
   are linked by address (UC-INT-14).

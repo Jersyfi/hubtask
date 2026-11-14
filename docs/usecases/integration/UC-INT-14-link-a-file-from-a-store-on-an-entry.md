@@ -32,8 +32,9 @@ off and links the new address.
 1. A person who may change an entry links a file or folder by its https address; the store -
    Nextcloud, SharePoint, OneDrive or WebDAV - is told by the address unless chosen, the name is
    the address's last segment unless given, and a person who may only read the entry is refused.
-2. On the entry, *Files* lists its links with name, host and store, each opening the address in
-   a new tab; an address that is not https, carries a name and password, or is linked on the
+2. On the entry, *Files* shows its links beside its uploaded files, in the same grid or list, each
+   with its store's mark, name and host and opening the address in a new tab - never in the
+   file viewer, which shows only uploads (UC-MED-05); an address that is not https, carries a name and password, or is linked on the
    entry already is refused with its own message.
 3. An entry links at most fifty files; the fifty-first is refused with `filelink.too_many`.
 4. A link taken off is gone from the entry, the file in its store untouched; the audit trail says

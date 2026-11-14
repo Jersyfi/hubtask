@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-09]
 state: specified
 tasks: []
-checked_by: [test/integration/wopi_contract_test.go, core/application/service/media/Wopi_test.go, core/application/service/knowledge/Media_test.go, apps/webapp/src/lib/files/documentServer.test.ts, infrastructure/documentserver/Server_test.go, test/integration/wopi_repository_test.go, infrastructure/security/WopiToken_test.go, core/domain/model/media/Wopi_test.go]
+checked_by: [test/integration/wopi_contract_test.go, apps/webapp/e2e/fileviewer.test.mjs, core/application/service/media/Wopi_test.go, core/application/service/knowledge/Media_test.go, apps/webapp/src/lib/files/documentServer.test.ts, infrastructure/documentserver/Server_test.go, test/integration/wopi_repository_test.go, infrastructure/security/WopiToken_test.go, core/domain/model/media/Wopi_test.go]
 ---
 
 # Edit an office file in the document server
