@@ -652,6 +652,15 @@
     .data-table[data-stacked] :global(tbody td),
     .data-table[data-kind][data-stacked] :global(tbody tr.row > td) { block-size: auto; }
     .data-table :global(tr.row > td.stack) { display: flex; flex-direction: column; gap: var(--sp-050); grid-area: stack; min-inline-size: 0; }
+    /* The row is a thumb's target (§7): the title's link or open button reaches over the whole
+       row, and every other control in it stands above that reach. */
+    .data-table :global(tr.row) { position: relative; }
+    .data-table[data-kind='work'] .title-line { position: static; }
+    .data-table :global(tr.row > td[data-role='title'] :is(a, .press):first-of-type::after) { content: ''; position: absolute; inset: 0; }
+    .data-table :global(tr.row > td:not([data-role='title']) :is(a, button, input, select, [role='button'])),
+    .data-table :global(tr.row > td[data-role='title'] :is(.lead, .end-inner) :is(a, button, input)) { position: relative; z-index: var(--z-raised); }
+    .data-table :global(tr.row > td.select),
+    .data-table :global(tr.row > td.end) { position: relative; z-index: var(--z-raised); }
     .data-table :global(tr.add-row) { display: block; }
     .data-table :global(tr.add-row td) { display: block; padding: var(--sp-100) var(--sp-200); }
     .add { min-block-size: var(--layout-nav-touchrow); }
