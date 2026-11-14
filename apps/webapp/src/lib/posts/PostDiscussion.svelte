@@ -91,7 +91,7 @@
           {#if !isAnswer}
             <button type="button" class="link" data-post-answer={reply.id} onclick={() => { answerTo = reply.id; answer = ''; }}>{t('app.posts.answer')}</button>
           {/if}
-          {#if reply.author_id === actor.account?.id}
+          {#if reply.author_id === actor.account?.id || post.may_write}
             <button type="button" class="link" data-post-take-back={reply.id} onclick={() => void act(() => posts.takeBack(post, reply.id))}>{t('app.posts.take_back')}</button>
           {/if}
         </span>
