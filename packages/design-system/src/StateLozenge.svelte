@@ -70,6 +70,8 @@
 
   /* The status button's shape and height (`StatusButton`), read only: a head's status that is not changed there. */
   .lozenge[data-size='md'] {
+    /* Measured as the button's border box: content-box drew it a padding taller beside it (H-2). */
+    box-sizing: border-box;
     min-block-size: var(--density-control-sm-min);
     padding: var(--sp-050) var(--sp-150);
     border-radius: var(--r-md);

@@ -81,3 +81,10 @@ test('a dialog’s foot ends on its one primary, and its ways out are secondary'
   assert.match(dialog, /\.actions :global\(\.button\[data-tone='primary'\]\),[^{]*\{ order: 1; \}/);
   assert.match(dialog, /\.actions :global\(\.button\[data-tone='subtle'\]\) \{[^}]*background: var\(--bg-surface\)/);
 });
+
+test('a head\'s read-only state stands as tall as its status button beside it (H-2)', () => {
+  const lozenge = rulesFor(source('StateLozenge.svelte'), 'lozenge').find((rule) => rule.includes('density-control-sm-min')) ?? '';
+  assert.match(lozenge, /box-sizing: border-box;/u);
+  const button = source('StatusButton.svelte');
+  assert.match(button, /min-block-size: var\(--density-control-sm-min\);\n\s+padding: var\(--sp-050\) var\(--sp-150\);/u);
+});
