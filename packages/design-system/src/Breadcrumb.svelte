@@ -144,6 +144,7 @@
 
   .ellipsis {
     display: inline-flex;
+    font: inherit;
     align-items: center;
     justify-content: center;
     min-width: var(--density-control-sm-min);

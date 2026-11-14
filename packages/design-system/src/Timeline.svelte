@@ -1171,6 +1171,7 @@
      getting thicker, and it overflows into the row's own `--sp-300` and no further. */
   .end {
     display: flex;
+    font: inherit;
     align-items: center;
     inline-size: var(--column);
     block-size: var(--sp-300);

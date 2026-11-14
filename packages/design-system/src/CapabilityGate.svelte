@@ -130,6 +130,7 @@
 
   .lock {
     display: inline-flex;
+    font: inherit;
     align-items: center;
     justify-content: center;
     margin: 0;
