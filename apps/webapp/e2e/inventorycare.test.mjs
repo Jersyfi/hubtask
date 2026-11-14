@@ -83,7 +83,9 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
 
   // (3) The open round with its score, *Remind* as its quiet act while objects wait, and the earlier one.
   const round = page.locator('[data-care-part=campaigns]');
-  assert.match(flat(await round.innerText()), /Bestätigungsrunde Q4 Owners confirm their objects by Nov(ember)? 30, 2026 7 of 12 confirmed · 2 replies “not right” Open the round Remind 1 earlier round/);
+  assert.match(flat(await round.innerText()), /Bestätigungsrunde Q4 Owners confirm their objects by Nov(ember)? 30, 2026 7 of 12 confirmed · 2 replies “not right” Remind Open the round 1 earlier round/);
+  // The share confirmed as the scene's bar, under the day it is due.
+  assert.equal(await round.locator('progress').evaluate((bar) => Math.round(bar.value)), 58);
   assert.deepEqual(await round.getByRole('button').allInnerTexts(), ['Remind']);
   await round.getByRole('button', { name: 'Remind' }).click();
   await page.getByRole('status').filter({ hasText: '2 people reminded.' }).waitFor({ state: 'attached', timeout: 5_000 });

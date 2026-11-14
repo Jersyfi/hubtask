@@ -20,7 +20,7 @@
   // in it; writing acts - deciding, closing a deviation, starting a round, importing - for a writer;
   // connecting a source for a STRUCTURE holder.
   import { tick, untrack } from 'svelte';
-  import { Button, DataTable, Dialog, Icon, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
+  import { Button, DataTable, Dialog, Icon, ProgressBar, Spinner, Stack, type DataColumn } from '@hubtask/design-system/components';
   import type {
     CiCampaign, CiCampaignList, CiClass, CiConnector, CiConnectorList, CiDuplicate, CiDuplicateList, CiHold, CiHoldList, CiRun, CiRunList,
     CmdbHealth, ConfigurationItem, ConfigurationItemList,
@@ -314,13 +314,15 @@
           {#if !campaigns}
             <Spinner label={t('app.assets.loading')} />
           {:else if openRound}
+            {@const score = t('app.care.round_score', { confirmed: openRound.score.confirmed, total: openRound.score.total, disputed: openRound.score.disputed })}
             <p class="line">{t('app.care.round_due', { day: formatPlainDay(openRound.due_on, messages.locale) })}</p>
-            <p class="line" data-care-round-score>{t('app.care.round_score', { confirmed: openRound.score.confirmed, total: openRound.score.total, disputed: openRound.score.disputed })}</p>
+            <ProgressBar size="sm" label={score} value={openRound.score.total > 0 ? (100 * openRound.score.confirmed) / openRound.score.total : 0} />
+            <p class="line" data-care-round-score>{score}</p>
             <div class="acts">
-              <a class="act" href={inventoryPath(hubId, 'campaigns')}>{t('app.care.round_open')}</a>
               {#if mayChange && openRound.score.pending > 0}
                 <Button size="sm" tone="subtle" data-remind-round isBusy={isReminding} onclick={() => void remind(openRound)}>{t('app.campaigns.remind')}</Button>
               {/if}
+              <a class="more" href={inventoryPath(hubId, 'campaigns')}>{t('app.care.round_open')}</a>
             </div>
           {:else}
             <p class="meta">{t('app.care.round_none')}</p>
