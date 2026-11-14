@@ -70,7 +70,9 @@
 
 <WorkPage>
   {#snippet top()}
-    <PageHeader title={t('app.portal_dir.title')} subtitle={t('app.portal_dir.intro')} isTitleInBar={viewport.isCompact} />
+    <!-- Scene `portaldir`: the place as the trail, the question as the title. -->
+    <PageHeader title={viewport.isCompact ? t('app.portal_dir.title') : t('app.portal_dir.heading')} subtitle={t('app.portal_dir.intro')} isTitleInBar={viewport.isCompact}
+      breadcrumb={viewport.isCompact ? undefined : { trail: [{ id: 'portals', label: t('app.portal_dir.title') }], label: t('app.portal_dir.trail'), expandLabel: t('app.admin.expand_trail') }} />
   {/snippet}
   <div class="dir" data-portal-directory>
     {#if portals.length === 0 && actor.account !== undefined}
@@ -164,7 +166,7 @@
   .heading { margin: 0 0 var(--sp-100); font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-200); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); }
   .tile {
-    block-size: 100%; display: flex; gap: var(--sp-150); align-items: flex-start; padding: var(--sp-200);
+    box-sizing: border-box; block-size: 100%; display: flex; gap: var(--sp-150); align-items: flex-start; padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); color: inherit; text-decoration: none;
   }
   .tile:hover { background: var(--bg-surface-hover); }
