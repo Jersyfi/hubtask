@@ -1294,7 +1294,7 @@
 {#snippet postItems(size: 'md' | 'touch')}
   {#each postRows as post (post.page_id)}
     <NavItem id={post.page_id} label={post.title} href={`/posts/${post.page_id}`} {size} figure={postDay(post)} isCurrent={currentPost === post.page_id}
-      badge={post.seen ? undefined : { icon: 'sparkles', label: t('app.posts.nav_unread') }} onnavigate={() => onnavigate(`/posts/${post.page_id}`)} />
+      unreadLabel={post.seen ? undefined : t('app.posts.nav_unread')} onnavigate={() => onnavigate(`/posts/${post.page_id}`)} />
   {/each}
   {#if hubId}
     <NavItem label={t('app.posts.nav_all')} icon="chevron-right" tone="link" href={`/hubs/${hubId}/posts`} {size} isCurrent={route.name === 'hub-posts'}

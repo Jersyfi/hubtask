@@ -5,7 +5,7 @@
   // labels as a filter, the featured post on top, the rest by month, newest first. Which posts
   // the reader sees is the server's to judge; scheduled ones reach writers only (B-3).
 
-  import { Avatar, Badge, EmptyState, Icon, Select, Spinner, StateLozenge, Tabs, VisuallyHidden, WorkPage } from '@hubtask/design-system/components';
+  import { Avatar, Badge, EmptyState, Icon, Select, Spinner, StateLozenge, Tabs, UnreadDot, VisuallyHidden, WorkPage } from '@hubtask/design-system/components';
   import type { Post, PostList } from '@hubtask/sync-engine';
   import { untrack } from 'svelte';
 
@@ -94,7 +94,7 @@
     <span class="cover" class:blank={!background(post)} style:background={background(post)}></span>
     <span class="text">
       <span class="line">
-        {#if post.state === 'PUBLISHED' && !post.seen}<span class="dot" data-post-unread></span><VisuallyHidden>{t('app.posts.unread')}</VisuallyHidden>{/if}
+        {#if post.state === 'PUBLISHED' && !post.seen}<span data-post-unread><UnreadDot label={t('app.posts.unread')} /></span>{/if}
         {#if isAhead}
           <StateLozenge tone={post.state === 'SCHEDULED' ? 'warning' : 'neutral'} icon={post.state === 'SCHEDULED' ? 'clock' : 'pencil'}
             label={post.state === 'SCHEDULED' && post.publish_at ? t('app.posts.scheduled_for', { when: formatDateTime(post.publish_at, messages.locale) }) : t('app.posts.draft')} />
@@ -151,7 +151,7 @@
         <span class="text">
           <span class="line">
             {#if featured.featured_until}<StateLozenge tone="brand" icon="star" label={t('app.posts.featured_until', { date: formatDay(featured.featured_until, messages.locale) })} />{/if}
-            {#if !featured.seen}<span class="dot" data-post-unread></span><VisuallyHidden>{t('app.posts.unread')}</VisuallyHidden>{/if}
+            {#if !featured.seen}<span data-post-unread><UnreadDot label={t('app.posts.unread')} /></span>{/if}
           </span>
           <span class="title big">{featured.title}</span>
           {#if featured.excerpt}<span class="excerpt">{featured.excerpt}</span>{/if}
@@ -212,7 +212,6 @@
   .title.big { font: var(--fw-semibold) var(--fs-450) / 1.3 var(--font-display); }
   .excerpt { color: var(--text-secondary); font-size: var(--fs-090); }
   .quiet { color: var(--text-subtle); font-size: var(--fs-075); display: inline-flex; align-items: center; gap: var(--sp-050); }
-  .dot { inline-size: var(--sp-100); block-size: var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); flex: none; }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .featured { grid-template-columns: minmax(0, 1fr); }
