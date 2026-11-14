@@ -63,7 +63,7 @@
         <input
           class="add"
           aria-label={t('app.pages.label_add')}
-          placeholder={t('app.pages.label_add')}
+          placeholder={t('app.pages.label_add_short')}
           bind:value={typed}
           onkeydown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void add(); } }}
           onblur={() => void add()}

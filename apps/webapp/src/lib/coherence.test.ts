@@ -204,3 +204,10 @@ test('an agent\'s empty parts are one line each; a goal\'s and a portfolio\'s he
     assert.match(text, /\.heading \{ margin: 0; font-family: var\(--font-display\); font-size: var\(--fs-200\); font-weight: var\(--fw-semibold\);/u, view);
   }
 });
+
+test('a page says nothing before its first sentence: no published hint, the live line under the text (M-2, §2.1)', () => {
+  const view = sources.find(({ path }) => path === 'views/PagesView.svelte')?.text ?? '';
+  assert.doesNotMatch(view, /app\.pages\.published_hint/u);
+  const editor = sources.find(({ path }) => path === 'lib/pages/PageEditor.svelte')?.text ?? '';
+  assert.ok(editor.indexOf('<p class="status" aria-live="polite">') > editor.indexOf('<div class="editor page-text" bind:this={host}></div>'), 'the live line stands under the text');
+});

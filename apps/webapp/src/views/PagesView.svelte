@@ -755,9 +755,7 @@
                 {/snippet}
               </TrustLine>
               {/if}
-              {#if !post && current.writable && pageDraft === 'published'}
-                <p class="quiet">{t('app.pages.published_hint')}</p>
-              {/if}
+              <!-- Published with nothing waiting is said by nothing: no sentence before the page's first (M-2, §2.1). -->
               {#if offersStarts}
                 <PageStarts own={ownTemplates} chosen={chosenStart} onchoose={chooseStart} />
                 {#if startShown && !viewport.isLarge}

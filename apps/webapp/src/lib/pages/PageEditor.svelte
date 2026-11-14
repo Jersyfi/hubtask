@@ -953,10 +953,11 @@
   {@render panelsHere()}
 {/if}
 
-{#if page.writable && (isWriting || !isQuiet)}<p class="status" aria-live="polite">{statusWords}</p>{/if}
 {#if saveRefusal}<p class="refusal" role="alert">{saveRefusal}</p>{/if}
 
 <div class="editor page-text" bind:this={host}></div>
+<!-- Under the text, never before its first sentence nor under the floating bar (M-2, §2.1). -->
+{#if page.writable && (isWriting || !isQuiet)}<p class="status" aria-live="polite">{statusWords}</p>{/if}
 <div class="chooser"><UploadField bind:this={fileChooser} variant="icon" size="sm" label={t('app.pages.tool_file')} chooseLabel={t('app.pages.tool_file')} onChoose={(file) => void putFile(file)} /></div>
 </div>
 
