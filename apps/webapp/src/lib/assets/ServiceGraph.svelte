@@ -10,7 +10,7 @@
   // **No graph library and no length written here** (rule 15): the columns are laid out by CSS and
   // the curves measured from the cards once they stand, as the hub's layered map does. Read only;
   // each card opens its object, each key its entry.
-  import { StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Icon, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
   import type { CiClass, CiWorkEntry } from '@hubtask/sync-engine';
 
   import { classWord, type Words } from '../data/cmdb.svelte.ts';
@@ -95,7 +95,7 @@
         {@const mark = marks.get(node.ci_id)}
         <li class="node" use:card={node.ci_id} data-map-node={node.ci_id} data-struck={mark?.struck ? '' : undefined} data-service={depth === 0 ? '' : undefined}>
           <span class="name">
-            {#if wanting.has(node.ci_id) && !mark?.struck}<span class="flag" aria-hidden="true">!</span><VisuallyHidden>{t('app.service_map.wanting')}</VisuallyHidden>{/if}
+            {#if wanting.has(node.ci_id) && !mark?.struck}<span class="flag" aria-hidden="true"><Icon name="triangle-alert" size="sm" /></span><VisuallyHidden>{t('app.service_map.wanting')}</VisuallyHidden>{/if}
             <a href={`/cis/${node.ci_id}`} title={classWord(node.class, classes, words)}>{node.name}</a>
           </span>
           {#if isQuietStage(node.stage) && STAGE_TONE[node.stage]}
@@ -145,12 +145,12 @@
     background: var(--bg-surface);
     white-space: nowrap;
   }
-  .node[data-service] { border-width: var(--bw-thick); font-weight: var(--fw-semibold); }
+  .node[data-service] { border-width: var(--bw-thick); border-color: var(--accent-primary); font-weight: var(--fw-semibold); }
   .node[data-struck] { border-color: var(--status-danger-border); border-width: var(--bw-thick); background: var(--status-danger-surface); }
   .name { display: inline-flex; align-items: center; gap: var(--sp-050); }
   .name a { color: var(--text-primary); text-decoration: none; }
   .name a:hover { text-decoration: underline; }
-  .flag { color: var(--text-warning); font-weight: var(--fw-semibold); }
+  .flag { display: inline-flex; color: var(--text-warning); }
   .chip {
     padding: 0 var(--sp-050);
     border: var(--bw-hairline) solid var(--border-default);

@@ -12,7 +12,7 @@
   // entries are planned in an overlapping window on an object it names or reaches - the same answer
   // the entry's page gives, across the hub, not only among this service's changes.
   import { untrack } from 'svelte';
-  import { DataTable, Select, StateLozenge, Switch, ViewSwitcher, type DataColumn, type SelectOption } from '@hubtask/design-system/components';
+  import { DataTable, Icon, ProductTile, Select, StateLozenge, Switch, ViewSwitcher, type DataColumn, type SelectOption } from '@hubtask/design-system/components';
   import type { CiAlert, CiAlertList, CiClass, CiWork, CiWorkEntry, CmdbHealth, EntryCis, ServiceMap as ServiceMapRead } from '@hubtask/sync-engine';
 
   import { alertsPath, classWord, collisionsInOrder, entryCisPath, entryKey, healthPath, objectWorkPath, serviceMapPath, type Words } from '../data/cmdb.svelte.ts';
@@ -156,7 +156,7 @@
       <ViewSwitcher label={t('app.service_map.depth')} views={depthViews} selected={String(depth)} onselect={(id) => (depth = Number(id) as MapDepth)} />
       <Switch label={t('app.service_map.problems_only')} bind:checked={isProblemsOnly} />
       <Switch label={t('app.service_map.as_list')} bind:checked={isList} />
-      <p class="legend" data-map-legend><span class="flag" aria-hidden="true">!</span> {t('app.service_map.key_legend')}</p>
+      <p class="legend" data-map-legend><span class="flag" aria-hidden="true"><Icon name="triangle-alert" size="sm" /></span> {t('app.service_map.key_legend')}</p>
     {/if}
   </div>
 
@@ -192,14 +192,15 @@
 
     <div class="cards">
       <section class="card" aria-labelledby="map-open" data-map-open>
-        <h2 id="map-open" class="card-title">{t('app.service_map.open_title')}</h2>
+        <h2 id="map-open" class="card-title"><ProductTile icon="inbox" product="desk" size="sm" />{t('app.service_map.open_title')}</h2>
         {#if open.length === 0}
           <p class="meta">{t('app.service_map.open_none')}</p>
         {:else}
           <ul class="rows">
             {#each open as entry (entry.item_id)}
-              <li class="row" data-map-entry={entry.key ?? entry.item_id}>
-                <a class="what" href={`/items/${entry.item_id}`}>{#if entry.key}<span class="key">{entry.key}</span>{/if} <span>{entry.title}</span></a>
+              <li class="row line" data-map-entry={entry.key ?? entry.item_id}>
+                <ProductTile icon="inbox" product="desk" size="sm" />
+                <a class="what" href={`/items/${entry.item_id}`} title={entry.title}>{#if entry.key}<span class="key">{entry.key}</span>{/if} <span>{entry.title}</span></a>
                 <span class="meta">{entry.reason === 'BENEATH' && entry.via ? t('app.service_map.open_via', { name: entry.via.name }) : t('app.service_map.open_direct')}</span>
               </li>
             {/each}
@@ -207,7 +208,7 @@
         {/if}
       </section>
       <section class="card" aria-labelledby="map-planned" data-map-changes>
-        <h2 id="map-planned" class="card-title">{t('app.service_map.planned_title')}</h2>
+        <h2 id="map-planned" class="card-title"><ProductTile icon="calendar" product="plans" size="sm" />{t('app.service_map.planned_title')}</h2>
         {#if planned.length === 0}
           <p class="meta">{t('app.service_map.planned_none')}</p>
         {:else}
@@ -215,8 +216,9 @@
             {#each planned as entry (entry.item_id)}
               {@const clashes = collisions[entry.item_id]}
               <li class="planned" data-map-entry={entry.key ?? entry.item_id}>
-                <span class="row">
-                  <a class="what" href={`/items/${entry.item_id}`}>{#if entry.key}<span class="key">{entry.key}</span>{/if} <span>{entry.title}</span></a>
+                <span class="row line">
+                  <ProductTile icon="calendar" product="plans" size="sm" />
+                  <a class="what" href={`/items/${entry.item_id}`} title={entry.title}>{#if entry.key}<span class="key">{entry.key}</span>{/if} <span>{entry.title}</span></a>
                   {#if entry.start_at || entry.due_at}<span class="meta">{windowOf(entry)}</span>{/if}
                 </span>
                 {#if clashes}
@@ -241,14 +243,19 @@
   .map-tab { display: grid; gap: var(--sp-200); min-inline-size: 0; }
   .tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-200); }
   .legend { margin: 0; margin-inline-start: auto; color: var(--text-secondary); font-size: var(--fs-075); }
-  .flag { color: var(--text-warning); font-weight: var(--fw-semibold); }
+  .flag { display: inline-flex; vertical-align: text-bottom; color: var(--text-warning); }
   .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--layout-rail)), 1fr)); gap: var(--sp-200); }
   .card { display: grid; align-content: start; gap: var(--sp-100); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); min-inline-size: 0; }
-  .card-title { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
+  .card-title { display: flex; align-items: center; gap: var(--sp-100); margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .rows { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
   .row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-050) var(--sp-150); }
   .planned { display: grid; gap: var(--sp-050); }
   .what { color: var(--text-primary); text-decoration: none; min-inline-size: 0; overflow-wrap: anywhere; }
+  /* An entry is one line as in the scene: tile, key, the title cut short, through what at the end. */
+  .rows > li, .planned > .row { min-inline-size: 0; }
+  .row.line { flex-wrap: nowrap; align-items: center; justify-content: flex-start; }
+  .row.line .what { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row.line .meta { flex: 0 1 auto; max-inline-size: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .what:hover span:last-child { text-decoration: underline; }
   .keys { display: inline-flex; flex-wrap: wrap; gap: var(--sp-050); }
   .key { font-family: var(--font-mono); font-size: var(--fs-075); color: var(--text-secondary); }

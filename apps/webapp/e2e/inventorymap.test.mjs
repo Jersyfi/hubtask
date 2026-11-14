@@ -44,6 +44,9 @@ test('chromium: scene invmap - a service by depth, its disruption and its change
   assert.deepEqual((await service.locator('option').allTextContents()), ['Service: Kundenportal', 'Service: E-Mail & Kalender', 'All services']);
   assert.equal(await page.getByRole('radio', { name: '3' }).getAttribute('aria-checked'), 'true');
   assert.match(await page.locator('[data-map-legend]').innerText(), /red = open disruption · dashed = path of the disruption/);
+  // The scene's warning mark is the icon, not a typed exclamation mark.
+  assert.equal(await page.locator('[data-map-legend] svg').count(), 1);
+  assert.doesNotMatch(await page.locator('[data-map-legend]').innerText(), /!/u);
 
   // (2) The service at the start, what it rests on by steps below it.
   await page.locator('[data-map-line]').first().waitFor({ state: 'attached', timeout: 5_000 });
@@ -70,6 +73,13 @@ test('chromium: scene invmap - a service by depth, its disruption and its change
   // (3) What is open on the service, through what, and what is planned with its collisions.
   const open = page.locator('[data-map-open]');
   assert.match(await open.locator('[data-map-entry="SA-12"]').innerText(), /SA-12\s+Anmeldung bricht mit Gateway Timeout ab[\s\S]*via db-01\.hh\.intern/);
+  // Each card heads with its product's tile; an open entry is one line - tile, key, title, through what.
+  assert.equal(await open.locator('h2 [data-product="desk"]').count(), 1);
+  assert.equal(await page.locator('[data-map-changes] h2 [data-product="plans"]').count(), 1);
+  const sa12 = open.locator('[data-map-entry="SA-12"]');
+  assert.equal(await sa12.locator('[data-product="desk"]').count(), 1);
+  const [rowBox, keyBox] = await Promise.all([sa12.boundingBox(), sa12.getByText('SA-12', { exact: true }).boundingBox()]);
+  assert.ok(rowBox.height < keyBox.height * 2.2, `the open entry takes ${Math.round(rowBox.height)} px, more than one line`);
   assert.match(await open.locator('[data-map-entry="SA-8"]').innerText(), /direct/);
   assert.equal(await open.locator('[data-map-entry="SA-3"]').count(), 0, 'a completed entry is listed');
   const changes = page.locator('[data-map-changes]');
