@@ -205,6 +205,9 @@
   const hasFigure = $derived(!!groups && (groups.planned.length > 0 || groups.released.length > 0));
   const isPlanned = $derived(chosen?.state === 'PLANNED');
   const mayChange = $derived(mayWrite && isPlanned);
+  // One primary (WB rules): while a planned release is shown, its *Veröffentlichen* is the page's
+  // primary and planning another steps back.
+  const planAction = $derived({ label: t('app.releases.plan'), icon: 'plus' as const, onclick: () => openPlan(undefined) });
 
   const entryColumns = $derived<DataColumn[]>([
     { id: 'entry', label: t('app.releases.col_entry'), priority: 1 },
@@ -244,7 +247,8 @@
   {#snippet top()}
   <ToolHead {hubId} tool="plan" current="releases" {onnavigate}
     figure={hasFigure ? headFigure : undefined}
-    primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
+    primary={mayWrite && !mayChange ? planAction : undefined}
+    secondary={mayWrite && mayChange ? [planAction] : undefined}
   />
   {/snippet}
 

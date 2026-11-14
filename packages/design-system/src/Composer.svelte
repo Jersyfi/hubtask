@@ -36,6 +36,8 @@
     noteAudience?: string;
     /** *Send reply*, *Comment*. */
     sendLabel: string;
+    /** `secondary` where the page's object carries the one primary act (a ticket's *Lösen*). */
+    sendTone?: 'primary' | 'secondary';
     /** *Save note*. */
     noteSendLabel?: string;
     /** *Ctrl+↵ sends*. */
@@ -68,6 +70,7 @@
     audience,
     noteAudience,
     sendLabel,
+    sendTone = 'primary',
     noteSendLabel,
     hint,
     onsend,
@@ -198,7 +201,7 @@
         {/if}
         <span class="grow"></span>
         {#if hint}<span class="hint">{hint}</span>{/if}
-        <Button tone="primary" size="sm" icon={isNote ? 'lock' : undefined} {isBusy} {busyLabel} onclick={send}>
+        <Button tone={sendTone} size="sm" icon={isNote ? 'lock' : undefined} {isBusy} {busyLabel} onclick={send}>
           {isNote ? (noteSendLabel ?? sendLabel) : sendLabel}
         </Button>
       </div>

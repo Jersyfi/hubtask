@@ -1072,7 +1072,8 @@
   {:else if part === 'dependencies'}
     <div class="controls" data-fill>
       <span class="quiet grow-bar" data-dependencies-said>{t('app.planning.dependencies_said', { count: String(schedule?.dependencies.length ?? 0) })}</span>
-      {@render addOpener(true)}
+      <!-- One primary: while a dependency's timing is open, its *Übernehmen* is the one. -->
+      {@render addOpener(timingOpen === undefined)}
     </div>
   {/if}
 {/snippet}

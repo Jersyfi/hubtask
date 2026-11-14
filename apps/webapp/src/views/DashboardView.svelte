@@ -726,7 +726,8 @@
         <Inline gap="100">
           <Button icon="undo-2" disabledReason={history.length === 0 ? t('app.dashboards.undo_none') : undefined} onclick={undo}>{t('app.dashboards.undo')}</Button>
           <Button onclick={discard}>{t('app.dashboards.discard_short')}</Button>
-          <Button tone="primary" icon="check" onclick={() => void saveLayout()}>{t('app.dashboards.done')}</Button>
+          <!-- One primary: while a widget is edited, the editor's *Übernehmen* is the one. -->
+          <Button tone={isWidgetOpen ? 'secondary' : 'primary'} icon="check" onclick={() => void saveLayout()}>{t('app.dashboards.done')}</Button>
         </Inline>
       </div>
     {/if}

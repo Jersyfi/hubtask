@@ -349,6 +349,9 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
   const chosen = page.locator(`[data-release-chosen="${COMING.id}"]`);
   await chosen.waitFor({ timeout: 15_000 });
   await page.locator('[data-release-done]').getByText('1 done, 0 open').waitFor({ timeout: 5_000 });
+  // One primary: the release's own act, planning another steps back.
+  const primaries = await page.locator('main button[data-tone="primary"]').allInnerTexts();
+  assert.deepEqual(primaries.map((each) => each.trim()), ['Release'], `more than one primary: ${primaries}`);
   // The head says what is coming, the next one and what went out (scene planrel 1).
   await page.getByText(/^2 planned · next: 1\.1 on .+ · 1 released( · .+)?$/).waitFor({ timeout: 5_000 });
 
