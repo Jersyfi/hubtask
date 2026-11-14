@@ -794,8 +794,9 @@
       </div>
     {/if}
   {/snippet}
-  {#snippet outsiderAccount()}
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount} />
+  {#snippet outsiderAccount(extra?: Snippet<[close: () => void]>)}
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={viewport.isCompact} bind:isSheetOpen={isAccountOpen} {elsewhere} onchoose={chooseAccount}
+      sheetIcon={extra ? 'list' : undefined} {extra} />
   {/snippet}
   {#if isOutside}
     <PortalFrameBar {route} {isPhone} onnavigate={go} account={outsiderAccount} />

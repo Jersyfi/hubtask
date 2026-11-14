@@ -140,6 +140,11 @@ test('chromium 375 px: on a phone the outsider has four portal tabs at the foot'
   assert.deepEqual(await bar.getByRole('link').allInnerTexts().then((texts) => texts.map((each) => each.split('\n').map((line) => line.trim()).find((line) => /[A-Za-z]/.test(line)))), ['Start', 'My requests', 'Approvals', 'Knowledge']);
   const width = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, view: window.innerWidth }));
   assert.equal(width.scroll, width.view, 'no sideways scroll');
+  // The language is chosen behind the bar's menu mark, as the scene draws it.
+  assert.equal(await page.locator('header button[data-portal-language]').count(), 0, 'no language menu in the bar');
+  await page.locator('[data-portal-frame] button[aria-haspopup="dialog"]').click();
+  const languages = page.getByRole('dialog').locator('[data-portal-language]');
+  await languages.getByText('Deutsch').waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 

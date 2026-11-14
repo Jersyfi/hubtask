@@ -5,12 +5,13 @@
   // portal's bar alone - its mark and name, chosen at the top where there are several, the tabs
   // *start*, *my requests* and *approvals* with their counts (PO-3) and *knowledge*, the language
   // and the account. No sidebar, no Today, no search over Hubtask and no *Erstellen*. On a phone
-  // the four tabs stand at the foot. Only the web app's frame changes: every door refuses an
+  // the four tabs stand at the foot, and the languages head the account's sheet behind the bar's
+  // menu mark. Only the web app's frame changes: every door refuses an
   // outsider as before.
 
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
-  import { BottomBar, Icon, Menu } from '@hubtask/design-system/components';
+  import { BottomBar, Icon, Menu, NavItem } from '@hubtask/design-system/components';
   import type { ApprovalList, PortalRequestPage, RequestCatalogue } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -31,8 +32,8 @@
     route: Resolution;
     isPhone: boolean;
     onnavigate: (path: string) => void;
-    /** The account's own menu, as the frame draws it everywhere. */
-    account: Snippet;
+    /** The account's own menu, as the frame draws it everywhere; on a phone with rows of the bar's own. */
+    account: Snippet<[extra?: Snippet<[close: () => void]>]>;
   }
   const { route, isPhone, onnavigate, account }: Props = $props();
 
@@ -120,9 +121,19 @@
         {/snippet}
       </Menu>
     {/if}
-    {@render account()}
+    {@render account(isPhone && locales.length > 1 ? languageRows : undefined)}
   </div>
 </header>
+
+{#snippet languageRows(close: () => void)}
+  <h3 class="group-label">{t('app.portal_frame.language')}</h3>
+  <ul class="rows" data-portal-language>
+    {#each locales as each (each.locale)}
+      <NavItem label={languageName(each.locale, messages.locale)} icon={each.locale === language ? 'check' : 'globe'} isCurrent={each.locale === language} size="touch"
+        onnavigate={() => { close(); void speak(each.locale); }} />
+    {/each}
+  </ul>
+{/snippet}
 
 {#if isPhone}
   <BottomBar label={t('app.portal_frame.tabs')} current={tab}
@@ -151,5 +162,10 @@
     border-block-end: var(--bw-thick) solid transparent;
   }
   .tab:hover { color: var(--text-primary); }
+  .group-label {
+    margin: var(--sp-150) var(--sp-050) var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+  }
+  .rows { margin: 0; padding: 0; list-style: none; }
   .tab[aria-current='page'] { color: var(--text-primary); font-weight: var(--fw-semibold); border-block-end-color: var(--accent-primary); }
 </style>
