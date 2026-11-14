@@ -105,6 +105,11 @@
   // On a phone the stock is read, searched and opened; writing waits for a larger screen (§6.10, UC-AST-01 check 10).
   const drawsWrites = $derived(mayWrite && !viewport.isCompact);
   const byId = $derived(new Map(all.map((each) => [each.id, each])));
+  // The owners' names the table says: the name cache holds only what a screen asked for.
+  $effect(() => {
+    const ids = all.map((each) => each.owner_account_id).filter((each): each is string => Boolean(each));
+    if (ids.length > 0) untrack(() => accounts.resolve(ids));
+  });
 
   async function loadMore() {
     if (!next) return;

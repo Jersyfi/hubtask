@@ -55,12 +55,14 @@ const ci = (n, klass, name, extra = {}) => ({
   id: id(n), hub_id: HUB.id, class: klass, name, stage: 'IN_USE', status: 'OK', attributes: {}, provenance: {}, protection: {}, quantity: 1,
   created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z', version: 1, ...extra,
 });
+// Owns a device without a role in this hub: the reader's people know no name for her.
+const HOLDER = { id: '01a0e2e0-0000-7000-8000-0000000000f1', kind: 'USER', display_name: 'Sofia Rossi', status: 'ACTIVE', locale: 'en' };
 const ROOM = ci(8, 'room', 'RZ Hamburg', { owner_account_id: ACCOUNT.id });
 const CIS = [
   ci(1, 'application_service', 'Portal-API', { owner_account_id: OTHER.id, protection: { c: 'HIGH', a: 'NORMAL' } }),
   ci(2, 'application_service', 'Kundenportal', { owner_account_id: ACCOUNT.id, protection: { i: 'VERY_HIGH' } }),
   ci(3, 'server', 'db-01.hh.intern', { owner_account_id: ACCOUNT.id, location_id: ROOM.id }),
-  ci(4, 'server', 'app-01.hh.intern', { stage: 'MAINTENANCE', owner_account_id: OTHER.id, location_id: ROOM.id }),
+  ci(4, 'server', 'app-01.hh.intern', { stage: 'MAINTENANCE', owner_account_id: HOLDER.id, location_id: ROOM.id }),
   ci(5, 'laptop', 'NB-0417', { owner_account_id: ACCOUNT.id }),
   ci(6, 'laptop', 'NB-0422'),
   ci(7, 'laptop', 'NB-0233', { stage: 'DISPOSED' }),
@@ -99,6 +101,7 @@ async function open(browser, { width = 1280, height = 900, path, role = 'OWNER' 
       const rows = scope === 'HUB' ? [{ id: 'm2', scope_type: 'HUB', scope_id: HUB.id, account_id: ACCOUNT.id, role }] : scope === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }] : [];
       return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
     }
+    if (at === `/accounts/${HOLDER.id}`) return route.fulfill({ json: HOLDER });
     if (at === '/cmdb/classes') return route.fulfill({ json: { data: CLASSES } });
     if (at === `/hubs/${HUB.id}/cis`) return route.fulfill({ json: { data: CIS, next: null } });
     if (at === `/hubs/${HUB.id}/cmdb-health`) return route.fulfill({ json: HEALTH });
@@ -313,6 +316,9 @@ test('chromium: the table\'s columns - type, stage, owner, location, protection 
   const text = async (name) => (await row(name).innerText()).replace(/\s+/gu, ' ');
   assert.match(await text('db-01.hh.intern'), /Server In use .* RZ Hamburg –/);
   assert.match(await text('Portal-API'), /Application service In use .* high 2/);
+  // An owner is named, not "somebody": the table asks for the names it shows itself.
+  await row('Portal-API').locator('.who', { hasText: OTHER.display_name }).waitFor({ timeout: 5_000 });
+  await row('app-01.hh.intern').locator('.who', { hasText: HOLDER.display_name }).waitFor({ timeout: 5_000 });
   assert.match(await text('Kundenportal'), /very high/);
   assert.match(await text('NB-0422'), /Laptop In use nobody – –/);
   assert.equal(await row('NB-0422').locator('[data-nobody]').count(), 1);

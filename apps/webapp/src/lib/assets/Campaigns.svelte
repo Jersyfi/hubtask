@@ -68,6 +68,11 @@
     );
   });
   const questions = $derived(detail ? attestationsInOrder(detail, me) : []);
+  // The people asked and answering, by name: the name cache holds only what a screen asked for.
+  $effect(() => {
+    const ids = questions.flatMap((each) => [each.owner_id, each.attested_by]).filter((each): each is string => Boolean(each));
+    if (ids.length > 0) untrack(() => accounts.resolve(ids));
+  });
 
   async function act<T>(run: () => Promise<T>, done: string): Promise<T | undefined> {
     try {
