@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DESK_QUEUES, desksAnswered, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal } from './queues.ts';
+import { DESK_QUEUES, desksAnswered, groupTone, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal } from './queues.ts';
 
 // UC-SVC-03 checks 1 to 3: a queue is ordered by what breaks first and counted exactly; the four
 // queues of §7.4 differ only in their narrowing, all inside the hub's desks and open.
@@ -67,4 +67,13 @@ test('the desks are the server\'s answer per hub, whatever the entry types read 
   assert.deepEqual(desksAnswered({ h1: ready(['d1', 'd2']), h2: ready([]) }, ['h1', 'h2']), { h1: ['d1', 'd2'], h2: [] },
     'a desk with open requests is a desk ("no desk takes requests", concept §10)');
   assert.deepEqual(desksAnswered({ h1: { status: 'failed' as const, error: {} as never }, h2: ready() }, ['h1', 'h2']), { h1: [], h2: [] }, 'a refused hub and an older server name none');
+});
+
+// A desk's list grouped by status drew its group heads as bold text beside the queue's badges:
+// both now take one tone per category from here.
+test('a status group is a badge in the tone of its category', () => {
+  assert.equal(groupTone('DONE'), 'success');
+  assert.equal(groupTone('IN_PROGRESS'), 'info');
+  assert.equal(groupTone('TODO'), 'neutral');
+  assert.equal(groupTone(undefined), 'neutral');
 });

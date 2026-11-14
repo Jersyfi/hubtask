@@ -97,6 +97,11 @@ export function priorityLevel(value: string): 1 | 2 | 3 | 4 {
   return PRIORITY_WORDS[value.trim().toLowerCase()] ?? 3;
 }
 
+/** A status group's badge tone by its category: done reads as success, work in hand as info. */
+export function groupTone(category: string | undefined): 'success' | 'info' | 'neutral' {
+  return category === 'DONE' ? 'success' : category === 'IN_PROGRESS' ? 'info' : 'neutral';
+}
+
 /**
  * The rows by their status as a queue's groups (WB-4): a group stands where its first row stood,
  * so the group of what breaks first leads, and each keeps the server's order inside it.

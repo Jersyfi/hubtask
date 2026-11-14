@@ -30,7 +30,7 @@
   import { renderProblem } from '../problem.ts';
   import { matchesSearch } from '../page/list.ts';
   import EntryPlace from '../workspace/EntryPlace.svelte';
-  import { DESK_QUEUES, QUEUE_SHOWN, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal, type DeskQueue } from './queues.ts';
+  import { DESK_QUEUES, QUEUE_SHOWN, groupTone, groupedByStatus, priorityLevel, priorityOf, queueQuery, queueTotal, type DeskQueue } from './queues.ts';
   import SlaRemaining from './SlaRemaining.svelte';
 
   interface Props {
@@ -107,8 +107,7 @@
   /** The group's tone from its status's category: done reads as success, the rest as work. */
   const toneOf = (name: string) => {
     const item = rows.find((row) => statusName(row) === name);
-    const category = item ? statusOf(item)?.category : undefined;
-    return category === 'DONE' ? 'success' : category === 'IN_PROGRESS' ? 'info' : 'neutral';
+    return groupTone(item ? statusOf(item)?.category : undefined);
   };
   const complete = async (item: WorkItem) => {
     try {

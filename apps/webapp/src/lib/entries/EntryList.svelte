@@ -39,11 +39,12 @@
     rankTarget,
     Skeleton,
     Stack,
+    StateLozenge,
     TaskRow,
     type RankCommand,
     PriorityMark,
   } from '@hubtask/design-system/components';
-  import { priorityLevel, priorityOf } from '../servicedesk/queues.ts';
+  import { groupTone, priorityLevel, priorityOf } from '../servicedesk/queues.ts';
   import FailureState from '../frame/FailureState.svelte';
   import type { BulkResult, EffectiveStructure, StateMode, WorkflowShape, WorkItem } from '@hubtask/sync-engine';
 
@@ -736,6 +737,15 @@
   const isArranged = $derived((arrangement !== undefined && arrangement.grouping !== 'none' && !sections) || query?.sort !== undefined);
   /** Whether the done group stands open. Folded, as the concept draws it. */
   let isDoneOpen = $state(false);
+
+  /** Grouped by status, the group's head says the status, so a top row draws no chip of its own (L-2). */
+  const isByStatus = $derived(arranged !== undefined && arrangement?.grouping === 'status');
+  const rowChipOf = (row: Row) => (isByStatus && row.depth === 0 ? undefined : chipFor(row.item));
+  /** A status group's badge, as the queue draws it; every other grouping's head is its name. */
+  function groupBadge(key: string | null): 'success' | 'info' | 'neutral' | undefined {
+    if (arrangement?.grouping !== 'status') return undefined;
+    return groupTone(workflow?.statuses.find((each) => each.key === key)?.category);
+  }
 
   /** A group's heading: the value it is grouped by, in words. */
   function groupName(key: string | null): string {
@@ -1593,7 +1603,7 @@
             {@const fold = `group:${group.key ?? ''}`}
             {@const isHeaded = arrangement !== undefined && arrangement.grouping !== 'none'}
             {#if isHeaded}
-              {@render groupHead(groupName(group.key), group.rows.filter((row) => row.depth === 0).length, fold)}
+              {@render groupHead(groupName(group.key), group.rows.filter((row) => row.depth === 0).length, fold, groupBadge(group.key))}
             {/if}
             {#if !isHeaded || !isFolded(fold)}
               {#each group.rows as row (row.item.id)}
@@ -1675,10 +1685,10 @@
   {/if}
 </Stack>
 
-{#snippet groupHead(name: string, count: number, fold: string)}
+{#snippet groupHead(name: string, count: number, fold: string, badge?: 'success' | 'info' | 'neutral')}
   <!-- One group head for every grouping (L4): its name and how many, the same in every list; its
        twist folds the group (WB-4). -->
-  <h2 class="group-head" data-fold={fold}><span class="group-name"><button type="button" class="twist" aria-expanded={!isFolded(fold)} aria-label={t(isFolded(fold) ? 'app.list.unfold_group' : 'app.list.fold_group', { group: name })} onclick={() => toggleFold(fold)}><Icon name={isFolded(fold) ? 'chevron-right' : 'chevron-down'} size="sm" /></button>{name}</span><span class="group-count">{count}</span></h2>
+  <h2 class="group-head" data-fold={fold}><span class="group-name"><button type="button" class="twist" aria-expanded={!isFolded(fold)} aria-label={t(isFolded(fold) ? 'app.list.unfold_group' : 'app.list.fold_group', { group: name })} onclick={() => toggleFold(fold)}><Icon name={isFolded(fold) ? 'chevron-right' : 'chevron-down'} size="sm" /></button>{#if badge}<StateLozenge label={name} tone={badge} />{:else}{name}{/if}</span><span class="group-count">{count}</span></h2>
 {/snippet}
 
 {#snippet fieldValue(row: Row, field: ListField)}
@@ -1871,7 +1881,7 @@
         {/if}
       {/snippet}
       {#snippet phoneEnd()}
-        {@const rowChip = chipFor(row.item)}
+        {@const rowChip = rowChipOf(row)}
         {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
         {@const priority = priorityOf(row.item, [])}
         {@const rest = cellFields.filter((field) => !['key', 'type', 'priority', 'sla', 'people', 'requester'].includes(field))}
@@ -1890,7 +1900,7 @@
         </span>
       {/snippet}
       {#snippet chipCell()}
-        {@const rowChip = chipFor(row.item)}
+        {@const rowChip = rowChipOf(row)}
         {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
         {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
       {/snippet}
@@ -1926,7 +1936,7 @@
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
         trailing={isPhoneRow ? phoneEnd : rowEnd}
-        state={!isPhoneRow && (chipFor(row.item) || isKeyFirst) ? chipCell : undefined}
+        state={!isPhoneRow && (rowChipOf(row) || isKeyFirst) ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />
