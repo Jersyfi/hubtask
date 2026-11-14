@@ -115,7 +115,8 @@
   function ask(what: Ask) {
     asked = what;
     const to = ASK_SECTION[what];
-    const isThere = to === 'inventory' ? place.tab === 'inventory' && place.stock === 'all' : place.tab === 'care' && (place.care === to || asked0 === 'care');
+    // A connector's or a round's dialog belongs to its part of *Upkeep*, drawn alone at its address.
+    const isThere = to === 'inventory' ? place.tab === 'inventory' && place.stock === 'all' : place.tab === 'care' && place.care === to;
     if (!isThere) onnavigate(inventoryPath(hubId, to));
   }
   const answered = () => (asked = undefined);
@@ -185,8 +186,9 @@
         {:else if place.tab === 'alerts'}
           <Alerts {hubId} mayConnect={mayShape} onconnect={() => ask('connector')} />
         {:else if place.tab === 'care'}
-          <Care {hubId} {classes} {words} {mayWrite} parts={place.careParts} part={place.care}
-            asked={asked === 'connector' || asked === 'campaign' ? asked : undefined} onasked={answered} onimported={() => onnavigate(inventoryPath(hubId, 'inventory'))} />
+          <Care {hubId} {classes} {words} {mayWrite} {mayShape} parts={place.careParts} part={place.care}
+            asked={asked === 'connector' || asked === 'campaign' ? asked : undefined} onasked={answered} onask={(what) => ask(what)}
+            onimported={() => onnavigate(inventoryPath(hubId, 'inventory'))} />
         {/if}
       </div>
     {/if}

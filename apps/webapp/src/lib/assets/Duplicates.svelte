@@ -21,18 +21,21 @@
     classes: readonly CiClass[];
     words: Words;
     mayWrite: boolean;
+    /** Only this pair: the upkeep's *Decide* (scene invcare). */
+    only?: string;
   }
 
-  const { hubId, classes, words, mayWrite }: Props = $props();
+  const { hubId, classes, words, mayWrite, only }: Props = $props();
 
-  let list = $state<readonly CiDuplicate[] | undefined>(undefined);
+  let all = $state<readonly CiDuplicate[] | undefined>(undefined);
+  const list = $derived(all && only ? all.filter((each) => each.id === only) : all);
   let refusal = $state<string | undefined>(undefined);
   let read = $state<Record<string, ConfigurationItem>>({});
   $effect(() => {
     const at = hubId;
     return untrack(() =>
       engine.subscribe<CiDuplicateList>({ path: duplicatesPath(at) }, (state) => {
-        if (state.status === 'ready') list = state.data.data;
+        if (state.status === 'ready') all = state.data.data;
         if (state.status === 'failed') refusal = renderProblem(state.error, messages).message;
       }),
     );
