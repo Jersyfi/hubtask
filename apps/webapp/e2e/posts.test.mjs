@@ -19,6 +19,9 @@
 // - UC-DOC-18/6 (seen and confirmed erased with the person, never in the trail) by
 //   post_repository_test.go and Posts_test.go. An agent or a service account has no web app, so
 //   UC-DOC-18/4 has no walk here.
+//
+// A post's pictures and files open the one viewer as a page's do (UC-MED-05/2); that only those the
+// post is for read them is proven by Posts_test.go.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,10 +67,10 @@ function hubPosts() {
  * A tab whose server keeps the hub's posts. `writer` decides whether the reader writes in the hub,
  * `wide` whether every member of the workspace reads it.
  */
-async function opened(browser, { width = 1280, writer = false, wide = false, rows = hubPosts(), replies = [] } = {}) {
+async function opened(browser, { width = 1280, writer = false, wide = false, rows = hubPosts(), replies = [], words = {}, media = () => undefined } = {}) {
   const written = [];
   const kept = new Map(rows.map((each) => [each.page_id, structuredClone(each)]));
-  const bodies = new Map();
+  const bodies = new Map(Object.entries(words));
   let following = false;
   let thread = structuredClone(replies);
   const { page, failures, context } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
@@ -179,7 +182,7 @@ async function opened(browser, { width = 1280, writer = false, wide = false, row
     if (/^\/pages\/([^/]+)\/access$/.test(path)) {
       return route.fulfill({ json: { page_id: path.split('/')[2], restricted: false, restricted_to: [], restricted_above: false, readers: [], shares: [], may_share: false, public_link: null, public_links_allowed: false, articles: [] } });
     }
-    return stub(route);
+    return media(route, path) ?? stub(route);
   });
   return { page, failures, written, close: () => context.close() };
 }
@@ -430,6 +433,54 @@ test('a reader opens a post: kind, title, writer, date, reading time, seen by N,
     await meta.locator('[data-post-seen]').getByText('seen by 13').waitFor({ timeout: 15_000 });
     await page.waitForTimeout(500);
     assert.equal(sentTo(written, 'POST', `/posts/${id(1)}:seen`).length, 1, 'counted once');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// UC-MED-05 check 2: a post is a page, so a picture and a file in its body open the one viewer,
+// every file of the post at its foot, named after the post.
+test("a post's picture and file open the one viewer, named after the post (UC-MED-05/2)", async () => {
+  const PNG_ID = id(81);
+  const TEXT_ID = id(82);
+  const at = ago(2);
+  const record = (mediaId, file_name, content_type, size, inline) => ({
+    id: mediaId, file_name, content_type, size, usage: 'ATTACHMENT', status: 'READY', ref_count: 1, created_by: OTHER.id, created_at: at,
+    inline, office: false, editable: false, download: { url: `${served.origin}/api/v1/e2e-content/${mediaId}`, method: 'GET', expires_at: ahead(1) },
+  });
+  const records = { [PNG_ID]: record(PNG_ID, 'stage.png', 'image/png', 68, true), [TEXT_ID]: record(TEXT_ID, 'changes.txt', 'text/plain', 24, false) };
+  const ONE_PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+  const media = (route, path) => {
+    const read = /^\/media\/([^/:]+)$/.exec(path);
+    if (read && records[read[1]]) return route.fulfill({ json: records[read[1]] });
+    if (path === `/e2e-content/${PNG_ID}`) return route.fulfill({ status: 200, contentType: 'image/png', body: ONE_PIXEL });
+    if (path === `/e2e-content/${TEXT_ID}`) return route.fulfill({ status: 200, contentType: 'text/plain', body: 'Tiles arrive on Monday.' });
+    return undefined;
+  };
+  const words = { [id(1)]: `The release in a picture:\n\n![](hubtask:media/${PNG_ID})\n\nThe changes:\n\n![](hubtask:media/${TEXT_ID})\n` };
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, { words, media });
+    await page.goto(`${served.origin}/posts/${id(1)}`);
+    const card = page.getByRole('button', { name: 'Open changes.txt' });
+    await card.waitFor({ timeout: 15_000 });
+    await card.click();
+    const viewer = page.getByRole('dialog', { name: 'File viewer' });
+    await viewer.waitFor({ timeout: 5_000 });
+    assert.equal((await viewer.getByRole('heading', { level: 2 }).textContent()).trim(), 'changes.txt');
+    const position = async () => ((await viewer.locator('[data-viewer-position]').textContent()) ?? '').replace(/\s+/g, ' ').trim();
+    assert.equal(await position(), '· 2 of 2 · on Monday release', 'the post\'s files at the foot, named after the post');
+    await viewer.getByText('Tiles arrive on Monday.').waitFor({ timeout: 5_000 });
+    await page.keyboard.press('ArrowLeft');
+    await viewer.getByRole('heading', { level: 2, name: 'stage.png' }).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Escape');
+    await viewer.waitFor({ state: 'hidden', timeout: 5_000 });
+    // The picture in the body opens the viewer too.
+    await page.getByRole('button', { name: 'Open stage.png' }).click();
+    await viewer.getByRole('heading', { level: 2, name: 'stage.png' }).waitFor({ timeout: 5_000 });
+    assert.equal(await position(), '· 1 of 2 · on Monday release');
     assert.deepEqual(failures, []);
     await close();
   } finally {
