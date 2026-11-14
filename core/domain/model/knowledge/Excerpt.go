@@ -10,8 +10,9 @@ import (
 
 var (
 	quotePrefix = regexp.MustCompile(`^(?:>\s?)+`)
-	// The marks of one line's prose, leftmost first, so an escaped mark is never read as a mark.
-	excerptMark = regexp.MustCompile("\\\\([\\\\`*_~\\[\\]#|])|(!?)\\[([^\\]]*)\\]\\(([^)\\s]*)\\)|\\*\\*|~~|__|\\*([^*\\s][^*]*?)\\*|(^|[\\s(])_([^_\\s][^_]*?)_")
+	// The marks of one line's prose, leftmost first, so an escaped mark is never read as a mark;
+	// any ASCII punctuation may be escaped (CommonMark), as the editor writes "1\." or "\(".
+	excerptMark = regexp.MustCompile("\\\\([!-/:-@\\[-`{-~])|(!?)\\[([^\\]]*)\\]\\(([^)\\s]*)\\)|\\*\\*|~~|__|\\*([^*\\s][^*]*?)\\*|(^|[\\s(])_([^_\\s][^_]*?)_")
 )
 
 // PlainExcerpt is a search hit's passage as words (UC-DOC-01/3): the body's Markdown removed, its
