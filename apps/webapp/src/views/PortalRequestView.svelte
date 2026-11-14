@@ -101,8 +101,8 @@
           <div class="standing">
             <h2 class="heading" id="portal-merged">{t('app.portal.merged_title', { number: into.number })}</h2>
             {#if into.readable}
-              <!-- The surviving request carries no status name of its own: its completion in words, never a key. -->
-              <StateLozenge label={into.is_completed ? t('app.portal.state_done') : t('app.portal.open')} vocabulary="category" state={into.is_completed ? 'done' : 'progress'} />
+              {@const state = requestState(into, { received: t('app.portal.state_received'), working: t('app.portal.state_working'), done: t('app.portal.state_done') })}
+              <StateLozenge label={state.label} vocabulary="category" state={state.category} />
             {/if}
           </div>
           {#if into.readable}
