@@ -12,7 +12,7 @@ const hit = (kind: Hit['kind'], id: string, extra: Partial<Hit> = {}): Hit => ({
 
 test('a kind whose module is off is never asked (P-17)', () => {
   assert.deepEqual(kindsOn(BAR_KINDS, []), ['ENTRY', 'PERSON', 'FILE']);
-  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), ['ENTRY', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET']);
+  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE', 'WHITEBOARD', 'ASSETS']), ['ENTRY', 'PAGE', 'POST', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET']);
   assert.deepEqual(kindsOn(BAR_KINDS, ['SERVICE_DESK', 'KNOWLEDGE', 'WHITEBOARD', 'ASSETS', 'GOALS', 'PLANNING']), [...BAR_KINDS]);
 });
 
@@ -65,6 +65,14 @@ test('a portfolio, a release and a sprint are asked where their module is on, an
   assert.equal(tileOf(hit('SPRINT', 's')).product, 'plans');
   assert.equal(tileOf(hit('PORTFOLIO', 'p')).product, 'goals');
   assert.deepEqual(['PORTFOLIO', 'RELEASE', 'SPRINT', 'FILE', 'COMMENT', 'ENTRY', 'GOAL'].map((kind) => saysItsKind(kind as Hit['kind'])), [true, true, true, true, true, false, false]);
+});
+
+test('a published post is asked with the pages, named as a post, and opens as one', () => {
+  assert.deepEqual(kindsOn(BAR_KINDS, ['KNOWLEDGE']), ['ENTRY', 'PAGE', 'POST', 'PERSON', 'FILE']);
+  assert.ok(PAGE_KINDS.includes('POST') && !kindsOn(PAGE_KINDS, []).includes('POST'));
+  assert.equal(pathOf(hit('POST', 'p')), '/posts/p');
+  assert.ok(saysItsKind('POST'));
+  assert.deepEqual(tileOf(hit('POST', 'p')), { icon: 'bell', product: 'pages' });
 });
 
 test('found words are marked, in a snippet by its « » and in a title by the words typed', () => {

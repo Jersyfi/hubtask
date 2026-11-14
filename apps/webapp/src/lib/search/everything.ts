@@ -13,7 +13,7 @@
 import { resolveKey } from '@hubtask/query';
 
 /** The kinds `/search:all` answers, as the contract names them. */
-export type Kind = 'ENTRY' | 'TICKET' | 'PAGE' | 'WHITEBOARD' | 'GOAL' | 'DASHBOARD' | 'ASSET' | 'PERSON' | 'FILE' | 'COMMENT' | 'PORTFOLIO' | 'RELEASE' | 'SPRINT';
+export type Kind = 'ENTRY' | 'TICKET' | 'PAGE' | 'POST' | 'WHITEBOARD' | 'GOAL' | 'DASHBOARD' | 'ASSET' | 'PERSON' | 'FILE' | 'COMMENT' | 'PORTFOLIO' | 'RELEASE' | 'SPRINT';
 
 export interface Hit {
   readonly kind: Kind;
@@ -47,17 +47,17 @@ export interface Answer {
  * The scopes of the header search, in the order the concept draws them (§6.11), then the goals'
  * and plans' objects: every kind of the search page but comments, which its scopes do not name.
  */
-export const BAR_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'RELEASE', 'SPRINT'];
+export const BAR_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'POST', 'WHITEBOARD', 'PERSON', 'FILE', 'ASSET', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'RELEASE', 'SPRINT'];
 
 /** Every kind of the search page, entries first, comments last. */
-export const PAGE_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'WHITEBOARD', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'RELEASE', 'SPRINT', 'ASSET', 'PERSON', 'FILE', 'COMMENT'];
+export const PAGE_KINDS: readonly Kind[] = ['ENTRY', 'TICKET', 'PAGE', 'POST', 'WHITEBOARD', 'GOAL', 'PORTFOLIO', 'DASHBOARD', 'RELEASE', 'SPRINT', 'ASSET', 'PERSON', 'FILE', 'COMMENT'];
 
 /**
  * The module a kind needs, by the manifest's module keys; a kind whose module is off is never
  * asked and never drawn (P-17). Without TICKET asked, the server counts tickets as entries.
  */
 const MODULE: Partial<Record<Kind, string>> = {
-  TICKET: 'SERVICE_DESK', PAGE: 'KNOWLEDGE', WHITEBOARD: 'WHITEBOARD', GOAL: 'GOALS', DASHBOARD: 'GOALS', PORTFOLIO: 'GOALS', ASSET: 'ASSETS',
+  TICKET: 'SERVICE_DESK', PAGE: 'KNOWLEDGE', POST: 'KNOWLEDGE', WHITEBOARD: 'WHITEBOARD', GOAL: 'GOALS', DASHBOARD: 'GOALS', PORTFOLIO: 'GOALS', ASSET: 'ASSETS',
   RELEASE: 'PLANNING', SPRINT: 'PLANNING',
 };
 
@@ -116,7 +116,7 @@ export function arrange(hits: readonly Hit[], kinds: readonly Kind[], narrowed?:
 }
 
 /** A kind whose title alone does not say what it is: its row names it. */
-export const saysItsKind = (kind: Kind) => ['FILE', 'COMMENT', 'PORTFOLIO', 'RELEASE', 'SPRINT'].includes(kind);
+export const saysItsKind = (kind: Kind) => ['POST', 'FILE', 'COMMENT', 'PORTFOLIO', 'RELEASE', 'SPRINT'].includes(kind);
 
 function objectPath(kind: string, id: string): string | undefined {
   switch (kind) {
@@ -125,6 +125,8 @@ function objectPath(kind: string, id: string): string | undefined {
       return `/items/${id}`;
     case 'PAGE':
       return `/pages/${id}`;
+    case 'POST':
+      return `/posts/${id}`;
     case 'WHITEBOARD':
       return `/whiteboards/${id}`;
     case 'GOAL':
@@ -241,6 +243,8 @@ export function tileOf(hit: Pick<Hit, 'kind' | 'state' | 'on'>): { readonly icon
   switch (on) {
     case 'PAGE':
       return { icon: mark ?? 'book-open', product: 'pages' };
+    case 'POST':
+      return { icon: 'bell', product: 'pages' };
     case 'WHITEBOARD':
       return { icon: mark ?? 'layout-template', product: 'whiteboards' };
     case 'GOAL':
