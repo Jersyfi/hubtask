@@ -305,9 +305,17 @@ Rules trigger HTTP calls and agents write, so:
    class, may use its own client, listed in the architecture test's exceptions, with deadlines,
    refused redirects, the breaker and the bulkhead.
 4. **A causality bound** against loops and amplification (T-09). A workspace's document server
-   is reached only through GuardedClient with a deadline, by the public guard: a conversion's
-   answer is handed on only when it is a PDF, and ONLYOFFICE's result only from the server's own
-   origin ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)).
+   is reached only through GuardedClient with a deadline: a conversion's answer is handed on only
+   when it is a PDF, and ONLYOFFICE's result and the editor's address only from the server's own
+   origin ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)). **The guard's one
+   exception:** the document server a workspace's administration entered (STRUCTURE, never an
+   agent, audited) may sit on a private network, and only calls to its own host name - the
+   discovery, the test, the conversion - may reach a private address. Every other private target
+   stays refused: another host, the entered server's address written as another name, a redirect
+   from it, a name that rebinds at dial time; the metadata addresses stay blocked for it too. The
+   installation switches the exception off with `HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK=false`
+   (default on for self-hosting, off in multi mode); then an entered private server is refused with
+   `media.document_server_private_network`.
 5. **AI is opt-in per tenant**, off by default; content goes only to the configured provider
    (documented in the data catalogue); AI results are suggestions with provenance.
 6. **MCP tools** carry `readOnly`/`destructive` hints; destructive tools need explicit release per

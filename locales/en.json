@@ -15875,7 +15875,7 @@
   "media.document_server_read": "Read the document server",
   "media.document_server_set": "Changed the document server",
   "media.document_server_check": "Tested the document server",
-  "media.document_server_private_network": "This address lies inside a private network. Hubtask does not call addresses inside its own network, so a document server there cannot be reached. Use a server with a public https address, or ask the installation's operator.",
+  "media.document_server_private_network": "This address lies inside a private network, and this installation does not allow a document server there. Use a server with a public https address, or ask the installation's operator to allow one on the private network.",
   "media.document_server_unreachable": "Nothing answered at this address. Check the address and that the server is running.",
   "media.document_server_no_discovery": "Something answered at this address, but not as a document server: it gave no WOPI discovery. Check the address.",
   "media.edit": "Opened a file for editing",

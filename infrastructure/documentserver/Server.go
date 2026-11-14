@@ -17,6 +17,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"path"
 	"regexp"
 	"strings"
@@ -45,6 +46,21 @@ type Client interface {
 // Server converts through the chosen document server.
 type Server struct {
 	Client Client
+	// Entered answers a client that may reach the entered server on a private network, and only
+	// that host (security.md §10); nil keeps every call on Client, where private networks are
+	// closed - the installation switched the exception off.
+	Entered func(host string) Client
+}
+
+// to is the client for a call to the chosen server.
+func (s Server) to(choice media.DocumentServerChoice) Client {
+	if s.Entered == nil {
+		return s.Client
+	}
+	if parsed, err := url.Parse(choice.URL); err == nil && parsed.Hostname() != "" {
+		return s.Entered(parsed.Hostname())
+	}
+	return s.Client
 }
 
 var _ wopi.Server = Server{}
@@ -57,9 +73,9 @@ func (s Server) ConvertToPDF(
 	defer cancel()
 	switch choice.Kind {
 	case media.DocumentServerCollabora:
-		return s.collabora(ctx, choice.URL, source)
+		return Server{Client: s.to(choice)}.collabora(ctx, choice.URL, source)
 	case media.DocumentServerOnlyOffice, media.DocumentServerEuroOffice:
-		return s.onlyOffice(ctx, choice.URL, source)
+		return Server{Client: s.to(choice)}.onlyOffice(ctx, choice.URL, source)
 	default:
 		return nil, wopi.ErrUnsupported()
 	}
@@ -73,7 +89,7 @@ const reachDeadline = 10 * time.Second
 func (s Server) Reach(ctx context.Context, choice media.DocumentServerChoice) error {
 	ctx, cancel := context.WithTimeout(ctx, reachDeadline)
 	defer cancel()
-	response, err := s.Client.Do(ctx, port.Request{
+	response, err := s.to(choice).Do(ctx, port.Request{
 		Method: http.MethodGet, URL: choice.URL + "/hosting/discovery", TargetClass: targetClass,
 		Header: map[string][]string{"Accept": {"application/xml, text/xml"}},
 	})
@@ -98,7 +114,7 @@ func (s Server) Reach(ctx context.Context, choice media.DocumentServerChoice) er
 func (s Server) EditAction(ctx context.Context, choice media.DocumentServerChoice, fileName string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, reachDeadline)
 	defer cancel()
-	response, err := s.Client.Do(ctx, port.Request{
+	response, err := s.to(choice).Do(ctx, port.Request{
 		Method: http.MethodGet, URL: choice.URL + "/hosting/discovery", TargetClass: targetClass,
 		Header: map[string][]string{"Accept": {"application/xml, text/xml"}},
 	})

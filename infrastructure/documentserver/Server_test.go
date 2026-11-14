@@ -215,3 +215,23 @@ func TestTheEditorsAddressComesFromTheDiscovery(t *testing.T) {
 		t.Errorf("an ending the server does not edit: %v", err)
 	}
 }
+
+// Where the installation allows the entered server on a private network, every call to it goes
+// through the client made for its host, and no other.
+func TestCallsToTheEnteredServerUseItsOwnClient(t *testing.T) {
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `<wopi-discovery/>`)
+	}))
+	defer stub.Close()
+	var asked []string
+	server := Server{Client: nil, Entered: func(host string) Client {
+		asked = append(asked, host)
+		return plain{client: stub.Client()}
+	}}
+	if err := server.Reach(t.Context(), media.DocumentServerChoice{Kind: media.DocumentServerCollabora, URL: stub.URL}); err != nil {
+		t.Fatal(err)
+	}
+	if len(asked) != 1 || asked[0] != "127.0.0.1" {
+		t.Errorf("asked for %v", asked)
+	}
+}

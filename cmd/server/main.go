@@ -2441,19 +2441,26 @@ func run() error {
 		Reader: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		Pages: knowledgeservice.PageMediaReach{Space: pageSpace},
 	}
+	// The document server the administration entered may sit on a private network where the
+	// installation allows it (security.md §10): its calls, and only its, go through a client
+	// opened for that one host.
+	officeServer := documentserver.Server{Client: outboundClient}
+	if cfg.Outbound.DocumentServerPrivate {
+		officeServer.Entered = func(host string) documentserver.Client { return outboundClient.ForEnteredServer(host) }
+	}
 	wopiHost := mediaservice.WopiHost{
 		Read: mediaRead, Wopi: postgres.WopiRepository{}, Store: mediaStore, Guard: mediaGuard,
 		Tokens: security.NewWopiTokenIssuer(cfg.SecretKey), UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, SizeLimit: cfg.Request.MaxUploadBytes,
 		Files:  strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/wopi/files/",
-		Server: documentserver.Server{Client: outboundClient},
+		Server: officeServer,
 		Pages:  knowledgeservice.PageMediaReach{Space: pageSpace},
 	}
 	mediaRead.Editing = wopiHost
 	documentServers := mediaservice.DocumentServers{
 		Wopi: postgres.WopiRepository{}, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-		Server: documentserver.Server{Client: outboundClient},
+		Server: officeServer,
 	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).

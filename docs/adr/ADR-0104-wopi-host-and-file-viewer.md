@@ -1,10 +1,12 @@
 # ADR-0104 — A WOPI host for a document server, and one file viewer
 
-**Status:** accepted, the launch open · **Date:** 2026-11-14 · **Decided:** 2026-11-12, by the
-owner (the concept [work-surface](../backlog/work-surface/README.md) E-14, F-1…F-5)
+**Status:** accepted · **Date:** 2026-11-14 · **Decided:** 2026-11-12, by the owner (the
+concept [work-surface](../backlog/work-surface/README.md) E-14, F-1…F-5); the launch, no
+converter without a server and the private-network exception on 2026-11-14, by the owner
 
 **Rule lives in:** [security.md](../architecture/security.md) §8 (the WOPI access token), §9 (the
-viewer's policy, where a target is minted), §10 (the document server through GuardedClient);
+viewer's policy, where a target is minted, the editor's frame), §10 (the document server through
+GuardedClient, its one private-network exception);
 the contract's `/media:document-server` (the workspace's document server, set under STRUCTURE);
 [design-system.md](../design/design-system.md) (the stage tokens).
 
@@ -30,18 +32,28 @@ again. Hubtask edits no file itself, and must not become a renderer of what some
   page's writers are the knowledge module's answer, asked through a port).
 * **A save is a new version**: the file keeps its identity, and the bytes it had become an
   object of their own, named by `media_version` and kept while the file lives.
-* **Without a document server** an office file is a card; with one it is converted to PDF by the
-  server's own conversion, through GuardedClient, for the viewer.
-
-## Open: the launch
-
-Opening the editor needs the browser to hand the token to the server's action URL. Either the
-web interface's policy admits the configured server's origin in `frame-src` and `form-action`
-(a form POST into a frame), or the token travels in a URL the server opens in a new tab. Both
-touch the security policy; the owner decides. Until then *Bearbeiten* stays hidden and
-`POST /media/{id}:edit` is the only door to a session.
+* **Without a document server** an office file is a card with its type, its size and the
+  download - Hubtask has no converter of its own; with one it is converted to PDF by the server's
+  own conversion, through GuardedClient, for the viewer.
+* **The editor launches embedded.** `POST /media/{id}:edit` answers the token and the editor's
+  address from the server's discovery (only on its own origin); the viewer posts the token in a
+  form into a frame. The interface's policy, computed per workspace from the stored choice when
+  the document loads, adds exactly that origin to `frame-src` and `form-action` while one is
+  entered, and nothing once it is removed. The token never travels in a URL.
+* **The entered server may sit on a private network.** The outbound guard allows a private
+  address for that one host only; a redirect, a rebind or any other private target stays refused.
+  An installation switch turns the exception off (default on for self-hosting).
 
 ## Alternatives
+
+* *A new tab with the token in its address.* No policy change, but a two-hour write token in a
+  tab's history, the server's log and a Referer; not chosen.
+* *The installation's policy listing every workspace's server.* One policy for all, but every
+  workspace's document server could be framed by every other's pages; per workspace was chosen.
+* *A guard open to private networks for the document server's client.* Simpler, but a redirect or
+  a rebind from the server could reach anything on the network; per host was chosen.
+
+## Further alternatives
 
 * *A converter on the server* (LibreOffice headless). A new dependency in the image; asked of the
   owner separately.
