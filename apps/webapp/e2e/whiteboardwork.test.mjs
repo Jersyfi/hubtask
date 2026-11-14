@@ -127,7 +127,7 @@ test('chromium: a chosen note carries the bar above it in its order, and the car
   assert.deepEqual(failures, []);
 });
 
-test('chromium: the dock answers its keys, a placing tool springs back, a double click holds it and the pen stays (UC-CNV-01 check 11)', async (t) => {
+test('chromium: the dock answers its keys, a placing tool springs back, a double click holds it and the pen stays, a note names who put it there (UC-CNV-01 checks 11, 14)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser);
@@ -156,6 +156,12 @@ test('chromium: the dock answers its keys, a placing tool springs back, a double
   assert.ok(await pressed(page, 'select'), 'the note tool did not spring back');
   await page.mouse.click(aside.x, aside.y);
   await canvas.getByText('Idea', { exact: true }).waitFor({ timeout: 5_000 });
+  // The note says who put it there, at its foot, by first name; one seeded from the saved scene does not.
+  const maker = canvas.locator('g.sticky', { hasText: 'Idea' }).locator('[data-note-maker]');
+  await maker.waitFor({ timeout: 5_000 });
+  assert.equal(await maker.getAttribute('data-note-maker'), ACCOUNT.id);
+  assert.equal((await maker.textContent()).trim(), 'Jérôme');
+  assert.equal(await canvas.locator('g.sticky', { hasText: 'Pairing worked' }).locator('[data-note-maker]').count(), 0, 'a seeded note names a maker');
 
   // A double click holds it: two notes, and the tool still chosen; Esc leads back.
   await toolOf(page, 'STICKY').dblclick();

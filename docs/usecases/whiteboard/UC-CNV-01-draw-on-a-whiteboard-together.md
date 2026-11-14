@@ -35,6 +35,7 @@ The team's retrospective runs on a board in the team's hub. Anna draws three fra
 11. On the board the tools stand in a dock at its foot, grouped move · create · draw · conversation, each showing its key (V, H, N, R, T, L, F, P, M, E, C); a placing tool springs back to select after one object, a double click holds it, the pen stays after a stroke, and Esc leads back to select.
 12. A board made from the *Create* button, the home or the hub's *Whiteboards* screen opens at once; an empty one offers the templates as a sheet and the keys of the first use, a template card puts its template, and *Leave empty* closes the sheet.
 13. The board reads as a list by frame in reading order, each frame with the objects in it.
+14. A sticky note put on the board names at its foot the person who put it there, on every device that draws it.
 
 ## Where it ends
 

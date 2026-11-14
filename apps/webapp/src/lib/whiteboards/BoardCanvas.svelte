@@ -111,6 +111,8 @@
   let canRedo = $state(false);
   const session = new Facilitation(doc);
   let elements = $state<Element[]>(untrack(() => saved));
+  // Who put each note on the board, by account, as the live document knows it (`Board.makerOf`).
+  let makers = $state<Map<string, string>>(new Map());
   let status = $state<LiveStatus | 'reading'>('connecting');
   let failedAttempts = $state(0);
   // Local changes the server has not had yet, kept on the device meanwhile (unsentdocs.ts).
@@ -199,6 +201,10 @@
   function changed() {
     // A reader whose board has no live document yet sees the scene as last saved.
     elements = !writable && model.size === 0 ? saved : model.elements();
+    makers = new Map(elements.flatMap((e) => {
+      const by = e.kind === 'STICKY' ? model.makerOf(e.id) : undefined;
+      return by ? [[e.id, by] as const] : [];
+    }));
     if (!writable || !isLive) return;
     clearTimeout(timer);
     timer = setTimeout(() => void save(), SAVE_AFTER);
@@ -318,6 +324,14 @@
     accounts.resolve(state.data.data.map((target) => target.assignee_id));
   }
 
+  const makerIds = $derived([...new Set(makers.values())].sort().join(','));
+  $effect(() => {
+    const ids = makerIds;
+    if (ids) untrack(() => accounts.resolve(ids.split(',')));
+  });
+  /** The name at a note's foot: the first word of its maker's, as the board says people. */
+  const makerName = (e: Element) => (accounts.nameOf(makers.get(e.id)) ?? '').trim().split(/\s+/)[0] ?? '';
+
   const cardOf = (e: Element) => (e.target ? cards.get(e.target.id.toLowerCase()) : undefined);
 
   async function tick(e: Element) {
@@ -349,7 +363,7 @@
       ...(kind === 'FRAME' ? { text: t('app.whiteboards.frame_name', { n: String(frames.length + 1) }) } : {}),
       ...extra,
     };
-    if (!model.add(element)) {
+    if (!model.add(element, actor.account?.id)) {
       toast.show({ text: t('whiteboards.too_many_elements', { maximum: '5000' }), tone: 'danger' });
       return undefined;
     }
@@ -359,7 +373,7 @@
 
   function putAll(next: Element[], said: string): void {
     if (next.length === 0) return;
-    if (!model.addAll(next)) {
+    if (!model.addAll(next, actor.account?.id)) {
       toast.show({ text: t('whiteboards.too_many_elements', { maximum: '5000' }), tone: 'danger' });
       return;
     }
@@ -569,7 +583,7 @@
     try { surface?.releasePointerCapture(event.pointerId); } catch { /* never captured */ }
     if (g?.kind === 'draw') {
       const strokes = strokesOf(g.points, pen, () => elementId(), pen === 'HIGHLIGHTER' ? 'amber' : undefined);
-      if (!model.addAll(strokes)) toast.show({ text: t('whiteboards.too_many_elements', { maximum: '5000' }), tone: 'danger' });
+      if (!model.addAll(strokes, actor.account?.id)) toast.show({ text: t('whiteboards.too_many_elements', { maximum: '5000' }), tone: 'danger' });
       return;
     }
     if (g?.kind === 'connect' && g.byHandle) {
@@ -1612,9 +1626,11 @@
                 <text x={placed.x} y={row.y} text-anchor="middle" class="words">{row.text}</text>
               {/each}
             {:else if editing !== e.id}
-              {#each lines(e.text ?? '', e.width - 24, 14).slice(0, Math.max(1, Math.floor((e.height - 12) / 18))) as row, i (i)}
+              {@const by = e.kind === 'STICKY' ? makerName(e) : ''}
+              {#each lines(e.text ?? '', e.width - 24, 14).slice(0, Math.max(1, Math.floor((e.height - (by ? 34 : 12)) / 18))) as row, i (i)}
                 <text x={e.x + 12} y={e.y + 24 + i * 18} class="words">{row}</text>
               {/each}
+              {#if by}<text x={e.x + 12} y={e.y + e.height - 12} class="maker" data-note-maker={makers.get(e.id)}>{by}</text>{/if}
             {/if}
           </g>
         {/if}
@@ -2527,6 +2543,7 @@
   .object path { stroke: none; }
   .object.shape path { fill: var(--bg-raised); stroke: var(--text-primary); stroke-width: 1.5; }
   .words { fill: var(--text-primary); font-size: var(--fs-100); }
+  .maker { fill: var(--text-secondary); font-size: var(--fs-065); }
   .card path { fill: var(--bg-raised); stroke: var(--border-default); }
   .card path.pending { stroke-dasharray: 4 4; }
   .card.done .words { text-decoration: line-through; fill: var(--text-subtle); }
