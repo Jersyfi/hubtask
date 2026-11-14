@@ -146,7 +146,7 @@ func TestAPostsListShowsItsOpeningAndReadingTime(t *testing.T) {
 		name, lead, want string
 	}{
 		{"marks go", "## Was neu ist\n\nAb dem **1. Dezember** gilt [das](https://x.example).", "Was neu ist Ab dem 1. Dezember gilt das."},
-		{"an escaped mark is its character", "Ab dem **1\\. Dezember** \\(neu\\) \\- ab 9\\:00.", "Ab dem 1. Dezember (neu) - ab 9:00."},
+		{"an escaped mark is its character", "Ab dem **\\1. Dezember** \\(neu\\) \\- ab 9\\:00.", "Ab dem 1. Dezember (neu) - ab 9:00."},
 		{"empty stays empty", "", ""},
 		{"cut at a word", long, strings.TrimSpace(strings.Repeat("word ", 47)) + "…"},
 	}
