@@ -101,7 +101,9 @@ FROM (
     -- A board's pictures and files, trashed boards included: they may come back.
     + (SELECT count(*) FROM whiteboard_media b WHERE b.media_id = o.id)
     -- A page's pictures and files, trashed pages included, for the same reason.
-    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id) AS total
+    + (SELECT count(*) FROM page_media g WHERE g.media_id = o.id)
+    -- A file's earlier version is kept while the file lives (UC-MED-06).
+    + (SELECT count(*) FROM media_version v WHERE v.earlier_media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -217,3 +219,65 @@ WHERE a.item_id = sqlc.arg('item_id')::uuid
   )
 ORDER BY m.created_at, m.id
 LIMIT sqlc.arg('page_size');
+
+-- name: FindDocumentServer :one
+-- The workspace's document server; no row is none (UC-MED-06).
+SELECT kind, url FROM document_server WHERE tenant_id = current_tenant_id();
+
+-- name: UpsertDocumentServer :exec
+INSERT INTO document_server (tenant_id, kind, url, set_by, updated_at)
+VALUES (current_tenant_id(), sqlc.arg('kind'), sqlc.arg('url'), sqlc.narg('set_by'), sqlc.arg('updated_at'))
+ON CONFLICT (tenant_id) DO UPDATE
+  SET kind = excluded.kind, url = excluded.url, set_by = excluded.set_by, updated_at = excluded.updated_at;
+
+-- name: DeleteDocumentServer :execrows
+DELETE FROM document_server WHERE tenant_id = current_tenant_id();
+
+-- name: FindMediaLock :one
+-- The lock a document server holds on a file, expired or not: the domain decides whether it holds.
+SELECT lock_id, expires_at FROM media_lock WHERE media_id = sqlc.arg('media_id');
+
+-- name: UpsertMediaLock :exec
+INSERT INTO media_lock (tenant_id, media_id, lock_id, expires_at)
+VALUES (current_tenant_id(), sqlc.arg('media_id'), sqlc.arg('lock_id'), sqlc.arg('expires_at'))
+ON CONFLICT (tenant_id, media_id) DO UPDATE
+  SET lock_id = excluded.lock_id, expires_at = excluded.expires_at;
+
+-- name: DeleteMediaLock :execrows
+DELETE FROM media_lock WHERE media_id = sqlc.arg('media_id');
+
+-- name: LockMediaObjectForSave :one
+-- A save's first statement: the row is held until the transaction ends, so two saves of one file
+-- number their versions one after the other.
+SELECT id FROM media_object WHERE id = sqlc.arg('id') AND deleted_at IS NULL FOR UPDATE;
+
+-- name: NextMediaVersionNumber :one
+SELECT COALESCE(max(number), 0)::int + 1 AS next FROM media_version WHERE media_id = sqlc.arg('media_id');
+
+-- name: InsertMediaVersion :exec
+INSERT INTO media_version (tenant_id, media_id, number, earlier_media_id, saved_by, saved_at)
+VALUES (current_tenant_id(), sqlc.arg('media_id'), sqlc.arg('number'), sqlc.arg('earlier_media_id'),
+        sqlc.narg('saved_by'), sqlc.arg('saved_at'));
+
+-- name: ReplaceMediaContent :execrows
+-- A save's last write: the file keeps its id and takes the new bytes; the bytes it had are the
+-- earlier version's object, written before this in the same transaction.
+UPDATE media_object SET storage_key = sqlc.arg('storage_key'), mime_type = sqlc.arg('mime_type'),
+  byte_size = sqlc.arg('byte_size')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND status = 'READY';
+
+-- name: InsertReadyMediaObject :exec
+-- An earlier version's object: the bytes the file had, READY because they were judged when they
+-- arrived.
+INSERT INTO media_object (
+  id, tenant_id, storage_key, file_name, mime_type, byte_size, usage, status,
+  ref_count, created_by, created_at
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('storage_key'), sqlc.narg('file_name'),
+  sqlc.arg('mime_type'), sqlc.arg('byte_size'), sqlc.arg('usage'), 'READY',
+  1, sqlc.narg('created_by'), sqlc.arg('created_at')
+);
+
+-- name: ListMediaVersions :many
+SELECT number, earlier_media_id, saved_by, saved_at FROM media_version
+WHERE media_id = sqlc.arg('media_id') ORDER BY number DESC LIMIT 100;

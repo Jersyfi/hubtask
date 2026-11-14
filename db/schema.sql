@@ -2306,6 +2306,54 @@ ALTER TABLE whiteboard_media FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON whiteboard_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON whiteboard_media TO hubtask_app;
+
+-- The WOPI host (migration 0410, UC-MED-06): a workspace's document server, a document server's
+-- lock on a file, and a file's earlier versions - each an object of its own.
+CREATE TABLE document_server (
+  tenant_id  uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  kind       text NOT NULL CHECK (kind IN ('COLLABORA_ONLINE','ONLYOFFICE','EURO_OFFICE','MICROSOFT_365')),
+  url        text NOT NULL CHECK (url LIKE 'https://%'),
+  set_by     uuid,
+  updated_at timestamptz NOT NULL
+);
+ALTER TABLE document_server ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_server FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON document_server
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON document_server TO hubtask_app;
+CREATE TABLE media_lock (
+  tenant_id  uuid NOT NULL,
+  media_id   uuid NOT NULL,
+  lock_id    text NOT NULL CHECK (length(lock_id) BETWEEN 1 AND 1024),
+  expires_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, media_id),
+  CONSTRAINT media_lock_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+ALTER TABLE media_lock ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media_lock FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON media_lock
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON media_lock TO hubtask_app;
+CREATE TABLE media_version (
+  tenant_id        uuid NOT NULL,
+  media_id         uuid NOT NULL,
+  number           integer NOT NULL CHECK (number >= 1),
+  earlier_media_id uuid NOT NULL,
+  saved_by         uuid,
+  saved_at         timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, media_id, number),
+  CONSTRAINT media_version_object_fkey FOREIGN KEY (tenant_id, media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT media_version_earlier_fkey FOREIGN KEY (tenant_id, earlier_media_id)
+    REFERENCES media_object (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX media_version_earlier_idx ON media_version (tenant_id, earlier_media_id);
+ALTER TABLE media_version ENABLE ROW LEVEL SECURITY;
+ALTER TABLE media_version FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON media_version
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT ON media_version TO hubtask_app;
 -- A page's pictures and files (migration 0272, UC-DOC-14).
 CREATE TABLE page_media (
   tenant_id uuid NOT NULL,

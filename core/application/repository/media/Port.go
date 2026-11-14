@@ -151,3 +151,49 @@ type Attachments interface {
 	// tags against.
 	Elements(ctx context.Context, itemID shared.ID) ([]work.SetElement, error)
 }
+
+// Version is one save a document server made of a file: its number, the object keeping the bytes
+// the file had before it, who saved and when (UC-MED-06).
+type Version struct {
+	Number         int
+	EarlierMediaID shared.ID
+	SavedBy        shared.ID
+	SavedAt        time.Time
+}
+
+// Save is one PutFile written down: the file keeps its id and takes the new bytes, and Earlier -
+// a READY object of its own - keeps the bytes it had.
+type Save struct {
+	Earlier     media.Object
+	StorageKey  string
+	ContentType string
+	ByteSize    int64
+	SavedBy     shared.ID
+	SavedAt     time.Time
+}
+
+// Wopi stores what the WOPI host keeps: the workspace's document server, the lock on a file and
+// a file's versions.
+type Wopi interface {
+	// DocumentServer answers the workspace's choice; none when nothing is set.
+	DocumentServer(ctx context.Context) (media.DocumentServerChoice, error)
+
+	// SetDocumentServer writes the choice; NONE removes it.
+	SetDocumentServer(ctx context.Context, choice media.DocumentServerChoice, setBy shared.ID, at time.Time) error
+
+	// Lock answers the lock row of a file, expired or not; nil when there is none.
+	Lock(ctx context.Context, mediaID shared.ID) (*media.Lock, error)
+
+	// PutLock writes the lock a document server took or renewed.
+	PutLock(ctx context.Context, mediaID shared.ID, lock media.Lock) error
+
+	// DropLock removes the lock.
+	DropLock(ctx context.Context, mediaID shared.ID) error
+
+	// SaveVersion writes a save and answers its number. ErrNotFound for a file that is gone or
+	// not READY.
+	SaveVersion(ctx context.Context, mediaID shared.ID, save Save) (int, error)
+
+	// Versions lists a file's saves, newest first, bounded.
+	Versions(ctx context.Context, mediaID shared.ID) ([]Version, error)
+}

@@ -1672,6 +1672,14 @@ type DeletionJournal struct {
 	Reason    string
 }
 
+type DocumentServer struct {
+	TenantID  pgtype.UUID
+	Kind      string
+	Url       string
+	SetBy     pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type DurableTimer struct {
 	ID              pgtype.UUID
 	TenantID        pgtype.UUID
@@ -2289,6 +2297,13 @@ type MailboxAuthorization struct {
 	ExpiresAt         pgtype.Timestamptz
 }
 
+type MediaLock struct {
+	TenantID  pgtype.UUID
+	MediaID   pgtype.UUID
+	LockID    string
+	ExpiresAt pgtype.Timestamptz
+}
+
 type MediaObject struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
@@ -2304,6 +2319,15 @@ type MediaObject struct {
 	Status            string
 	FileName          *string
 	UnreferencedSince pgtype.Timestamptz
+}
+
+type MediaVersion struct {
+	TenantID       pgtype.UUID
+	MediaID        pgtype.UUID
+	Number         int32
+	EarlierMediaID pgtype.UUID
+	SavedBy        pgtype.UUID
+	SavedAt        pgtype.Timestamptz
 }
 
 type Membership struct {
