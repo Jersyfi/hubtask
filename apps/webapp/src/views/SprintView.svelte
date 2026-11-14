@@ -223,7 +223,7 @@
   const isPlaced = $derived(isLevelRead && toRead.length === 0 && reading === 0);
   const columns = $derived(
     hasStartedLane && isPlaced
-      ? sprintColumns(open, buckets.of(collectionId), (itemId) => itemOf(itemId)?.bucket_id, t('app.board.unbucketed'), workflow)
+      ? sprintColumns(open, buckets.of(collectionId), (itemId) => itemOf(itemId)?.bucket_id, t('app.board.unmapped'), workflow)
       : undefined,
   );
 

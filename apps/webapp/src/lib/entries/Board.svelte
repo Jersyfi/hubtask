@@ -262,7 +262,7 @@
   }
   /** How the card's state chip names a column, a status and a step - the list row's words. */
   const chipNames = $derived({
-    get noColumn() { return isWorkflow ? t('app.board.unmapped') : t('app.board.unbucketed'); },
+    get noColumn() { return t('app.board.unmapped'); },
     statusName,
     stepName: (_key: string, name: string | null | undefined, to: string) => name ?? statusName(to),
   });
@@ -272,7 +272,7 @@
   /** The folded columns the reader opened, by key; the done column and *Ohne Spalte* start folded. */
   let unfolded = $state<Record<string, boolean>>({});
   const isFoldedColumn = (key: string, isDone: boolean) =>
-    !unfolded[key] && !isOneColumn && (isDone || (key === NO_COLUMN && isWorkflow));
+    !unfolded[key] && !isOneColumn && (isDone || key === NO_COLUMN);
 
   /**
    * The columns a carried card may not enter, with the server's reason code (build-plan §5): read
@@ -314,7 +314,7 @@
   /** The column the reader chose; `undefined` until they chose one, and then the first is shown. */
   let shownColumn = $state<string | null | undefined>(undefined);
   const strip = $derived<readonly { id: string | null; label: string; count: number }[]>(
-    [null, ...columns]
+    [...columns, null]
       .filter((bucket) => bucket !== null || cardsOf(null).length > 0)
       .map((bucket) => ({ id: bucket?.id ?? null, label: bucket?.name ?? noColumnName, count: countOf(bucket?.id ?? null) ?? cardsOf(bucket?.id ?? null).length })),
   );
@@ -325,8 +325,8 @@
       : (strip[0]?.id ?? 'none'),
   );
   const isOneColumn = $derived(viewport.isCompact);
-  /** At L2 the entries no column shows stand in *Ohne Spalte*; otherwise they have no column. */
-  const noColumnName = $derived(isWorkflow ? t('app.board.unmapped') : t('app.board.unbucketed'));
+  /** The entries no column shows stand in *Ohne Spalte*, last and folded (build-plan §5). */
+  const noColumnName = $derived(t('app.board.unmapped'));
 
   function showColumn(key: string) {
     shownColumn = key === 'none' ? null : key;
@@ -895,7 +895,7 @@
         event.preventDefault();
         const isRtl = getComputedStyle(node).direction === 'rtl';
         const forward = (event.key === 'ArrowRight') !== isRtl;
-        const order: (string | null)[] = [...(isWorkflow ? [null] : []), ...columns.map((each) => each.id)];
+        const order: (string | null)[] = [...columns.map((each) => each.id), ...(isWorkflow ? [null] : [])];
         const next = order[order.indexOf(column === NO_COLUMN ? null : column) + (forward ? 1 : -1)];
         if (next !== undefined) void moveTo(card, next);
         return;
@@ -954,12 +954,11 @@
     <div class="lane-row" data-lane={lanesBy ? lane : undefined}>
     {#if lanesBy}<p class="lane-head"><b>{lane === '' ? t('app.board.lane_none') : (laneName?.(lane) ?? lane)}</b> <span>{entriesOfLane(lane)}</span></p>{/if}
     <div class="lane-columns">
-    {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
+    {#each [...columns, null] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = lanesBy ? cardsOf(bucketId).filter((card) => laneOf(card, lanesBy) === lane) : cardsOf(bucketId)}
-      <!-- The entries with no bucket are their own lane, first (design-system.md §11.9): a card
-           nobody has put in a column is a card somebody has to find, and it is found before the
-           columns rather than after them. On a phone only the column the strip chose is drawn. -->
+      <!-- The entries no column shows stand in *Ohne Spalte*, last and folded, never hidden
+           (build-plan §5). On a phone only the column the strip chose is drawn. -->
       {@const key = bucket?.id ?? NO_COLUMN}
       {@const shown = bucket ? (bucket.statuses ?? []) : unmapped}
       {@const refusal = refusals.get(key)}

@@ -203,8 +203,8 @@ test('chromium: 375 px — the folded head, the panel as a sheet of pages, the b
   await chooseView(page, 'Board');
   const strip = page.getByRole('radiogroup', { name: 'Which column is shown' });
   await strip.waitFor({ timeout: 10_000 });
-  assert.deepEqual((await strip.getByRole('radio').allTextContents()).map((each) => each.trim()), ['No column · 1', 'To do · 2', 'Doing · 1', 'Done · 1']);
-  assert.equal(await page.getByRole('region').filter({ has: page.getByRole('heading', { name: /To do|Doing|Done|No column/ }) }).count(), 1, 'more than one column drawn');
+  assert.deepEqual((await strip.getByRole('radio').allTextContents()).map((each) => each.trim()), ['To do · 2', 'Doing · 1', 'Done · 1', 'Without column · 1']);
+  assert.equal(await page.getByRole('region').filter({ has: page.getByRole('heading', { name: /To do|Doing|Done|Without column/ }) }).count(), 1, 'more than one column drawn');
   for (const target of await strip.getByRole('radio').all()) assert.ok(((await target.boundingBox())?.height ?? 0) >= 44, 'a strip target is under 44 px (§7)');
   assert.equal(new Set(await strip.getByRole('radio').evaluateAll((all) => all.map((each) => Math.round(each.getBoundingClientRect().top)))).size, 1, 'the strip wraps onto a second row');
   await strip.getByRole('radio', { name: 'Doing · 1' }).click();

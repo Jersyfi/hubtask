@@ -129,11 +129,13 @@ test('chromium: L2 - the status chip lists the steps; the board names its status
   const unmapped = page.locator('[data-column-zone="none"]');
   assert.equal(await unmapped.locator('[data-folded]').count(), 1, 'Ohne Spalte is not folded');
   assert.match((await unmapped.textContent()) ?? '', /Without column/);
+  const zones = await page.locator('[data-column-zone]').evaluateAll((all) => all.map((each) => each.getAttribute('data-column-zone')));
+  assert.equal(zones.at(-1), 'none', 'Ohne Spalte stands after the columns');
   assert.equal(await page.locator(`[data-column-zone="${BUCKETS[2].id}"] [data-folded]`).count(), 1, 'the done column is not folded');
 });
 
 for (const width of [1280, 820]) {
-  test(`chromium: L2 - folded Ohne Spalte keeps its width beside the next column at ${width}`, async (t) => {
+  test(`chromium: L2 - folded Ohne Spalte keeps its width beside the column before it at ${width}`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, context } = await at(browser, 'WORKFLOW', { width, view: 'Board' });
@@ -144,10 +146,10 @@ for (const width of [1280, 820]) {
     await page.locator(`[data-column-zone="${BUCKETS[2].id}"] .unfold`).click();
     const zone = await unmapped.boundingBox();
     const column = await unmapped.locator('[data-folded]').boundingBox();
-    const next = await page.locator(`[data-column-zone="${BUCKETS[0].id}"]`).boundingBox();
-    assert.ok(zone && column && next, 'a column is not drawn');
+    const before = await page.locator(`[data-column-zone="${BUCKETS[2].id}"]`).boundingBox();
+    assert.ok(zone && column && before, 'a column is not drawn');
     assert.ok(zone.width >= column.width - 0.5, `the zone (${zone.width}) is narrower than its folded column (${column.width})`);
-    assert.ok(column.x + column.width <= next.x + 0.5, `Ohne Spalte ends at ${column.x + column.width}, the next column starts at ${next.x}`);
+    assert.ok(before.x + before.width <= column.x + 0.5, `the column before ends at ${before.x + before.width}, Ohne Spalte starts at ${column.x}`);
     assert.equal(await unmapped.getByRole('button', { name: /Add an entry/ }).count(), 0, 'a folded column shows its add button');
   });
 }

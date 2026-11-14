@@ -1609,9 +1609,9 @@ column is a dashed *Create column*. A card's *⋯* stands in its corner, drawn o
 its height**, so where it lands is a gap and no card is ever drawn over another; the column it left
 closes up. The slide is a transform, and the drag measures where the layout put each card, never
 where a transform drew it. Under reduced motion nothing travels or slides. The card menu's *move to
-column* stays as SC 2.5.7's alternative. **Entries without a column have a lane of their own,
-first**: what nobody has put in a column is found before the columns, and a board with entries and
-no columns is that one lane.
+column* stays as SC 2.5.7's alternative. **Entries without a column stand in *Ohne Spalte*,
+last and folded** (its count in the fold, never hidden; the work-surface build plan §5): the columns
+are the states, and a board with entries and no columns is that one lane.
 
 **Pointer and touch: one layout, two input rules.** Layout is width alone. What the pointer changes
 is written here and lives in `apps/webapp/src/lib/frame/viewport.svelte.ts` and the drag helper; no
