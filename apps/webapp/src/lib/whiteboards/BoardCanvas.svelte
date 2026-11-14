@@ -1329,6 +1329,17 @@
     { id: 'links', label: t('app.whiteboards.backlinks'), icon: 'link' },
     // No export on a phone (§7 Whiteboard).
     ...(viewport.isCompact ? [] : [{ id: 'export', label: t('app.whiteboards.export'), icon: 'external-link' as const }]),
+    // A phone draws neither the mode switch nor the history and moderation buttons: they are rows
+    // here, so the list, the history, a vote and the timer stay reachable (§7, WCAG 2.5.7).
+    ...(viewport.isCompact
+      ? [
+          mode === 'list'
+            ? { id: 'mode:surface', label: t('app.whiteboards.show_surface'), icon: 'layout-template' as const, hasSeparatorBefore: true }
+            : { id: 'mode:list', label: t('app.whiteboards.show_list'), icon: 'list' as const, hasSeparatorBefore: true },
+          { id: 'session', label: t('app.whiteboards.moderate'), icon: 'timer' as const },
+          { id: 'history', label: t('app.whiteboards.history'), icon: 'rotate-ccw-clock' as const },
+        ]
+      : []),
     { id: 'grid', label: t(isGridOn ? 'app.whiteboards.grid_off' : 'app.whiteboards.grid_on'), icon: 'columns-3', hasSeparatorBefore: true },
     ...(boardMenu?.items ?? []).map((item, i) => (i === 0 ? { ...item, hasSeparatorBefore: true } : item)),
   ]);
@@ -1336,7 +1347,8 @@
   function menuChose(id: string) {
     if (id === 'template') isTemplating = true;
     else if (id === 'grid') isGridOn = !isGridOn;
-    else if (id === 'frames' || id === 'links' || id === 'export') void toggleSheet(id as Sheet);
+    else if (id === 'mode:list' || id === 'mode:surface') mode = id === 'mode:list' ? 'list' : 'surface';
+    else if (id === 'frames' || id === 'links' || id === 'export' || id === 'session' || id === 'history') void toggleSheet(id as Sheet);
     else boardMenu?.onselect(id);
   }
 
@@ -1904,7 +1916,8 @@
 
     <!-- The four islands and the dock (W-1): no head above the board. -->
     <FloatingBar class="island top-left" data-board-island="title" bind:element={titleIsland} bind:width={titleWidth}>
-      {#if back}<IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.back_to_boards')} onclick={() => onnavigate(back)} />{/if}
+      <!-- On a phone the bar carries the way back, the name and the star (§7): they stand once. -->
+      {#if back && !viewport.isCompact}<IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.back_to_boards')} onclick={() => onnavigate(back)} />{/if}
       <div class="name">{@render heading()}</div>
       <span class="status" class:live={isLive && unsent === 0 && status !== 'offline'} aria-live="polite" data-board-status>
         {#if isLive && unsent === 0 && status !== 'offline' && status !== 'refused'}<Icon name="check" size="sm" /><VisuallyHidden>{statusText}</VisuallyHidden>{:else}{statusText}{/if}

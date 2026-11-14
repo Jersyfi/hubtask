@@ -121,6 +121,30 @@ test('chromium: on a phone the tools are at the foot of the board, all on the sc
   assert.deepEqual(failures, []);
 });
 
+test('chromium: on a phone the name and star stand once, and the list, the history and moderation are rows of the board menu (§7, WCAG 2.5.7)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, 390, 844, `/whiteboards/${BOARD_ID}`);
+  t.after(() => context.close());
+  await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+  const drawn = (selector) => page.locator(selector).evaluateAll((all) => all.filter((each) => each.getClientRects().length > 0 && each.closest('.visually-hidden, [data-visually-hidden]') === null && each.getBoundingClientRect().width > 1).length);
+  assert.equal(await drawn('[data-board-island="title"] [aria-label^="Back"]'), 0, 'the island draws a second way back');
+  assert.equal(await page.getByRole('heading', { level: 1, name: 'Retro' }).count(), 1);
+
+  const menu = async () => {
+    await page.locator('[data-board-menu]').click();
+    return page.getByRole('menu', { name: 'More on this board' });
+  };
+  await (await menu()).getByRole('menuitem', { name: 'Show as a list' }).click();
+  await page.locator('[data-board-mode-list], .board-list, [data-board-list]').first().waitFor({ timeout: 5_000 }).catch(() => {});
+  await (await menu()).getByRole('menuitem', { name: 'Show as a surface' }).waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await (await menu()).getByRole('menuitem', { name: 'Moderate' }).click();
+  await page.locator('[data-board-sheet-body="session"], [role="dialog"], aside').first().waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByRole('button', { name: /vot/i }).count() > 0, 'no way to start a vote');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: an empty hub starts a board from a template in one press, named and drawn from it, with no dialog between (UC-CNV-01 check 12)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

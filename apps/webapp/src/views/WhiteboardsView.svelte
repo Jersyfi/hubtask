@@ -11,7 +11,8 @@
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
-  import { Button, Dialog, Input, ProductTile, Spinner } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, ProductTile, Spinner, VisuallyHidden } from '@hubtask/design-system/components';
+  import { viewport } from '../lib/frame/viewport.svelte.ts';
   import type { Whiteboard, WhiteboardRead } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -121,11 +122,16 @@
   {#key current.id}
     <BoardCanvas board={current} {collections} {onnavigate} {boardMenu} {isNew} {thread} onbegin={(choice) => void begun(choice)} back={hub ? boardsOf(hub.id) : '/whiteboards'}>
       {#snippet heading()}
-        <div class="trail">
-          <ProductTile icon="layout-template" product="whiteboards" size="sm" />
-          <h1 class="board-title" title={current.title}>{current.title}</h1>
-          <StarToggle kind="WHITEBOARD" id={current.id} name={current.title} />
-        </div>
+        {#if viewport.isCompact}
+          <!-- The bar draws the name and the star on a phone; the heading is read, not drawn twice. -->
+          <VisuallyHidden><h1>{current.title}</h1></VisuallyHidden>
+        {:else}
+          <div class="trail">
+            <ProductTile icon="layout-template" product="whiteboards" size="sm" />
+            <h1 class="board-title" title={current.title}>{current.title}</h1>
+            <StarToggle kind="WHITEBOARD" id={current.id} name={current.title} />
+          </div>
+        {/if}
       {/snippet}
     </BoardCanvas>
   {/key}

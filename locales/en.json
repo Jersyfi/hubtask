@@ -16036,6 +16036,8 @@
   "app.whiteboards.mode": "Show the board as",
   "app.whiteboards.mode_surface": "Surface",
   "app.whiteboards.mode_list": "List",
+  "app.whiteboards.show_list": "Show as a list",
+  "app.whiteboards.show_surface": "Show as a surface",
   "app.whiteboards.here_count": "Here now · {count}",
   "app.whiteboards.following_you": "Following",
   "app.whiteboards.you": "You",
