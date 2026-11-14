@@ -751,6 +751,39 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account"},
 		},
 	},
+	// A hub's posts (migrations 0401, 0404; UC-DOC-17, UC-DOC-18): the post on its page, who saw and
+	// confirmed it, its discussion and who follows the hub's posts - after the pages and the
+	// accounts they name. A post's identity is its page's.
+	{
+		Name: "posts", Table: "post", Whole: true, Later: true, Keys: []string{"page_id"},
+		References: []Reference{{Field: "page_id", Table: "page"}, {Field: "hub_id", Table: "container"}},
+	},
+	{
+		Name: "post_reads", Table: "post_read", Whole: true, Later: true, Keys: []string{"page_id", "account_id"},
+		References: []Reference{{Field: "page_id", Table: "post"}, {Field: "account_id", Table: "account"}},
+	},
+	{
+		Name: "post_confirmations", Table: "post_confirmation", Whole: true, Later: true,
+		Keys:       []string{"page_id", "account_id"},
+		References: []Reference{{Field: "page_id", Table: "post"}, {Field: "account_id", Table: "account"}},
+	},
+	{
+		Name: "post_replies", Table: "post_reply", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "page_id", Table: "post"},
+			{Field: "parent_id", Table: "post_reply"},
+			{Field: "author_id", Table: "account", Clearable: true},
+		},
+	},
+	{
+		Name: "post_reactions", Table: "post_reaction", Whole: true, Later: true,
+		Keys:       []string{"reply_id", "account_id", "reaction"},
+		References: []Reference{{Field: "reply_id", Table: "post_reply"}, {Field: "account_id", Table: "account"}},
+	},
+	{
+		Name: "post_follows", Table: "post_follow", Whole: true, Later: true, Keys: []string{"hub_id", "account_id"},
+		References: []Reference{{Field: "hub_id", Table: "container"}, {Field: "account_id", Table: "account"}},
+	},
 	// Drafts of the configuration's shared blocks (migration 0315, ui.md A4).
 	{
 		Name: "config_drafts", Table: "config_draft", Whole: true, Later: true, Keys: []string{"section", "key"},

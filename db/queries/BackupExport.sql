@@ -1985,3 +1985,86 @@ FROM (
     AND (s.changed_at, s.key_1) > (sqlc.arg('after_at')::timestamptz, sqlc.arg('after_id')::uuid)
   ORDER BY s.changed_at, s.key_1
   LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPosts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.page_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id')::jsonb AS payload,
+         p.page_id AS key_1
+  FROM post p
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostReads :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.account_id AS key_2
+  FROM post_read r
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostConfirmations :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.page_id::text || '/' || c.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.page_id AS key_1,
+         c.account_id AS key_2
+  FROM post_confirmation c
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostReplies :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.id AS key_1
+  FROM post_reply r
+) s
+  WHERE s.key_1 > sqlc.arg('after_id')::uuid
+  ORDER BY s.key_1
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostReactions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.reply_id::text || '/' || r.account_id::text || '/' || r.reaction)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.reply_id AS key_1,
+         r.account_id AS key_2,
+         r.reaction AS key_3
+  FROM post_reaction r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid, sqlc.arg('after_third')::text)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT sqlc.arg('batch')::int;
+
+-- name: ExportPostFollows :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (f.hub_id::text || '/' || f.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(f) - 'tenant_id')::jsonb AS payload,
+         f.hub_id AS key_1,
+         f.account_id AS key_2
+  FROM post_follow f
+) s
+  WHERE (s.key_1, s.key_2) > (sqlc.arg('after_id')::uuid, sqlc.arg('after_second')::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT sqlc.arg('batch')::int;

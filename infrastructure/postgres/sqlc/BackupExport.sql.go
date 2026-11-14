@@ -4653,6 +4653,291 @@ func (q *Queries) ExportPortfolios(ctx context.Context, arg ExportPortfoliosPara
 	return items, nil
 }
 
+const exportPostConfirmations = `-- name: ExportPostConfirmations :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (c.page_id::text || '/' || c.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(c) - 'tenant_id')::jsonb AS payload,
+         c.page_id AS key_1,
+         c.account_id AS key_2
+  FROM post_confirmation c
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPostConfirmationsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPostConfirmationsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPostConfirmations(ctx context.Context, arg ExportPostConfirmationsParams) ([]ExportPostConfirmationsRow, error) {
+	rows, err := q.db.Query(ctx, exportPostConfirmations, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPostConfirmationsRow{}
+	for rows.Next() {
+		var i ExportPostConfirmationsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPostFollows = `-- name: ExportPostFollows :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (f.hub_id::text || '/' || f.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(f) - 'tenant_id')::jsonb AS payload,
+         f.hub_id AS key_1,
+         f.account_id AS key_2
+  FROM post_follow f
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPostFollowsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPostFollowsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPostFollows(ctx context.Context, arg ExportPostFollowsParams) ([]ExportPostFollowsRow, error) {
+	rows, err := q.db.Query(ctx, exportPostFollows, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPostFollowsRow{}
+	for rows.Next() {
+		var i ExportPostFollowsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPostReactions = `-- name: ExportPostReactions :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.reply_id::text || '/' || r.account_id::text || '/' || r.reaction)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.reply_id AS key_1,
+         r.account_id AS key_2,
+         r.reaction AS key_3
+  FROM post_reaction r
+) s
+  WHERE (s.key_1, s.key_2, s.key_3) > ($1::uuid, $2::uuid, $3::text)
+  ORDER BY s.key_1, s.key_2, s.key_3
+  LIMIT $4::int
+`
+
+type ExportPostReactionsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	AfterThird  string
+	Batch       int32
+}
+
+type ExportPostReactionsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPostReactions(ctx context.Context, arg ExportPostReactionsParams) ([]ExportPostReactionsRow, error) {
+	rows, err := q.db.Query(ctx, exportPostReactions,
+		arg.AfterID,
+		arg.AfterSecond,
+		arg.AfterThird,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPostReactionsRow{}
+	for rows.Next() {
+		var i ExportPostReactionsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPostReads = `-- name: ExportPostReads :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.page_id::text || '/' || r.account_id::text)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.page_id AS key_1,
+         r.account_id AS key_2
+  FROM post_read r
+) s
+  WHERE (s.key_1, s.key_2) > ($1::uuid, $2::uuid)
+  ORDER BY s.key_1, s.key_2
+  LIMIT $3::int
+`
+
+type ExportPostReadsParams struct {
+	AfterID     pgtype.UUID
+	AfterSecond pgtype.UUID
+	Batch       int32
+}
+
+type ExportPostReadsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPostReads(ctx context.Context, arg ExportPostReadsParams) ([]ExportPostReadsRow, error) {
+	rows, err := q.db.Query(ctx, exportPostReads, arg.AfterID, arg.AfterSecond, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPostReadsRow{}
+	for rows.Next() {
+		var i ExportPostReadsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPostReplies = `-- name: ExportPostReplies :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (r.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(r) - 'tenant_id')::jsonb AS payload,
+         r.id AS key_1
+  FROM post_reply r
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPostRepliesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPostRepliesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPostReplies(ctx context.Context, arg ExportPostRepliesParams) ([]ExportPostRepliesRow, error) {
+	rows, err := q.db.Query(ctx, exportPostReplies, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPostRepliesRow{}
+	for rows.Next() {
+		var i ExportPostRepliesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const exportPosts = `-- name: ExportPosts :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.page_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id')::jsonb AS payload,
+         p.page_id AS key_1
+  FROM post p
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportPostsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportPostsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportPosts(ctx context.Context, arg ExportPostsParams) ([]ExportPostsRow, error) {
+	rows, err := q.db.Query(ctx, exportPosts, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportPostsRow{}
+	for rows.Next() {
+		var i ExportPostsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportPrivateHubAccesses = `-- name: ExportPrivateHubAccesses :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

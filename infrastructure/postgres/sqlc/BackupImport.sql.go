@@ -1203,6 +1203,78 @@ func (q *Queries) ClearPortfolioUpdate(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearPost = `-- name: ClearPost :execrows
+DELETE FROM post
+`
+
+func (q *Queries) ClearPost(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPost)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostConfirmation = `-- name: ClearPostConfirmation :execrows
+DELETE FROM post_confirmation
+`
+
+func (q *Queries) ClearPostConfirmation(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostConfirmation)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostFollow = `-- name: ClearPostFollow :execrows
+DELETE FROM post_follow
+`
+
+func (q *Queries) ClearPostFollow(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostFollow)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostReaction = `-- name: ClearPostReaction :execrows
+DELETE FROM post_reaction
+`
+
+func (q *Queries) ClearPostReaction(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostReaction)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostRead = `-- name: ClearPostRead :execrows
+DELETE FROM post_read
+`
+
+func (q *Queries) ClearPostRead(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostRead)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const clearPostReply = `-- name: ClearPostReply :execrows
+DELETE FROM post_reply
+`
+
+func (q *Queries) ClearPostReply(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearPostReply)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPrivateHubAccess = `-- name: ClearPrivateHubAccess :execrows
 DELETE FROM private_hub_access
 `
@@ -2879,6 +2951,89 @@ SELECT EXISTS (SELECT 1 FROM portfolio_update WHERE id = ($1::jsonb->>'id')::uui
 
 func (q *Queries) HoldsPortfolioUpdate(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsPortfolioUpdate, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPost = `-- name: HoldsPost :one
+SELECT EXISTS (SELECT 1 FROM post WHERE page_id = ($1::jsonb->>'page_id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPost(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPost, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostConfirmation = `-- name: HoldsPostConfirmation :one
+SELECT EXISTS (
+  SELECT 1 FROM post_confirmation
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPostConfirmation(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostConfirmation, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostFollow = `-- name: HoldsPostFollow :one
+SELECT EXISTS (
+  SELECT 1 FROM post_follow
+  WHERE hub_id = ($1::jsonb->>'hub_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPostFollow(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostFollow, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostReaction = `-- name: HoldsPostReaction :one
+SELECT EXISTS (
+  SELECT 1 FROM post_reaction
+  WHERE reply_id = ($1::jsonb->>'reply_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+    AND reaction = $1::jsonb->>'reaction'
+) AS held
+`
+
+func (q *Queries) HoldsPostReaction(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostReaction, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostRead = `-- name: HoldsPostRead :one
+SELECT EXISTS (
+  SELECT 1 FROM post_read
+  WHERE page_id = ($1::jsonb->>'page_id')::uuid
+    AND account_id = ($1::jsonb->>'account_id')::uuid
+) AS held
+`
+
+func (q *Queries) HoldsPostRead(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostRead, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsPostReply = `-- name: HoldsPostReply :one
+SELECT EXISTS (SELECT 1 FROM post_reply WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsPostReply(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsPostReply, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -6901,6 +7056,132 @@ type ImportPortfolioUpdateParams struct {
 
 func (q *Queries) ImportPortfolioUpdate(ctx context.Context, arg ImportPortfolioUpdateParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importPortfolioUpdate, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPost = `-- name: ImportPost :execrows
+INSERT INTO post (tenant_id, page_id, hub_id, template, publish_at, published_at, featured_until, audience,
+  group_ids, discussion, notify, confirm_by)
+SELECT r.tenant_id, r.page_id, r.hub_id, r.template, r.publish_at, r.published_at, r.featured_until, r.audience,
+  r.group_ids, r.discussion, r.notify, r.confirm_by
+FROM jsonb_populate_record(
+  NULL::post,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  template = EXCLUDED.template, publish_at = EXCLUDED.publish_at, published_at = EXCLUDED.published_at,
+  featured_until = EXCLUDED.featured_until, audience = EXCLUDED.audience, group_ids = EXCLUDED.group_ids,
+  discussion = EXCLUDED.discussion, notify = EXCLUDED.notify, confirm_by = EXCLUDED.confirm_by
+WHERE $2::boolean
+`
+
+type ImportPostParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPost(ctx context.Context, arg ImportPostParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPost, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostConfirmation = `-- name: ImportPostConfirmation :execrows
+INSERT INTO post_confirmation (tenant_id, page_id, account_id, confirmed_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.confirmed_at
+FROM jsonb_populate_record(
+  NULL::post_confirmation,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPostConfirmation(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostConfirmation, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostFollow = `-- name: ImportPostFollow :execrows
+INSERT INTO post_follow (tenant_id, hub_id, account_id, followed_at)
+SELECT r.tenant_id, r.hub_id, r.account_id, r.followed_at
+FROM jsonb_populate_record(
+  NULL::post_follow,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, hub_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPostFollow(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostFollow, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostReaction = `-- name: ImportPostReaction :execrows
+INSERT INTO post_reaction (tenant_id, reply_id, account_id, reaction)
+SELECT r.tenant_id, r.reply_id, r.account_id, r.reaction
+FROM jsonb_populate_record(
+  NULL::post_reaction,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, reply_id, account_id, reaction) DO NOTHING
+`
+
+func (q *Queries) ImportPostReaction(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostReaction, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostRead = `-- name: ImportPostRead :execrows
+INSERT INTO post_read (tenant_id, page_id, account_id, read_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.read_at
+FROM jsonb_populate_record(
+  NULL::post_read,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING
+`
+
+func (q *Queries) ImportPostRead(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostRead, payload)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importPostReply = `-- name: ImportPostReply :execrows
+INSERT INTO post_reply (id, tenant_id, page_id, parent_id, author_id, body, created_at, edited_at, deleted_at, version)
+SELECT r.id, r.tenant_id, r.page_id, r.parent_id, r.author_id, r.body, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::post_reply,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body, edited_at = EXCLUDED.edited_at, deleted_at = EXCLUDED.deleted_at, version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportPostReplyParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportPostReply(ctx context.Context, arg ImportPostReplyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importPostReply, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

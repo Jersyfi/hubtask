@@ -4212,3 +4212,118 @@ SELECT EXISTS (
 
 -- name: ClearAccountStar :execrows
 DELETE FROM account_star;
+
+-- name: ImportPost :execrows
+INSERT INTO post (tenant_id, page_id, hub_id, template, publish_at, published_at, featured_until, audience,
+  group_ids, discussion, notify, confirm_by)
+SELECT r.tenant_id, r.page_id, r.hub_id, r.template, r.publish_at, r.published_at, r.featured_until, r.audience,
+  r.group_ids, r.discussion, r.notify, r.confirm_by
+FROM jsonb_populate_record(
+  NULL::post,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id) DO UPDATE SET
+  template = EXCLUDED.template, publish_at = EXCLUDED.publish_at, published_at = EXCLUDED.published_at,
+  featured_until = EXCLUDED.featured_until, audience = EXCLUDED.audience, group_ids = EXCLUDED.group_ids,
+  discussion = EXCLUDED.discussion, notify = EXCLUDED.notify, confirm_by = EXCLUDED.confirm_by
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPost :one
+SELECT EXISTS (SELECT 1 FROM post WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid) AS held;
+
+-- name: ClearPost :execrows
+DELETE FROM post;
+
+-- name: ImportPostRead :execrows
+INSERT INTO post_read (tenant_id, page_id, account_id, read_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.read_at
+FROM jsonb_populate_record(
+  NULL::post_read,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: HoldsPostRead :one
+SELECT EXISTS (
+  SELECT 1 FROM post_read
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPostRead :execrows
+DELETE FROM post_read;
+
+-- name: ImportPostConfirmation :execrows
+INSERT INTO post_confirmation (tenant_id, page_id, account_id, confirmed_at)
+SELECT r.tenant_id, r.page_id, r.account_id, r.confirmed_at
+FROM jsonb_populate_record(
+  NULL::post_confirmation,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
+
+-- name: HoldsPostConfirmation :one
+SELECT EXISTS (
+  SELECT 1 FROM post_confirmation
+  WHERE page_id = (sqlc.arg('payload')::jsonb->>'page_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPostConfirmation :execrows
+DELETE FROM post_confirmation;
+
+-- name: ImportPostReply :execrows
+INSERT INTO post_reply (id, tenant_id, page_id, parent_id, author_id, body, created_at, edited_at, deleted_at, version)
+SELECT r.id, r.tenant_id, r.page_id, r.parent_id, r.author_id, r.body, r.created_at, r.edited_at, r.deleted_at, r.version
+FROM jsonb_populate_record(
+  NULL::post_reply,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  body = EXCLUDED.body, edited_at = EXCLUDED.edited_at, deleted_at = EXCLUDED.deleted_at, version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsPostReply :one
+SELECT EXISTS (SELECT 1 FROM post_reply WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearPostReply :execrows
+DELETE FROM post_reply;
+
+-- name: ImportPostReaction :execrows
+INSERT INTO post_reaction (tenant_id, reply_id, account_id, reaction)
+SELECT r.tenant_id, r.reply_id, r.account_id, r.reaction
+FROM jsonb_populate_record(
+  NULL::post_reaction,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, reply_id, account_id, reaction) DO NOTHING;
+
+-- name: HoldsPostReaction :one
+SELECT EXISTS (
+  SELECT 1 FROM post_reaction
+  WHERE reply_id = (sqlc.arg('payload')::jsonb->>'reply_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+    AND reaction = sqlc.arg('payload')::jsonb->>'reaction'
+) AS held;
+
+-- name: ClearPostReaction :execrows
+DELETE FROM post_reaction;
+
+-- name: ImportPostFollow :execrows
+INSERT INTO post_follow (tenant_id, hub_id, account_id, followed_at)
+SELECT r.tenant_id, r.hub_id, r.account_id, r.followed_at
+FROM jsonb_populate_record(
+  NULL::post_follow,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, hub_id, account_id) DO NOTHING;
+
+-- name: HoldsPostFollow :one
+SELECT EXISTS (
+  SELECT 1 FROM post_follow
+  WHERE hub_id = (sqlc.arg('payload')::jsonb->>'hub_id')::uuid
+    AND account_id = (sqlc.arg('payload')::jsonb->>'account_id')::uuid
+) AS held;
+
+-- name: ClearPostFollow :execrows
+DELETE FROM post_follow;

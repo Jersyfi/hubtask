@@ -1092,6 +1092,89 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"post": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPosts(ctx, sqlc.ExportPostsParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPostsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"post_read": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPostReads(ctx, sqlc.ExportPostReadsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPostReadsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"post_confirmation": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPostConfirmations(ctx, sqlc.ExportPostConfirmationsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPostConfirmationsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"post_reply": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPostReplies(ctx, sqlc.ExportPostRepliesParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPostRepliesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"post_reaction": {
+		delta: false,
+		keys:  3,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPostReactions(ctx, sqlc.ExportPostReactionsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				AfterThird:  cursorText(page.After, 2),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPostReactionsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
+	"post_follow": {
+		delta: false,
+		keys:  2,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportPostFollows(ctx, sqlc.ExportPostFollowsParams{
+				AfterID:     cursorUUID(page.After, 0),
+				AfterSecond: cursorUUID(page.After, 1),
+				Batch:       page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportPostFollowsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"page_article_rating": {
 		delta: false,
 		keys:  3,
