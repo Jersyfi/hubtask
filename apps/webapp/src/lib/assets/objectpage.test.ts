@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { groupsHolding, inheritedFrom, keepRelationsView, lifeSteps, missingRecommended, openKeysByObject, readRelationsView, workGroups } from './objectpage.ts';
+import { groupsHolding, historySentence, inheritedFrom, keepRelationsView, lifeSteps, missingRecommended, openKeysByObject, readRelationsView, workGroups } from './objectpage.ts';
 
 const entry = (key: string, extra: Record<string, unknown> = {}) => ({
   item_id: key, key, title: key, entry_type: 'TASK', collection_id: 'c', hub_id: 'h', status: null, completed: false,
@@ -103,4 +103,11 @@ test('the saved groups holding an object are those whose filter it passes', () =
     group('windows', { attributes: { os: 'windows' } }),
   ] as never, { classes });
   assert.deepEqual(held.map((each) => each.id), ['servers', 'unowned', 'linux']);
+});
+
+test('a step a source created names the source; any other step reads by its own code', () => {
+  assert.deepEqual(historySentence({ code: 'activity.ci_created', change_set: { source: { to: 'glpi' } } }), { code: 'activity.ci_created_by_source', source: 'glpi', omit: ['source'] });
+  assert.deepEqual(historySentence({ code: 'activity.ci_created', change_set: {} }), { code: 'activity.ci_created', omit: [] });
+  assert.deepEqual(historySentence({ code: 'activity.ci_changed', change_set: { source: { to: 'glpi' } } }), { code: 'activity.ci_changed', omit: [] });
+  assert.deepEqual(historySentence({ code: 'activity.ci_merged_in', change_set: { merged_from: { to: 'x' } } }), { code: 'activity.ci_merged_in', omit: [] });
 });

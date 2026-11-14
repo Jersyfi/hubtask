@@ -143,3 +143,14 @@ export function groupsHolding(ci: ConfigurationItem, groups: readonly CiGroup[],
     return read.ok && passes(ci, read.filter, context) && holdsAttributes(ci, of.attributes);
   });
 }
+
+/**
+ * The sentence an object's history step reads by (UC-AST-01 check 13): a step a source created
+ * names the source rather than whoever ran it, and drops the source from its changes, which the
+ * sentence already says.
+ */
+export function historySentence(step: { readonly code: string; readonly change_set: Readonly<Record<string, unknown>> }): { readonly code: string; readonly source?: string; readonly omit: readonly string[] } {
+  const source = (step.change_set.source as { to?: string } | undefined)?.to;
+  if (step.code === 'activity.ci_created' && source) return { code: 'activity.ci_created_by_source', source, omit: ['source'] };
+  return { code: step.code, omit: [] };
+}

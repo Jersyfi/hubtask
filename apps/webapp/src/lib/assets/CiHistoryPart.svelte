@@ -17,6 +17,7 @@
   import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { historySentence } from './objectpage.ts';
 
   interface Props {
     ci: ConfigurationItem;
@@ -57,7 +58,8 @@
       case 'owner_group_id': return groups.all.find((each) => each.id === value)?.name ?? t('app.object.history_unknown');
       case 'location_id':
       case 'other_ci_id':
-      case 'merged_into': return known.get(value)?.name ?? t('app.object.history_unknown');
+      case 'merged_into':
+      case 'merged_from': return known.get(value)?.name ?? t('app.object.history_unknown');
       case 'media_id': return files.find((each) => each.id === value)?.file_name ?? t('app.object.history_file_gone');
       case 'stage': return messages.has(`app.assets.stage.${value}`) ? t(`app.assets.stage.${value}`) : value;
       case 'status': return messages.has(`app.assets.status.${value}`) ? t(`app.assets.status.${value}`) : value;
@@ -74,8 +76,9 @@
   function stepOf(step: CiHistoryStep): ActivityStep {
     const who = actorCodes(step as unknown as ActivityEntry, actor.account?.id).find((code) => messages.has(code));
     const name = who === 'app.activity.actor_you' ? t('app.activity.actor_you') : accounts.nameOf(step.actor.id ?? undefined);
+    const said = historySentence(step as unknown as { code: string; change_set: Record<string, unknown> });
     const changes = Object.entries(step.change_set as Record<string, { from?: string; to?: string; changed?: boolean }>)
-      .filter(([field]) => field !== 'direction')
+      .filter(([field]) => field !== 'direction' && !said.omit.includes(field))
       .map(([field, moved]) => {
         const from = valueOf(field, moved.from);
         const to = valueOf(field, moved.to);
@@ -90,8 +93,8 @@
       });
     return {
       id: step.id,
-      sentence: messages.has(step.code)
-        ? t(sentenceCode(step.code, who === 'app.activity.actor_you', (code) => messages.has(code)), { actor: name ?? t(who ?? 'app.activity.actor_someone') })
+      sentence: messages.has(said.code)
+        ? t(sentenceCode(said.code, who === 'app.activity.actor_you', (code) => messages.has(code)), { actor: name ?? t(who ?? 'app.activity.actor_someone'), source: said.source ?? '' })
         : step.code,
       when: formatDateTime(step.occurred_at, messages.locale),
       at: step.occurred_at,
