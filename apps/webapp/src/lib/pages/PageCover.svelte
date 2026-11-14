@@ -3,9 +3,11 @@
 <script lang="ts">
   // A page's cover (E-18, scene pcover): over the content's width, never under the title's words;
   // a writer changes it in a picker of tabs - the design system's gradients, the shipped gallery, an
-  // upload - moves the picture up or down, or takes it away. An image provider is a tab only where
-  // the administration switches one on.
-  import { Button, IconButton, UploadField } from '@hubtask/design-system/components';
+  // upload, and an image library where the workspace offers one - moves the picture up or down, or
+  // takes it away. The library is asked by the server alone; its picture is uploaded as any other,
+  // and who made it is named at the cover's foot (UC-DOC-16 check 5).
+  import { Button, IconButton, SearchField, UploadField } from '@hubtask/design-system/components';
+  import type { CoverImageSearch } from '@hubtask/sync-engine';
   import { media } from '../data/media.svelte.ts';
   import { pages } from '../data/pages.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -25,9 +27,46 @@
 
   let { pageId, cover, isWritable, onchange, isPicking = $bindable(false) }: Props = $props();
 
-  type Tab = 'colours' | 'gallery' | 'upload';
-  const TABS: readonly Tab[] = ['colours', 'gallery', 'upload'];
+  type Tab = 'colours' | 'gallery' | 'upload' | 'library';
+  let isOffered = $state(false);
+  const tabs = $derived<readonly Tab[]>(isOffered ? ['colours', 'gallery', 'upload', 'library'] : ['colours', 'gallery', 'upload']);
   let tab = $state<Tab>('colours');
+  let query = $state('');
+  let found = $state<CoverImageSearch['pictures']>([]);
+  let isSearching = $state(false);
+  let hasSearched = $state(false);
+  let taking = $state<string | undefined>(undefined);
+
+  // Whether the workspace offers a library, asked once the picker opens; the answer asks nothing outside.
+  $effect(() => {
+    if (!isPicking || !isWritable) return;
+    void pages.searchCoverImages(pageId, '').then((answer) => (isOffered = answer.offered), () => (isOffered = false));
+  });
+
+  async function search() {
+    if (!query.trim()) return;
+    isSearching = true;
+    try {
+      found = (await pages.searchCoverImages(pageId, query)).pictures;
+      hasSearched = true;
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isSearching = false;
+    }
+  }
+
+  async function take(pictureId: string) {
+    taking = pictureId;
+    try {
+      const { file, credit } = await pages.fetchCoverImage(pageId, pictureId);
+      await upload(file, credit);
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      taking = undefined;
+    }
+  }
   let isMoving = $state(false);
   let moved = $state<number | undefined>(undefined);
   let isUploading = $state(false);
@@ -44,12 +83,12 @@
     await onchange(next);
   }
 
-  async function upload(file: File) {
+  async function upload(file: File, credit?: string) {
     isUploading = true;
     try {
       const object = await media.upload(file, 'COVER', { idempotencyKey: crypto.randomUUID() });
       await pages.attachMedia(pageId, object.id);
-      await onchange({ source: 'IMAGE', key: object.id, position: 50 });
+      await onchange({ source: 'IMAGE', key: object.id, position: 50, ...(credit ? { credit } : {}) });
       isPicking = false;
     } catch (error) {
       toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
@@ -101,6 +140,9 @@
     onpointerup={() => (dragFrom = undefined)}
     onkeydown={key}
   ></div>
+  {#if cover.source === 'IMAGE' && cover.credit}
+    <span class="credit" data-page-cover-credit>{t('app.pages.cover_credit', { name: cover.credit })}</span>
+  {/if}
   {#if isWritable}
     <div class="acts">
       {#if isMoving}
@@ -118,7 +160,7 @@
   {#if isPicking && isWritable}
     <section class="picker" aria-label={t('app.pages.cover_picker')} data-page-cover-picker>
       <div class="tabs" role="tablist" aria-label={t('app.pages.cover_picker')}>
-        {#each TABS as each (each)}
+        {#each tabs as each (each)}
           <button type="button" role="tab" aria-selected={tab === each} class:active={tab === each} onclick={() => (tab = each)}>{t(`app.pages.cover_tab_${each}`)}</button>
         {/each}
       </div>
@@ -139,6 +181,25 @@
                 style:background={coverBackground({ source: 'GALLERY', key, position: 50 })} onclick={() => choose({ source: 'GALLERY', key, position: 50 })}></button>
             {/each}
           </div>
+        {:else if tab === 'library'}
+          <p class="note">{t('app.pages.cover_library_note')}</p>
+          <form class="search" onsubmit={(event) => { event.preventDefault(); void search(); }}>
+            <SearchField label={t('app.pages.cover_library_search')} clearLabel={t('app.search.clear')} bind:value={query} maxlength={100} />
+          </form>
+          {#if isSearching}
+            <p class="note" role="status">{t('app.pages.cover_library_searching')}</p>
+          {:else if hasSearched && found.length === 0}
+            <p class="note" role="status">{t('app.pages.cover_library_none')}</p>
+          {:else}
+            <div class="swatches pictures" data-cover-library>
+              {#each found as picture (picture.id)}
+                <button type="button" class="swatch" aria-label={t('app.pages.cover_library_by', { name: picture.creator })} title={picture.creator}
+                  aria-busy={taking === picture.id} disabled={taking !== undefined}
+                  style:background-image={`url(${picture.preview})`} onclick={() => void take(picture.id)}></button>
+              {/each}
+            </div>
+          {/if}
+          {#if taking}<p class="note" role="status">{t('app.pages.cover_library_taking')}</p>{/if}
         {:else}
           <UploadField label={t('app.pages.cover_upload')} hint={t('app.pages.cover_upload_note')} chooseLabel={t('app.pages.cover_upload_choose')} accept="image/png,image/jpeg,image/webp" disabledReason={isUploading ? t('app.pages.cover_uploading') : undefined} onChoose={(file) => void upload(file)} />
         {/if}
@@ -167,5 +228,11 @@
   .note { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp-100); margin-block-start: var(--sp-100); }
   .swatch { aspect-ratio: 3 / 2; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); cursor: pointer; }
+  .pictures { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pictures .swatch { background-size: cover; background-position: center; }
+  .credit {
+    position: absolute; inset-block-end: var(--sp-100); inset-inline-start: var(--sp-150); padding: var(--sp-025) var(--sp-100);
+    border-radius: var(--r-sm); background: var(--bg-raised); color: var(--text-secondary); font-size: var(--fs-075);
+  }
   .swatch[aria-pressed='true'] { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--bw-hairline); }
 </style>

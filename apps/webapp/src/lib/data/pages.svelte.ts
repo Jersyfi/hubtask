@@ -12,7 +12,7 @@
  */
 
 import type {
-  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageLanguageVariant, PageMove, PagePublicLinkMinted, PageShare, PageSpaceDrafts, PublicLinksPolicy, PageTrashed, PageVersionNamed,
+  Page, PageChange, PageComment, PageCommentCreate, PageCreate, PageExport, PageHitList, PageLabels, PageSearch, PageArticle, PageLanguageVariant, PageMove, PagePublicLinkMinted, PageShare, PageSpaceDrafts, PublicLinksPolicy, CoverImagesPolicy, CoverImageSearch, CoverImageFetched, PageTrashed, PageVersionNamed,
 } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
@@ -35,6 +35,8 @@ export const spaceDraftsPath = (hubId: string) => `/hubs/${hubId}/page-drafts`;
 export const sharedPagesPath = '/pages:shared';
 export const personalSpacePath = '/pages:personal';
 export const publicLinksPolicyPath = '/pages:public-links';
+/** The workspace's image library for covers (UC-DOC-16 check 5). */
+export const coverImagesPolicyPath = '/pages:cover-images';
 
 /** What a write to one page makes stale: the page, its space, and its history. */
 const touched = (hubId: string, pageId: string) => [pagePath(pageId), `/hubs/${hubId}/pages`, versionsPath(pageId)];
@@ -244,6 +246,26 @@ class Pages {
   }
 
   /** Allows or forbids public links in the workspace, inside what the plan leaves. */
+  setCoverImages(library: CoverImagesPolicy['library']): Promise<CoverImagesPolicy> {
+    return engine.mutate<CoverImagesPolicy>('PUT', coverImagesPolicyPath, { library }, { invalidates: [coverImagesPolicyPath] });
+  }
+
+  /** Whether the workspace offers an image library and, with a query, its pictures; the server asks it. */
+  async searchCoverImages(pageId: string, query: string): Promise<CoverImageSearch> {
+    const q = query.trim();
+    const state = await engine.refresh<CoverImageSearch>({ path: `/pages/${pageId}/cover-images${q ? `?query=${encodeURIComponent(q)}` : ''}` });
+    if (state.status === 'failed') throw state.error;
+    return state.status === 'ready' ? state.data : { offered: false, pictures: [] };
+  }
+
+  /** A library's picture as a file to upload, with who made it for the cover's credit. */
+  async fetchCoverImage(pageId: string, pictureId: string): Promise<{ file: File; credit: string }> {
+    const got = await engine.mutate<CoverImageFetched>('POST', `/pages/${pageId}/cover-images/${encodeURIComponent(pictureId)}:fetch`, undefined);
+    const bytes = Uint8Array.from(atob(got.content_base64), (c) => c.charCodeAt(0));
+    const ending = got.content_type.split('/')[1] ?? 'jpg';
+    return { file: new File([bytes], `cover-${pictureId}.${ending}`, { type: got.content_type }), credit: got.credit };
+  }
+
   setPublicLinks(allowed: boolean): Promise<PublicLinksPolicy> {
     return engine.mutate<PublicLinksPolicy>('PUT', publicLinksPolicyPath, { allowed }, { invalidates: [publicLinksPolicyPath] });
   }

@@ -5,7 +5,13 @@
 // every colour a token (rule 15), so both read in the light and the dark mode.
 
 export type CoverSource = 'GRADIENT' | 'GALLERY' | 'IMAGE';
-export interface PageCover { readonly source: CoverSource; readonly key: string; readonly position: number }
+export interface PageCover {
+  readonly source: CoverSource;
+  readonly key: string;
+  readonly position: number;
+  /** Who made an image library's picture, named at the cover. */
+  readonly credit?: string;
+}
 
 const chart = (n: number) => `var(--chart-categorical-${n})`;
 const soft = (name: string) => `var(--label-${name}-bg)`;

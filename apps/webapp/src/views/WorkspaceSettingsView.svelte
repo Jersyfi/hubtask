@@ -56,6 +56,7 @@
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { SETTINGS } from '../lib/workspace/structureDraft.ts';
   import PublicLinksSwitch from '../lib/pages/PublicLinksSwitch.svelte';
+  import CoverImagesSwitch from '../lib/pages/CoverImagesSwitch.svelte';
   import PublicFormsSwitch from '../lib/servicedesk/PublicFormsSwitch.svelte';
   import PublicRoadmapsSwitch from '../lib/goals/PublicRoadmapsSwitch.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -473,6 +474,7 @@
       <!-- Switches that act at once: no save bar (PS-10). -->
       <SettingsSection title={t('app.workspace.section_help')} description={t('app.workspace.section_help_lead')}>
         {#if isModuleOn('KNOWLEDGE', modulesOn)}<div class="row"><PublicLinksSwitch /></div>{/if}
+        {#if isModuleOn('KNOWLEDGE', modulesOn)}<div class="row"><CoverImagesSwitch /></div>{/if}
         {#if isModuleOn('SERVICE_DESK', modulesOn)}<div class="row"><PublicFormsSwitch /></div>{/if}
         {#if isModuleOn('GOALS', modulesOn)}<div class="row"><PublicRoadmapsSwitch /></div>{/if}
       </SettingsSection>

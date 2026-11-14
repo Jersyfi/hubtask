@@ -33,7 +33,7 @@ const MANY = [HOME, ...Array.from({ length: 60 }, (_, n) => row(10 + n, `A page 
 const BODY = `Start with [](hubtask:page/${id(3)}) and [](hubtask:entry/${id(80)}).\n\n![](hubtask:media/${id(90)})\n`;
 const empty = { data: [], page: { next_cursor: null, has_more: false } };
 
-async function opened(browser, rows, width = 1280, { body = BODY, unpublished = false } = {}) {
+async function opened(browser, rows, width = 1280, { body = BODY, unpublished = false, library = false } = {}) {
   const written = [];
   const kept = new Map();
   const { page, failures, context } = await signedIn(browser, width, 900);
@@ -58,6 +58,10 @@ async function opened(browser, rows, width = 1280, { body = BODY, unpublished = 
     }
     if (one) return route.fulfill({ json: { ...one, body, ...kept.get(one.id), ancestors: [], writable: true, shared: false, drafts: unpublished, unpublished, draft: null } });
     if (/^\/pages\/[^/]+\/(comments|versions|backlinks)$/.test(path)) return route.fulfill({ json: empty });
+    if (/^\/pages\/[^/]+\/cover-images$/.test(path)) {
+      const pictures = library && query.get('query') ? [{ id: '11111111-1111-1111-1111-111111111111', creator: 'Ada Lovelace', preview: 'data:image/png;base64,iVBORw0KGgo=' }] : [];
+      return route.fulfill({ json: { offered: library, pictures } });
+    }
     if (/^\/pages\/[^/]+\/language-variants$/.test(path)) return route.fulfill({ json: { page_id: HOME.id, source_page_id: null, language: null, variants: [] } });
     if (/^\/pages\/[^/]+\/labels$/.test(path)) return route.fulfill({ json: { page_id: HOME.id, labels: [] } });
     if (/^\/pages\/[^/]+\/access$/.test(path)) {
@@ -277,6 +281,32 @@ test('a new page offers its templates as chips with a preview beside, under the 
     assert.ok(change && change.body.body.includes('## Context'), 'the template\'s words were not written');
     assert.equal(change.body.icon, '⚖️');
     assert.equal(change.body.title, undefined, 'a page with a title of its own keeps it');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+// UC-DOC-16 check 5: where the workspace offers an image library, the picker has a fourth tab; a
+// search goes to the server with its words, and each picture names who made it.
+test('a cover takes a picture from the image library the workspace offers (UC-DOC-16)', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, FULL, 1440, { library: true });
+    const asked = [];
+    page.on('request', (request) => { if (request.url().includes('/cover-images')) asked.push(new URL(request.url()).searchParams.get('query')); });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    await page.locator('[data-page-cover-add]').click({ timeout: 15_000 });
+    const picker = page.locator('[data-page-cover-picker]');
+    await picker.getByRole('tab', { name: 'Image library' }).waitFor({ timeout: 10_000 });
+    assert.deepEqual(await picker.getByRole('tab').allInnerTexts(), ['Colours', 'Gallery', 'Upload', 'Image library']);
+    await picker.getByRole('tab', { name: 'Image library' }).click();
+    await picker.getByLabel('Search pictures').fill('fjord');
+    await picker.getByLabel('Search pictures').press('Enter');
+    await picker.getByRole('button', { name: 'Picture by Ada Lovelace' }).waitFor({ timeout: 10_000 });
+    assert.ok(asked.includes('fjord'), 'the search went to the server with its words');
     assert.deepEqual(failures, []);
     await close();
   } finally {
