@@ -38,7 +38,7 @@
   import { renderProblem } from '../problem.ts';
   import Campaigns from './Campaigns.svelte';
   import Connectors from './Connectors.svelte';
-  import Decisions from './Decisions.svelte';
+  import DecisionList from './DecisionList.svelte';
   import Duplicates from './Duplicates.svelte';
   import ImportFile from './ImportFile.svelte';
   import { TODOS_SHOWN, careTodos, healthFigures, isByHand, sourceRows, type CareTodo, type FigureId, type SourceRow } from './inventoryscenes.ts';
@@ -191,12 +191,9 @@
   }
 
   // Decide: the pair side by side, today's duplicates part narrowed to it.
-  let deciding = $state<string | undefined>(undefined);
-  let isDeciding = $state(false);
-  function decide(duplicate: CiDuplicate) {
-    deciding = duplicate.id;
-    isDeciding = true;
-  }
+  // A pair is decided on the duplicates page, side by side in a table: the dialog ladder holds no
+  // table in a dialog, so the act leads one page deeper.
+  const pairHref = (duplicate: CiDuplicate) => `${inventoryPath(hubId, 'duplicates')}#pair-${duplicate.id}`;
 
   // (3) The round.
   const openRound = $derived(campaigns?.find((each) => !each.closed_at));
@@ -284,7 +281,7 @@
                   <button type="button" class="act" aria-label={t('app.care.act_on', { act, what: said })} onclick={() => compare(hold)}>{act}</button>
                 {:else if todo.act === 'decide' && todo.duplicate}
                   {@const pair = todo.duplicate}
-                  <button type="button" class="act" aria-label={t('app.care.act_on', { act, what: said })} onclick={() => decide(pair)}>{act}</button>
+                  <a class="act" href={pairHref(pair)} aria-label={t('app.care.act_on', { act, what: said })}>{act}</a>
                 {:else}
                   <a class="act" href={objectHref(todo)} aria-label={t('app.care.act_on', { act, what: said })}>{act}</a>
                 {/if}
@@ -325,7 +322,7 @@
                 {@const said = pair.ci_ids.map(nameOf).join(' · ')}
                 <li class="todo-row" data-care-pair={pair.id}>
                   <span class="said">{said}</span>
-                  <button type="button" class="act" aria-label={t('app.care.act_on', { act: t('app.care.act.decide'), what: said })} onclick={() => decide(pair)}>{t('app.care.act.decide')}</button>
+                  <a class="act" href={pairHref(pair)} aria-label={t('app.care.act_on', { act: t('app.care.act.decide'), what: said })}>{t('app.care.act.decide')}</a>
                 </li>
               {/each}
             </ul>
@@ -382,15 +379,9 @@
       {#if !compared}
         <Spinner label={t('app.assets.loading')} />
       {:else}
-        <Decisions decisions={(compared.decisions ?? []).filter((each) => each.ref === comparing?.item.ref)} {classes} {words} />
+        <DecisionList decisions={(compared.decisions ?? []).filter((each) => each.ref === comparing?.item.ref)} {classes} {words} />
       {/if}
     </Stack>
-  </Dialog>
-{/if}
-
-{#if isDeciding && deciding}
-  <Dialog size="l" bind:isOpen={isDeciding} title={t('app.care.decide_title')} dismissLabel={t('app.sheet_close')}>
-    <Duplicates {hubId} {classes} {words} mayWrite={mayChange} only={deciding} />
   </Dialog>
 {/if}
 
@@ -404,7 +395,7 @@
           created: detail.counts.created, updated: detail.counts.updated, unchanged: detail.counts.unchanged,
           held: detail.counts.held, duplicates: detail.counts.duplicates, refused: detail.counts.refused,
         })}</p>
-        <Decisions decisions={detail.decisions ?? []} {classes} {words} />
+        <DecisionList decisions={detail.decisions ?? []} {classes} {words} />
       </Stack>
     {/if}
   </Dialog>

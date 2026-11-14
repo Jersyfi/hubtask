@@ -12640,7 +12640,6 @@
   "app.care.compare_title": "Deviation reported by {source}",
   "app.care.compare_hint": "The source reported this object in a way the inventory did not take over. Compare what it said with the object and close the deviation once it is settled.",
   "app.care.compare_settled": "Settled",
-  "app.care.decide_title": "Decide on a duplicate",
   "app.care.round_title": "Attestation round",
   "app.care.round_due": "Owners confirm their objects by {day}",
   "app.care.round_score": "{confirmed} of {total} confirmed · {disputed, plural, one {# reply “not right”} other {# replies “not right”}}",

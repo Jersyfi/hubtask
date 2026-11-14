@@ -12640,7 +12640,6 @@
   "app.care.compare_title": "Abweichung von {source}",
   "app.care.compare_hint": "Die Quelle hat dieses Objekt so gemeldet, dass der Bestand es nicht übernommen hat. Vergleiche ihre Meldung mit dem Objekt und schließe die Abweichung, wenn sie geklärt ist.",
   "app.care.compare_settled": "Erledigt",
-  "app.care.decide_title": "Dublette entscheiden",
   "app.care.round_title": "Bestätigungsrunde",
   "app.care.round_due": "Verantwortliche bestätigen ihre Objekte bis {day}",
   "app.care.round_score": "{confirmed} von {total} bestätigt · {disputed, plural, one {# Rückmeldung „stimmt nicht“} other {# Rückmeldungen „stimmt nicht“}}",

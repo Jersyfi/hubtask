@@ -20,7 +20,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
-import { CIS, HOLD, bar, noSidewaysScroll, openInventory } from './inventoryseed.mjs';
+import { CIS, HOLD, PAIR, bar, noSidewaysScroll, openInventory } from './inventoryseed.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -64,18 +64,22 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
   // Compare: the deviation beside its run's decision, settled in place.
   await todos.getByRole('button', { name: /^Compare:/ }).click();
   const compare = page.getByRole('dialog', { name: 'Deviation reported by glpi' });
-  await compare.getByRole('table').getByText('db-01').waitFor({ timeout: 5_000 });
-  assert.equal(await compare.getByRole('table').getByText('app-01').count(), 0, 'the run\'s other decisions are shown');
+  // A dialog holds no table (the dialog ladder): the decision stands as a list.
+  assert.equal(await compare.getByRole('table').count(), 0);
+  await compare.locator('[data-decision-list]').getByText('db-01').waitFor({ timeout: 5_000 });
+  assert.equal(await compare.locator('[data-decision-list]').getByText('app-01').count(), 0, 'the run\'s other decisions are shown');
   await compare.getByRole('button', { name: 'Settled' }).click();
   await compare.waitFor({ state: 'detached', timeout: 5_000 });
   assert.ok(written.some((each) => each.method === 'POST' && each.at === `/ci-holds/${HOLD.id}:dismiss`), 'the deviation was not closed');
-  // Decide: the pair side by side in today's comparison.
-  await todos.getByRole('button', { name: /^Decide:/ }).click();
-  const decide = page.getByRole('dialog', { name: 'Decide on a duplicate' });
+  // Decide: one page deeper, the pair side by side in today's comparison (a table, so no dialog).
+  const decideLink = todos.getByRole('link', { name: /^Decide:/ });
+  assert.equal(await decideLink.getAttribute('href'), `/hubs/${HUB.id}/inventory/duplicates#pair-${PAIR.id}`);
+  await decideLink.click();
+  const decide = page.locator(`#pair-${PAIR.id}`);
   await decide.getByRole('button', { name: 'Keep this one app-02.hh.intern' }).waitFor({ timeout: 5_000 });
   assert.equal(await decide.getByRole('button', { name: 'They are distinct' }).count(), 1);
-  await decide.getByRole('button', { name: 'Close' }).first().click();
-  await decide.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.locator('[data-care-back]').click();
+  await page.locator('[data-care-part=campaigns]').waitFor({ timeout: 5_000 });
 
   // (3) The open round with its score and the earlier one; no reminder, which the server has no act for.
   const round = page.locator('[data-care-part=campaigns]');
@@ -97,7 +101,7 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
   // A run's decisions behind its row.
   await rows.filter({ hasText: 'GLPI' }).getByRole('button').first().click();
   const run = page.getByRole('dialog', { name: /^Run of glpi/ });
-  await run.getByRole('table').getByText('app-01').waitFor({ timeout: 5_000 });
+  await run.locator('[data-decision-list]').getByText('app-01').waitFor({ timeout: 5_000 });
   await run.getByRole('button', { name: 'Close' }).first().click();
   await run.waitFor({ state: 'detached', timeout: 5_000 });
   assert.equal(await sources.getByRole('link', { name: 'Manage sources' }).getAttribute('href'), '/assets/sources');

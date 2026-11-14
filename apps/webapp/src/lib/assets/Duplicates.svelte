@@ -21,14 +21,12 @@
     classes: readonly CiClass[];
     words: Words;
     mayWrite: boolean;
-    /** Only this pair: the upkeep's *Decide* (scene invcare). */
-    only?: string;
   }
 
-  const { hubId, classes, words, mayWrite, only }: Props = $props();
+  const { hubId, classes, words, mayWrite }: Props = $props();
 
   let all = $state<readonly CiDuplicate[] | undefined>(undefined);
-  const list = $derived(all && only ? all.filter((each) => each.id === only) : all);
+  const list = $derived(all);
   let refusal = $state<string | undefined>(undefined);
   let read = $state<Record<string, ConfigurationItem>>({});
   $effect(() => {
@@ -82,7 +80,7 @@
   <Stack gap="200">
     {#each list as duplicate (duplicate.id)}
       {@const cis = duplicate.ci_ids.map((id) => read[id]).filter((each): each is ConfigurationItem => Boolean(each))}
-      <section class="duplicate">
+      <section class="duplicate" id={`pair-${duplicate.id}`} tabindex="-1">
         <div class="head">
           <span class="meta">{t('app.assets.duplicate_rule', { rule: duplicate.rule.split('+').map(word).join(' + ') })}</span>
           {#if mayWrite}<Button size="sm" tone="secondary" onclick={() => void resolve(duplicate)}>{t('app.assets.distinct')}</Button>{/if}
