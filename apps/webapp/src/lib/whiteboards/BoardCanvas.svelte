@@ -1492,9 +1492,8 @@
           <circle cx="1" cy="1" r="1" class="dot" />
         </pattern>
       </defs>
-      {#if isGridOn}
-        <rect class="grid" x={view.x} y={view.y} width={view.width / view.zoom} height={view.height / view.zoom} fill="url(#wb-grid)" />
-      {/if}
+      <!-- The dots are the surface's texture; the grid switched on is what objects snap to. -->
+      <rect class="grid" class:on={isGridOn} x={view.x} y={view.y} width={view.width / view.zoom} height={view.height / view.zoom} fill="url(#wb-grid)" />
       {#each shown as e (e.id)}
         {#if e.kind === 'FRAME'}
           <g class="frame" class:chosen={selected.includes(e.id)}>
@@ -2511,8 +2510,10 @@
   .canvas.panning { cursor: grab; }
   .canvas:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--bw-ring)); }
   .dot { fill: var(--border-default); }
-  .grid { pointer-events: none; }
-  .frame path { fill: none; stroke: var(--border-strong); stroke-dasharray: 8 6; }
+  .grid { pointer-events: none; opacity: 0.6; }
+  .grid.on { opacity: 1; }
+  /* A frame is a lighter field the dots still show through, its edge one hairline. */
+  .frame path { fill: var(--bg-canvas); fill-opacity: 0.6; stroke: var(--border-strong); }
   .frame-name { fill: var(--text-secondary); font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .connector path { fill: none; stroke: var(--text-secondary); stroke-width: 2; }
   .connector .label { fill: var(--text-secondary); font-size: var(--fs-075); }
