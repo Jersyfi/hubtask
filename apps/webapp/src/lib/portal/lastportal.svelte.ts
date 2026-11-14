@@ -3,8 +3,8 @@
 
 /**
  * The portal an outsider chose last at the top of the frame (PO-2): where they start next time on
- * this browser. A convenience of the device, never the account's (apps/webapp/AGENTS.md); without
- * storage the first portal stands.
+ * this browser. A convenience of the device, never the account's; without storage the first
+ * portal stands.
  */
 
 const KEY = 'hubtask.portal.last';

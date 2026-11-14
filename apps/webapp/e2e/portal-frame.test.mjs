@@ -159,7 +159,7 @@ test('chromium: a request\'s link opens the portal request for its requester and
   assert.deepEqual(member.failures, []);
 });
 
-// UC-SVC-14 checks 1 to 4.
+// UC-SVC-14/1, UC-SVC-14/2, UC-SVC-14/3, UC-SVC-14/4.
 test('chromium 1280 px: a member reaches every department through Erstellen, searches them all and sees their requests everywhere', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
