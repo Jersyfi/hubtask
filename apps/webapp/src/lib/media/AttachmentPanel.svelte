@@ -3,10 +3,10 @@
 <script lang="ts">
   // The files on an entry.
   //
-  // **An attachment is a download, never an inline render.** T-11 puts uploaded files on a
-  // sandboxed origin and serves them with `Content-Disposition: attachment`, and a client that
-  // embedded one — a PDF in an iframe, an image beside its name — would undo that on its own
-  // screen. So a row is a name, a type and a size, and pressing it fetches.
+  // **An attachment is never opened as a document.** T-11 serves the bytes as a download from a
+  // sandboxed answer; pressing a file opens the file viewer (F-1), which draws it itself or hands
+  // the browser only the decoders the server allows (`files/viewing.ts`). A card's picture is the
+  // viewer's own rendering (ET-4).
   //
   // **The list mints no download target.** `GET /items/{id}/attachments` answers media records;
   // a URL comes from `GET /media/{id}` and expires. Twenty rows are therefore one read and no
@@ -37,6 +37,8 @@
   import { formatBytes, formatFileSize } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
+  import FilePreview from '../files/FilePreview.svelte';
+  import { viewer } from '../files/viewer.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
   /**
@@ -53,9 +55,11 @@
     /** The linked files' cells, drawn first in the same grid or list (ET-4), and how many they are. */
     lead?: Snippet;
     leadCount?: number;
+    /** The entry's key ("TAMA-1"), for the viewer's "2 of 9 · on TAMA-1". */
+    ownerKey?: string;
   }
 
-  const { item, isChangeable, view = 'list', shownRows, lead, leadCount = 0 }: Props = $props();
+  const { item, isChangeable, view = 'list', shownRows, lead, leadCount = 0, ownerKey }: Props = $props();
 
   /**
    * A card's picture is its kind - a mark and the name's ending - never the file's content: an
@@ -87,6 +91,26 @@
   // entry, so a path that re-derived would resubscribe on every unrelated change.
   const page = resource<MediaPage>({ path: untrack(() => attachmentsPath(item.id)) });
   const rows = $derived(page.state.status === 'ready' ? (page.state.data.data ?? []) : []);
+
+  /** Opens the viewer on one file with every file of the entry beside it (F-1). */
+  function openFile(object: MediaObject) {
+    viewer.open({
+      files: rows,
+      index: rows.findIndex((each) => each.id === object.id),
+      owner: { key: ownerKey, title: item.title },
+    });
+  }
+
+  // An address naming a file (`?file=`, the viewer's *link*) opens it once the files are read.
+  let isLinkedOpened = false;
+  $effect(() => {
+    if (isLinkedOpened || rows.length === 0) return;
+    const named = new URL(globalThis.location.href).searchParams.get('file');
+    const linked = named ? rows.find((each) => each.id === named) : undefined;
+    isLinkedOpened = true;
+    if (linked) untrack(() => openFile(linked));
+  });
+  let previewed = $state<Record<string, boolean>>({});
   const hasMore = $derived(page.state.status === 'ready' && (page.state.data.page?.has_more ?? false));
   /** What the last press of *Show more* brought; empty until asked, as the entry's history is. */
   let arrived = $state<string | undefined>(undefined);
@@ -240,11 +264,12 @@
               {@const kind = kindOf(object)}
               {@const ending = endingOf(object)}
               <div class="card">
-                <div class="picture" aria-hidden="true">
-                  <Icon name={kind.icon} />
+                <button type="button" class="picture" tabindex="-1" aria-hidden="true" onclick={() => openFile(object)}>
+                  {#if !previewed[object.id]}<Icon name={kind.icon} />{/if}
+                  {#if isReady(object)}<FilePreview file={object} onshown={(shown) => { if (previewed[object.id] !== shown) previewed = { ...previewed, [object.id]: shown }; }} />{/if}
                   {#if ending}<span class="ending"><LabelChip name={ending} colorToken={kind.colour} /></span>{/if}
-                </div>
-                <span class="name card-name" title={object.file_name ?? undefined}>{object.file_name ?? t('app.media.unnamed')}</span>
+                </button>
+                <button type="button" class="name card-name open" title={object.file_name ?? undefined} onclick={() => openFile(object)}>{object.file_name ?? t('app.media.unnamed')}</button>
                 <span class="detail">{detailOf(object)}</span>
                 <div class="actions card-acts">
                   <IconButton icon="download" size="sm" tone="subtle" label={t('app.media.download')} onclick={() => void download(object)} />
@@ -264,7 +289,7 @@
                   {/if}
                 </div>
               {/snippet}
-              <span class="name">{object.file_name ?? t('app.media.unnamed')}</span>
+              <button type="button" class="name open" onclick={() => openFile(object)}>{object.file_name ?? t('app.media.unnamed')}</button>
               <span class="detail">{detailOf(object)}</span>
             </ListRow>
             {/if}
@@ -303,6 +328,9 @@
   .card:hover .card-acts, .card:focus-within .card-acts { opacity: 1; }
 
   .name { display: block; overflow-wrap: anywhere; }
+  .open { padding: 0; border: 0; background: none; color: inherit; font-family: inherit; font-size: inherit; text-align: start; cursor: pointer; }
+  .open:hover { text-decoration: underline; }
+  button.picture { inline-size: 100%; padding: 0; border: 0; cursor: pointer; overflow: hidden; }
 
   .detail { display: block; color: var(--text-secondary); font-size: var(--fs-075); }
 

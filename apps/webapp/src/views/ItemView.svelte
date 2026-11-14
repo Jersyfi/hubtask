@@ -1459,7 +1459,7 @@
         showAllLabel={t('app.entry.show_all', { count: String(attachmentCount ?? 0) })} showLessLabel={t('app.entry.show_less')}>
         {#snippet children(shown)}
           {#snippet attached(linked: Snippet, linkedCount: number)}
-            <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} isChangeable={isWritable} view={filesShown} shownRows={shown.hidden > 0 ? shown.end : undefined} lead={linked} leadCount={linkedCount} /></div>
+            <div data-entry-attachments><AttachmentPanel bind:this={attachmentPanel} {item} ownerKey={ticketKey} isChangeable={isWritable} view={filesShown} shownRows={shown.hidden > 0 ? shown.end : undefined} lead={linked} leadCount={linkedCount} /></div>
           {/snippet}
           {#key item.id}<EntryFiles itemId={item.id} mayChange={isWritable} view={filesShown} attachments={carries('ATTACHMENTS') && (isWritable || attachmentCount) ? attached : undefined} />{/key}
         {/snippet}
