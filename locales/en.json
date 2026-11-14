@@ -14439,6 +14439,8 @@
   "app.approvals.deciding": "Deciding…",
   "app.approvals.approved_announced": "Approved.",
   "app.approvals.declined_announced": "Declined.",
+  "app.approvals.brief_since": "asked {since}",
+  "app.approvals.brief_title": "Approval: {title}",
   "app.approvals.somebody": "Somebody",
   "app.approvals.step_waits": "Wait for people's yes",
   "app.approvals.step_waits_hint": "Taking the step asks for approval; the entry moves once the last level approves.",

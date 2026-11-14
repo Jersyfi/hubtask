@@ -14439,6 +14439,8 @@
   "app.approvals.deciding": "Wird entschieden …",
   "app.approvals.approved_announced": "Freigegeben.",
   "app.approvals.declined_announced": "Abgelehnt.",
+  "app.approvals.brief_since": "angefragt {since}",
+  "app.approvals.brief_title": "Freigabe: {title}",
   "app.approvals.somebody": "Jemand",
   "app.approvals.step_waits": "Auf das Ja von Menschen warten",
   "app.approvals.step_waits_hint": "Der Schritt bittet um Freigabe; der Eintrag bewegt sich, sobald die letzte Stufe zustimmt.",

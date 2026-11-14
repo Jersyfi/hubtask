@@ -151,7 +151,7 @@
       <Stack gap="100">
         <h2 class="heading" id="portal-yes">{outside ? t('app.portal.waiting_outside') : t('app.portal.waiting_for_yes')}</h2>
         {#each waiting.slice(0, 2) as approval (approval.id)}
-          <ApprovalCard {approval} />
+          <ApprovalCard {approval} isBrief />
         {/each}
         {#if waiting.length > 2 || waitingHasMore}
           <a href={`/portal/${collectionId}/approvals`} data-portal-more-approvals onclick={go(`/portal/${collectionId}/approvals`)}>{t('app.portal.more_waiting')}</a>
@@ -188,7 +188,8 @@
   <section class="card mine" aria-labelledby="portal-mine" data-portal-mine>
     <div class="card-head">
       <h2 class="heading" id="portal-mine">{outside ? t('app.portal.mine_outside') : t('app.portal.mine')}</h2>
-      <a href={`/portal/${collectionId}/requests`} onclick={go(`/portal/${collectionId}/requests`)}>{t('app.portal.mine_all')}</a>
+      <!-- Outside the frame's tab leads to them all. -->
+      {#if !outside}<a href={`/portal/${collectionId}/requests`} onclick={go(`/portal/${collectionId}/requests`)}>{t('app.portal.mine_all')}</a>{/if}
     </div>
     {#if mine.state.status === 'ready' && requests.length === 0}
       <ProductEmpty product="SERVICE_DESK" kind="unused" title={t('app.portal.mine_none')} />
@@ -358,7 +359,7 @@
     background: var(--product-desk-surface); color: var(--product-desk-ink);
   }
   /* Outside a kind and a space read as a row: the mark beside its words, two to a line. */
-  .tiles[data-rows], .spaces[data-rows] { gap: var(--sp-150); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-field-sm)), 1fr)); }
+  .tiles[data-rows], .spaces[data-rows] { gap: var(--sp-150); grid-template-columns: minmax(0, 1fr); }
   .tiles[data-rows] .tile { flex-direction: row; align-items: flex-start; gap: var(--sp-150); padding: var(--sp-200); }
   .spaces[data-rows] .space { padding: var(--sp-200); gap: var(--sp-150); align-items: flex-start; }
   .tile-name { font-weight: var(--fw-semibold); }
@@ -376,6 +377,7 @@
     .pair { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
     .split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--sp-400); align-items: start; padding-inline: var(--sp-200); }
     .main, .side { display: flex; flex-direction: column; gap: var(--sp-300); min-inline-size: 0; }
+    .tiles[data-rows], .spaces[data-rows] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .side { gap: var(--sp-200); }
   }
   .card { padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
