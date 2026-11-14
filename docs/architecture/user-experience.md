@@ -518,7 +518,8 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
 
 * **Search is one door for every object the reader may see** (P-19). `/search` fans out to the
   existing per-kind searches — entries, pages (`SearchPages`), boards, CIs and assets by title,
-  goals, portfolios and dashboards by name, releases and sprints — and groups the results by kind
+  goals, portfolios and dashboards by name, releases and sprints, and posts once published, for
+  their audience alone and never as pages — and groups the results by kind
   with a kind filter (*All · Entries · Pages · Boards · Assets · Goals …*), one `ListRow` anatomy
   for each. Module switches and READ per object are respected as each per-kind search already
   does. Searching inside attached files stays out (the owner's second answers, 11).
