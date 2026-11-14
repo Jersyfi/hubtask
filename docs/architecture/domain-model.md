@@ -1108,57 +1108,65 @@ comment names a person by a link to the address `hubtask:person/<account>` - at 
 reads the board's hub is told by a COMMENT notification whose subject is the board
 (`notification.whiteboard_id`); a rewrite tells only the people it adds.
 
-### 3.10 Configuration items (context: Assets, M6)
+### 3.10 Objects: the inventory (context: Assets, M6)
+
+The inventory is an object database, not merely an inventory tool: it maps any structure as related
+objects - hardware, software, services, contracts, locations, people's equipment, anything a process
+needs - so that processes can be automated over connected information (the owner's decision of
+2026-11-14, `docs/backlog/work-surface/build-plan.md`). Its words: an *object* is a `CI`, an *object
+type* a `Class`, and an object's *register record* (cost, supplier, warranty, disposal) an `Asset`;
+the code keeps those identifiers and `cmdb`. In IT operations objects are also called configuration
+items (ITIL).
 
 A hub holds an inventory of `CI`s (at most 20,000, `MaxCIsPerHub`; health, software and the service
 map read it whole in each request - at the bound measured at P95 257, 171 and 583 ms with eight
 callers, 753 MiB resident at peak, [C1](../evidence/cmdb-ceiling-2026-11-05.md)), judged at the hub as its pages are: READ to
-read, WRITE_ITEMS to write. A CI is of a `Class` with single inheritance - the hierarchy Hubtask
+read, WRITE_ITEMS to write. An object is of a `Class` with single inheritance - the hierarchy Hubtask
 ships (hardware, computers, network and storage devices, virtual machines, virtualisation
 clusters, cloud resources, container clusters, database instances, software, the service model of business and technical
 services with their offerings and application services, locations, contracts, business processes,
-information objects) is declared in the domain and never stored, and a workspace's own classes sit
-beneath it. A class declares typed attributes (text, number, boolean, date, choice, URL, group,
+information objects) is declared in the domain and never stored, and a workspace's own object types sit
+beneath it. An object type declares typed attributes (text, number, boolean, date, choice, URL, group,
 account; optional, recommended or required; identifying or not), ordered identifier rules, the
-relations a CI of it is an orphan without and its staleness period; a class inherits all of it,
-its own rules tried before its ancestors'. A CI carries its attributes with their `provenance`
-(source, run, moment), a lifecycle (stage and status, the same for every class), and the compliance
-fields: an owner (a person or a group), a location (a CI of a location class), a protection need
+relations an object of it is an orphan without and its staleness period; an object type inherits all of it,
+its own rules tried before its ancestors'. An object carries its attributes with their `provenance`
+(source, run, moment), a lifecycle (stage and status, the same for every object type), and the compliance
+fields: an owner (a person or a group), a location (an object of a location object type), a protection need
 for confidentiality, integrity and availability, a review date and a quantity of alike objects.
-A CI is not an entry: it has no level, completion or collection, and it is pointed at by its
-identifier. A `Relation` joins two CIs of one hub by a `RelationType` whose `impact` says which end
-suffers when the other fails; impact analysis walks it, and a CI's effective protection need is the
+An object is not an entry: it has no level, completion or collection, and it is pointed at by its
+identifier. A `Relation` joins two objects of one hub by a `RelationType` whose `impact` says which end
+suffers when the other fails; impact analysis walks it, and an object's effective protection need is the
 highest of its own and that of everything that suffers when it fails (the maximum principle), save
-a dimension fixed with a reason. Every write of a CI - a person's (source `manual`), a payload's,
+a dimension fixed with a reason. Every write of an object - a person's (source `manual`), a payload's,
 a file's - goes through one reconciliation: an item is identified by its source's own key, then by
-its class's rules among the CIs of the rule's class and its descendants; it is created, updated
+its object type's rules among the objects of the rule's object type and its descendants; it is created, updated
 under the sources' precedence (a lower rank number wins an attribute, until its writer has gone
-silent for the class's staleness period), held for review (`Hold`) when nothing identifies it or the
+silent for the object type's staleness period), held for review (`Hold`) when nothing identifies it or the
 source may not create it, or opens a `Duplicate` when it matches several. A `Run` keeps every
 decision by attribute name, never value. Merging a duplicate keeps the survivor and retires the
-others as merged; no use case deletes a CI.
+others as merged; no use case deletes an object.
 
-A `Connector` is a program a hub's CIs come from or that posts alerts to it (GLPI, NetBox or Nautobot,
+A `Connector` is a program a hub's objects come from or that posts alerts to it (GLPI, NetBox or Nautobot,
 Intune, Entra ID, Hetzner Cloud, OpenStack pulled; a GLPI Agent posting its inventory; Alertmanager, Zabbix,
 Checkmk posting alerts). It writes as one of the
-workspace's sources of kind `CONNECTOR`, so the source's rank and classes decide what it may change;
+workspace's sources of kind `CONNECTOR`, so the source's rank and object types decide what it may change;
 it names every address it calls (an https base address, an identity provider's authority, further
 hosts it allows), holds a sealed credential nobody can read back, a cursor where its last walk
 ended, a period and its last run's outcome by message code. A pull is pages through the same
 reconciliation; a scheduled one acts with the rights of the person who last defined the connector.
-An `Alert` is one problem per intake and key - firing, resolved, reopened - bound to the CI its
+An `Alert` is one problem per intake and key - firing, resolved, reopened - bound to the object its
 host names and to the entry opened for it; a pull keeps one more about its own runs, firing while
 they fail or fetch nothing. A connector is switched off, never deleted.
 
-What vouches for an inventory (migration 0274): an entry names up to fifty CIs as **affected**
+What vouches for an inventory (migration 0274): an entry names up to fifty objects as **affected**
 (`Affected`) - its readers see the services their failure reaches, the other open entries on them,
-and a **collision** with an entry planned on the same or a reached CI in an overlapping start-to-due
-window (UC-AST-09). A **campaign** fixes, when it starts, the active CIs of its classes due for review
-and asks each one's owning person; a confirmed CI's review moves by the campaign's period, a
-disputed one falls due that day (UC-AST-10). A **group** is a hub's set of CIs defined by a filter on
-class, stage, name and attribute values, never by listing; standing for a service, its members are
-what the service rests on in the layered service map (UC-AST-11). An **asset** is a CI's financial
-record, one per CI, moving requested → ordered → in stock → deployed → retired → disposed - the CI's
+and a **collision** with an entry planned on the same or a reached object in an overlapping start-to-due
+window (UC-AST-09). A **campaign** fixes, when it starts, the active objects of its object types due for review
+and asks each one's owning person; a confirmed object's review moves by the campaign's period, a
+disputed one falls due that day (UC-AST-10). A **group** is a hub's set of objects defined by a filter on
+object type, stage, name and attribute values, never by listing; standing for a service, its members are
+what the service rests on in the layered service map (UC-AST-11). A **register record** (`Asset`) is an object's financial
+record, one per object, moving requested → ordered → in stock → deployed → retired → disposed - the object's
 stage follows, and disposal needs its method and a certificate's reference (UC-AST-12). Software is
 counted by its folded publisher and product, a workspace's **alias** naming what folding misses
 (UC-AST-13).

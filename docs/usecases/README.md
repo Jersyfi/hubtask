@@ -36,7 +36,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`planning/`](./planning/) | `UC-PLN` | Dependencies between entries and the plan they make: schedule, critical path, baselines, milestones, sprints and estimates | `service/work` (links), `service/planning` |
 | [`knowledge/`](./knowledge/) | `UC-DOC` | A hub's pages: writing together, finding, linking, versions, comments, export | `service/knowledge` |
 | [`whiteboard/`](./whiteboard/) | `UC-CNV` | A hub's whiteboards: drawing together, notes made tasks, cards of entries, export, arranging, sessions with votes and a timer, history, comments | `service/whiteboard` |
-| [`assets/`](./assets/) | `UC-AST` | A hub's configuration items: classes, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
+| [`assets/`](./assets/) | `UC-AST` | The inventory, an object database: a hub's objects - hardware, software, services, contracts, locations, anything a process needs - related to each other, so that processes can be automated over connected information, not merely a list of what is owned; object types, relations, compliance fields, one reconciliation for every source, files, duplicates, impact, health | `service/cmdb` |
 | [`servicedesk/`](./servicedesk/) | `UC-SVC` | The service desk: business calendars, SLA policies and the clocks they run on an entry, queues, internal notes, the requester portal, canned replies and macros, satisfaction, approvals | `service/servicedesk` |
 | [`timekeeping/`](./timekeeping/) | `UC-TIM` | Time: records and the timer, a person's week handed in and approved, the locked period, reports, estimates against actuals, the export to accounting, capacity, absences and the workload, cost rates and budgets | `service/timekeeping` |
 | [`goal/`](./goal/) | `UC-GOL` | Goals and insight: periods, goals with key results fed by check-ins, views and linked entries, check-ins and grades, portfolios with their health and updates, dashboards over the summaries | `service/goal` |
@@ -304,16 +304,16 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-CNV-10](./whiteboard/UC-CNV-10-keep-whiteboards-beside-the-pages.md) | Keep whiteboards beside the pages | whiteboard |
 | [UC-AST-01](./assets/UC-AST-01-keep-an-inventory-of-what-our-services-run-on.md) | Keep an inventory of what our services run on | assets |
 | [UC-AST-02](./assets/UC-AST-02-let-every-source-write-through-one-reconciliation.md) | Let every source write through one reconciliation | assets |
-| [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate configuration items without losing one | assets |
+| [UC-AST-03](./assets/UC-AST-03-merge-duplicate-configuration-items-without-losing-one.md) | Merge duplicate objects without losing one | assets |
 | [UC-AST-04](./assets/UC-AST-04-bring-an-inventory-in-from-a-file.md) | Bring an inventory in from a file | assets |
 | [UC-AST-05](./assets/UC-AST-05-see-what-a-failure-reaches.md) | See what a failure reaches | assets |
 | [UC-AST-06](./assets/UC-AST-06-see-how-healthy-our-inventory-is.md) | See how healthy our inventory is | assets |
 | [UC-AST-07](./assets/UC-AST-07-pull-our-inventory-from-the-tools-that-know-it.md) | Pull our inventory from the tools that already know it | assets |
-| [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected configuration item | assets |
+| [UC-AST-08](./assets/UC-AST-08-turn-monitoring-alerts-into-entries-on-the-affected-ci.md) | Turn monitoring alerts into entries on the affected object | assets |
 | [UC-AST-09](./assets/UC-AST-09-see-what-an-incident-or-a-change-touches.md) | See what an incident or a change touches | assets |
 | [UC-AST-10](./assets/UC-AST-10-have-owners-attest-our-inventory.md) | Have owners attest our inventory | assets |
-| [UC-AST-11](./assets/UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md) | Group configuration items by a filter and draw the service map | assets |
-| [UC-AST-12](./assets/UC-AST-12-keep-an-asset-register-to-its-disposal.md) | Keep an asset register to its disposal | assets |
+| [UC-AST-11](./assets/UC-AST-11-group-cis-by-a-filter-and-draw-the-service-map.md) | Group objects by a filter and draw the service map | assets |
+| [UC-AST-12](./assets/UC-AST-12-keep-an-asset-register-to-its-disposal.md) | Keep the register record of a device or licence to its disposal | assets |
 | [UC-AST-13](./assets/UC-AST-13-count-software-by-its-product.md) | Count software by its product | assets |
 | [UC-SVC-01](./servicedesk/UC-SVC-01-keep-our-working-hours-and-holidays.md) | Keep our working hours and holidays | servicedesk |
 | [UC-SVC-02](./servicedesk/UC-SVC-02-promise-response-times-and-see-which-is-about-to-break.md) | Promise response times and see which promise is about to break | servicedesk |

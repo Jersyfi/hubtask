@@ -48,7 +48,7 @@ refused with a note that it needs the connection.
 9. Changes made offline start rules when they reach the server; a rule's time condition judges the
    moment the server received them, not the moment on the device.
 10. Without a connection, a page's or a board's mentions and cards resolve from the copy: an entry,
-    hub, collection, page, board, configuration item, goal or dashboard the copy holds shows its
+    hub, collection, page, board, object, goal or dashboard the copy holds shows its
     title as online, one it does not hold - or a view - only as unavailable.
 
 ## Where it ends

@@ -14,7 +14,7 @@ checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/
 
 ## Goal
 
-An incident, a change or any other entry names the configuration items it is about, and whoever works on it sees which services and offerings their failure reaches, which other open entries are about the same things, and which changes are planned on them at the same time.
+An incident, a change or any other entry names the objects it is about, and whoever works on it sees which services and offerings their failure reaches, which other open entries are about the same things, and which changes are planned on them at the same time.
 
 ## Story
 
@@ -22,14 +22,14 @@ Kai opens the incident "Booking is slow" and names the booking application as af
 
 ## How to check
 
-1. A person who may change an entry names a CI they may read as affected, up to fifty per entry; naming one again changes nothing, and a CI of a hub out of their reach answers not found.
-2. The entry's affected CIs are listed with the active services and offerings their failure reaches, up to eight steps, only those the reader may read.
-3. The other open entries naming an affected CI, or a CI it reaches, are listed - only those the reader may see.
-4. An entry planned with a start and a due collides with another entry planned on the same CI, or on one its CIs reach, in an overlapping window; the collision says whether both name the CI itself.
-5. An entry's affected CIs travel to a device filed under the CI's hub and never to a reader of another hub.
-6. The entry's screen shows its affected CIs, the services they reach, the related entries and the collisions, and a writer names and removes a CI there.
-7. A configuration item lists every entry that names it, or names a CI beneath it - one whose failure it suffers, up to eight steps -, each once with its reason (it names the CI itself, or the nearest CI beneath it names), open ones first: only entries the reader may see, never archived ones.
+1. A person who may change an entry names an object they may read as affected, up to fifty per entry; naming one again changes nothing, and an object of a hub out of their reach answers not found.
+2. The entry's affected objects are listed with the active services and offerings their failure reaches, up to eight steps, only those the reader may read.
+3. The other open entries naming an affected object, or an object it reaches, are listed - only those the reader may see.
+4. An entry planned with a start and a due collides with another entry planned on the same object, or on one its objects reach, in an overlapping window; the collision says whether both name the object itself.
+5. An entry's affected objects travel to a device filed under the object's hub and never to a reader of another hub.
+6. The entry's screen shows its affected objects, the services they reach, the related entries and the collisions, and a writer names and removes an object there.
+7. An object lists every entry that names it, or names an object beneath it - one whose failure it suffers, up to eight steps -, each once with its reason (it names the object itself, or the nearest object beneath it names), open ones first: only entries the reader may see, never archived ones.
 
 ## Where it ends
 
-* No CI suggested for an incident by an agent (M9's CI suggestion), no rule that routes by the affected offering.
+* No object suggested for an incident by an agent (M9's object suggestion), no rule that routes by the affected offering.

@@ -68,7 +68,7 @@ there); the sidebar has three regions:
 | Foot, fixed | *Administration* (only where the manifest's `workspace_permissions` carry `STRUCTURE` or `READ_CONFIGURATION`), *Archive*, *Trash* | On both levels, after a hairline |
 
 **A detail screen stays in the level of the place that owns it.** An entry, a page, a whiteboard,
-a CI, a goal or a dashboard of a hub shows that hub's level, with the row it belongs to current (its
+an object, a goal or a dashboard of a hub shows that hub's level, with the row it belongs to current (its
 collection, itself in *Contents*, *Inventory*, *Goals*); a goal or a dashboard of the workspace (no
 hub) shows the workspace level with its product current. The route names only the object, so the
 screen names its place once it has read it (`page.locate`, `null` for the workspace); until then
@@ -95,7 +95,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 | KNOWLEDGE | *Pages* | `/pages` | The page spaces of the hubs the reader may read, recently changed pages, pages waiting for the reader's review; *My notes* as a tab (today `/notes`, which moves there) |
 | WHITEBOARD | *Whiteboards* | `/whiteboards` | Every board the reader may read, as preview cards, recent first |
 | SERVICE_DESK | *Service desk* | `/desk` | The handler's queues across every desk collection the reader works in: *Mine*, *Unassigned in my groups*, *About to breach*, *All open*, as saved views; the desks as a tab |
-| ASSETS | *Assets* | `/assets` | The inventory across hubs and the configuration items, with a health summary at the top |
+| ASSETS | *Inventory* | `/assets` | The inventory across hubs and its objects, with a health summary at the top |
 | TIME | *Time* | `/time` | The reader's week first (as today), the weeks they decide, the report |
 | GOALS | *Goals* | `/goals` | Goals of the current period, portfolios and dashboards as tabs, as today |
 | AGENTS | *Agents* | `/agents` | The agents working here that the reader may see, their held acts and their recent runs |
@@ -104,7 +104,7 @@ By default in `Module.Keys()` order, so the section never reorders itself when a
 lives there and never in a hub, with the shared vocabulary of tabs of §5.1 (*For you* first where
 the product holds personal work, *Settings* last): Plans *For you · Sprints · Releases · Roadmaps*;
 Pages *For you · Spaces · My notes*; Whiteboards *For you · All · Templates*; Service desk *For you ·
-Desks · Reports · Settings*; Assets *Inventory · Classes · Sources · Settings*; Time *My week · To
+Desks · Reports · Settings*; Inventory *Inventory · Object types · Sources · Settings*; Time *My week · To
 decide · Report · Absences · Settings*; Goals *Goals · Portfolios · Dashboards*; Agents *Agents ·
 Waiting · Runs · Settings*. The rows are ordered personally by drag or `Alt+↑/↓`, and a row's ⋯
 (its long press on touch) hides it: hidden rows stand behind one *More* row below the shown ones,
@@ -278,7 +278,7 @@ portfolio*. Today's four purposes are the first two families and the plain team 
 * Afterwards the app opens **the home of the template's main product** (the desk's queue for a
   service template, the space's first page for a docs template), with its first-visit mark.
 * *Knowledge and docs* and *Assets and registers* each have a template the product is mainly for:
-  *Team wiki* among the team templates and *Configuration items* among the registers
+  *Team wiki* among the team templates and *Inventory objects* among the registers
   (`configuration.md` §9).
 * *Skip* and dismissing still close the question for good; Today's first steps then carry
   *Choose what you use Hubtask for* (§3.3), which opens the same dialog.
@@ -329,8 +329,8 @@ see (one in use, where nothing is on the reader, shows *In use here* instead: it
 products, each leading there): *Choose what you use Hubtask for*
 (where the starter was skipped), *Create a hub*, *Capture*, *Invite*, and **More in Hubtask**: a
 strip of the switched-off products, each with a one-line value and *Try it*, which takes the
-matching template through §3.2's dialog (*Pages* takes the *Team wiki*, *Assets* the
-*Configuration items*) — for holders of `STRUCTURE` only; nobody else sees a
+matching template through §3.2's dialog (*Pages* takes the *Team wiki*, *Inventory* the
+*Inventory objects*) — for holders of `STRUCTURE` only; nobody else sees a
 product they cannot switch on. The strip can be dismissed for good.
 
 ### 3.4 Tours
@@ -368,7 +368,7 @@ the person's requests.
 `hubctl workspace demo --workspace <short>` (and `make demo`) fills a workspace through the public
 API: one starter template of each family with its marked samples, plus pages with pictures, a
 whiteboard, a goal period with key results, a portfolio and a dashboard with charts, assets and
-CIs, a desk with portal requests and running SLAs, time records over two weeks. It is idempotent,
+objects, a desk with portal requests and running SLAs, time records over two weeks. It is idempotent,
 marks everything as sample, and removes it in one act. It is how the owner sees what exists and
 what the UI/UX run walks "with very much content"; the R3 walk of `test/load/PLAN.md` extends to
 every product home.
@@ -376,7 +376,7 @@ every product home.
 Today: `hubctl workspace demo --workspace <short>` fills the credential's workspace (the short
 name is a guard against filling another) with the showcase of `cmd/hubctl/DemoContent.go`, written
 by the one signed-in person: the four templates with the desk's samples, the Scrum, Kanban, project
-and desk hubs with their entries, sprints, releases, plan, risks, the desk's calls and CIs, pages
+and desk hubs with their entries, sprints, releases, plan, risks, the desk's calls and objects, pages
 with an image and versions, three whiteboards, two weeks of the person's own time, goals with key
 results and check-ins, two portfolios and two dashboards. Every object it makes is marked under
 a key (`POST /tenant/samples`, migration 0384); a second run makes only what no mark holds, and
@@ -397,7 +397,7 @@ people and requesters and runs the same showcase as its owner with `--voices`: w
 there - their comments, check-ins, own time and timesheets, a requester's request and reply -
 comes back in order and is written as each of them, the CAB approves the change as itself, and two
 agents are registered (not marked). Another person's time stays theirs when the showcase is removed
-(T-04). Not marked: the goal period (a frame, found by name), CIs, sprints and releases (they leave
+(T-04). Not marked: the goal period (a frame, found by name), objects, sprints and releases (they leave
 with their hub), and the workspace's kinds of work, rates and absences.
 
 ---
@@ -414,7 +414,7 @@ already there, the templates offered, the first act, and what stays folded until
 | Service desk | A desk collection with the ITIL or basic workflow, queues as saved views, a portal, a business calendar Mon–Fri 8–18, P1–P4 SLAs | ITIL service desk, Internal IT, Facility, HR, Customer support | *Open the portal* to see what requesters see; *New request* | Intake mail, organisations, canned replies, approvals, CMDB links |
 | Plans | A plan over the hub's dated entries; today marked | Classic project, Hybrid project, Scrum team, Scaled agile | *Add a phase* / *Plan a sprint* | Tolerances, baselines, critical path, cost |
 | Time | The reader's week; the workspace's kinds of work | — (the defaults are the template's) | *Start a timer* / *Record time* | Approval of weeks, rates, export |
-| Assets | An inventory with the shipped CI types (laptop, server, licence, service) | IT asset register, Internal IT | *Add an asset* / *Import* | Connectors, discovery runs, duplicates, campaigns, software register |
+| Inventory | An inventory with the shipped object types (laptop, server, licence, service) | IT inventory, Internal IT | *New object* / *Import* | Connectors, discovery runs, duplicates, campaigns, software register |
 | Goals | **The current quarter as the default period**, created on first visit by a holder or offered in one press, editable | Quarterly OKRs, Delivery dashboard, Portfolio | *New goal* | Check-in rhythm, weighting, public roadmap link |
 | Agents | — | The shipped agent roles (triage, summariser) | *Add an agent* | Budgets, registered-only, run traces |
 
@@ -500,7 +500,7 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   composition, `lib/product/CreateDialog.svelte` (the title field, the gallery, the product's own
   fields, the *In:* chip listing the hubs where the product is on and the reader may write, the
   one primary beside *Cancel*), filled by pages (Blank, the hub's own templates, Hubtask's pages
-  and spaces as cards), whiteboards, configuration items and sprints; an entry's is capture's
+  and spaces as cards), whiteboards, objects and sprints; an entry's is capture's
   dialog with its place chip (design-system §11.8). A product home's act opens it at the place
   holding most of the product.
 * **Creating a hub shows the template gallery**, grouped by family, the four presets as its
@@ -517,10 +517,10 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
 ### 5.3 Find
 
 * **Search is one door for every object the reader may see** (P-19). `/search` fans out to the
-  existing per-kind searches — entries, pages (`SearchPages`), boards, CIs and assets by title,
+  existing per-kind searches — entries, pages (`SearchPages`), boards, objects by title,
   goals, portfolios and dashboards by name, releases and sprints, and posts once published, for
   their audience alone and never as pages — and groups the results by kind
-  with a kind filter (*All · Entries · Pages · Boards · Assets · Goals …*), one `ListRow` anatomy
+  with a kind filter (*All · Entries · Pages · Boards · Inventory · Goals …*), one `ListRow` anatomy
   for each. Module switches and READ per object are respected as each per-kind search already
   does. Searching inside attached files stays out (the owner's second answers, 11).
 * **The palette** gets one source per module, registered beside its navigation row, with the top
@@ -538,7 +538,7 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   `ModuleSwitches` documents. A test over the administration routes asserts each uses the shell.
   The desk's, the time's and the assets' settings, each its home's last tab, stand on it too - one
   section at a time, never a second row of tabs - and the home's head keeps its create act there.
-  The assets' class tree shows its families, each deeper branch folded until opened.
+  The inventory's object type tree shows its families, each deeper branch folded until opened.
 * **Pickers, never keys.** A setting that names a type, a status, a group, a priority or a field
   is a picker fed by the workspace's own values, validated before saving; a duration is a
   `DurationInput` in minutes, hours or business days, converted on the client; a recurrence is a
@@ -826,32 +826,42 @@ four Ls, mad-sad-glad), Brainstorm, User story map, Kanban sketch and Flowchart,
 of what it puts; an exported board is a folded alternative to a template. On an open board a
 template is chosen in the same gallery and put by the dialog's own button.
 
-### 7.3 Assets and the CMDB
+### 7.3 Inventory: objects and their relations
 
-*Inventory* first, with a health summary above it (*218 assets · 6 need attention · 3 licences
-expire this month*). The operator's tabs — runs, duplicates, connectors, campaigns, register,
+The product is *Inventory* (de *Inventar*), an object database: it maps any structure as related
+objects - hardware, software, services, contracts, locations, anything a process needs - so that
+processes can be automated over connected information, not merely an inventory tool (the owner's
+decision of 2026-11-14). Its words on every screen: *object* (de *Objekt*), *object type*
+(*Objekttyp*), *attribute* (*Attribut*), *relation* (*Beziehung*) and *relation type*
+(*Beziehungstyp*); an object's cost, supplier and warranty are its *register record* (*Bestand*,
+*Bestandsdatensatz*) under *Devices and licences* (*Geräte und Lizenzen*). "Object" is
+said only in the help, as the ITIL word for objects in IT operations (*In IT, objects are also
+called objects (ITIL)*, the empty inventory's hint); no display text says "Asset".
+
+*Inventory* first, with a health summary above it (*218 objects · 6 need attention · 3 licences
+expire this month*). The operator's tabs — runs, duplicates, connectors, campaigns, devices and licences,
 software — go behind *Manage* (one tab that opens them as a second strip), visible to whoever
 may run them. A lifecycle state is a non-interactive `Badge`, never a bordered pill that reads as
-a button. A CI's detail shows its relations as a small graph with the list beside it.
+a button. An object's detail shows its relations as a small graph with the list beside it.
 
-As built: the hub's *Assets* has a `PageHeader` with the trail, a figure (*40 configuration items ·
-6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New configuration
-item* as the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
+As built: the hub's *Inventory* has a `PageHeader` with the trail, a figure (*40 objects ·
+6 need attention*, and a danger badge *1 alert firing* while alerts fire) and *New object* as
+the primary; its list holds *Import a file…*, *New connector*, *New group* and *Start a
 campaign*, each opening its section's own dialog once. No licence count is drawn: no read answers
 which licences expire. The tool's view bar is *Inventory · Health · Alerts · Map · Manage ▾*
 (*Map* holds the groups and the service map); *Manage ▾* is a menu of *Runs · Duplicates ·
-Connectors · Campaigns · Register · Software · Import*, never a second strip, and is drawn for
+Connectors · Campaigns · Devices and licences · Software · Import*, never a second strip, and is drawn for
 whoever may write or shape the hub, the import for a writer only; for a reader without it,
-*Register* and *Software*, which only list, join the view bar (UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
+*Devices and licences* and *Software*, which only list, join the view bar (UC-AST-12 check 5); an address naming a section the reader cannot reach shows the inventory. The inventory's rows are
 `ListRow`s with the lifecycle as a neutral `Badge` and the state only where it is not OK; an
-empty inventory offers the create and the import, a reader is told how CIs arrive. A connector is
+empty inventory offers the create and the import, a reader is told how objects arrive. A connector is
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched
 off*), when it last and next runs, *Pull now* as its one act and the dry run, the full pull,
 *Change* and the credential in its menu; an alert intake shows its address with a line about its
 secret. Alerts narrow in a toolbar; an empty list says how alerts arrive and offers *Set up an
-alert intake* to whoever may define one, narrowed to firing it says *Nothing is firing*. A CI's
-head is a `PageHeader` (trail, class, lifecycle, *Copy the reference*); its relations are drawn
-as what points at it, the CI and what it points at, six a side with the rest counted, beside the
+alert intake* to whoever may define one, narrowed to firing it says *Nothing is firing*. An object's
+head is a `PageHeader` (trail, object type, lifecycle, *Copy the reference*); its relations are drawn
+as what points at it, the object and what it points at, six a side with the rest counted, beside the
 list from the expanded width and above it on a phone, hidden from assistive technology because
 the list carries every relation with its link.
 
@@ -1022,7 +1032,7 @@ agent starts from its shipped roles.
 As built: `/agents` is the agents' one screen, and the administration's and the reader's own
 addresses draw the same one. The head names the figure (*2 live · 1 draft · 3 waiting for a
 person*) and *Add an agent* as its primary, the split offering the shipped roles (ticket triage,
-knowledge draft, duplicate review, CI suggestion), each prefilled with its name, what it does and
+knowledge draft, duplicate review, object suggestion), each prefilled with its name, what it does and
 the domain's default budget — a zero budget allows nothing, and a card whose budget holds a zero
 says so. The tabs are *Agents · Waiting · Runs · Settings*, Settings for whoever
 administers agents (the kill switch, MCP's registered-only, the models, the metering). A card
@@ -1032,7 +1042,7 @@ held acts lead. A run reads *Triage helper on an entry · 2 proposals · 1,840 t
 workspace offers the roles; a reader who may not add one is told that an administrator does. A
 held act of a shipped role is said in words (`heldActWordsOf`): *Add an internal comment to an
 entry* with the comment and *Open the entry*, *Create the page "…"* with its text, *Merge a
-duplicate configuration item into the one that stays*. Not built: an act no shipped role makes -
+duplicate object into the one that stays*. Not built: an act no shipped role makes -
 an external agent may call any use case its scopes allow - keeps the use case's name and the
 input's keys, and the agent's ledger in its detail shows the names; words for them need a phrase
 per use case, which none has today.
@@ -1047,7 +1057,7 @@ creating a collection stays.
 As built (`HubProductLines`): above the cards, a line for *Plan* (the running sprint ending
 soonest and its days left, then the next release; *No sprint running, no release planned* where
 neither is), *Pages* (the content pages changed since the reader's week began, in the reader's
-zone) and *Assets* (the inventory's total and what needs attention), each leading to its screen
+zone) and *Inventory* (the inventory's total and what needs attention), each leading to its screen
 and drawn only once its read answered; *Whiteboards* (the boards changed since the week began,
 drawn only where the hub's list came whole), *Desk* (the desks' open requests and those about to
 breach, as the desk's queues count them), *Time* (the reader's own time recorded here this week)
@@ -1314,7 +1324,7 @@ workspace's — English*), so leaving it says what it means.
   the ladder (D-3, `design-system.md` §11.8); the entry's panel beside a collection stays. *Advanced* is not
   folded on Mail, Voice, Retention, Backup and the workspace: none has a setting the direction names as advanced, and Mail's filing order and
   handles are what a newcomer reads to send mail in.
-* **A product's settings at its home** (§8.2): the service desk's, the configuration items',
+* **A product's settings at its home** (§8.2): the service desk's, the inventory's,
   time's and the agents' screens left the administration column. Each is its home's last tab, a
   settings page of its own whose section list replaces the home's tabs, without the home's create
   act and with the product in the trail (page-system §9.6, PS-2), each section at `?section=` -

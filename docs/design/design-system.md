@@ -533,7 +533,7 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   the lozenge without a chevron and the reason beside it. `primaryStep` in `steps.ts` chooses the
   next step: the workflow's marked one if the reader may take it, otherwise the first allowed step
   forward, never a step back; `defaultSteps` makes every status reachable with *Done* as the next.
-* **`ObjectHead`** — one head for entry, ticket, configuration item, goal, release, agent and
+* **`ObjectHead`** — one head for entry, ticket, inventory object, goal, release, agent and
   portfolio (WB-1): the breadcrumb and the tools (hidden on a phone, where the bar carries them), the
   key with its product's tile, the type lozenge and a meta line, the title edited in place (the
   words or the pencil; Enter keeps, Escape gives the old title back, blur keeps), and the action

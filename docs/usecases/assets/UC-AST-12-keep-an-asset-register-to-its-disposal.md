@@ -1,6 +1,6 @@
 ---
 id: UC-AST-12
-title: Keep an asset register to its disposal
+title: Keep the register record of a device or licence to its disposal
 context: assets
 actors: [PE-admin, PE-member, PE-auditor]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
@@ -10,11 +10,11 @@ tasks: []
 checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/cmdb/AssetMoves_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, test/integration/cmdb_work_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/assetsscreen.test.mjs, core/application/service/cmdb/Configuration_test.go]
 ---
 
-# Keep an asset register to its disposal
+# Keep the register record of a device or licence to its disposal
 
 ## Goal
 
-What an object cost, where it came from, who holds it and how it left is kept with the configuration item it is, from the request to its secure disposal, and the item's lifecycle follows.
+What an object cost, where it came from, who holds it and how it left is kept with the object it is, from the request to its secure disposal, and the object's lifecycle follows.
 
 ## Story
 
@@ -22,11 +22,11 @@ A new laptop is requested for Kai. Dana records it as ordered, receives it into 
 
 ## How to check
 
-1. A CI's asset record holds its tag, cost in minor units with its currency, purchase day, supplier, warranty end, contract (a contract CI of the hub), stockroom (a location CI of the hub), the person holding it and the request entry it came from; a cost without a currency and a warranty ending before the purchase are refused. The record keeps the moment it was registered with the state it started in, who registered it and with whom or in which stockroom; one registered before these moments were kept answers its state alone, with no date invented.
-2. An asset moves requested → ordered → in stock → deployed → retired → disposed, deployed back to stock and retired back to stock; it is deployed only to a person or a stockroom, and the CI's lifecycle stage follows each move. Each move keeps its moment, who moved it and to whom or which stockroom, and the record answers its life oldest first.
-3. Disposing needs its method - wiped, destroyed, recycled, returned, sold - and the reference of the certificate that proves it; a disposed asset moves no more, and nothing is deleted.
-4. Asset records travel to a device filed under their hub.
-5. The *Assets* screen lists a hub's register with its states and warranties, and a CI's screen registers its asset and moves it, the disposal with its certificate.
+1. An object's register record holds its tag, cost in minor units with its currency, purchase day, supplier, warranty end, contract (a contract object of the hub), stockroom (a location object of the hub), the person holding it and the request entry it came from; a cost without a currency and a warranty ending before the purchase are refused. The record keeps the moment it was registered with the state it started in, who registered it and with whom or in which stockroom; one registered before these moments were kept answers its state alone, with no date invented.
+2. A register record moves requested → ordered → in stock → deployed → retired → disposed, deployed back to stock and retired back to stock; it is deployed only to a person or a stockroom, and the object's lifecycle stage follows each move. Each move keeps its moment, who moved it and to whom or which stockroom, and the record answers its life oldest first.
+3. Disposing needs its method - wiped, destroyed, recycled, returned, sold - and the reference of the certificate that proves it; a disposed object moves no more, and nothing is deleted.
+4. Register records travel to a device filed under their hub.
+5. The *Inventory* screen lists a hub's devices and licences with their states and warranties, and an object's screen registers its record and moves it, the disposal with its certificate.
 
 ## Where it ends
 

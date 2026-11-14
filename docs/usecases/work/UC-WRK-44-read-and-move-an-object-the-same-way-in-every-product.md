@@ -14,7 +14,7 @@ checked_by: [apps/webapp/src/lib/entries/entrysteps.test.ts, apps/webapp/src/lib
 
 ## Goal
 
-A person who has read one object - a story, a ticket, a configuration item, a goal, a release,
+A person who has read one object - a story, a ticket, an inventory object, a goal, a release,
 an agent - reads every other one without learning a new screen: the same head, the same place for
 the status and the next step, the content in the middle and the properties on the right.
 
@@ -49,7 +49,7 @@ phone the same ticket is one column: the marks are a switch, the properties a sh
 6. The status menu is the one of UC-FLW-06; the step buttons beside the status are gone.
 7. On a phone (390 px wide) the jump marks switch between sections, one shown at a time, and the
    properties open as a sheet behind *All properties*.
-8. Configuration item, goal, release, agent and portfolio pages start with the same head: key or
+8. Inventory object, goal, release, agent and portfolio pages start with the same head: key or
    tile, type, title, state and their next act in the same places.
 
 ## Where it ends
@@ -61,4 +61,4 @@ phone the same ticket is one column: the marks are a switch, the properties a sh
 
 * Check 4: not met - no engine walk yet proves the note tab on a ticket, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
 * Check 5: not met - the deadlines' order and chip are proven as a unit (`deadlines.test.ts`), no engine walk yet, work surface family 3.1.
-* Check 8: not met - the heads of configuration item, goal, release, agent and portfolio, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
+* Check 8: not met - the heads of inventory object, goal, release, agent and portfolio, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
