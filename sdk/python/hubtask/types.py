@@ -4818,6 +4818,9 @@ class DocumentServer(TypedDict, total=False):
     kind: Required[Literal["NONE", "COLLABORA_ONLINE", "ONLYOFFICE", "EURO_OFFICE", "MICROSOFT_365"]]
     url: str
 
+class DocumentServerCheck(TypedDict, total=False):
+    reached: Required[bool]
+
 class MediaEditingSession(TypedDict, total=False):
     access_token: Required[str]
     access_token_ttl: Required[int]

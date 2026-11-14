@@ -2945,6 +2945,7 @@ func (pending) DeletePagePublicLink(w http.ResponseWriter, r *http.Request, _ op
 func (pending) ReadPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 func (pending) ReadDocumentServer(w http.ResponseWriter, r *http.Request)    { notAvailable(w, r) }
 func (pending) SetDocumentServer(w http.ResponseWriter, r *http.Request)     { notAvailable(w, r) }
+func (pending) CheckDocumentServer(w http.ResponseWriter, r *http.Request)   { notAvailable(w, r) }
 
 func (pending) SetPublicLinksPolicy(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 

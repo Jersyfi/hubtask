@@ -22823,6 +22823,37 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /media:document-server-check:
+    post:
+      tags: [media]
+      operationId: checkDocumentServer
+      x-hubtask-rest: generated
+      x-hubtask-cli: "media document-server check"
+      summary: Test a document server before choosing it
+      description: >
+        Asks the server at the given https origin for its WOPI discovery, without storing
+        anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE
+        at the workspace; an agent never asks. Refused with
+        `media.document_server_private_network` for an address inside a private network, which
+        this installation does not call; with `media.document_server_unreachable` where nothing
+        answers; and with `media.document_server_no_discovery` where something answers that is
+        not a document server.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DocumentServer" }
+      responses:
+        "200":
+          description: The server answered its discovery
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DocumentServerCheck" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /wopi/files/{mediaId}:
     parameters:
       - $ref: "#/components/parameters/MediaId"
@@ -39058,6 +39089,14 @@ components:
         url:
           type: string
           description: The server's https origin; absent for NONE.
+    DocumentServerCheck:
+      type: object
+      additionalProperties: false
+      required: [reached]
+      properties:
+        reached:
+          type: boolean
+          description: The server answered its WOPI discovery.
     MediaEditingSession:
       type: object
       required: [access_token, access_token_ttl, wopi_src, server]

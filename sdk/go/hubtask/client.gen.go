@@ -18007,6 +18007,12 @@ type DocumentServer struct {
 // DocumentServerKind defines model for DocumentServer.Kind.
 type DocumentServerKind string
 
+// DocumentServerCheck defines model for DocumentServerCheck.
+type DocumentServerCheck struct {
+	// Reached The server answered its WOPI discovery.
+	Reached bool `json:"reached"`
+}
+
 // DropAnswer defines model for DropAnswer.
 type DropAnswer struct {
 	Item    WorkItem          `json:"item"`
@@ -32795,6 +32801,9 @@ type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 // SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
 type SetDocumentServerJSONRequestBody = DocumentServer
 
+// CheckDocumentServerJSONRequestBody defines body for CheckDocumentServer for application/json ContentType.
+type CheckDocumentServerJSONRequestBody = DocumentServer
+
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
 
@@ -41534,6 +41543,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
 	SetDocumentServer(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDocumentServerWithBody Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDocumentServer Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServer(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMemberships Who holds a role at a scope
 	//
@@ -62029,6 +62056,44 @@ func (c *Client) SetDocumentServerWithBody(ctx context.Context, contentType stri
 // Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
 func (c *Client) SetDocumentServer(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetDocumentServerRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDocumentServerWithBody Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *Client) CheckDocumentServerWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDocumentServerRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDocumentServer Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *Client) CheckDocumentServer(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDocumentServerRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -98324,6 +98389,46 @@ func NewSetDocumentServerRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewCheckDocumentServerRequest calls the generic CheckDocumentServer builder with application/json body
+func NewCheckDocumentServerRequest(server string, body CheckDocumentServerJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckDocumentServerRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCheckDocumentServerRequestWithBody constructs an http.Request for the CheckDocumentServer method, with any body, and a specified content type
+func NewCheckDocumentServerRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/media:document-server-check")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListMembershipsRequest constructs an http.Request for the ListMemberships method
 func NewListMembershipsRequest(server string, params *ListMembershipsParams) (*http.Request, error) {
 	var err error
@@ -120877,6 +120982,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /media:document-server (the `SetDocumentServer` operationId).
 	SetDocumentServerWithResponse(ctx context.Context, body SetDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDocumentServerResult, error)
+
+	// CheckDocumentServerWithBodyWithResponse Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error)
+
+	// CheckDocumentServerWithResponse Test a document server before choosing it
+	//
+	// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+	CheckDocumentServerWithResponse(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error)
 
 	// ListMembershipsWithResponse Who holds a role at a scope
 	//
@@ -153831,6 +153954,61 @@ func (r SetDocumentServerResult) ContentType() string {
 	return ""
 }
 
+type CheckDocumentServerResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DocumentServerCheck
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckDocumentServerResult) GetJSON200() *DocumentServerCheck {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckDocumentServerResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r CheckDocumentServerResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckDocumentServerResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckDocumentServerResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckDocumentServerResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckDocumentServerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListMembershipsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -182180,6 +182358,36 @@ func (c *ClientWithResponses) SetDocumentServerWithResponse(ctx context.Context,
 	return ParseSetDocumentServerResult(rsp)
 }
 
+// CheckDocumentServerWithBodyWithResponse Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *ClientWithResponses) CheckDocumentServerWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error) {
+	rsp, err := c.CheckDocumentServerWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDocumentServerResult(rsp)
+}
+
+// CheckDocumentServerWithResponse Test a document server before choosing it
+//
+// Asks the server at the given https origin for its WOPI discovery, without storing anything, so the administration sees whether the workspace can reach it. Needs STRUCTURE at the workspace; an agent never asks. Refused with `media.document_server_private_network` for an address inside a private network, which this installation does not call; with `media.document_server_unreachable` where nothing answers; and with `media.document_server_no_discovery` where something answers that is not a document server.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /media:document-server-check (the `CheckDocumentServer` operationId).
+func (c *ClientWithResponses) CheckDocumentServerWithResponse(ctx context.Context, body CheckDocumentServerJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDocumentServerResult, error) {
+	rsp, err := c.CheckDocumentServer(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDocumentServerResult(rsp)
+}
+
 // ListMembershipsWithResponse Who holds a role at a scope
 //
 // The memberships granted **at** the scope named — an account or a group, a role, an
@@ -209523,6 +209731,46 @@ func ParseSetDocumentServerResult(rsp *http.Response) (*SetDocumentServerResult,
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckDocumentServerResult parses an HTTP response from a CheckDocumentServerWithResponse call
+func ParseCheckDocumentServerResult(rsp *http.Response) (*CheckDocumentServerResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckDocumentServerResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DocumentServerCheck
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 

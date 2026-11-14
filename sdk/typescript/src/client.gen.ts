@@ -4105,6 +4105,11 @@ export class HubtaskClient {
     return this.call("PUT", "/media:document-server", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Test a document server before choosing it */
+  checkDocumentServer(body: NonNullable<operations["checkDocumentServer"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["checkDocumentServer"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/media:document-server-check", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** GET /wopi/files/{mediaId}
    * Public: sent without a bearer where the client holds none. */
   checkWopiFileInfo(mediaId: string, options: CallOptions & { readonly query?: NonNullable<operations["checkWopiFileInfo"]['parameters']['query']> } = {}): Promise<operations["checkWopiFileInfo"]['responses'][200]['content']["application/json"]> {

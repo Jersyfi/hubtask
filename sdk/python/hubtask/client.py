@@ -3263,6 +3263,10 @@ class Client:
         """Choose the workspace's document server"""
         return self._call("PUT", "/media:document-server", {}, None, {}, body, "json", "application/json", "json")
 
+    def check_document_server(self, body: "DocumentServer") -> "DocumentServerCheck":
+        """Test a document server before choosing it"""
+        return self._call("POST", "/media:document-server-check", {}, None, {}, body, "json", "application/json", "json")
+
     def check_wopi_file_info(self, media_id: str, *, query: dict[str, Any] | None = None) -> "WopiFileInfo":
         """GET /wopi/files/{mediaId}"""
         return self._call("GET", "/wopi/files/{mediaId}", {"mediaId": media_id}, query, {}, None, "none", None, "json")

@@ -2453,6 +2453,7 @@ func run() error {
 	documentServers := mediaservice.DocumentServers{
 		Wopi: postgres.WopiRepository{}, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		Server: documentserver.Server{Client: outboundClient},
 	}
 	useCases, err := usecase.NewRegistry(
 		// Every act of a registered agent passes its governance first (UC-AGT-02).
@@ -3873,6 +3874,7 @@ func run() error {
 		mediaRead.Descriptor(),
 		mediaservice.ReadDocumentServer{Servers: documentServers}.Descriptor(),
 		mediaservice.SetDocumentServer{Servers: documentServers}.Descriptor(),
+		mediaservice.CheckDocumentServer{Servers: documentServers}.Descriptor(),
 		mediaservice.DeleteMedia{
 			Objects: mediaObjects, Authorizer: authorizer, Audit: auditSink, Jobs: jobs,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},

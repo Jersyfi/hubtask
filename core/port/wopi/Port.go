@@ -42,6 +42,11 @@ type Server interface {
 	// ConvertToPDF sends the file and streams back its PDF. ErrUnsupported when the server's kind
 	// converts nothing Hubtask can reach.
 	ConvertToPDF(ctx context.Context, choice media.DocumentServerChoice, source Source) (io.ReadCloser, error)
+	// Reach asks the server for its WOPI discovery, the administration's test of a choice before
+	// it is stored. media.document_server_private_network when the address lies inside a
+	// private network the installation does not call, media.document_server_unreachable when
+	// nothing answers, media.document_server_no_discovery when the answer is no discovery.
+	Reach(ctx context.Context, choice media.DocumentServerChoice) error
 }
 
 // Source is the file a conversion reads: its bytes, and where the server may fetch them when its

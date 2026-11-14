@@ -13,11 +13,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	env "github.com/Jersyfi/hubtask/core/port/environment"
 	port "github.com/Jersyfi/hubtask/core/port/httpclient"
 	"github.com/Jersyfi/hubtask/core/port/wopi"
+	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
 
 // plain stands in for GuardedClient against a local stub, through the stub's own client: the
@@ -126,4 +129,57 @@ func TestAConversionThatIsNoPDFIsRefused(t *testing.T) {
 	if shared.AsError(err).DetailCode != "media.conversion_unavailable" {
 		t.Fatalf("the largest vendor's office converted: %v", err)
 	}
+}
+
+// UC-MED-06 check 1: the administration's test of a server asks its WOPI discovery and tells
+// apart a server that answers, something that answers but is no document server, nothing at all,
+// and an address inside a private network, which the outbound guard refuses before any call.
+func TestADocumentServerIsReachedThroughItsDiscovery(t *testing.T) {
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/hosting/discovery":
+			_, _ = io.WriteString(w, `<?xml version="1.0"?><wopi-discovery><net-zone/></wopi-discovery>`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer stub.Close()
+	welcome := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "<html>welcome</html>")
+	}))
+	defer welcome.Close()
+	gone := httptest.NewServer(http.NotFoundHandler())
+	gone.Close()
+
+	server := Server{Client: plain{client: stub.Client()}}
+	for _, kind := range []media.DocumentServer{media.DocumentServerCollabora, media.DocumentServerOnlyOffice, media.DocumentServerEuroOffice} {
+		if err := server.Reach(t.Context(), media.DocumentServerChoice{Kind: kind, URL: stub.URL}); err != nil {
+			t.Errorf("%s: %v", kind, err)
+		}
+	}
+	for _, c := range []struct {
+		name, url, code string
+	}{
+		{"a web page", welcome.URL, "media.document_server_no_discovery"},
+		{"nothing listening", gone.URL, "media.document_server_unreachable"},
+	} {
+		err := server.Reach(t.Context(), media.DocumentServerChoice{Kind: media.DocumentServerCollabora, URL: c.url})
+		if detail(err) != c.code {
+			t.Errorf("%s: got %v, want %s", c.name, err, c.code)
+		}
+	}
+
+	guarded := Server{Client: httpclient.NewGuardedClient(env.OutboundConfig{Timeout: time.Second}, httpclient.NewGuard(env.OutboundConfig{}))}
+	err := guarded.Reach(t.Context(), media.DocumentServerChoice{Kind: media.DocumentServerCollabora, URL: stub.URL})
+	if detail(err) != "media.document_server_private_network" {
+		t.Errorf("a server on a private network: got %v", err)
+	}
+}
+
+func detail(err error) string {
+	var typed *shared.Error
+	if errors.As(err, &typed) {
+		return typed.DetailCode
+	}
+	return ""
 }

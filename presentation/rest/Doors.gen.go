@@ -77,6 +77,7 @@ var restDoors = map[string]restDoor{
 	"changeRole":                        {UseCase: "ChangeRole", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"changeWhiteboardComment":           {UseCase: "ChangeWhiteboardComment", Status: 200, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkConfig":                       {UseCase: "CheckConfig", Status: 200, Query: []string{"hub_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"checkDocumentServer":               {UseCase: "CheckDocumentServer", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkInGoal":                       {UseCase: "CheckInGoal", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"confidence"}},
 	"checkMailbox":                      {UseCase: "CheckMailbox", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"checkPassword":                     {UseCase: "CheckPassword", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1266,6 +1267,13 @@ func (c *RestController) ChangeWhiteboardComment(w http.ResponseWriter, r *http.
 func (c *RestController) CheckConfig(w http.ResponseWriter, r *http.Request, params openapi.CheckConfigParams) {
 	var answer openapi.ConfigCheck
 	c.door(w, r, restDoors["checkConfig"], usecase.Input{}, params, nil, &answer)
+}
+
+// CheckDocumentServer answers POST /media:document-server-check by the generated mapping.
+func (c *RestController) CheckDocumentServer(w http.ResponseWriter, r *http.Request) {
+	var body openapi.CheckDocumentServerJSONRequestBody
+	var answer openapi.DocumentServerCheck
+	c.door(w, r, restDoors["checkDocumentServer"], usecase.Input{}, nil, &body, &answer)
 }
 
 // CheckInGoal answers POST /goals/{goalId}/check-ins by the generated mapping.

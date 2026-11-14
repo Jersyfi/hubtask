@@ -6,13 +6,17 @@ package media
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/media"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/wopi"
 )
 
@@ -133,4 +137,69 @@ func hasAll(scopes []string, want ...string) bool {
 		}
 	}
 	return true
+}
+
+// probe is a document server that answers its discovery as told, and remembers what it was asked.
+type probe struct {
+	answer error
+	asked  []domain.DocumentServerChoice
+}
+
+func (p *probe) ConvertToPDF(context.Context, domain.DocumentServerChoice, wopi.Source) (io.ReadCloser, error) {
+	return nil, wopi.ErrUnsupported()
+}
+
+func (p *probe) Reach(_ context.Context, choice domain.DocumentServerChoice) error {
+	p.asked = append(p.asked, choice)
+	return p.answer
+}
+
+// UC-MED-06 check 1: the administration tests a server before choosing it - under STRUCTURE at
+// the workspace, never an agent, never an address the choice itself refuses - and the server's
+// refusal reaches it as the server's own code.
+func TestTheAdministrationTestsADocumentServer(t *testing.T) {
+	servers := func(server *probe, permission *authorizer) DocumentServers {
+		return DocumentServers{Authorizer: permission, Server: server, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now)}
+	}
+	admin := actor(mediaRead, mediaWrite)
+
+	server, permission := &probe{}, &authorizer{}
+	if err := servers(server, permission).Check(t.Context(), admin, "COLLABORA_ONLINE", "https://office.example"); err != nil {
+		t.Fatalf("a reachable server: %v", err)
+	}
+	if len(server.asked) != 1 || server.asked[0].URL != "https://office.example" {
+		t.Fatalf("asked %+v", server.asked)
+	}
+	if asked := permission.requests; len(asked) != 1 || asked[0].Permission != service.PermissionStructure ||
+		len(asked[0].Path) != 1 || asked[0].Path[0] != identity.TenantScope() {
+		t.Fatalf("asked %+v, want STRUCTURE at the workspace", asked)
+	}
+
+	private := shared.ErrValidation.WithDetail("media.document_server_private_network")
+	server = &probe{answer: private}
+	if err := servers(server, &authorizer{}).Check(t.Context(), admin, "ONLYOFFICE", "https://office.internal"); !errors.Is(err, private) {
+		t.Fatalf("the server's refusal: got %v", err)
+	}
+
+	agent := admin
+	agent.Kind = appshared.ActorAIAgent
+	for _, c := range []struct {
+		name       string
+		actor      appshared.ActorContext
+		permission *authorizer
+		kind, url  string
+	}{
+		{"an agent", agent, &authorizer{}, "COLLABORA_ONLINE", "https://office.example"},
+		{"no STRUCTURE", admin, &authorizer{err: shared.ErrForbidden}, "COLLABORA_ONLINE", "https://office.example"},
+		{"a plain http address", admin, &authorizer{}, "COLLABORA_ONLINE", "http://office.example"},
+		{"no server chosen", admin, &authorizer{}, "NONE", ""},
+	} {
+		server := &probe{}
+		if err := servers(server, c.permission).Check(t.Context(), c.actor, c.kind, c.url); err == nil {
+			t.Errorf("%s: tested", c.name)
+		}
+		if len(server.asked) != 0 {
+			t.Errorf("%s: the server was asked", c.name)
+		}
+	}
 }

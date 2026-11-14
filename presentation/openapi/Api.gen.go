@@ -18001,6 +18001,12 @@ type DocumentServer struct {
 // DocumentServerKind defines model for DocumentServer.Kind.
 type DocumentServerKind string
 
+// DocumentServerCheck defines model for DocumentServerCheck.
+type DocumentServerCheck struct {
+	// Reached The server answered its WOPI discovery.
+	Reached bool `json:"reached"`
+}
+
 // DropAnswer defines model for DropAnswer.
 type DropAnswer struct {
 	Item    WorkItem          `json:"item"`
@@ -32789,6 +32795,9 @@ type RequestMediaUploadJSONRequestBody = MediaUploadRequest
 // SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
 type SetDocumentServerJSONRequestBody = DocumentServer
 
+// CheckDocumentServerJSONRequestBody defines body for CheckDocumentServer for application/json ContentType.
+type CheckDocumentServerJSONRequestBody = DocumentServer
+
 // GrantMembershipJSONRequestBody defines body for GrantMembership for application/json ContentType.
 type GrantMembershipJSONRequestBody = MembershipGrant
 
@@ -35373,6 +35382,9 @@ type ServerInterface interface {
 	// SetDocumentServer Choose the workspace's document server
 	// (PUT /media:document-server)
 	SetDocumentServer(w http.ResponseWriter, r *http.Request)
+	// CheckDocumentServer Test a document server before choosing it
+	// (POST /media:document-server-check)
+	CheckDocumentServer(w http.ResponseWriter, r *http.Request)
 	// ListMemberships Who holds a role at a scope
 	// (GET /memberships)
 	ListMemberships(w http.ResponseWriter, r *http.Request, params ListMembershipsParams)
@@ -56264,6 +56276,20 @@ func (siw *ServerInterfaceWrapper) SetDocumentServer(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// CheckDocumentServer operation middleware
+func (siw *ServerInterfaceWrapper) CheckDocumentServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckDocumentServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMemberships operation middleware
 func (siw *ServerInterfaceWrapper) ListMemberships(w http.ResponseWriter, r *http.Request) {
 
@@ -66688,6 +66714,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:edit", wrapper.StartMediaEditing)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media:document-server", wrapper.ReadDocumentServer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media:document-server", wrapper.SetDocumentServer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media:document-server-check", wrapper.CheckDocumentServer)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/wopi/files/{mediaId}", wrapper.CheckWopiFileInfo)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/wopi/files/{mediaId}", wrapper.LockWopiFile)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/wopi/files/{mediaId}/contents", wrapper.GetWopiFile)

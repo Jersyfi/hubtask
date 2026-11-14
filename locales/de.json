@@ -15860,6 +15860,10 @@
   "media.document_server_url": "Gib die Adresse des Servers mit https:// an, ohne Anmeldung, Abfrage oder Fragment.",
   "media.document_server_read": "Dokumentenserver gelesen",
   "media.document_server_set": "Dokumentenserver geändert",
+  "media.document_server_check": "Dokumentenserver geprüft",
+  "media.document_server_private_network": "Diese Adresse liegt in einem privaten Netz. Hubtask ruft keine Adressen im eigenen Netz auf, deshalb ist ein Dokumentenserver dort nicht erreichbar. Nutze einen Server mit öffentlicher https-Adresse oder frage den Betrieb der Installation.",
+  "media.document_server_unreachable": "Unter dieser Adresse hat nichts geantwortet. Prüfe die Adresse und ob der Server läuft.",
+  "media.document_server_no_discovery": "Unter dieser Adresse hat etwas geantwortet, aber kein Dokumentenserver: Es kam keine WOPI-Discovery. Prüfe die Adresse.",
   "media.edit": "Datei zum Bearbeiten geöffnet",
   "wopi.operation_unknown": "Der Dokumentenserver hat etwas verlangt, das dieser Arbeitsbereich nicht anbietet.",
   "wopi.token_invalid": "Der Link zu dieser Datei ist abgelaufen. Öffne die Datei erneut."

@@ -325,6 +325,14 @@ var refusals = map[string]bool{
 	codeTargetBlocked:     true,
 }
 
+// IsPrivateTarget reports whether err is the guard refusing an address inside a private or
+// reserved network - the one refusal an operator can lift (HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS),
+// so a caller can say so.
+func IsPrivateTarget(err error) bool {
+	var typed *shared.Error
+	return errors.As(err, &typed) && typed.DetailCode == codeTargetBlocked
+}
+
 // IsBlocked reports whether err is the guard refusing a target. The webhook dispatcher needs it
 // to disable a subscription rather than retry it for 24 hours.
 func IsBlocked(err error) bool {

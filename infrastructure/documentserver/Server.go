@@ -24,6 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/httpclient"
 	"github.com/Jersyfi/hubtask/core/port/wopi"
+	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
 
 // conversionDeadline bounds one conversion, the result's fetch included.
@@ -60,6 +61,33 @@ func (s Server) ConvertToPDF(
 	default:
 		return nil, wopi.ErrUnsupported()
 	}
+}
+
+// reachDeadline bounds the administration's test of a server.
+const reachDeadline = 10 * time.Second
+
+// Reach asks <origin>/hosting/discovery, where Collabora Online, ONLYOFFICE and Euro-Office
+// answer their WOPI discovery.
+func (s Server) Reach(ctx context.Context, choice media.DocumentServerChoice) error {
+	ctx, cancel := context.WithTimeout(ctx, reachDeadline)
+	defer cancel()
+	response, err := s.Client.Do(ctx, port.Request{
+		Method: http.MethodGet, URL: choice.URL + "/hosting/discovery", TargetClass: targetClass,
+		Header: map[string][]string{"Accept": {"application/xml, text/xml"}},
+	})
+	switch {
+	case httpclient.IsPrivateTarget(err):
+		return shared.ErrValidation.WithDetail("media.document_server_private_network").WithCause(err)
+	case httpclient.IsBlocked(err):
+		return err
+	case err != nil:
+		return shared.ErrUnavailable.WithDetail("media.document_server_unreachable").WithCause(err)
+	}
+	if response.Status != http.StatusOK || !bytes.Contains(response.Body, []byte("<wopi-discovery")) {
+		return shared.ErrUnavailable.WithDetail("media.document_server_no_discovery").
+			WithCause(fmt.Errorf("the discovery answered %d", response.Status))
+	}
+	return nil
 }
 
 // collabora posts the file as a form to /cool/convert-to/pdf and reads the PDF back.

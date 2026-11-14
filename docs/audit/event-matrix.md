@@ -480,6 +480,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `media.deleted` | DeleteMedia | `media` | INFO | Every time |
 | `media.document_server_read` | ReadDocumentServer | `document_server` | INFO | When refused |
 | `media.document_server_set` | SetDocumentServer | `document_server` | NOTICE | Every time |
+| `media.document_server_check` | CheckDocumentServer | `document_server` | INFO | When refused |
 | `media.read` | GetMedia | `media` | INFO | When refused |
 | `media.staged` | RequestMediaUpload | `media` | INFO | Every time |
 
