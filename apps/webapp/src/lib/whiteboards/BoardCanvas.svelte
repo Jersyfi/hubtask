@@ -1288,7 +1288,16 @@
   const foldedTools = $derived(
     viewport.isCompact && writable ? DOCK.flatMap((group) => group.tools).filter((each) => !PHONE_DOCK.includes(each.tool)) : [],
   );
-  let fileInput = $state<HTMLInputElement | undefined>(undefined);
+  /** A picture or file from the insert menu: the platform's chooser alone, no control drawn (user-experience.md §5.10). */
+  function chooseFile(): void {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (file) void putFile(file);
+    };
+    input.click();
+  }
 
   const insertItems = $derived<MenuItem[]>([
     ...foldedTools.map((each) => ({ id: `tool:${each.tool}`, label: t(`app.whiteboards.tool_${each.tool.toLowerCase()}`), icon: ICONS[each.tool] })),
@@ -1305,7 +1314,7 @@
   function insertChose(id: string) {
     if (id.startsWith('tool:')) pickTool(id.slice(5) as Tool, false);
     else if (id === 'redo') redo();
-    else if (id === 'file') fileInput?.click();
+    else if (id === 'file') chooseFile();
     else if (id === 'entry') isPickingEntry = true;
     else if (id === 'template') isTemplating = true;
   }
@@ -1952,7 +1961,6 @@
               {/if}
             {/snippet}
           </Menu>
-          <input bind:this={fileInput} class="file" type="file" tabindex="-1" aria-hidden="true" onchange={(event) => { const input = event.currentTarget as HTMLInputElement; const file = input.files?.[0]; if (file) void putFile(file); input.value = ''; }} />
         {/if}
         {#if viewport.isCompact && selected.length > 0 && writable}
           <IconButton icon="sliders-horizontal" label={t('app.whiteboards.properties')} onclick={() => (barAsked = !barAsked)} />
@@ -2311,7 +2319,6 @@
     pointer-events: none;
   }
   .held { position: absolute; inset-block-start: var(--sp-025); inset-inline-end: var(--sp-025); inline-size: var(--sp-050); block-size: var(--sp-050); border-radius: var(--r-full); background: var(--accent-primary); }
-  .file { display: none; }
   .fan {
     inset-block-end: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-300));
     inset-inline: 0;

@@ -307,6 +307,20 @@ test('chromium: the home draws the boards opened on this device first, else the 
   assert.deepEqual(failures, []);
 });
 
+test('chromium: a picture or file from the insert menu opens the platform\'s chooser, no file control drawn on the board', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser);
+  t.after(() => context.close());
+  await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+  assert.equal(await page.locator('input[type=file]').count(), 0, 'the board draws a file control of its own');
+  await page.locator('[data-board-insert]:visible').click();
+  const chooser = page.waitForEvent('filechooser', { timeout: 5_000 });
+  await page.getByRole('menuitem', { name: 'Picture or file' }).click();
+  assert.ok(await chooser, 'no chooser opened');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: on a tablet a finger moves the board and a pen draws (UC-CNV-04 check 7, as far as touch emulation reaches)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
