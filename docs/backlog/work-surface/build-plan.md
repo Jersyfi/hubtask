@@ -158,3 +158,8 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
   person and file. (2) Without a document server no converter is added: office files show a card with type
   and size and the download; with one, its conversion endpoint renders the PDF preview. Still open with the
   owner: a document server on a private network (the outbound guard refuses private addresses).
+* **Owner's decision of 2026-11-14 (private network):** the outbound guard makes one exception: the
+  document server the administration entered may sit on a private network, for the calls to that server
+  only (conversion, WOPI). Every other private target stays refused. Entering it needs structure rights,
+  never an agent, and is audited; the operator can switch the exception off for the whole installation
+  (default on for self-hosting).
