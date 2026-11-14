@@ -124,7 +124,7 @@
     grid-auto-flow: column;
     grid-auto-columns: max-content;
     align-items: center;
-    column-gap: var(--sp-1000);
+    column-gap: var(--sp-600);
     padding: var(--sp-400) var(--sp-300);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
@@ -136,7 +136,7 @@
   .line.group { stroke-dasharray: var(--sp-025) var(--sp-050); }
   /* The way of a disruption is told by its dash, not by a colour the status gate could not set on a surface. */
   .line.struck { stroke: var(--text-primary); stroke-dasharray: var(--sp-050) var(--sp-050); }
-  .column { position: relative; display: flex; flex-direction: column; justify-content: center; gap: var(--sp-300); margin: 0; padding: 0; list-style: none; }
+  .column { position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: var(--sp-300); margin: 0; padding: 0; list-style: none; }
   .node {
     display: flex; align-items: center; gap: var(--sp-050);
     padding: var(--sp-050) var(--sp-150);

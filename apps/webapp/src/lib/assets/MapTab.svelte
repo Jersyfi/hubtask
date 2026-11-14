@@ -17,7 +17,7 @@
 
   import { alertsPath, classWord, collisionsInOrder, entryCisPath, entryKey, healthPath, objectWorkPath, serviceMapPath, type Words } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatDay, formatTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { MAP_DEPTHS, serviceGraph, serviceWork, troublePath, workMarks, type MapDepth } from './inventoryscenes.ts';
   import ServiceGraph from './ServiceGraph.svelte';
@@ -123,8 +123,12 @@
   });
 
   const when = (at: string) => formatDateTime(at, messages.locale);
-  const windowOf = (entry: CiWorkEntry) =>
-    entry.start_at && entry.due_at ? t('app.service_map.window', { from: when(entry.start_at), to: when(entry.due_at) }) : when((entry.start_at ?? entry.due_at)!);
+  // A window within one day names the day once: *Nov 19, 10:00 PM – 11:00 PM*.
+  const windowOf = (entry: CiWorkEntry) => {
+    if (!entry.start_at || !entry.due_at) return when((entry.start_at ?? entry.due_at)!);
+    const isOneDay = formatDay(entry.start_at, messages.locale) === formatDay(entry.due_at, messages.locale);
+    return t('app.service_map.window', { from: when(entry.start_at), to: isOneDay ? formatTime(entry.due_at, messages.locale) : when(entry.due_at) });
+  };
   const keyOf = (entry: CiWorkEntry) => entry.key ?? '';
 
   // The map as a list: every object drawn with how far below it lies, its stage, what is open on it
