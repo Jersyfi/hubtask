@@ -285,7 +285,6 @@
   .action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   /* One type size in the bar: the steps at the status button's 13 px semibold, the next step
      lifted by the primary's glow (the grammar mockup). */
-  .step :global(.button) { font-size: var(--fs-090); font-weight: var(--fw-semibold); }
   .step :global(.button[data-tone='primary']) { box-shadow: var(--shadow-glow); }
 
   .divider {

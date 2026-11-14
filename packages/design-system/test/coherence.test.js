@@ -96,3 +96,7 @@ test('an empty section is one line, and a work object\'s parts take the entry\'s
   const record = source('RecordPage.svelte');
   assert.match(record, /\{#if objectHead\}\n\s+<!--[^>]*-->\n\s+<FoldingSection id=\{`part-\$\{item\.id\}`\} title=\{item\.title\} count=\{item\.count\} emptyLabel=\{item\.emptyLabel\}>/u);
 });
+
+test('a head\'s next step is the Button of its size, no local type of its own (B-4)', () => {
+  assert.doesNotMatch(source('ObjectHead.svelte'), /\.step :global\(\.button\) \{[^}]*font-(size|weight)/u);
+});
