@@ -1949,4 +1949,7 @@
 
 
   .workflow-line { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  /* A line of names, not a sentence: the link style's, underlined on hover only. */
+  .workflow-line a { text-decoration: none; }
+  .workflow-line a:hover { text-decoration: underline; }
 </style>

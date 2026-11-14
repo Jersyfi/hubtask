@@ -269,3 +269,9 @@ test('a list grouped by status heads each group with the queue\'s badge and no c
   assert.match(list, /const rowChipOf = \(row: Row\) => \(isByStatus && row\.depth === 0 \? undefined : chipFor\(row\.item\)\);/u);
   assert.match(list, /\.group-head \.twist \{ position: relative; z-index: 1; \}/u, 'the toggle stands above the next row (P-2)');
 });
+
+test('a link a component leaves unstyled takes the design system\'s link style, underlined in running text only (C-1)', () => {
+  const css = readFileSync(join(srcDir, 'app.css'), 'utf8');
+  assert.match(css, /:where\(a:any-link\) \{\s*color: var\(--text-brand\);\s*text-decoration: none;/u, 'an unstyled link keeps the browser\'s underline');
+  assert.match(css, /:where\(a:any-link:hover\),\s*:where\(p, blockquote\) :where\(a:any-link\) \{\s*text-decoration: underline;/u, 'a link in a sentence lost its line');
+});
