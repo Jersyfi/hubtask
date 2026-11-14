@@ -2797,6 +2797,7 @@ func run() error {
 			searchservice.KindPortfolio: goalservice.PortfolioFinder{Steward: steward, Names: searchNames},
 			searchservice.KindRelease:   planningservice.ReleaseFinder{Planner: planner, Names: searchNames},
 			searchservice.KindSprint:    planningservice.SprintFinder{Planner: planner, Names: searchNames},
+			searchservice.KindPost:      knowledgeservice.PostFinder{Space: pageSpace},
 		}}.Descriptor(),
 		chatbotservice.ListChatBots{Bots: chatBots}.Descriptor(),
 		chatbotservice.CreateChatBot{Bots: chatBots}.Descriptor(),

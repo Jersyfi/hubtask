@@ -135,7 +135,13 @@ func TestAKeyKeepsTheSearchToItsKind(t *testing.T) {
 		}},
 		{"type: page, whiteboard budget", []string{KindPage, KindWhiteboard}, nil},
 		{"type: ticket printer", []string{KindTicket}, nil},
-		{"budget", []string{KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment, KindPortfolio, KindRelease, KindSprint}, nil},
+		{"budget", []string{KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment, KindPortfolio, KindRelease, KindSprint, KindPost}, nil},
+		{"type: post release", []string{KindPost}, func(t *testing.T, q Question) {
+			if q.Words != "release" {
+				t.Errorf("asked %+v", q)
+			}
+		}},
+		{"page.verified: true", []string{KindPage}, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.q, func(t *testing.T) {

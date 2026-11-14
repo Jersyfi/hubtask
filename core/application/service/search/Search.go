@@ -3,7 +3,7 @@
 
 // Package search is the one search over every kind of object (UC-WRK-18 check 9):
 // entries, pages, whiteboards, goals, dashboards, inventory items, people, file names,
-// comments, portfolios, releases and sprints in one answer, with a count per kind. Each kind is found by a Finder that asks that
+// comments, portfolios, releases, sprints and posts in one answer, with a count per kind. Each kind is found by a Finder that asks that
 // kind's own permission question of every hit, so the answer and its counts hold only what the
 // reader may read (rule 2, Q-5).
 package search
@@ -45,12 +45,15 @@ const (
 	KindPortfolio  = "PORTFOLIO"
 	KindRelease    = "RELEASE"
 	KindSprint     = "SPRINT"
+	// KindPost is a published post, found as itself and never as a page: its audience and moment
+	// are its own question (B-6).
+	KindPost = "POST"
 )
 
 // Kinds is every kind, in the default order.
 var Kinds = []string{
 	KindEntry, KindTicket, KindPage, KindWhiteboard, KindGoal, KindDashboard, KindAsset, KindPerson, KindFile, KindComment,
-	KindPortfolio, KindRelease, KindSprint,
+	KindPortfolio, KindRelease, KindSprint, KindPost,
 }
 
 const (
@@ -231,7 +234,7 @@ func Terms(words string) ([]string, error) {
 var objectKinds = map[string]string{
 	"task": KindEntry, "workpackage": KindEntry, "activity": KindEntry, "ticket": KindTicket,
 	"page": KindPage, "whiteboard": KindWhiteboard, "goal": KindGoal, "dashboard": KindDashboard,
-	"asset": KindAsset, "person": KindPerson, "file": KindFile, "comment": KindComment,
+	"asset": KindAsset, "person": KindPerson, "file": KindFile, "comment": KindComment, "post": KindPost,
 }
 
 // filterKinds are the kinds whose keys a query may narrow by.
@@ -343,7 +346,8 @@ func (h SearchAll) Execute(ctx context.Context, actor appshared.ActorContext, qu
 }
 
 // asks reports whether a kind is searched: kept by the query's keys and its `type:`, a person
-// and a portfolio only outside a hub, and asked something - entries and pages read words a name does not.
+// and a portfolio only outside a hub, and asked something - entries, pages and posts read words a
+// name does not; a post has no keys of its own, so words alone ask it.
 func (h SearchAll) asks(kind string, q Question, only string, typed map[string]bool) bool {
 	switch {
 	case only != "" && kind != only && (only != KindEntry || kind != KindTicket),
@@ -353,6 +357,8 @@ func (h SearchAll) asks(kind string, q Question, only string, typed map[string]b
 		return strings.TrimSpace(q.Words) != "" || q.Filter != nil
 	case kind == KindPage:
 		return strings.TrimSpace(q.Words) != "" || len(q.Conditions) > 0
+	case kind == KindPost:
+		return strings.TrimSpace(q.Words) != ""
 	}
 	return q.Narrows()
 }
@@ -405,7 +411,7 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 		Permission: service.PermissionRead,
 		Summary: "One search over every kind of object the caller may read - entries, pages, " +
 			"whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, " +
-			"releases and sprints - " +
+			"releases, sprints and posts - " +
 			"tickets apart from the other entries where TICKET is asked, a ticket key finding its entry - " +
 			"each hit with its kind, title, place, tile, the passage that matched where there is " +
 			"one and its state, grouped by kind and best first within a kind, at most size per " +
@@ -413,7 +419,8 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 			"lower bound. People and portfolios stand in no hub and are left out where hub_id narrows. " +
 			"People are found by their display name only, files by their name only; " +
 			"files and comments on entries, pages and whiteboards, where the caller reads what they are on. " +
-			"Among equally good pages a verified one comes first. q is a Hubtask query: its free " +
+			"Among equally good pages a verified one comes first. A post is found by its title and body once " +
+			"it is published, by a person it is for alone - never as a page, never a draft or a scheduled one. q is a Hubtask query: its free " +
 			"words are searched, its keys narrow - a key of one kind (asset.class, asset.stage, " +
 			"asset.owner, asset.location, asset.tag, page.verified, page.owner, goal.state) keeps the " +
 			"search to that kind, a key of entries to entries, type: chooses kinds; keys alone " +
@@ -423,7 +430,7 @@ func (h SearchAll) Descriptor() usecase.Descriptor {
 		ReadOnly:    true,
 		Input: []usecase.Field{
 			{Name: "q", Kind: usecase.KindString, Required: true, Description: "The words and keys as one Hubtask query, at most 200 characters; every free word must occur, every key narrows."},
-			{Name: "kinds", Kind: usecase.KindList, Description: "The kinds to search, in the order the answer groups them: ENTRY, TICKET, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT, PORTFOLIO, RELEASE, SPRINT. Omitted is every kind. TICKET is the entries of the collections that act as a desk; beside it, ENTRY holds the other entries."},
+			{Name: "kinds", Kind: usecase.KindList, Description: "The kinds to search, in the order the answer groups them: ENTRY, TICKET, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT, PORTFOLIO, RELEASE, SPRINT, POST. Omitted is every kind. TICKET is the entries of the collections that act as a desk; beside it, ENTRY holds the other entries."},
 			{Name: "hub_id", Kind: usecase.KindID, Description: "Only this hub's objects; people and portfolios stand in no hub and are then left out."},
 			{Name: "size", Kind: usecase.KindInt, Description: "At most this many hits per kind, 1 to 25; 5 when omitted."},
 		},
