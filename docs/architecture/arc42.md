@@ -522,6 +522,12 @@ levels of containment, and a task opens in a dialog or on a page of its own by o
 [ADR-0101](../adr/ADR-0101-one-page-system.md)). The clients fill the kinds; they draw no page
 shape of their own.
 
+What a client remembers of one device's use stays on that device, by identifier alone and per
+account, and ends with the session: the hubs visited for offline reading and the boards *recently
+opened* on the whiteboards' home, which falls back to the last changed. Nothing of it reaches the
+server. A new board is made at once and opened with its templates as a sheet rather than asked for
+in a dialog ([user-experience.md](./user-experience.md) §7.2).
+
 ---
 
 ## 9. Architecture decisions

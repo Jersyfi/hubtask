@@ -410,7 +410,7 @@ already there, the templates offered, the first act, and what stays folded until
 | Product | Already there on first use | Templates offered first | First act | Folded until needed |
 |---|---|---|---|---|
 | Pages | A space per hub with a home page; the template's guide pages | Handbook, How-to, Meeting notes, Decision log, Onboarding | *New page* in the space | Drafts and publishing, page review, public link, templates of pages |
-| Whiteboards | — | Retrospective, Brainstorm, User story map, Kanban sketch, Blank — a gallery with previews in the create dialog | *New whiteboard* | Voting, timer, history, backlinks, export (side sheets) |
+| Whiteboards | — | Retrospective, Brainstorm, User story map, Kanban sketch, Blank — a sheet of previews on the new board | *New whiteboard*, which opens the board at once | Voting, timer, history, backlinks, export (side sheets) |
 | Service desk | A desk collection with the ITIL or basic workflow, queues as saved views, a portal, a business calendar Mon–Fri 8–18, P1–P4 SLAs | ITIL service desk, Internal IT, Facility, HR, Customer support | *Open the portal* to see what requesters see; *New request* | Intake mail, organisations, canned replies, approvals, CMDB links |
 | Plans | A plan over the hub's dated entries; today marked | Classic project, Hybrid project, Scrum team, Scaled agile | *Add a phase* / *Plan a sprint* | Tolerances, baselines, critical path, cost |
 | Time | The reader's week; the workspace's kinds of work | — (the defaults are the template's) | *Start a timer* / *Record time* | Approval of weeks, rates, export |
@@ -778,30 +778,52 @@ A portal article leaves every internal address out of what a requester reads.
 at the top or under a page (UC-CNV-10); the hub's former *Whiteboards* tab becomes *All contents*
 filtered to whiteboards, and the gallery across hubs is the product home's.
 
-A **full-bleed canvas**. One compact floating tool bar of icon buttons (with tooltips and names)
-at the top centre; zoom and the map in a corner; the selected object's properties first in a
-side sheet; voting, timer, comments, history, backlinks, frames and export as collapsible side
-sheets, closed by default. On a phone a bottom tool sheet. A new board is created from the
-template gallery in the create dialog (§5.2); the template select leaves the tool bar.
+A **full-bleed canvas** whose controls are islands in its corners and a grouped dock at its foot,
+an edit bar above the selection, a session bar at the top centre and sheets closed by default. A
+new board opens at once with its templates as a sheet.
 
-As built: the board takes the content region whole (`page.fill`). Its head is one row: the hub
-and the title once, the timer while it runs, the connection's state, who else is here as an
-avatar stack, *Comments* with the open threads' count, *Voting, timer and who is here*, *History*
-and the board's menu (put a template, frames, *Pointing here*, export, rename, the trash last).
-One sheet is open at a time; it lies over the canvas, so opening it never moves the board, and the
-tools and the corner keep to the canvas beside it. The chosen object's properties come first in
-it on a wide screen; on a phone they wait for *Properties* in the tool sheet. The tools are icon
-buttons with their names as tooltips and accessible names; an entry, a template and, on a phone,
-the tools used less (connector, text, frame, eraser, link) and *Redo* are under *Put on the
-board*. A board opens showing everything it holds, never above its own size. An empty board says
-so in its middle and offers a template. The hub's *Whiteboards* lists the boards as preview cards,
-recent first, each drawing its objects once on the screen (up to 1,500 objects; a larger or
-empty board shows its mark); an empty hub offers the gallery, one press each. The gallery is
-Blank, Retrospective (its questions chosen beside it: start-stop-continue, the four Ls,
-mad-sad-glad), Brainstorm, User story map, Kanban sketch and Flowchart, each with a drawing of
-what it puts; the name defaults to the template's until the person types their own; an exported
-board is a folded alternative to a template. On an open board a template is chosen in the same
-gallery and put by the dialog's own button.
+As built: the board takes the
+content region whole (`page.fill`) and has no head above it; its controls are islands in the four
+corners and a dock at the foot. Top left: back to the boards, the title with its product tile
+and star, the connection's state (a tick once everything is saved; a longer state gives way before
+the title), *Surface | List* and the board's menu (put a template, frames, *Pointing here*, export,
+rename, the trash last). Top right: who else is here as faces (a press lists them, each with
+*Follow*; following draws a coloured frame round the board and ends when the reader moves it),
+*Moderate*, *Comments* with the open threads' count and *History*. Bottom left undo and redo; bottom
+right the frames, zoom and the map on request. The dock is grouped — move · create · draw ·
+conversation · insert — each tool showing its key (V, H, N, R, T, L, F, P, M, E, C), the shapes in a
+fan at their tool; a tool springs back to select after one use, a double click holds it, the held
+space bar is the hand and Esc leads back. *Insert* holds the tools used less, a picture
+or file (the platform's chooser, no control of its own), an entry and a template. A selection
+carries a bar above it in a fixed order — colour, size, arrow, comment, lock, *Task from it*, ⋯ —
+instead of a form; a task card shows its key, the person it is on, its status and a tick,
+live. A running timer or vote is one bar at the top centre for everyone, level with the top
+islands where it clears them and just below them where it would touch one; *Moderate* opens
+the sheet that sets them up. One sheet is open at a time and lies over the canvas: comments as
+thread cards with the composer at their foot, history as a log, frames as numbered rows at the
+corner. On a phone the frames are paged at the top and the sheets wait under ⋯; a finger moves the
+board and a pen draws on a tablet. A board opens showing everything it holds, never above its own
+size.
+
+A **new board opens at once** (scene `wnew`): every *New whiteboard* — the Create menu, the home,
+a hub's *Whiteboards* — makes a blank board and opens it with *How do you start?* as a sheet of the
+eight templates (the three retrospectives each a card), *Leave it empty* and the first-use keys; a
+template chosen names an untitled board after it. The contents dialog stays only for a board under
+a page and for an import.
+
+The **whiteboards' home** (scene `whome`) is a band (*n whiteboards · n changed today · n open
+comments*) over *For you*: *Recently opened* — the boards opened on this device, per account, by
+identifier alone and forgotten at sign-out; the last changed where none was — as drawings of their
+objects with who made and last changed them (`BoardThumbnail`, also on search hits), a row of
+five templates each starting a board in one press, and the open comments naming the reader, each
+opening its board at the thread. *All* lists every board as cards, the last changed first.
+
+The hub's *Whiteboards* lists the boards as preview cards, recent first, each drawing its objects
+once on the screen (up to 1,500 objects; a larger or empty board shows its mark); an empty hub
+offers the gallery, one press each. The gallery is Blank, Retrospective (start-stop-continue, the
+four Ls, mad-sad-glad), Brainstorm, User story map, Kanban sketch and Flowchart, each with a drawing
+of what it puts; an exported board is a folded alternative to a template. On an open board a
+template is chosen in the same gallery and put by the dialog's own button.
 
 ### 7.3 Assets and the CMDB
 
