@@ -15859,7 +15859,7 @@
   "app.viewer.kind.text": "Text",
   "app.viewer.kind.office": "Office-Dokument",
   "app.viewer.kind.card": "Datei",
-  "app.whiteboards.file_pages": "{count} Seiten",
+  "app.whiteboards.file_pages": "{count, plural, one {# Seite} other {# Seiten}}",
   "app.whiteboards.file_hint_title": "Datei ablegen",
   "app.whiteboards.file_hint": "Bilder (PNG, JPG, GIF, WebP, SVG) liegen als Bild auf der Fläche. PDF, Office, Markdown, Video und Archive werden zur Karte mit Vorschau der ersten Seite; Doppelklick öffnet die Dateiansicht.",
   "app.whiteboards.file_hint_close": "Hinweis schließen",

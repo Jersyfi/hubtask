@@ -95,3 +95,14 @@ test('the installation\'s clock counts in the plural form', () => {
   assert.equal(messages.t('app.instance.remaining_minutes', { minutes: 2 }), '2 minutes');
   assert.equal(messages.t('app.instance.remaining_seconds', { seconds: 1 }), '1 second');
 });
+
+// A board's file card counts its pages as a count: one page is no "1 pages" (F-4).
+test('a file card says one page and several pages', async () => {
+  const { readFileSync } = await import('node:fs');
+  const german = JSON.parse(readFileSync(new URL('../../../../../locales/de.json', import.meta.url), 'utf8'));
+  for (const [locale, catalogues, one, many] of [['en', [SOURCE], '1 page', '3 pages'], ['de', [german, SOURCE], '1 Seite', '3 Seiten']] as const) {
+    const messages = createMessages({ locale, catalogues: [...catalogues] });
+    assert.equal(messages.t('app.whiteboards.file_pages', { count: '1' }), one);
+    assert.equal(messages.t('app.whiteboards.file_pages', { count: '3' }), many);
+  }
+});

@@ -15859,7 +15859,7 @@
   "app.viewer.kind.text": "Text",
   "app.viewer.kind.office": "Office document",
   "app.viewer.kind.card": "File",
-  "app.whiteboards.file_pages": "{count} pages",
+  "app.whiteboards.file_pages": "{count, plural, one {# page} other {# pages}}",
   "app.whiteboards.file_hint_title": "Dropping a file",
   "app.whiteboards.file_hint": "Pictures (PNG, JPG, GIF, WebP, SVG) lie on the board as pictures. PDF, office files, Markdown, video and archives become a card with a preview of the first page; a double click opens the file viewer.",
   "app.whiteboards.file_hint_close": "Close the hint",
