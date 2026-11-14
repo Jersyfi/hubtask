@@ -62,7 +62,7 @@ func TestAChangeKeepsTheStageAndThePeopleButNoAttributeValue(t *testing.T) {
 	after := before
 	after.Stage = StageInUse
 	after.Compliance.OwnerAccount, after.Compliance.Location, after.Compliance.ReviewDue = id("11"), id("12"), &day
-	after.Compliance.Protection.Protection.C = LevelHigh
+	after.Compliance.Protection.C = LevelHigh
 
 	stage, moved := StageStep(before, after)
 	if !moved || stage["stage"] != (Moved{From: "IN_STOCK", To: "IN_USE"}) || len(stage) != 1 {
