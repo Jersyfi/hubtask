@@ -81,7 +81,9 @@
     inset-block-start: 0;
     z-index: var(--z-sticky);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+    /* The title takes what is left between the way up and the buttons, never their room: the way
+       up keeps two thumbs' width (its words give way), the end its buttons. */
+    grid-template-columns: minmax(calc(var(--layout-target) * 2), 1fr) minmax(0, auto) minmax(min-content, 1fr);
     align-items: center;
     gap: var(--sp-050);
     min-block-size: var(--layout-appbar-height);

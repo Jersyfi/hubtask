@@ -297,3 +297,38 @@ test('chromium: 375 px — the page menu is in the bar, and it is the head\'s ow
 
   assert.deepEqual(failures, []);
 });
+
+test('chromium: 375 px — a long title ends in an ellipsis on one line, never over the way up or the buttons', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+  const long = { ...COLLECTION, name: 'Plan for the new logistics centre in Hamburg-Billbrook, second stage' };
+  await page.route('**/api/v1/containers**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: long });
+    if (path === '/containers' && new URL(route.request().url()).searchParams.get('type') !== 'HUB') return route.fulfill({ json: { ...PAGE, data: [long] } });
+    return route.fallback();
+  });
+
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  const title = page.locator('[data-bar="title"]');
+  await title.filter({ hasText: 'Hamburg' }).waitFor({ timeout: 10_000 });
+  const boxes = await page.locator('[data-phone-bar]').evaluate((bar) => {
+    const box = (node) => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, height: r.height }; };
+    const name = bar.querySelector('[data-bar="title"]');
+    return {
+      title: box(name),
+      lineHeight: parseFloat(getComputedStyle(name).lineHeight) || 0,
+      cut: name.scrollWidth > name.clientWidth,
+      back: [...bar.querySelectorAll('[data-back]')].map(box),
+      buttons: [...bar.querySelectorAll('.end button')].map(box).filter((each) => each.right > each.left),
+    };
+  });
+  assert.ok(boxes.cut, 'the long title is not cut with an ellipsis');
+  assert.ok(boxes.title.height <= Math.max(boxes.lineHeight, 24) + 1, `the title takes more than one line: ${boxes.title.height}`);
+  for (const back of boxes.back) assert.ok(back.right <= boxes.title.left + 0.5, `the title runs over the way up: ${JSON.stringify([back, boxes.title])}`);
+  for (const button of boxes.buttons) assert.ok(button.left >= boxes.title.right - 0.5, `the title runs under a button: ${JSON.stringify([button, boxes.title])}`);
+  assert.ok(boxes.back.length > 0 && boxes.back[0].right - boxes.back[0].left >= 44, 'the way up gave way below a thumb');
+  assert.deepEqual(failures, []);
+});
