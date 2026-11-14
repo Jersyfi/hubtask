@@ -344,7 +344,7 @@
         <p>{accounts.nameOf(file.created_by) ?? '—'} · {formatDay(file.created_at, messages.locale)}</p>
         {#if opened.owner}
           <h3>{t('app.viewer.attached_to')}</h3>
-          <p>{#if opened.owner.key}<span class="key">{opened.owner.key}</span> {/if}{opened.owner.title}</p>
+          <p>{#if opened.owner.key}<span class="key">{opened.owner.key}</span>{' '}{/if}{opened.owner.title}</p>
         {/if}
         {#if isEditable}
           <h3>{t('app.viewer.editing')}</h3>

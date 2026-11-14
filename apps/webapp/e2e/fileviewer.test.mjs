@@ -130,6 +130,8 @@ test('chromium: an entry\'s file opens the viewer with its place among the files
   await viewer.waitFor({ timeout: 5_000 });
   assert.equal((await viewer.getByRole('heading', { level: 2 }).textContent()).trim(), 'notes.txt');
   assert.match(await positionOf(page), /^· 1 of 2 · on \S/);
+  // The details name the entry by its key and its title, apart.
+  assert.match((await viewer.locator('[data-viewer-details] p:has(.key)').textContent()).trim(), /^[A-Z]+-\d+ \S/);
   // A text file is drawn from its bytes, in the viewer itself.
   await viewer.locator('pre.text').getByText('Bring the tiles on Monday.').waitFor({ timeout: 10_000 });
 
