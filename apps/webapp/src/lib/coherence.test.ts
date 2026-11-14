@@ -218,3 +218,8 @@ test('a chosen segment or chip never takes the primary\'s fill: one segmented lo
     assert.doesNotMatch(style, /\[aria-(pressed|checked)='true'\][^{]*\{[^}]*background: var\(--accent-primary\);/u, path);
   }
 });
+
+test('a new page has one primary, its Veröffentlichen: a template\'s preview offers its use as a secondary (B-1)', () => {
+  const preview = sources.find(({ path }) => path === 'lib/pages/PageStartPreview.svelte')?.text ?? '';
+  assert.match(preview, /<Button size="sm" tone="secondary" \{isBusy\} data-page-start-use/u);
+});

@@ -32,7 +32,7 @@
     {#key body}<PageVersionText {body} label={t('app.pages.start_preview', { title })} />{/key}
   </div>
   {#if subpages > 0}<p class="lead">{t('app.pages.space_pages', { count: String(subpages) })}</p>{/if}
-  <div><Button size="sm" tone="primary" {isBusy} data-page-start-use onclick={onuse}>{t('app.pages.start_use')}</Button></div>
+  <div><Button size="sm" tone="secondary" {isBusy} data-page-start-use onclick={onuse}>{t('app.pages.start_use')}</Button></div>
 </section>
 
 <style>
