@@ -312,6 +312,8 @@ test('chromium: time - a workspace without a kind of work starts on its start pa
   await page.goto(`${served.origin}/time`);
   await page.getByRole('heading', { level: 1, name: 'Time' }).waitFor({ timeout: 10_000 });
   assert.deepEqual(walk.written.filter((each) => each.path.startsWith('/time-work-types')), [], 'the start page wrote kinds');
+  // The start page stands alone, as emptytime draws it: no week to hand in under its templates.
+  assert.equal(await page.locator('[data-hand-in]').count(), 0, 'the start page offers handing in an empty week');
   await page.getByRole('button', { name: 'Record the first time' }).click();
   await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
   assert.equal(walk.written.filter((each) => each.path.startsWith('/time-work-types')).length, 4, 'the usual kinds were not written');
@@ -346,6 +348,19 @@ test('chromium: time - a workspace without a kind of work starts on its start pa
 
 // user-experience.md §5.12: on a phone the running timer, a long entry title among it, wraps
 // rather than widening the page.
+test('chromium: time - 390 px, the start page draws no day strip and no hand-in, as emptytime', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }), width: 390, height: 844 });
+  t.after(walk.close);
+  const { page } = walk;
+  await page.goto(`${served.origin}/time`);
+  await page.getByRole('heading', { name: 'Time' }).first().waitFor({ timeout: 10_000 });
+  await page.getByText(/What your work costs in time/u).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('list', { name: /^The days of / }).count(), 0, 'a day strip over the start page');
+  assert.equal(await page.locator('[data-hand-in]').count(), 0, 'a hand-in under the start page');
+});
+
 test('chromium: time - 390 px, a running timer on a long title scrolls nothing sideways', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

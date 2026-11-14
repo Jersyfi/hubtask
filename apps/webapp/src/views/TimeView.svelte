@@ -449,7 +449,8 @@
         <Banner tone="warning" title={t('app.time.sent_back_title')}>{sheet.reason}</Banner>
       {/if}
 
-      {#if viewport.isCompact}
+      <!-- A phone's day strip belongs to a week in use; the start page stands alone (emptytime). -->
+      {#if viewport.isCompact && !isStart}
         <ol class="days" aria-label={t('app.time.days', { week: weekText })}>
           {#each strip as each (each.day)}
             <li>
@@ -526,8 +527,9 @@
         </section>
         {/if}
       {/if}
-      {#if isOpen}
-        <!-- Handing in, with what happens next (scene time): the week goes for approval and is locked. -->
+      {#if isOpen && !isStart}
+        <!-- Handing in, with what happens next (scene time): the week goes for approval and is locked.
+             Not on the start page, where nothing has been recorded yet (emptytime). -->
         <div class="hand-in" data-hand-in>
           <p>{t('app.time.hand_in_next')}</p>
           <Button tone="primary" icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
