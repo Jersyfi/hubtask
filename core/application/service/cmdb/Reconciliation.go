@@ -109,11 +109,11 @@ type ReconcileCis struct{ Inventory Inventory }
 func (h ReconcileCis) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReconcileCisName, Permission: service.PermissionWriteItems,
-		Summary: "Runs a source's payload of configuration items and relations through the one reconciliation " +
+		Summary: "Runs a source's payload of objects and relations through the one reconciliation " +
 			"every source writes through. Each item is identified - by the source's own key first, then by its " +
-			"class's identifier rules in order - and created, updated under the sources' precedence, held for " +
+			"object type's identifier rules in order - and created, updated under the sources' precedence, held for " +
 			"review when it cannot be identified or the source may not create it, or reported as matching " +
-			"several CIs, which opens a duplicate to merge. Every decision names the rule that matched and " +
+			"several objects, which opens a duplicate to merge. Every decision names the rule that matched and " +
 			"the attributes taken or kept. A dry run answers the same and writes nothing.",
 		SideEffects: "Writes CIs, identifiers, relations, the run, its holds and duplicates, and audit entries; nothing on a dry run.",
 		TokenScope:  cisWrite,
@@ -146,9 +146,9 @@ type ImportCiFile struct{ Inventory Inventory }
 func (h ImportCiFile) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ImportCiFileName, Permission: service.PermissionWriteItems,
-		Summary: "Imports a file of configuration items as a source: a CSV table, an XLSX workbook's first sheet or a JSON array read by a " +
+		Summary: "Imports a file of objects as a source: a CSV table, an XLSX workbook's first sheet or a JSON array read by a " +
 			"mapping (the source's saved one, or one given), or a CycloneDX or SPDX bill of materials whose " +
-			"components become software CIs identified by package URL, CPE or name and version, with their " +
+			"components become software objects identified by package URL, CPE or name and version, with their " +
 			"dependencies. It runs through the reconciliation like every source; a dry run answers what would " +
 			"happen, row by row, and writes nothing. Rows without a name are reported by number.",
 		SideEffects: "Writes what the reconciliation writes; nothing on a dry run.",
@@ -242,7 +242,7 @@ type ReadCiRun struct{ Inventory Inventory }
 func (h ReadCiRun) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiRunName, Permission: service.PermissionRead,
-		Summary: "Reads one reconciliation run with its explanation: for every item, the outcome, the CI, the " +
+		Summary: "Reads one reconciliation run with its explanation: for every item, the outcome, the object, the " +
 			"identifier rule that matched, the attributes taken and those kept and by which source, the " +
 			"candidates of a duplicate and the reason of a hold or refusal - by attribute name, never value.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
@@ -288,9 +288,9 @@ type ListCiHolds struct{ Inventory Inventory }
 func (h ListCiHolds) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiHoldsName, Permission: service.PermissionRead,
-		Summary: "Lists the items the reconciliation held for review in a hub instead of making a CI nobody " +
-			"could find again: without a usable identifier, from a source that may not create, or of a class " +
-			"the source may not write. Each is resolved by a person making the CI or dismissing it.",
+		Summary: "Lists the items the reconciliation held for review in a hub instead of making an object nobody " +
+			"could find again: without a usable identifier, from a source that may not create, or of an object type " +
+			"the source may not write. Each is resolved by a person making the object or dismissing it.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
@@ -325,7 +325,7 @@ type DismissCiHold struct{ Inventory Inventory }
 func (h DismissCiHold) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DismissCiHoldName, Permission: service.PermissionWriteItems,
-		Summary: "Closes an item the reconciliation held - after a person made its CI by hand, or because it " +
+		Summary: "Closes an item the reconciliation held - after a person made its object by hand, or because it " +
 			"is not one. The hold stays on record with who closed it.",
 		SideEffects: "Closes the hold and writes an audit entry.", TokenScope: cisWrite,
 		Input: []usecase.Field{{Name: "hold_id", Kind: usecase.KindID, Required: true, Description: "The hold."}},
@@ -376,7 +376,7 @@ type ListCiDuplicates struct{ Inventory Inventory }
 func (h ListCiDuplicates) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiDuplicatesName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's open duplicates: sets of configuration items one reported item matched by the " +
+		Summary: "Lists a hub's open duplicates: sets of objects one reported item matched by the " +
 			"same identifier rule, waiting for a person to merge them or say they are distinct.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -412,10 +412,10 @@ type ResolveCiDuplicate struct{ Inventory Inventory }
 func (h ResolveCiDuplicate) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ResolveCiDuplicateName, Permission: service.PermissionWriteItems,
-		Summary: "Resolves an open duplicate. With a survivor, every other CI of it is merged in: the survivor " +
+		Summary: "Resolves an open duplicate. With a survivor, every other object of it is merged in: the survivor " +
 			"keeps its identity and values and takes the attributes it lacks, the others' source keys and " +
-			"relations; each other CI is retired as merged into it and kept, never deleted. Without one, the " +
-			"CIs are recorded as distinct.",
+			"relations; each other object is retired as merged into it and kept, never deleted. Without one, the " +
+			"objects are recorded as distinct.",
 		SideEffects: "Writes the CIs, moves identifiers and relations, closes the duplicate and writes audit entries.",
 		TokenScope:  cisWrite,
 		Input: []usecase.Field{

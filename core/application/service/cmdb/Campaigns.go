@@ -86,7 +86,7 @@ type ListCiCampaigns struct{ Inventory Inventory }
 func (h ListCiCampaigns) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiCampaignsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's certification campaigns, the latest first, each with its score: how many CIs were " +
+		Summary: "Lists a hub's certification campaigns, the latest first, each with its score: how many objects were " +
 			"asked, confirmed, disputed, pending and overdue, and the share answered.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -137,9 +137,9 @@ type StartCiCampaign struct{ Inventory Inventory }
 func (h StartCiCampaign) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: StartCiCampaignName, Permission: service.PermissionWriteItems,
-		Summary: "Starts a certification campaign in a hub: every active CI of the classes named (all when none) " +
+		Summary: "Starts a certification campaign in a hub: every active object of the object types named (all when none) " +
 			"- and, with due_by, only those whose review falls due by then or was never set - is asked once, of " +
-			"its owning person when it has one. Answers are due on due_on; a confirmed CI's next review moves " +
+			"its owning person when it has one. Answers are due on due_on; a confirmed object's next review moves " +
 			"review_months on (12 when not given). The set is fixed when it starts.",
 		SideEffects: "Writes the campaign, one pending attestation per CI asked and an audit entry.", TokenScope: cisWrite,
 		Input: []usecase.Field{
@@ -228,7 +228,7 @@ type ReadCiCampaign struct{ Inventory Inventory }
 func (h ReadCiCampaign) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiCampaignName, Permission: service.PermissionRead,
-		Summary: "Reads a certification campaign with its score and every CI asked: its name and class, the person " +
+		Summary: "Reads a certification campaign with its score and every object asked: its name and object type, the person " +
 			"asked, the verdict, who gave it and when.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "campaign_id", Kind: usecase.KindID, Required: true, Description: "The campaign."}},
@@ -302,7 +302,7 @@ type AttestCi struct{ Inventory Inventory }
 func (h AttestCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: AttestCiName, Permission: service.PermissionRead,
-		Summary: "Answers a campaign's question about a CI: CONFIRMED - it is as recorded, and its next review " +
+		Summary: "Answers a campaign's question about an object: CONFIRMED - it is as recorded, and its next review " +
 			"moves the campaign's period on -, or DISPUTED - the record is wrong or the object gone, and its review " +
 			"falls due today. The person asked answers with READ on the hub; anybody else needs WRITE_ITEMS. A " +
 			"closed campaign takes no answer; a later answer replaces an earlier one.",

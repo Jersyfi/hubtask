@@ -37,9 +37,9 @@ type ListCiWork struct{ Affecting Affecting }
 func (h ListCiWork) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiWorkName, Permission: service.PermissionRead,
-		Summary: "Answers the entries - tickets, changes, tasks - a configuration item is part of: every entry " +
-			"naming it as affected (NAMES) or naming a CI beneath it, one whose failure it suffers up to eight steps " +
-			"(BENEATH, with the nearest such CI), each once; open ones first, then at most twenty completed ones. " +
+		Summary: "Answers the entries - tickets, changes, tasks - an object is part of: every entry " +
+			"naming it as affected (NAMES) or naming an object beneath it, one whose failure it suffers up to eight steps " +
+			"(BENEATH, with the nearest such object), each once; open ones first, then at most twenty completed ones. " +
 			"Only entries the reader may see, never archived ones.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
@@ -194,7 +194,7 @@ type ListHubCiWork struct{ Affecting Affecting }
 func (h ListHubCiWork) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListHubCiWorkName, Permission: service.PermissionRead,
-		Summary: "Counts, for each configuration item of a hub, the open, unarchived entries naming it as affected " +
+		Summary: "Counts, for each object of a hub, the open, unarchived entries naming it as affected " +
 			"that the reader may see; items with none are left out. Reads at most 5000 namings.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},

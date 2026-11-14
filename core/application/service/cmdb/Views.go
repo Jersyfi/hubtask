@@ -85,11 +85,11 @@ type ReadCmdbHealth struct{ Inventory Inventory }
 func (h ReadCmdbHealth) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCmdbHealthName, Permission: service.PermissionRead,
-		Summary: "Judges a hub's inventory of active configuration items: completeness (required and " +
+		Summary: "Judges a hub's inventory of active objects: completeness (required and " +
 			"recommended attributes and an owner filled), correctness (stale - unconfirmed by any source for " +
-			"its class's period -, orphaned - without a relation its class needs -, or in an open duplicate), " +
-			"CIs without an owner and reviews overdue, per class and in all, with the CIs found wanting and why; " +
-			"the relations a program reported and no longer confirms; each service's score over the CIs it rests " +
+			"its object type's period -, orphaned - without a relation its object type needs -, or in an open duplicate), " +
+			"objects without an owner and reviews overdue, per object type and in all, with the objects found wanting and why; " +
+			"the relations a program reported and no longer confirms; each service's score over the objects it rests " +
 			"on; and each source's conflict rate over the hub's latest twenty runs.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
@@ -186,9 +186,9 @@ type ReadCiImpact struct{ Inventory Inventory }
 func (h ReadCiImpact) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiImpactName, Permission: service.PermissionRead,
-		Summary: "Walks the impact of a configuration item along the relations whose type carries impact: " +
+		Summary: "Walks the impact of an object along the relations whose type carries impact: " +
 			"DOWNSTREAM, everything that suffers when it fails - with the services and offerings among them -; " +
-			"UPSTREAM, everything whose failure it suffers. Each CI is named once, at its nearest depth, up " +
+			"UPSTREAM, everything whose failure it suffers. Each object is named once, at its nearest depth, up " +
 			"to eight steps.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{

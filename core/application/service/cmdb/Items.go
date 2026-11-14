@@ -37,7 +37,7 @@ type ListCis struct{ Inventory Inventory }
 func (h ListCis) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCisName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's configuration items in a stable order, a page at a time, narrowed to a class " +
+		Summary: "Lists a hub's objects in a stable order, a page at a time, narrowed to an object type " +
 			"and its descendants when one is given; merged duplicates are left out unless asked for.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -108,7 +108,7 @@ type ReadCi struct{ Inventory Inventory }
 func (h ReadCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiName, Permission: service.PermissionRead,
-		Summary: "Reads one configuration item: its class, attributes with the source that last wrote each, " +
+		Summary: "Reads one object: its object type, attributes with the source that last wrote each, " +
 			"lifecycle, compliance fields (owner, location, protection need, review date, quantity), its " +
 			"relations both ways and the protection need it inherits from everything that suffers when it " +
 			"fails (the maximum principle; a dimension fixed with a reason keeps its own).",
@@ -212,9 +212,9 @@ type CreateCi struct{ Inventory Inventory }
 func (h CreateCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: CreateCiName, Permission: service.PermissionWriteItems,
-		Summary: "Makes a configuration item in a hub by hand: a class that is not abstract, a name and typed " +
+		Summary: "Makes an object in a hub by hand: an object type that is not abstract, a name and typed " +
 			"attributes. It goes through the same reconciliation every source does, as source `manual`: when " +
-			"the hub already holds a CI its identifiers name, nothing is made and the answer names that CI.",
+			"the hub already holds an object its identifiers name, nothing is made and the answer names that object.",
 		SideEffects: "Writes the CI, its identifiers and an audit entry.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub whose inventory it joins."},
@@ -274,7 +274,7 @@ type UpdateCi struct{ Inventory Inventory }
 func (h UpdateCi) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: UpdateCiName, Permission: service.PermissionWriteItems,
-		Summary: "Changes a configuration item by hand - its name, attributes (null clears one), or its class " +
+		Summary: "Changes an object by hand - its name, attributes (null clears one), or its object type " +
 			"to a more specific one - through the reconciliation as source `manual`: an attribute a source of " +
 			"a lower rank number last wrote is kept, and the answer names what was kept from whom.",
 		SideEffects: "Writes the CI, its identifiers and an audit entry.", TokenScope: cisWrite,
@@ -346,8 +346,8 @@ type SetCiCompliance struct{ Inventory Inventory }
 func (h SetCiCompliance) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: SetCiComplianceName, Permission: service.PermissionWriteItems,
-		Summary: "Sets a configuration item's lifecycle (stage and status) and its compliance fields - owner (a " +
-			"person or a group), location (a CI of a location class in the same hub), protection need for " +
+		Summary: "Sets an object's lifecycle (stage and status) and its compliance fields - owner (a " +
+			"person or a group), location (an object of a location object type in the same hub), protection need for " +
 			"confidentiality, integrity and availability (NORMAL, HIGH, VERY_HIGH; a dimension fixed against " +
 			"inheritance needs a reason), the day of its next review and the quantity of alike objects it " +
 			"stands for. A field left out stays; null clears it.",
@@ -498,8 +498,8 @@ type RelateCis struct{ Inventory Inventory }
 func (h RelateCis) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: RelateCisName, Permission: service.PermissionWriteItems,
-		Summary: "Joins two configuration items of one hub by a relation type, read from the source (\"the " +
-			"shop runs on web1\"); the type's class pairs decide whether it may join them. A relation that " +
+		Summary: "Joins two objects of one hub by a relation type, read from the source (\"the " +
+			"shop runs on web1\"); the type's object type pairs decide whether it may join them. A relation that " +
 			"exists is seen again.",
 		SideEffects: "Writes the relation and an audit entry.", TokenScope: cisWrite,
 		Input: []usecase.Field{
@@ -580,7 +580,7 @@ type UnrelateCis struct{ Inventory Inventory }
 func (h UnrelateCis) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: UnrelateCisName, Permission: service.PermissionWriteItems,
-		Summary:     "Removes a relation between two configuration items. A source that reports it again makes it again.",
+		Summary:     "Removes a relation between two objects. A source that reports it again makes it again.",
 		SideEffects: "Removes the relation and writes an audit entry.", TokenScope: cisWrite, Destructive: true,
 		Input: []usecase.Field{{Name: "relation_id", Kind: usecase.KindID, Required: true, Description: "The relation."}},
 		Audit: usecase.AuditDeclaration{Action: UnrelatedAction, TargetType: relationTarget, Severity: audit.SeverityInfo, Required: true},

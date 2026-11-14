@@ -101,7 +101,7 @@ type ListCiClasses struct{ Inventory Inventory }
 func (h ListCiClasses) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiClassesName, Permission: service.PermissionRead,
-		Summary: "Lists the configuration item classes: the hierarchy Hubtask ships (hardware, virtual and " +
+		Summary: "Lists the object types: the hierarchy Hubtask ships (hardware, virtual and " +
 			"cloud resources, software, business and technical services with their offerings, application " +
 			"services, locations, contracts, processes, information objects) and the workspace's own, each " +
 			"with what it inherits - attributes, identifier rules nearest first, the relations it needs.",
@@ -150,11 +150,11 @@ func attributesOf(in usecase.Input) []domain.Attribute {
 func (h DefineCiClass) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineCiClassName, Permission: service.PermissionStructure,
-		Summary: "Adds a configuration item class of the workspace's own beneath a shipped or an own class, or " +
-			"changes an own class: its name, icon, whether it is abstract, its typed attributes (text, number, " +
+		Summary: "Adds an object type of the workspace's own beneath a shipped or an own object type, or " +
+			"changes an own object type: its name, icon, whether it is abstract, its typed attributes (text, number, " +
 			"boolean, date, choice, url, group, account; optional, recommended or required; identifying or " +
-			"not), its identifier rules tried in order, the relations a CI of it is an orphan without and its " +
-			"staleness period. A shipped class is not changed. Archiving stops new CIs of the class.",
+			"not), its identifier rules tried in order, the relations an object of it is an orphan without and its " +
+			"staleness period. A shipped object type is not changed. Archiving stops new objects of the object type.",
 		SideEffects: "Writes the class and an audit entry.", TokenScope: configWrite,
 		Input: []usecase.Field{
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "Small letters, digits and underscores, starting with a letter."},
@@ -257,9 +257,9 @@ type ListCiRelationTypes struct{ Inventory Inventory }
 func (h ListCiRelationTypes) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiRelationTypesName, Permission: service.PermissionRead,
-		Summary: "Lists the relation types between configuration items - the shipped catalogue (depends on, " +
+		Summary: "Lists the relation types between objects - the shipped catalogue (depends on, " +
 			"runs on, hosted on, installed on, contains, connects to, member of, offering of) and the " +
-			"workspace's own - each with which end suffers when the other fails and the classes it may join.",
+			"workspace's own - each with which end suffers when the other fails and the object types it may join.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Audit: usecase.AuditDeclaration{Action: ConfigReadAction, TargetType: relTypeTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
@@ -291,9 +291,9 @@ type DefineCiRelationType struct{ Inventory Inventory }
 func (h DefineCiRelationType) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineCiRelationTypeName, Permission: service.PermissionStructure,
-		Summary: "Adds a relation type of the workspace's own between configuration items, or changes one: its " +
+		Summary: "Adds a relation type of the workspace's own between objects, or changes one: its " +
 			"words both ways, which end suffers when the other fails (impact NONE, SOURCE, TARGET or BOTH - " +
-			"what impact analysis walks and protection need is inherited against) and the class pairs it may " +
+			"what impact analysis walks and protection need is inherited against) and the object type pairs it may " +
 			"join. A shipped type is not changed.",
 		SideEffects: "Writes the type and an audit entry.", TokenScope: configWrite,
 		Input: []usecase.Field{
@@ -404,9 +404,9 @@ type ListCiSources struct{ Inventory Inventory }
 func (h ListCiSources) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiSourcesName, Permission: service.PermissionRead,
-		Summary: "Lists the sources configuration items come from - people (`manual`), files, programs and " +
-			"connectors - by precedence, a lower rank first, with the classes each may write, whether it may " +
-			"make new CIs, a file source's mapping and when it last ran.",
+		Summary: "Lists the sources objects come from - people (`manual`), files, programs and " +
+			"connectors - by precedence, a lower rank first, with the object types each may write, whether it may " +
+			"make new objects, a file source's mapping and when it last ran.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Audit: usecase.AuditDeclaration{Action: ConfigReadAction, TargetType: sourceTarget, Severity: audit.SeverityInfo},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
@@ -438,10 +438,10 @@ type DefineCiSource struct{ Inventory Inventory }
 func (h DefineCiSource) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineCiSourceName, Permission: service.PermissionStructure,
-		Summary: "Adds or changes a source configuration items come from: a file, a program or a connector, its " +
+		Summary: "Adds or changes a source objects come from: a file, a program or a connector, its " +
 			"rank (a lower number wins an attribute a higher one last wrote, until the winner has gone silent " +
-			"for the class's staleness period), the classes it may write, whether it may make new CIs, and a " +
-			"file source's mapping (class, name column, the column with the source's own key, columns to " +
+			"for the object type's staleness period), the object types it may write, whether it may make new objects, and a " +
+			"file source's mapping (object type, name column, the column with the source's own key, columns to " +
 			"attributes, defaults).",
 		SideEffects: "Writes the source and an audit entry.", TokenScope: configWrite,
 		Input: []usecase.Field{

@@ -99,8 +99,8 @@ type ListCiAssets struct{ Inventory Inventory }
 func (h ListCiAssets) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiAssetsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's asset register in CI order after a cursor: each CI's tag, cost, purchase, supplier, " +
-			"warranty (and whether it ended), contract, stockroom, holder and state, with the CI's name and class; " +
+		Summary: "Lists a hub's register records in object order after a cursor: each object's tag, cost, purchase, supplier, " +
+			"warranty (and whether it ended), contract, stockroom, holder and state, with the object's name and object type; " +
 			"narrowed to a state when given.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{
@@ -167,7 +167,7 @@ type ReadCiAsset struct{ Inventory Inventory }
 func (h ReadCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiAssetName, Permission: service.PermissionRead,
-		Summary: "Reads a configuration item's asset record with its disposal, if any, and the steps of its life " +
+		Summary: "Reads an object's register record with its disposal, if any, and the steps of its life " +
 			"oldest first - each state reached, when, by whom, with whom or in which stockroom; not found when it has none.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
@@ -218,8 +218,8 @@ type RegisterCiAsset struct{ Inventory Inventory }
 func (h RegisterCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: RegisterCiAssetName, Permission: service.PermissionWriteItems,
-		Summary: "Writes a configuration item's asset record: its tag, cost in minor units with its currency, " +
-			"purchase day, supplier, warranty end, contract (a contract CI), stockroom (a location CI), the person " +
+		Summary: "Writes an object's register record: its tag, cost in minor units with its currency, " +
+			"purchase day, supplier, warranty end, contract (a contract object), stockroom (a location object), the person " +
 			"holding it and the request it came from. A new record starts in the state given - REQUESTED when " +
 			"none -; an existing one keeps its state, which MoveCiAsset moves. A field left out stays; null clears it.",
 		SideEffects: "Writes the asset record, an audit entry and the change log.", TokenScope: cisWrite,
@@ -383,10 +383,10 @@ type MoveCiAsset struct{ Inventory Inventory }
 func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: MoveCiAssetName, Permission: service.PermissionWriteItems,
-		Summary: "Moves an asset to the next state of its life - REQUESTED, ORDERED, IN_STOCK, DEPLOYED (to a person " +
+		Summary: "Moves a register record to the next state of its life - REQUESTED, ORDERED, IN_STOCK, DEPLOYED (to a person " +
 			"or a stockroom), RETIRED, DISPOSED -, a deployed one back to stock and a retired one back into it; the " +
-			"CI's lifecycle stage follows. Disposing needs the method (WIPED, DESTROYED, RECYCLED, RETURNED, SOLD) " +
-			"and the reference of the certificate that proves it; a disposed asset moves no more.",
+			"object's lifecycle stage follows. Disposing needs the method (WIPED, DESTROYED, RECYCLED, RETURNED, SOLD) " +
+			"and the reference of the certificate that proves it; a disposed object moves no more.",
 		SideEffects: "Writes the asset record, the CI's stage, audit entries and the change log.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."},

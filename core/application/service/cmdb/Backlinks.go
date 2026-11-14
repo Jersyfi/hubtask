@@ -221,7 +221,7 @@ func (p Pointers) visibleEntries(ctx context.Context, actor appshared.ActorConte
 func (h ListCiBacklinks) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiBacklinksName, Permission: service.PermissionRead,
-		Summary: "Answers what points at a configuration item: the pages, entries' notes and comments and the " +
+		Summary: "Answers what points at an object: the pages, entries' notes and comments and the " +
 			"whiteboards that mention it (`hubtask:ci/<id>`), show it as a card or draw it, each with its title - " +
 			"only those the reader may see.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,

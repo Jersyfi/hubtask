@@ -113,8 +113,8 @@ type ListCiGroups struct{ Inventory Inventory }
 func (h ListCiGroups) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiGroupsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's CI groups - sets defined by a filter on class, stage, name, attribute values, owner, location and asset tag, " +
-			"never by listing CIs - with how many CIs each holds now and the service each stands for, if any.",
+		Summary: "Lists a hub's object groups - sets defined by a filter on object type, stage, name, attribute values, owner, location and inventory number, " +
+			"never by listing objects - with how many objects each holds now and the service each stands for, if any.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
 		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: groupTarget, Severity: audit.SeverityInfo},
@@ -172,11 +172,11 @@ type DefineCiGroup struct{ Inventory Inventory }
 func (h DefineCiGroup) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineCiGroupName, Permission: service.PermissionWriteItems,
-		Summary: "Defines a CI group of a hub under a key, or changes it: a name and a filter - classes (with those " +
+		Summary: "Defines an object group of a hub under a key, or changes it: a name and a filter - object types (with those " +
 			"below them), stages, a text the name holds, attribute values to equal without case, and the owners " +
-			"(people or groups), locations and asset tags the inventory line's asset.owner, asset.location and " +
+			"(people or groups), locations and inventory numbers the inventory line's asset.owner, asset.location and " +
 			"asset.tag keys name, each with or without none (no_owner, no_location, no_tag); at least one. " +
-			"When it names a service CI of the hub, the members are what that service rests on beside its relations.",
+			"When it names a service object of the hub, the members are what that service rests on beside its relations.",
 		SideEffects: "Writes the group, an audit entry and the change log.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
@@ -279,7 +279,7 @@ type ListCiGroupMembers struct{ Inventory Inventory }
 func (h ListCiGroupMembers) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiGroupMembersName, Permission: service.PermissionRead,
-		Summary:     "Answers the CIs a group's filter holds now, in the hub's inventory, merged ones never.",
+		Summary:     "Answers the objects a group's filter holds now, in the hub's inventory, merged ones never.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "group_id", Kind: usecase.KindID, Required: true, Description: "The group."}},
 		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: groupTarget, Severity: audit.SeverityInfo},
