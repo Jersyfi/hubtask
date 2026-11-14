@@ -7,24 +7,32 @@
   // another shows the surviving one's standing and public replies (check 10).
 
   import { untrack } from 'svelte';
-  import { Badge, Button, PageHeader, DetailPage, Radio, Skeleton, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Button, PageHeader, DetailPage, Radio, Skeleton, Stack, StateLozenge, Textarea } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
-  import type { PortalRequestDetail } from '@hubtask/sync-engine';
+  import type { PortalRequestDetail, WorkItem } from '@hubtask/sync-engine';
 
   import { myRequestPath, portal } from '../lib/data/portal.svelte.ts';
-  import { resource } from '../lib/data/resource.svelte.ts';
+  import { resource, resourceWhen } from '../lib/data/resource.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { goalTone } from '../lib/portal/portal.ts';
+  import { goalTone, requestState } from '../lib/portal/portal.ts';
   import { renderProblem } from '../lib/problem.ts';
 
-  const { id, onnavigate }: { id: string; onnavigate?: (path: string) => void } = $props();
+  const { id, onnavigate, onreplace }: { id: string; onnavigate?: (path: string) => void; onreplace?: (path: string) => void } = $props();
 
   const request = untrack(() => resource<PortalRequestDetail>(myRequestPath(id)));
+  // One link, the right view (PO-5): the team's member, who raised nothing here, reads the entry.
+  const isNotTheirs = $derived(request.state.status === 'failed' && [403, 404].includes((request.state.error as { status?: number }).status ?? 0));
+  const asEntry = resourceWhen<WorkItem>(() => (isNotTheirs ? `/items/${id}` : undefined));
+  $effect(() => {
+    if (asEntry.state.status === 'ready') untrack(() => (onreplace ?? onnavigate)?.(`/items/${id}`));
+  });
+  const isFindingEntry = $derived(isNotTheirs && (asEntry.state.status === 'loading' || asEntry.state.status === 'ready'));
   const detail = $derived(request.state.status === 'ready' ? request.state.data : undefined);
-  const failure = $derived(request.state.status === 'failed' ? renderProblem(request.state.error, messages) : undefined);
+  const standing = $derived(detail ? requestState(detail, { received: t('app.portal.state_received'), working: t('app.portal.state_working'), done: t('app.portal.state_done') }) : undefined);
+  const failure = $derived(request.state.status === 'failed' && !isFindingEntry ? renderProblem(request.state.error, messages) : undefined);
   $effect(() => page.entitle(detail?.title ?? t('app.portal.request')));
 
   const at = (iso: string | null) => (iso ? formatDateTime(iso, messages.locale) : '');
@@ -81,9 +89,7 @@
     <div aria-busy="true"><Skeleton lines={5} /></div>
   {:else}
     <div class="standing">
-      <Badge tone={detail.is_completed ? 'success' : 'info'}>
-        {detail.is_completed ? t('app.portal.resolved') : (detail.status ?? t('app.portal.open'))}
-      </Badge>
+      <span data-portal-state={standing?.category}>{#if standing}<StateLozenge label={standing.label} vocabulary="category" state={standing.category} size="md" />{/if}</span>
       <Button tone="subtle" size="sm" icon="arrow-left" onclick={() => onnavigate?.(`/portal/${detail.collection_id}`)}>{t('app.portal.back')}</Button>
     </div>
     {#if detail.notes}<p class="notes">{detail.notes}</p>{/if}
@@ -95,9 +101,8 @@
           <div class="standing">
             <h2 class="heading" id="portal-merged">{t('app.portal.merged_title', { number: into.number })}</h2>
             {#if into.readable}
-              <Badge tone={into.is_completed ? 'success' : 'info'} size="sm">
-                {into.is_completed ? t('app.portal.resolved') : (into.status ?? t('app.portal.open'))}
-              </Badge>
+              <!-- The surviving request carries no status name of its own: its completion in words, never a key. -->
+              <StateLozenge label={into.is_completed ? t('app.portal.state_done') : t('app.portal.open')} vocabulary="category" state={into.is_completed ? 'done' : 'progress'} />
             {/if}
           </div>
           {#if into.readable}

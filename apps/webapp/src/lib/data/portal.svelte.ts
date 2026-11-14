@@ -21,6 +21,8 @@ export const myRequestsPath = (collectionId: string) => `/requests?${query(colle
 export const organisationRequestsPath = (collectionId: string) => `/requests?${query(collectionId)}&scope=ORGANISATION`;
 export const myRequestPath = (itemId: string) => `/requests/${itemId}`;
 export const articlePath = (collectionId: string, pageId: string) => `/articles/${pageId}?${query(collectionId)}`;
+/** What a portal shares of the knowledge base: articles and spaces with their pages (PO-4). */
+export const knowledgePath = (collectionId: string) => `/portal-knowledge?${query(collectionId)}`;
 export function suggestionsPath(collectionId: string, text: string): string {
   return text === '' ? `/articles?${query(collectionId)}` : `/articles?${query(collectionId)}&text=${encodeURIComponent(text)}`;
 }

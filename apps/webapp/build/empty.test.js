@@ -88,6 +88,10 @@ test('every product screen draws its empty answer through ProductEmpty', () => {
 const SRC = path.resolve(VIEWS, '..');
 const NO_ONE_TO_ASK = new Map([
   ['views/PortalView.svelte', 'a requester with no request of their own raises one on the same screen'],
+  ['views/PortalRequestsView.svelte', 'a requester with no request of their own raises one at the portal\'s start'],
+  ['views/PortalApprovalsView.svelte', 'nothing waiting for a yes is nobody\'s to ask about'],
+  ['views/PortalKnowledgeView.svelte', 'a requester cannot share knowledge; the desk\'s team decides what is shared'],
+  ['views/PortalDirectoryView.svelte', 'who may ask a department is the administration\'s, named in the empty answer itself'],
   ['views/PublicRoadmapView.svelte', 'an anonymous reader of a shared roadmap has nobody here to ask'],
 ]);
 

@@ -27,6 +27,8 @@
   import { browseElsewhere, stepOf } from './lib/phone.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
+  import { isOutsider, isOutsiderRoute, portalStart } from './lib/portal/portal.ts';
+  import { lastPortal } from './lib/portal/lastportal.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
   import ModuleOff from './lib/frame/ModuleOff.svelte';
   import { PRODUCT_HOMES, isProductHome, offModuleOf } from './lib/frame/moduleroute.ts';
@@ -104,6 +106,10 @@
     PortalView: () => import('./views/PortalView.svelte'),
     PortalRequestView: () => import('./views/PortalRequestView.svelte'),
     PortalArticleView: () => import('./views/PortalArticleView.svelte'),
+    PortalRequestsView: () => import('./views/PortalRequestsView.svelte'),
+    PortalApprovalsView: () => import('./views/PortalApprovalsView.svelte'),
+    PortalKnowledgeView: () => import('./views/PortalKnowledgeView.svelte'),
+    PortalDirectoryView: () => import('./views/PortalDirectoryView.svelte'),
     WhiteboardsView: () => import('./views/WhiteboardsView.svelte'),
     PlanView: () => import('./views/PlanView.svelte'),
     CollectionTimeline: () => import('./views/CollectionTimeline.svelte'),
@@ -216,6 +222,21 @@
   const moved = $derived(movedTo(route.name, route.params, route.query));
   $effect(() => {
     if (moved) router.replace(keepsQuery(route.name) ? movedWith(moved, route.query) : moved);
+  });
+  // Whoever holds READ nowhere stands only in a portal (PO-2, E-13): any other address of the
+  // frame leads to their portal - the one chosen last - rather than to *no access*. An entry's
+  // address stays: it opens as their request (PO-5). The doors refuse them as before.
+  const outsiderStart = $derived(
+    session.isSignedIn && isOutsider(actor.hasNoAccess, actor.portals) && route.name !== null && !isOutsiderRoute(route.name)
+      ? portalStart(true, actor.portals, lastPortal.id)
+      : undefined,
+  );
+  $effect(() => {
+    if (outsiderStart) router.replace(outsiderStart);
+  });
+  $effect(() => {
+    const id = route.name?.startsWith('portal') ? route.params.id : undefined;
+    if (id && actor.portals.some((each) => each.collection_id === id)) lastPortal.remember(id);
   });
 
   /**
@@ -523,7 +544,7 @@
     <LazyView load={views.ArchiveView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'item'}
     {#key route.params.id}
-      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.ItemView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
   {:else if route.name === 'approvals'}
     <LazyView load={views.ApprovalsView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
@@ -570,8 +591,22 @@
     {/key}
   {:else if route.name === 'portal-request'}
     {#key route.path}
-      <LazyView load={views.PortalRequestView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+      <LazyView load={views.PortalRequestView} props={{ id: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path), onreplace: (path: string) => router.replace(path) }} />
     {/key}
+  {:else if route.name === 'portal-requests'}
+    {#key route.path}
+      <LazyView load={views.PortalRequestsView} props={{ collectionId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portal-approvals'}
+    {#key route.path}
+      <LazyView load={views.PortalApprovalsView} props={{}} />
+    {/key}
+  {:else if route.name === 'portal-knowledge'}
+    {#key route.path}
+      <LazyView load={views.PortalKnowledgeView} props={{ collectionId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'portal-directory'}
+    <LazyView load={views.PortalDirectoryView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'portal-article'}
     {#key route.path}
       <LazyView load={views.PortalArticleView} props={{ collectionId: route.params.id ?? '', pageId: route.params.pageId ?? '', onnavigate: (path: string) => router.navigate(path) }} />

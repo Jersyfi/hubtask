@@ -83,9 +83,10 @@
   import { hasForm, panelRows, triageKeys } from '../lib/data/entryforms.ts';
   import { droppedBy, entryTypes, entryTypesOffered, offeredTypes, typeOf, typesShown } from '../lib/data/entrytypes.svelte.ts';
   import { actsAsDesk } from '../lib/portal/portal.ts';
+  import { myRequestPath } from '../lib/data/portal.svelte.ts';
   import { modules, modulesHere } from '../lib/data/modules.svelte.ts';
   import TypeDropsDialog from '../lib/entries/TypeDropsDialog.svelte';
-  import type { EntryFormState } from '@hubtask/sync-engine';
+  import type { EntryFormState, PortalRequestDetail } from '@hubtask/sync-engine';
   import { formatDecimal } from '../lib/i18n/number.ts';
   import { formatDuration } from '../lib/i18n/duration.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
@@ -169,9 +170,11 @@
      * menu stands on its own. Everything else is the page's, unchanged.
      */
     isInPane?: boolean;
+    /** Takes this address's place in the history: the right view for one link (PO-5). */
+    onreplace?: (path: string) => void;
   }
 
-  const { id, onnavigate, isInPane = false }: Props = $props();
+  const { id, onnavigate, isInPane = false, onreplace }: Props = $props();
 
   /** The head's primary act, from the status (E-23): the next step, or *Done* without a workflow. */
   let statusNext = $state<{ label: string; icon?: 'check'; onclick: () => void } | undefined>(undefined);
@@ -757,8 +760,16 @@
     if (!wanted) return;
     return untrack(() => customFields.open(wanted));
   });
+  // One link, the right view (PO-5): an entry the reader may not read, but raised through a portal,
+  // opens as their request rather than as *no access*.
+  const isRefused = $derived(entry.state.status === 'failed' && [403, 404].includes((entry.state.error as { status?: number }).status ?? 0));
+  const asRequest = resourceWhen<PortalRequestDetail>(() => (isRefused ? myRequestPath(id) : undefined));
+  $effect(() => {
+    if (asRequest.state.status === 'ready') untrack(() => (onreplace ?? onnavigate)?.(`/portal/requests/${id}`));
+  });
+  const isFindingRequest = $derived(isRefused && (asRequest.state.status === 'loading' || asRequest.state.status === 'ready'));
   const failure = $derived(
-    entry.state.status === 'failed' ? renderProblem(entry.state.error, messages) : undefined,
+    entry.state.status === 'failed' && !isFindingRequest ? renderProblem(entry.state.error, messages) : undefined,
   );
 
   /** What the history kept about one field, as one phrase. */
@@ -1283,7 +1294,7 @@
   }
 </script>
 
-{#if entry.state.status === 'loading' || entry.state.status === 'idle'}
+{#if entry.state.status === 'loading' || entry.state.status === 'idle' || isFindingRequest}
   <div aria-busy="true"><Skeleton lines={3} /></div>
 {:else if failure}
   <FailureState problem={failure} onRetry={() => entry.refresh()} />
