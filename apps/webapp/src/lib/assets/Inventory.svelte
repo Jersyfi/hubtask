@@ -634,6 +634,7 @@
   .title { font-weight: var(--fw-medium); color: var(--text-primary); }
   /* The title column takes the rest of the row and nothing when the other columns fill it: a
      field's width keeps the name readable, and the person's name wraps to make room. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width >= 600px) {
     .table :global(td[data-role='title']) { min-inline-size: var(--layout-field-sm); }
   }
