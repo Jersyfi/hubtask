@@ -100,10 +100,15 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   const tagged = ITEMS[0];
   const label = LABELS[0];
 
-  // A chip taken off a row.
+  // A label taken off in the row's label picker (a row's chips carry no ✕, L-1).
   await undoAfterEightSeconds(
     page,
-    () => page.locator(`[data-row="${tagged.id}"]`).first().getByRole('button', { name: `Take ${label.name} off ${tagged.title}` }).click(),
+    async () => {
+      await reveal(page.locator(`[data-row="${tagged.id}"]`).first().getByRole('button', { name: `Labels on ${tagged.title}` }));
+      const picker = page.getByRole('listbox', { name: `Labels on ${tagged.title}` });
+      await picker.getByRole('option', { name: label.name, selected: true }).click();
+      await page.keyboard.press('Escape');
+    },
     `The label is off ${tagged.title}.`,
   );
   await page.waitForTimeout(300);
