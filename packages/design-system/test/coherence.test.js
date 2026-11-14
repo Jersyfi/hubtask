@@ -109,3 +109,16 @@ test('a sheet\'s list of actions is a menu of menu items, the arrows moving amon
   for (const key of ['ArrowDown', 'ArrowUp', 'Home', 'End']) assert.match(sheet, new RegExp(`event\\.key === '${key}'`));
 });
 
+// Y-2: the page's writing bar and a board's islands are one surface.
+test('the floating toolbar draws the one floating surface', () => {
+  assert.match(source('FloatingToolbar.svelte'), /<FloatingBar bind:element=\{bar\}/);
+  const bar = rulesFor(source('FloatingBar.svelte'), 'floating-bar').join(' ');
+  assert.match(bar, /border-radius: var\(--r-lg\)/);
+  assert.match(bar, /background: var\(--bg-raised\)/);
+});
+
+// W-1: one figure size for a widget and a product home's key figure.
+test('a widget\'s figure is a key figure\'s size', () => {
+  assert.match(rulesFor(source('Widget.svelte'), 'figure').join(' '), /font-size: var\(--fs-450\)/);
+  assert.match(source('SummaryCard.svelte'), /\.summary-card\[data-lead='figure'\] \.figure \{ font-size: var\(--fs-450\)/);
+});
