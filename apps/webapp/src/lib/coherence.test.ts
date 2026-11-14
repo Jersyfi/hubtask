@@ -106,3 +106,13 @@ test('the board’s start is the ladder’s dialog, not a panel of its own (D-4)
   assert.doesNotMatch(text, /role="dialog"/u);
   assert.match(text, /<Dialog size="l" isOpen=\{true\} title=\{t\('app\.whiteboards\.begin_title'\)\}/u);
 });
+
+test('a row’s and a card’s state chip follow its entry type’s own level, as the server answers it per type (L-5)', () => {
+  const view = sources.find(({ path }) => path === 'views/ContainerView.svelte')?.text ?? '';
+  assert.match(view, /const mode = container\?\.state_modes\?\.\[entryType\];/u);
+  assert.equal((view.match(/\{levelOfType\}/gu) ?? []).length, 2, 'the list and the board both receive it');
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  assert.match(list, /const mode = own\?\.mode \?\? stateMode;/u);
+  const board = sources.find(({ path }) => path === 'lib/entries/Board.svelte')?.text ?? '';
+  assert.match(board, /chipOf\(own\?\.mode \?\? level, card/u);
+});

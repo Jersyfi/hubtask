@@ -109,7 +109,7 @@
   import HubActivity from '../lib/workspace/HubActivity.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
-  import { boardShapeIn, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
+  import { boardShapeIn, workflowFor, workflows, workflowsIn } from '../lib/data/workflows.svelte.ts';
   import ItemView from './ItemView.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -272,6 +272,13 @@
   const boardShape = $derived(
     container?.type === 'COLLECTION' ? boardShapeIn(workflows.list, container.id, container.parent_id ?? undefined) : undefined,
   );
+  /** An entry type's own level and workflow (build-plan §5): the server answers it per type. */
+  function levelOfType(entryType: string) {
+    const mode = container?.state_modes?.[entryType];
+    if (!container || !mode || mode === stateMode) return undefined;
+    const runs = mode === 'WORKFLOW' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, entryType)?.published ?? undefined : undefined;
+    return { mode, workflow: runs };
+  }
 
   /** What this collection offers: the installation's answers, narrowed to its structure in force. */
   const offer = $derived(offerIn(container?.structure?.settings));
@@ -1653,6 +1660,7 @@
               {mayShape}
               level={stateMode}
               workflow={boardShape}
+              {levelOfType}
               showsKey={arrangement?.fields.includes('key') ?? false}
               lanesBy={lanesBy || undefined}
               laneName={(value) => laneName(lanesBy, value)}
@@ -1691,6 +1699,7 @@
               sortable={sortFields}
               {stateMode}
               workflow={boardShape}
+              {levelOfType}
               withSla={isDesk && modulesOn.includes('SERVICE_DESK')}
               {customNames}
             />

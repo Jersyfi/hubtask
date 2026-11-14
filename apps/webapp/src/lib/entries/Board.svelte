@@ -140,6 +140,8 @@
      * stand folded in *Ohne Spalte*. Every drop goes through `:drop`, which decides at either.
      */
     level?: StateMode;
+    /** An entry type's own level and workflow where it differs from the tasks' (build-plan §5). */
+    levelOfType?: (entryType: string) => { readonly mode: StateMode | undefined; readonly workflow: WorkflowShape | undefined } | undefined;
     /** The workflow the collection runs, where it runs one: the statuses' names. */
     workflow?: WorkflowShape;
   }
@@ -157,6 +159,7 @@
     mayCreate,
     mayShape,
     level,
+    levelOfType,
     workflow,
     showsKey = false,
     lanesBy,
@@ -1068,7 +1071,8 @@
                     {/if}
                   {/snippet}
                   {#snippet footer()}
-                    {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(level, card, columns, workflow, chipNames) : undefined}
+                    {@const own = card.entry_type ? levelOfType?.(card.entry_type) : undefined}
+                    {@const cardChip = card.type === 'TASK' && isBucketBoard ? chipOf(own?.mode ?? level, card, columns, own?.workflow ?? workflow, own?.mode === 'WORKFLOW' ? { ...chipNames, noColumn: t('app.board.unmapped') } : chipNames) : undefined}
                     {#if cardChip}<StateChip item={card} chip={cardChip} disabledReason={changeRefusal(card)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
                     {#if showsKey}<EntryKey collection={keyedCollection} number={card.number} />{/if}
                     <DueMark item={card} />

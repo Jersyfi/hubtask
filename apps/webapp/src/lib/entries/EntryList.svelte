@@ -202,6 +202,12 @@
     stateMode?: StateMode;
     /** The workflow the collection runs, for the status chip's names and steps. */
     workflow?: WorkflowShape;
+    /**
+     * An entry type's own level and workflow where it differs from the tasks' (build-plan §5: the
+     * level is per entry type): a story running a workflow in a collection whose tasks stand in
+     * columns shows its status, never *Keine Spalte*.
+     */
+    levelOfType?: (entryType: string) => { readonly mode: StateMode | undefined; readonly workflow: WorkflowShape | undefined } | undefined;
     /** A desk's collection with its module on: a phone's row carries the SLA bar (§7). */
     withSla?: boolean;
     /** The custom fields' names by key, for their columns' heads. */
@@ -238,6 +244,7 @@
     isAddedInPlace = false,
     stateMode,
     workflow,
+    levelOfType,
     withSla = false,
     customNames,
   }: Props = $props();
@@ -251,14 +258,17 @@
   /** The state chip of a task's row at L1 and L2, or nothing where the checkbox completes. */
   function chipFor(entry: WorkItem): Chip | undefined {
     if (entry.type !== 'TASK') return undefined;
-    return chipOf(stateMode, entry, buckets.of(collectionId), workflow, {
-      noColumn: stateMode === 'WORKFLOW' ? t('app.board.unmapped') : t('app.board.unbucketed'),
+    const own = entry.entry_type ? levelOfType?.(entry.entry_type) : undefined;
+    const mode = own?.mode ?? stateMode;
+    const shape = own?.workflow ?? workflow;
+    return chipOf(mode, entry, buckets.of(collectionId), shape, {
+      noColumn: mode === 'WORKFLOW' ? t('app.board.unmapped') : t('app.board.unbucketed'),
       statusName: (key) => {
-        const status = workflow?.statuses.find((each) => each.key === key);
+        const status = shape?.statuses.find((each) => each.key === key);
         return status ? statusLabel(status, t) : key;
       },
       stepName: (_key, name, to) => {
-        const status = workflow?.statuses.find((each) => each.key === to);
+        const status = shape?.statuses.find((each) => each.key === to);
         return name ?? (status ? statusLabel(status, t) : to);
       },
     });
