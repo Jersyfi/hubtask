@@ -452,6 +452,24 @@ func TestReadConfirmationsAreTheWritersAlone(t *testing.T) {
 	}
 }
 
+// Only a person's reading is counted (UC-DOC-18 check 4): an agent's reading is not its person's,
+// and a service account is in no audience - both read the post, neither counts as seen.
+func TestOnlyAPersonsReadingIsCountedAsSeen(t *testing.T) {
+	f := newPostFixture()
+	id := f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339)})
+	page := usecase.Input{"page_id": id.String()}
+	for _, account := range []shared.ID{agent, robot} {
+		out, err := call(t, MarkPostSeen{Space: f.space}.Descriptor(), actorOf(account), page)
+		if err != nil || out["seen"] != false || out["seen_count"] != 0 {
+			t.Errorf("%s read %v, %v; wants the post, not counted", account, out, err)
+		}
+	}
+	out, err := call(t, MarkPostSeen{Space: f.space}.Descriptor(), actorOf(member), page)
+	if err != nil || out["seen"] != true || out["seen_count"] != 1 {
+		t.Errorf("a member read %v, %v; wants counted once", out, err)
+	}
+}
+
 // "Everyone in the workspace" is offered only where every member of the workspace reads the hub,
 // and there it is the hub's readers; a hub a member cannot read never offers it (B-6).
 func TestEveryoneInTheWorkspaceIsTheHubsReadersWhereAllReadIt(t *testing.T) {
