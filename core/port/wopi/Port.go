@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+// Package wopi is the port for a document server (UC-MED-06, ADR-0104): the access tokens it
+// presents to the WOPI host, and what Hubtask asks of it - which actions it offers per file
+// ending, and a file converted to PDF for the viewer.
+package wopi
+
+import (
+	"context"
+	"io"
+	"time"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/media"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+)
+
+// Grant is what one access token says: this person, this file, reading or writing, until then.
+type Grant struct {
+	TenantID  shared.ID
+	AccountID shared.ID
+	MediaID   shared.ID
+	Write     bool
+	ExpiresAt time.Time
+}
+
+// Tokens signs and reads the access tokens. A token is never stored and never logged (rule 10).
+type Tokens interface {
+	Issue(grant Grant) string
+	// Read verifies a token presented for a file; every forgery and an expired token are
+	// ErrInvalidToken alike.
+	Read(token string, mediaID shared.ID, now time.Time) (Grant, error)
+}
+
+// ErrInvalidToken is the one refusal of a token that does not open this file now.
+func ErrInvalidToken() error {
+	return shared.ErrUnauthenticated.WithDetail("wopi.token_invalid")
+}
+
+// Action is where a document server opens a file of one ending: its URL template from the
+// discovery, with the WOPI source still to be placed.
+type Action struct {
+	Name   string
+	Ending string
+	URL    string
+}
+
+// Server is a document server as Hubtask asks it things, through GuardedClient with a deadline
+// (rules 6, 7).
+type Server interface {
+	// Discover reads the server's actions.
+	Discover(ctx context.Context, choice media.DocumentServerChoice) ([]Action, error)
+	// ConvertToPDF sends the file and streams back its PDF. ErrUnsupported when the server's kind
+	// converts nothing Hubtask can reach.
+	ConvertToPDF(ctx context.Context, choice media.DocumentServerChoice, source Source) (io.ReadCloser, error)
+}
+
+// Source is the file a conversion reads: its bytes, and where the server may fetch them when its
+// kind fetches rather than receives (a WOPI GetFile address with a read token).
+type Source struct {
+	Name    string
+	Content io.Reader
+	Size    int64
+	FetchAt string
+}
+
+// ErrUnsupported answers a conversion the server's kind does not offer.
+func ErrUnsupported() error {
+	return shared.ErrConflict.WithDetail("media.conversion_unavailable")
+}
