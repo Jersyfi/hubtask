@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08]
 state: specified
 tasks: []
-checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, test/integration/post_repository_test.go]
+checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/notification/RecordPost_test.go, test/integration/post_repository_test.go, test/integration/notification_test.go]
 ---
 
 # Announce news to a hub as a post
@@ -40,5 +40,4 @@ Before the release on Monday, the product lead writes the release note from its 
 ## Today
 
 * Check 1: not met - the server writes, schedules and publishes posts; the web app's *write and schedule a post* scene is not built.
-* Check 5: not met - the audience is judged and handed to the notifier, but no notification category or mail for a post is built yet.
 * Check 7: not met - the hub column's section and the posts scene are not built in the web app.

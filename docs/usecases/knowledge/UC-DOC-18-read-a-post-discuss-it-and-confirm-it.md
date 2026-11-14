@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08]
 state: specified
 tasks: []
-checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, test/integration/post_repository_test.go]
+checked_by: [core/domain/model/knowledge/Post_test.go, core/application/service/knowledge/Posts_test.go, core/application/service/notification/RecordPost_test.go, test/integration/post_repository_test.go, apps/webapp/src/lib/data/posts.test.ts]
 ---
 
 # Read a post, discuss it and confirm it
@@ -38,7 +38,6 @@ The new security rule goes out as a post asking the forty-five people of the ope
 ## Today
 
 * Check 1: not met - the server answers the count; the web app's *read a post* scene is not built.
-* Check 2: not met - the server counts, lists for writers and selects whom to remind; the band and the reminder's notification are not built.
+* Check 2: not met - the server counts, lists for writers and reminds by mail (notification category POST); the web app's band and *Remind* are not built.
 * Check 3: not met - the server holds the discussion; the web app's discussion is not built.
-* Check 5: not met - *New for you* on Today is not built.
-* Check 6: not met - the person's erasure does not yet remove their seen, confirmations, reactions and replies.
+* Check 5: not met - the server answers the unread posts across hubs (`GET /posts`); *New for you* on Today is not built in the web app.
