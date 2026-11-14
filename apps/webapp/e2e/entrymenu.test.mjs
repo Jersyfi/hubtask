@@ -37,7 +37,7 @@ const COMMON = [
 /** The items' own labels, the reason under an unavailable one left out. */
 const labelsOf = (menu) =>
   menu.getByRole('menuitem').evaluateAll((items) =>
-    items.map((item) => (item.querySelector('.label')?.textContent ?? '').trim().replace(/…$/, '').replace(/^(Move inside).*$/, '$1')));
+    items.map((item) => (item.querySelector('.label')?.textContent ?? item.innerText.split('\n')[0] ?? '').trim().replace(/…$/, '').replace(/^(Move inside).*$/, '$1')));
 
 /** A signed-in tab with every write recorded, at a width and maybe with a touch screen. */
 async function open(browser, path, { width = 1280, height = 900, hasTouch = false } = {}) {
@@ -276,7 +276,7 @@ test('chromium: 390 px with a touch screen — a still long press opens the menu
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 375 × 812 — the menu of the last row on screen stays on screen, every item reachable', async (t) => {
+test('chromium: 375 × 812 — the menu of the last row on screen opens as a sheet on screen, every item reachable', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width: 375, height: 812 });
@@ -284,36 +284,36 @@ test('chromium: 375 × 812 — the menu of the last row on screen stays on scree
   await page.locator('[data-row] a').first().waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
 
-  // The last ⋯ wholly on screen: the row nearest the foot, where the room below is the least.
-  const triggers = page.getByRole('button', { name: /^Actions for / });
-  const boxes = await triggers.evaluateAll((all) => all.map((each) => each.getBoundingClientRect().toJSON()));
-  // On screen means above the bottom bar, which stands over the page's foot.
+  // The row nearest the foot, where the room below is the least. A phone's row draws no ⋯ (§7):
+  // a long press or a swipe opens its menu, and the keyboard reaches the menu's own opener.
+  const rows = page.locator('[data-row]');
+  const boxes = await rows.evaluateAll((all) => all.map((each) => each.getBoundingClientRect().toJSON()));
   const foot = await page.evaluate(() => document.querySelector('nav[aria-label="Sections"]')?.getBoundingClientRect().top ?? innerHeight);
   const last = boxes.findLastIndex((box) => box.height > 0 && box.bottom <= foot);
-  assert.ok(last >= 0, 'no row with a ⋯ on screen');
+  assert.ok(last >= 0, 'no row on screen');
   assert.ok(boxes[last].top > foot / 2, `the last row on screen is in the upper half (${boxes[last].top})`);
   const scrolled = await page.evaluate(() => scrollY);
-  // Below `medium` a row's tools are always drawn, so the ⋯ is pressed where it stands.
-  await triggers.nth(last).click();
+  await rows.nth(last).getByRole('button', { name: /^Actions for / }).focus();
+  await page.keyboard.press('Enter');
   const menu = page.getByRole('menu');
   await menu.waitFor({ timeout: 5_000 });
   await page.waitForTimeout(300);
 
-  const surface = await menu.evaluate((list) => list.parentElement.getBoundingClientRect().toJSON());
-  assert.ok(surface.top >= 0 && surface.bottom <= 812, `the menu runs past the viewport: ${surface.top}–${surface.bottom}`);
-  assert.ok(surface.bottom <= boxes[last].top, 'the menu did not open above its ⋯, where the room is larger');
-  // Every item comes into view inside the menu, and the page does not move for it.
+  // On a phone every menu is a sheet from the foot (D-1), whole on screen.
+  const surface = await menu.evaluate((list) => list.closest('dialog')?.getBoundingClientRect().toJSON());
+  assert.ok(surface, 'the menu is not a sheet on a phone');
+  assert.ok(surface.top >= 0 && surface.bottom <= 812, `the sheet runs past the viewport: ${surface.top}–${surface.bottom}`);
+  // Every item comes into view inside the sheet, and the page does not move for it.
   const items = menu.getByRole('menuitem');
   const count = await items.count();
   assert.ok(count >= COMMON.length, `the menu has ${count} items`);
   for (let index = 0; index < count; index += 1) {
-    // The surface measured with the item: the engine may settle the scrolled surface anew.
     const { box, around } = await items.nth(index).evaluate((item) => {
       item.scrollIntoView({ block: 'nearest' });
-      return { box: item.getBoundingClientRect().toJSON(), around: item.closest('[role="menu"]').parentElement.getBoundingClientRect().toJSON() };
+      return { box: item.getBoundingClientRect().toJSON(), around: item.closest('dialog').getBoundingClientRect().toJSON() };
     });
-    assert.ok(around.top >= 0 && around.bottom <= 812, `the menu runs past the viewport: ${around.top}–${around.bottom}`);
-    assert.ok(box.top >= around.top - 1 && box.bottom <= around.bottom + 1, `item ${index} is outside the menu: ${box.top}–${box.bottom}`);
+    assert.ok(around.top >= 0 && around.bottom <= 812, `the sheet runs past the viewport: ${around.top}–${around.bottom}`);
+    assert.ok(box.top >= around.top - 1 && box.bottom <= around.bottom + 1, `item ${index} is outside the sheet: ${box.top}–${box.bottom}`);
   }
   assert.equal(await page.evaluate(() => scrollY), scrolled, 'reaching the items scrolled the page');
   assert.deepEqual(failures, []);
