@@ -63,7 +63,8 @@
     {/if}
     {#if menu}
       <span class="page-menu" data-bar="menu">
-        <Menu isAnchored label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
+        <!-- Not anchored: on a phone the page's menu is a sheet from the foot, as every menu of the page is (D-1). -->
+        <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={menu.label} data-opener={menu.opener} {...props} />
           {/snippet}
