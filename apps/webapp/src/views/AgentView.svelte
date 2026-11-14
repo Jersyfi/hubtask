@@ -150,14 +150,16 @@
   const target = $derived(agent ? jobTarget(agent.kind) : undefined);
   const mayRun = $derived(agent ? mayStartJob(agent, viewer) : false);
   const countOf = (state: { status: string; data?: { data: readonly unknown[] } }) => (state.status === 'ready' ? String(state.data?.data.length ?? 0) : undefined);
+  /** An empty part is one line, its sentence beside its heading (WB-3). */
+  const emptyOf = (state: { status: string; data?: { data: readonly unknown[] } }, code: string) => (state.status === 'ready' && (state.data?.data.length ?? 0) === 0 ? { emptyLabel: t(code) } : {});
 
   const lists = $derived<RecordList[]>([
-    { id: 'ledger', title: t('app.agents.ledger'), count: countOf(ledger.state as never) },
+    { id: 'ledger', title: t('app.agents.ledger'), count: countOf(ledger.state as never), ...emptyOf(ledger.state as never, 'app.agents.ledger_empty') },
     ...(target
-      ? [{ id: 'jobs', title: t('app.agents.jobs'), count: countOf(jobs.state as never), ...(mayRun ? { add: { label: t('app.agents.run_on'), icon: 'play' as const, onclick: () => (isRunOpen = true) } } : {}) }]
+      ? [{ id: 'jobs', title: t('app.agents.jobs'), count: countOf(jobs.state as never), ...emptyOf(jobs.state as never, 'app.agents.jobs_empty'), ...(mayRun ? { add: { label: t('app.agents.run_on'), icon: 'play' as const, onclick: () => (isRunOpen = true) } } : {}) }]
       : []),
-    { id: 'cases', title: t('app.agents.cases'), count: countOf(cases.state as never), ...(administers ? { add: { label: t('app.agents.add_case'), icon: 'plus' as const, onclick: () => (isCaseOpen = true) } } : {}) },
-    { id: 'runs', title: t('app.agents.runs'), count: countOf(runs.state as never) },
+    { id: 'cases', title: t('app.agents.cases'), count: countOf(cases.state as never), ...emptyOf(cases.state as never, 'app.agents.cases_empty'), ...(administers ? { add: { label: t('app.agents.add_case'), icon: 'plus' as const, onclick: () => (isCaseOpen = true) } } : {}) },
+    { id: 'runs', title: t('app.agents.runs'), count: countOf(runs.state as never), ...emptyOf(runs.state as never, 'app.agents.runs_empty') },
   ]);
 
   const failureOf = (state: { status: string; error?: unknown }) => (state.status === 'failed' ? renderProblem(state.error as never, messages) : undefined);

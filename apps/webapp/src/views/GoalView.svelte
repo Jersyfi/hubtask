@@ -422,7 +422,8 @@
   .summary, .block { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
   .facts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); color: var(--text-secondary); font-size: var(--fs-075); }
   .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
-  .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-medium); }
+  /* The entry's section head (FoldingSection, H-6): one look for every object's parts. */
+  .heading { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
   .description { margin: 0; white-space: pre-wrap; }
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }

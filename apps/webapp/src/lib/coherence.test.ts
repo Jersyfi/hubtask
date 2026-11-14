@@ -195,3 +195,12 @@ test('the portal\'s titles take the two sizes every head has: a page head\'s and
   assert.match(home, /\.greeting \{ margin: 0; font-size: var\(--fs-450\);/u);
   assert.doesNotMatch(home + article, /font-size: var\(--fs-(400|500)\); font-weight: var\(--fw-bold\)/u);
 });
+
+test('an agent\'s empty parts are one line each; a goal\'s and a portfolio\'s heads are the entry\'s (H-6, H-7)', () => {
+  const agent = sources.find(({ path }) => path === 'views/AgentView.svelte')?.text ?? '';
+  for (const part of ['ledger', 'jobs', 'cases', 'runs']) assert.match(agent, new RegExp(`emptyOf\\(${part}\\.state as never, 'app\\.agents\\.${part}_empty'\\)`, 'u'));
+  for (const view of ['views/GoalView.svelte', 'views/PortfolioView.svelte']) {
+    const text = sources.find(({ path }) => path === view)?.text ?? '';
+    assert.match(text, /\.heading \{ margin: 0; font-family: var\(--font-display\); font-size: var\(--fs-200\); font-weight: var\(--fw-semibold\);/u, view);
+  }
+});
