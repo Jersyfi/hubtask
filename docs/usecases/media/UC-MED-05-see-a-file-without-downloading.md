@@ -30,8 +30,8 @@ closes the viewer with Esc.
    Hubtask itself; nothing is opened as a document, and SVG and Markdown only sanitised.
 2. The viewer is one: full screen over everything, the name, "n of m", download, link and
    details, every file of the object at the foot, ← → to page, Esc to close - in an entry, a page,
-   a post and a board. A post is a page: its pictures and files open the viewer as a page's do,
-   for those the post is for alone.
+   a post, a board and an inventory object. A post is a page: its pictures and files open the
+   viewer as a page's do, for those the post is for alone.
 3. An office file is shown as a PDF converted by the workspace's document server; without one it
    is a card with its type, its size and the download.
 4. What cannot be shown is a card with type, size and download.
@@ -43,5 +43,5 @@ closes the viewer with Esc.
 
 * No annotation, no editing in Hubtask (UC-MED-06 edits in the document server).
 * Linked files in a file store keep their provider's preview.
-* An inventory item and a portal request hold no files (the contract has no file route for them),
-  so the viewer has nothing to open there.
+* A portal request holds no files (the contract has no file route for it), so the viewer has
+  nothing to open there.

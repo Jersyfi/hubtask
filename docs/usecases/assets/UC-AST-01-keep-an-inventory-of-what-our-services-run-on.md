@@ -35,6 +35,8 @@ Dana runs IT for a practice of forty people. She records the booking application
 9. An entry's notes or comments, a page or a whiteboard point at an object with `hubtask:ci/<id>`; the reference shows the object's name, object type and stage to a reader of its hub and only its address to anyone else, and the object's screen lists what points at it that the reader may see.
 10. A device that holds a copy of the workspace reads a hub's inventory while the server is away: the objects by object type, an object with its relations, the protection need it inherits and its impact, and the object types and relation types; only a hub the reader may read reaches the device, every write of an object or a relation reaches it, and nothing is written offline.
 11. Writing a comment or a page, a member mentions an object of a hub they may read, found by its name, inline or as a card; an object of a hub out of their reach, or one merged away, is not offered.
+12. A member who may write puts files on an object - chosen or dropped on its *Files* section, uploaded as every file is - and takes them off; every reader of the hub sees them as a grid with previews or as a list and opens them in the one file viewer, paging with ← → over the object's files; a member of another hub reads none of them, and the files go with the object.
+13. An object's *History* tells, newest first, who made it, changed it by hand or let a source change it, moved its stage, owner, location or protection need, related or unrelated it, confirmed or attested it, registered or moved its asset, and put a file on it or took one off, and when; whoever reads the hub reads it, it goes with the object, and on a phone the files and the history are read and nothing is written.
 
 ## Where it ends
 
