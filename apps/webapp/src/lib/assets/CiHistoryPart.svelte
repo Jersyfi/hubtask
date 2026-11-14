@@ -11,7 +11,7 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
-  import { actorCodes } from '../data/activity.ts';
+  import { actorCodes, sentenceCode } from '../data/activity.ts';
   import { groups } from '../data/groups.svelte.ts';
   import { resource } from '../data/resource.svelte.ts';
   import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
@@ -88,7 +88,9 @@
       });
     return {
       id: step.id,
-      sentence: messages.has(step.code) ? t(step.code, { actor: name ?? t(who ?? 'app.activity.actor_someone') }) : step.code,
+      sentence: messages.has(step.code)
+        ? t(sentenceCode(step.code, who === 'app.activity.actor_you', (code) => messages.has(code)), { actor: name ?? t(who ?? 'app.activity.actor_someone') })
+        : step.code,
       when: formatDateTime(step.occurred_at, messages.locale),
       at: step.occurred_at,
       changes,
