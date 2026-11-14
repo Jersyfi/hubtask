@@ -1192,7 +1192,7 @@ func (q *Queries) SnapshotCmdbAssets(ctx context.Context, arg SnapshotCmdbAssets
 const snapshotCmdbCis = `-- name: SnapshotCmdbCis :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND id > $1 AND merged_into IS NULL
 ORDER BY id
@@ -1225,6 +1225,8 @@ type SnapshotCmdbCisRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -1260,6 +1262,8 @@ func (q *Queries) SnapshotCmdbCis(ctx context.Context, arg SnapshotCmdbCisParams
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.ConfirmedAt,
+			&i.ConfirmedBy,
 			&i.Version,
 		); err != nil {
 			return nil, err

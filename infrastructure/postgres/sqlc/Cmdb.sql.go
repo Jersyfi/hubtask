@@ -193,7 +193,7 @@ func (q *Queries) FindCmdbAlert(ctx context.Context, arg FindCmdbAlertParams) (F
 const findCmdbCi = `-- name: FindCmdbCi :one
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci WHERE tenant_id = current_tenant_id() AND id = $1
 `
 
@@ -218,6 +218,8 @@ type FindCmdbCiRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -245,6 +247,8 @@ func (q *Queries) FindCmdbCi(ctx context.Context, id pgtype.UUID) (FindCmdbCiRow
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.ConfirmedAt,
+		&i.ConfirmedBy,
 		&i.Version,
 	)
 	return i, err
@@ -253,7 +257,7 @@ func (q *Queries) FindCmdbCi(ctx context.Context, id pgtype.UUID) (FindCmdbCiRow
 const findCmdbCiForUpdate = `-- name: FindCmdbCiForUpdate :one
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci WHERE tenant_id = current_tenant_id() AND id = $1
 FOR UPDATE
 `
@@ -279,6 +283,8 @@ type FindCmdbCiForUpdateRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -306,6 +312,8 @@ func (q *Queries) FindCmdbCiForUpdate(ctx context.Context, id pgtype.UUID) (Find
 		&i.CreatedAt,
 		&i.UpdatedBy,
 		&i.UpdatedAt,
+		&i.ConfirmedAt,
+		&i.ConfirmedBy,
 		&i.Version,
 	)
 	return i, err
@@ -791,7 +799,7 @@ func (q *Queries) ListCmdbAlerts(ctx context.Context, arg ListCmdbAlertsParams) 
 const listCmdbCis = `-- name: ListCmdbCis :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND hub_id = $1
   AND (cardinality($2::text[]) = 0 OR class_key = ANY($2::text[]))
@@ -828,6 +836,8 @@ type ListCmdbCisRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -867,6 +877,8 @@ func (q *Queries) ListCmdbCis(ctx context.Context, arg ListCmdbCisParams) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.ConfirmedAt,
+			&i.ConfirmedBy,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -882,7 +894,7 @@ func (q *Queries) ListCmdbCis(ctx context.Context, arg ListCmdbCisParams) ([]Lis
 const listCmdbCisByIDs = `-- name: ListCmdbCisByIDs :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND id = ANY($1::uuid[])
 `
@@ -908,6 +920,8 @@ type ListCmdbCisByIDsRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -941,6 +955,8 @@ func (q *Queries) ListCmdbCisByIDs(ctx context.Context, ids []pgtype.UUID) ([]Li
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.ConfirmedAt,
+			&i.ConfirmedBy,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -956,7 +972,7 @@ func (q *Queries) ListCmdbCisByIDs(ctx context.Context, ids []pgtype.UUID) ([]Li
 const listCmdbCisOwnedBy = `-- name: ListCmdbCisOwnedBy :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND owner_account_id = $1::uuid
   AND merged_into IS NULL AND stage <> 'DISPOSED'
@@ -990,6 +1006,8 @@ type ListCmdbCisOwnedByRow struct {
 	CreatedAt      pgtype.Timestamptz
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 	Version        int32
 }
 
@@ -1025,6 +1043,8 @@ func (q *Queries) ListCmdbCisOwnedBy(ctx context.Context, arg ListCmdbCisOwnedBy
 			&i.CreatedAt,
 			&i.UpdatedBy,
 			&i.UpdatedAt,
+			&i.ConfirmedAt,
+			&i.ConfirmedBy,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -2010,8 +2030,9 @@ UPDATE cmdb_ci SET
   location_ci_id = $9, protection = $10,
   review_due = $11, quantity = $12, last_seen_at = $13,
   merged_into = $14, updated_by = $15, updated_at = $16,
+  confirmed_at = $17, confirmed_by = $18,
   version = version + 1
-WHERE tenant_id = current_tenant_id() AND id = $17 AND version = $18
+WHERE tenant_id = current_tenant_id() AND id = $19 AND version = $20
 `
 
 type UpdateCmdbCiParams struct {
@@ -2031,6 +2052,8 @@ type UpdateCmdbCiParams struct {
 	MergedInto      pgtype.UUID
 	UpdatedBy       pgtype.UUID
 	UpdatedAt       pgtype.Timestamptz
+	ConfirmedAt     pgtype.Timestamptz
+	ConfirmedBy     pgtype.UUID
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -2054,6 +2077,8 @@ func (q *Queries) UpdateCmdbCi(ctx context.Context, arg UpdateCmdbCiParams) (int
 		arg.MergedInto,
 		arg.UpdatedBy,
 		arg.UpdatedAt,
+		arg.ConfirmedAt,
+		arg.ConfirmedBy,
 		arg.ID,
 		arg.ExpectedVersion,
 	)

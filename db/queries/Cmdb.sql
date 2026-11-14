@@ -70,19 +70,20 @@ UPDATE cmdb_ci SET
   location_ci_id = sqlc.narg('location_ci_id'), protection = sqlc.arg('protection'),
   review_due = sqlc.narg('review_due'), quantity = sqlc.arg('quantity'), last_seen_at = sqlc.narg('last_seen_at'),
   merged_into = sqlc.narg('merged_into'), updated_by = sqlc.arg('updated_by'), updated_at = sqlc.arg('updated_at'),
+  confirmed_at = sqlc.narg('confirmed_at'), confirmed_by = sqlc.narg('confirmed_by'),
   version = version + 1
 WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
 -- name: FindCmdbCi :one
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
 -- name: FindCmdbCiForUpdate :one
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
 FOR UPDATE;
 
@@ -90,7 +91,7 @@ FOR UPDATE;
 -- A hub's CIs in identifier order after a cursor; classes narrow when given.
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
   AND (cardinality(sqlc.arg('classes')::text[]) = 0 OR class_key = ANY(sqlc.arg('classes')::text[]))
@@ -103,7 +104,7 @@ LIMIT sqlc.arg('batch');
 -- disposed ones left out. Served by cmdb_ci_owner_account_idx.
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND owner_account_id = sqlc.arg('owner_account_id')::uuid
   AND merged_into IS NULL AND stage <> 'DISPOSED'
@@ -113,7 +114,7 @@ LIMIT sqlc.arg('batch');
 -- name: ListCmdbCisByIDs :many
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND id = ANY(sqlc.arg('ids')::uuid[]);
 

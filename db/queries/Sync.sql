@@ -433,7 +433,7 @@ LIMIT sqlc.arg('batch');
 -- inventory offline; each is filed under its hub, which decides who is told of it.
 SELECT id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id,
        location_ci_id, protection, review_due, quantity, last_seen_at, merged_into,
-       created_by, created_at, updated_by, updated_at, version
+       created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version
 FROM cmdb_ci
 WHERE tenant_id = current_tenant_id() AND id > sqlc.arg('after') AND merged_into IS NULL
 ORDER BY id

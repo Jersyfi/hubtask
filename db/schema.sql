@@ -3044,7 +3044,7 @@ CREATE TABLE notification (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
   -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST','ATTESTATION')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -3111,7 +3111,7 @@ CREATE INDEX notification_membership_idx
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST','ATTESTATION')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
@@ -8403,5 +8403,19 @@ ALTER TABLE cmdb_asset_move FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON cmdb_asset_move
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_asset_move TO hubtask_app;
+
+-- Migrations 0431-0433: who last confirmed an object and when; a notification about an
+-- attestation round.
+ALTER TABLE cmdb_ci ADD COLUMN confirmed_at timestamptz,
+  ADD COLUMN confirmed_by uuid;
+ALTER TABLE notification ADD COLUMN cmdb_campaign_id uuid,
+  ADD CONSTRAINT notification_cmdb_campaign_id_fkey
+    FOREIGN KEY (tenant_id, cmdb_campaign_id) REFERENCES cmdb_campaign (tenant_id, id) ON DELETE CASCADE,
+  DROP CONSTRAINT notification_one_subject_check,
+  ADD CONSTRAINT notification_one_subject_check
+    CHECK (num_nonnulls(item_id, rule_id, subscription_id, private_hub_access_id, membership_id, page_id, agent_id,
+      whiteboard_id, approval_id, baseline_id, mailbox_id, identity_provider_id, calendar_push_id,
+      cmdb_connector_id, code_hook_id, cmdb_campaign_id) <= 1);
+CREATE INDEX notification_cmdb_campaign_idx ON notification (tenant_id, cmdb_campaign_id) WHERE cmdb_campaign_id IS NOT NULL;
 
 COMMIT;

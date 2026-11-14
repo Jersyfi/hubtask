@@ -2743,8 +2743,8 @@ SELECT EXISTS (SELECT 1 FROM cmdb_source WHERE id = (sqlc.arg('payload')::jsonb-
 DELETE FROM cmdb_source;
 
 -- name: ImportCmdbCi :execrows
-INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, version)
-SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.version
+INSERT INTO cmdb_ci (id, tenant_id, hub_id, class_key, name, stage, status, attributes, provenance, owner_account_id, owner_group_id, location_ci_id, protection, review_due, quantity, last_seen_at, merged_into, created_by, created_at, updated_by, updated_at, confirmed_at, confirmed_by, version)
+SELECT r.id, r.tenant_id, r.hub_id, r.class_key, r.name, r.stage, r.status, r.attributes, r.provenance, r.owner_account_id, r.owner_group_id, r.location_ci_id, r.protection, r.review_due, r.quantity, r.last_seen_at, r.merged_into, r.created_by, r.created_at, r.updated_by, r.updated_at, r.confirmed_at, r.confirmed_by, r.version
 FROM jsonb_populate_record(
   NULL::cmdb_ci,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2766,6 +2766,8 @@ ON CONFLICT (id) DO UPDATE SET
   merged_into = EXCLUDED.merged_into,
   updated_by = EXCLUDED.updated_by,
   updated_at = EXCLUDED.updated_at,
+  confirmed_at = EXCLUDED.confirmed_at,
+  confirmed_by = EXCLUDED.confirmed_by,
   version = EXCLUDED.version
 WHERE sqlc.arg('overwrite')::boolean;
 

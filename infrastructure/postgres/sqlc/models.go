@@ -1199,6 +1199,8 @@ type CmdbCi struct {
 	UpdatedBy      pgtype.UUID
 	UpdatedAt      pgtype.Timestamptz
 	Version        int32
+	ConfirmedAt    pgtype.Timestamptz
+	ConfirmedBy    pgtype.UUID
 }
 
 type CmdbCiGroup struct {
@@ -2394,6 +2396,7 @@ type Notification struct {
 	CalendarPushID     pgtype.UUID
 	CmdbConnectorID    pgtype.UUID
 	CodeHookID         pgtype.UUID
+	CmdbCampaignID     pgtype.UUID
 }
 
 type NotificationPreference struct {
