@@ -507,7 +507,7 @@ otherwise.
 
 ### Wave 7 — the work surface
 `StateLozenge` · `StatusButton` · `ObjectHead` · `Property` · `PropertyRail` · `JumpMarks` ·
-`FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
+`StepBar` · `FoldingSection` · `ProductBand` · `Widget` · `WidgetStrip` · `Composer` · `QueryLine` · `PriorityMark` ·
 `DeadlineBar` · `DeadlineList` · `DensitySwitch` · `TrustLine` · `PageOutline` · `FloatingToolbar` ·
 `BlockHandle` · `BoxPopover` · `InsertList` · `LiveBlock`
 
@@ -551,6 +551,12 @@ and every behaviour a test can hold lives in a module beside them: `lozenge.ts`,
   `--page-sticky-top`; the mark in view is `aria-current="location"`, followed by an
   `IntersectionObserver`. A press scrolls to the section and moves focus there. Below `medium` they
   are one row that scrolls sideways and the switch between sections: the caller shows the chosen one.
+* **`StepBar`** — a path an object walks, drawn as arrows in a row (IN-2): an inventory object's
+  stage. The steps before the current one are done and carry a check, the current one is filled in
+  the brand's primary and `aria-current="step"`, the later ones quiet - the glyph and the fill say
+  it, not the colour alone. It shows where the object stands; changing it is the caller's act beside
+  it. Right to left the arrows are mirrored; below `medium` the bar scrolls sideways with the
+  current step in view.
 * **`FoldingSection`** — a section of the main column with its heading, count and tools that folds
   itself (ET-3): text clamped to 3, 5, 8 or 12 of its own lines, measured, so a short text shows no
   *Show more*; a list cut to its first rows or its newest ones (`foldWindow`), never hiding a single

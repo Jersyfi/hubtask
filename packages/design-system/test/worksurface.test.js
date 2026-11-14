@@ -234,6 +234,14 @@ test('jump marks say which section is in view', () => {
   assert.match(marks, /aria-current=\{mark\.id === current \? 'location'/);
 });
 
+test('a step bar names the step the object stands on, and says a done step in words and glyph', () => {
+  const bar = source('StepBar.svelte');
+  assert.match(bar, /<ol class="steps" aria-label=\{label\}/);
+  assert.match(bar, /aria-current=\{state === 'current' \? 'step'/);
+  assert.match(bar, /\{#if state === 'done'\}<Icon name="check"/, 'done carries a glyph, not colour alone');
+  assert.match(bar, /<VisuallyHidden>\{doneLabel\}<\/VisuallyHidden>/);
+});
+
 test('the head’s title is edited in place with Enter and Escape, and the edit has a name', () => {
   const head = source('ObjectHead.svelte');
   assert.match(head, /aria-label=\{titleLabel\}/);

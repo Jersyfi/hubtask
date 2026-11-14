@@ -269,6 +269,7 @@ export { default as ObjectHead, type DeadlineChip, type ObjectKey } from './Obje
 export { default as Property } from './Property.svelte';
 export { default as PropertyRail, type RailSection } from './PropertyRail.svelte';
 export { default as JumpMarks } from './JumpMarks.svelte';
+export { default as StepBar } from './StepBar.svelte';
 export { default as FoldingSection } from './FoldingSection.svelte';
 export { default as ProductBand } from './ProductBand.svelte';
 export { default as Widget } from './Widget.svelte';
