@@ -16,7 +16,7 @@
   import { switchedOn } from '../product/switchedon.ts';
   import { PRODUCTS } from '../navigation.ts';
   import { PRODUCT_TILES } from '../product/tiles.ts';
-  import { productTemplates } from '../product/templates.ts';
+  import { productTemplates, tryTemplateOf } from '../product/templates.ts';
   import TemplateCards from '../product/TemplateCards.svelte';
   import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
   import { timeWays } from '../time/ways.ts';
@@ -74,7 +74,13 @@
   /** The template the new hub takes; the dialog is open while one is chosen. */
   let startingFrom = $state<string | undefined>(undefined);
   let isCreatingHub = $state(false);
-  const hubStarts = $derived(takesHubStarts ? productTemplates(catalogue, module).map((template) => ({
+  // The main way is the product's own template (tryTemplateOf), first among the cards.
+  const ordered = $derived.by(() => {
+    const main = tryTemplateOf(catalogue, module);
+    const rest = productTemplates(catalogue, module, catalogue.length).filter((each) => each.key !== main?.key);
+    return main ? [main, ...rest].slice(0, 3) : rest.slice(0, 3);
+  });
+  const hubStarts = $derived(takesHubStarts ? ordered.map((template) => ({
     label: templateName(template),
     description: template.origin === 'HUBTASK' && messages.has(`app.templates.summary.${template.key.toUpperCase()}`) ? t(`app.templates.summary.${template.key.toUpperCase()}`) : undefined,
     icon: row?.icon,
