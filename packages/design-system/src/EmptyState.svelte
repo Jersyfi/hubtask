@@ -61,9 +61,14 @@
      * page's one heading, at the band's size; the acts stand in one row.
      */
     isHome?: boolean;
+    /**
+     * Where a phone's bar already carries the page's name as its h1, the start page's title is the
+     * second level, so the page names itself once.
+     */
+    isTitleInBar?: boolean;
   }
 
-  const { kind, title, description, icon, product, action, secondary, footnote, isHome = false }: Props = $props();
+  const { kind, title, description, icon, product, action, secondary, footnote, isHome = false, isTitleInBar = false }: Props = $props();
 
   const MARK: Record<Emptiness, IconName> = {
     unused: 'plus',
@@ -82,7 +87,7 @@
   {:else}
     <span class="mark" aria-hidden="true"><Icon name={icon ?? MARK[kind]} /></span>
   {/if}
-  {#if isHome}<h1 class="title">{title}</h1>{:else}<p class="title">{title}</p>{/if}
+  {#if isHome && isTitleInBar}<h2 class="title">{title}</h2>{:else if isHome}<h1 class="title">{title}</h1>{:else}<p class="title">{title}</p>{/if}
   {#if description}<p class="description">{description}</p>{/if}
   {#if offersAction}<div class="action">{@render action?.()}</div>{/if}
   {#if offersSecondary}<div class="secondary">{@render secondary?.()}</div>{/if}

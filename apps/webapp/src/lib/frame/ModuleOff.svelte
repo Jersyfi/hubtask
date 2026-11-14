@@ -100,7 +100,7 @@
   {#if isProduct}
     <!-- A product switched off is drawn as its first empty state (scenes homeplans, homeassets,
          homeagents): its tile, its sentence, the switch - and, under it, that nothing is lost. -->
-    <EmptyState kind="unused" isHome icon={row?.icon ?? 'layout-template'} product={PRODUCT_TILES[module]} title={name}
+    <EmptyState kind="unused" isHome isTitleInBar={viewport.isCompact} icon={row?.icon ?? 'layout-template'} product={PRODUCT_TILES[module]} title={name}
       description={sentence}
       action={mayShape ? switchControl : undefined} footnote={offNote} />
     {#if cards.length > 0}<TemplateCards templates={cards} shape="row" tile={PRODUCT_TILES[module]} />{/if}

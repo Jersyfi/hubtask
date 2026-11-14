@@ -122,3 +122,8 @@ test('a widget\'s figure is a key figure\'s size', () => {
   assert.match(rulesFor(source('Widget.svelte'), 'figure').join(' '), /font-size: var\(--fs-450\)/);
   assert.match(source('SummaryCard.svelte'), /\.summary-card\[data-lead='figure'\] \.figure \{ font-size: var\(--fs-450\)/);
 });
+
+// A product's start page on a phone: the bar carries the name as the h1, the page's title is an h2.
+test('a start page names itself once where the bar carries its name', () => {
+  assert.match(source('EmptyState.svelte'), /\{#if isHome && isTitleInBar\}<h2 class="title">\{title\}<\/h2>\{:else if isHome\}<h1 class="title">/);
+});

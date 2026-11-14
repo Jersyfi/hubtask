@@ -135,6 +135,7 @@
   {icon}
   product={tile}
   isHome={isStart}
+  isTitleInBar={isStart && viewport.isCompact}
   action={act || (side && kind === 'unused') ? actRow : undefined}
   secondary={offersTemplates && !templateCards ? templateRow : undefined}
   footnote={saysWhoCan || guide || toured ? footnoteLine : undefined}
