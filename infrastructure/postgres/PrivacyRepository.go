@@ -702,8 +702,8 @@ func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID
 	return int(rows), nil
 }
 
-// DiscardArrangements removes the person's digests, private dashboards, delegations, chat links and
-// own settings.
+// DiscardArrangements removes the person's digests, private dashboards, delegations, chat links, own
+// settings, and which posts they saw, confirmed and reacted to.
 func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {
@@ -716,6 +716,10 @@ func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID sh
 		"the delegations":        queries.DeleteDelegationsOfAccount,
 		"the chat links":         queries.DeleteChatLinksOfAccount,
 		"the own settings":       queries.DeletePersonSettingsOfAccount,
+		// What the person saw, confirmed and reacted to under posts (UC-DOC-18 check 6).
+		"the posts seen":      queries.DeletePostReadsOfAccount,
+		"the confirmations":   queries.DeletePostConfirmationsOfAccount,
+		"the reactions given": queries.DeletePostReactionsOfAccount,
 	} {
 		rows, err := remove(ctx, id)
 		if err != nil {

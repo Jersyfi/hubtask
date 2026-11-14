@@ -140,7 +140,7 @@ func (r PrivacyRepository) DeleteComments(
 }
 
 // DeleteWritings removes what the person wrote outside entries, of one kind; a page or board comment
-// others replied to is blanked instead.
+// or a post's reply others answered is blanked instead.
 func (r PrivacyRepository) DeleteWritings(
 	ctx context.Context, accountID shared.ID, kind repository.ContributionKind, ids []shared.ID, at time.Time,
 ) ([]shared.ID, int, error) {
@@ -171,6 +171,13 @@ func (r PrivacyRepository) DeleteWritings(
 		removed, err = queries.DeleteWhiteboardCommentsOf(ctx, sqlc.DeleteWhiteboardCommentsOfParams{AuthorID: id, Ids: keys})
 		if err == nil {
 			blanked, err = queries.BlankWhiteboardCommentsOf(ctx, sqlc.BlankWhiteboardCommentsOfParams{
+				At: timestampOf(at), AuthorID: id, Ids: keys,
+			})
+		}
+	case repository.ContributedPostReply:
+		removed, err = queries.DeletePostRepliesOf(ctx, sqlc.DeletePostRepliesOfParams{AuthorID: id, Ids: keys})
+		if err == nil {
+			blanked, err = queries.BlankPostRepliesOf(ctx, sqlc.BlankPostRepliesOfParams{
 				At: timestampOf(at), AuthorID: id, Ids: keys,
 			})
 		}

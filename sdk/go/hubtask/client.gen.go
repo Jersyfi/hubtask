@@ -5104,6 +5104,7 @@ const (
 	ErasureLineKindPAGEDRAFTS         ErasureLineKind = "PAGE_DRAFTS"
 	ErasureLineKindPERSONALRULES      ErasureLineKind = "PERSONAL_RULES"
 	ErasureLineKindPORTFOLIOUPDATES   ErasureLineKind = "PORTFOLIO_UPDATES"
+	ErasureLineKindPOSTREPLIES        ErasureLineKind = "POST_REPLIES"
 	ErasureLineKindTIME               ErasureLineKind = "TIME"
 	ErasureLineKindWHITEBOARDCOMMENTS ErasureLineKind = "WHITEBOARD_COMMENTS"
 )
@@ -5142,6 +5143,8 @@ func (e ErasureLineKind) Valid() bool {
 	case ErasureLineKindPERSONALRULES:
 		return true
 	case ErasureLineKindPORTFOLIOUPDATES:
+		return true
+	case ErasureLineKindPOSTREPLIES:
 		return true
 	case ErasureLineKindTIME:
 		return true

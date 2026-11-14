@@ -474,6 +474,7 @@ var writingTables = []struct {
 	{domain.RowCheckIn, "goal_check_in"},
 	{domain.RowPortfolioUpdate, "portfolio_update"},
 	{domain.RowPageDraft, "page_draft"},
+	{domain.RowPostReply, "post_reply"},
 }
 
 // removeWritings takes what the person wrote outside entries that the plan names, each removed row

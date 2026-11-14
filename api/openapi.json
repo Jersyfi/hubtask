@@ -66154,7 +66154,8 @@
               "PORTFOLIO_UPDATES",
               "PAGE_DRAFTS",
               "ENTRIES",
-              "MEDIA"
+              "MEDIA",
+              "POST_REPLIES"
             ]
           },
           "fate": {

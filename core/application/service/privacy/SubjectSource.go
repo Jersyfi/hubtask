@@ -119,6 +119,11 @@ var subjectColumns = map[string][]string{
 	"page_public_link":      {"created_by"},
 	"portfolio_public_link": {"created_by"},
 	"page_draft":            {"updated_by"},
+	// The posts they saw, confirmed, replied under and reacted to (UC-DOC-18).
+	"post_read":         {"account_id"},
+	"post_confirmation": {"account_id"},
+	"post_reply":        {"author_id"},
+	"post_reaction":     {"account_id"},
 	// The public forms they made, whose requests are filed as them.
 	"public_form": {"created_by"},
 	// The articles they published to a portal and the ones they rated.

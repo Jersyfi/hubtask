@@ -5315,7 +5315,7 @@ class ErasurePreview(TypedDict, total=False):
     lines: Required[list["ErasureLine"]]
 
 class ErasureLine(TypedDict, total=False):
-    kind: Required[Literal["ACCOUNT", "CREDENTIALS", "PERSONAL_RULES", "NOTIFICATIONS", "AI_DRAFTS", "KUDOS", "ARRANGEMENTS", "TIME", "ASSIGNMENTS", "INTAKE", "COMMENTS", "PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS", "ENTRIES", "MEDIA"]]
+    kind: Required[Literal["ACCOUNT", "CREDENTIALS", "PERSONAL_RULES", "NOTIFICATIONS", "AI_DRAFTS", "KUDOS", "ARRANGEMENTS", "TIME", "ASSIGNMENTS", "INTAKE", "COMMENTS", "PAGE_COMMENTS", "WHITEBOARD_COMMENTS", "GOAL_CHECK_INS", "PORTFOLIO_UPDATES", "PAGE_DRAFTS", "ENTRIES", "MEDIA", "POST_REPLIES"]]
     fate: Required[Literal["DELETED", "ANONYMISED", "KEPT", "RELEASED"]]
     count: Required[int | None]
 

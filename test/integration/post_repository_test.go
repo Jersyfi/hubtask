@@ -12,6 +12,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
+	privacyrepo "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/knowledge"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -217,5 +218,80 @@ func TestAPostIsInvisibleToTheWorkspaceNextDoor(t *testing.T) {
 		if err := write(ctx, t, tenantB, refused); err == nil {
 			t.Errorf("the workspace next door %s", name)
 		}
+	}
+}
+
+// UC-DOC-18 check 6: a person's erasure removes which posts they saw and confirmed and the reactions
+// they gave, and lists their replies as POST_REPLY with the post's hub; an unanswered reply is
+// removed, an answered one blanked so the answer keeps its thread. Another workspace removes nothing.
+func TestAPersonsPostTracesAreErased(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, page, _, at := seedPost(ctx, t)
+	subject := seedAccount(ctx, t, tenantA)
+	lone, answered, answer := freshID(t), freshID(t), freshID(t)
+	posts := postgres.NewPostRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := posts.MarkSeen(ctx, page, subject, at); err != nil {
+			return err
+		}
+		if err := posts.Confirm(ctx, page, subject, at); err != nil {
+			return err
+		}
+		for _, r := range []repository.Reply{
+			{ID: lone, PageID: page, AuthorID: subject, Body: "Thanks", CreatedAt: at},
+			{ID: answered, PageID: page, AuthorID: subject, Body: "A question", CreatedAt: at},
+			{ID: answer, PageID: page, ParentID: answered, AuthorID: authorA, Body: "An answer", CreatedAt: at.Add(time.Minute)},
+		} {
+			if err := posts.InsertReply(ctx, r); err != nil {
+				return err
+			}
+		}
+		return posts.React(ctx, answer, subject, knowledge.ReactionIdea)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	traces := func() int {
+		return countIn(ctx, t, `SELECT (SELECT count(*) FROM post_read WHERE account_id = $1)
+			+ (SELECT count(*) FROM post_confirmation WHERE account_id = $1)
+			+ (SELECT count(*) FROM post_reaction WHERE account_id = $1)`, subject.String())
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		_, err := privacyRepo().DiscardArrangements(ctx, subject)
+		return err
+	}); err == nil && traces() != 3 {
+		t.Fatalf("another workspace removed the traces: %d left", traces())
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		contributions, err := privacyRepo().Contributions(ctx, subject)
+		if err != nil {
+			return err
+		}
+		var replies []shared.ID
+		for _, c := range contributions {
+			if c.Kind == privacyrepo.ContributedPostReply && c.HubID == hub {
+				replies = append(replies, c.ID)
+			}
+		}
+		if len(replies) != 2 || !slices.Contains(replies, lone) || !slices.Contains(replies, answered) {
+			t.Errorf("replies listed %v, want both with the post's hub", replies)
+		}
+		if _, err := privacyRepo().DiscardArrangements(ctx, subject); err != nil {
+			return err
+		}
+		gone, blanked, err := privacyRepo().DeleteWritings(ctx, subject, privacyrepo.ContributedPostReply, replies, at)
+		if len(gone) != 1 || gone[0] != lone || blanked != 1 {
+			t.Errorf("removed %v and blanked %d, want the lone reply removed and the answered one blanked", gone, blanked)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if left := traces(); left != 0 {
+		t.Errorf("%d traces left after the erasure", left)
+	}
+	if countIn(ctx, t, `SELECT count(*) FROM post_reply WHERE id = $1 AND body = '' AND author_id IS NULL AND deleted_at IS NOT NULL`, answered.String()) != 1 ||
+		countIn(ctx, t, `SELECT count(*) FROM post_reply WHERE id = $1 AND body = 'An answer'`, answer.String()) != 1 {
+		t.Error("the answered reply was not blanked, or the answer went with it")
 	}
 }
