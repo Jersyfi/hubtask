@@ -113,6 +113,19 @@ const ASSET = {
   ],
 };
 
+// The object's files (UC-AST-01 check 12) and its history (check 13).
+const fileOf = (n, file_name, content_type, size) => ({
+  id: id(n), file_name, content_type, size, usage: 'ATTACHMENT', status: 'READY', ref_count: 1, created_by: ACCOUNT.id,
+  created_at: `2026-10-0${n % 10}T08:00:00Z`, inline: false, office: false, editable: false,
+});
+const FILES = [fileOf(971, 'rack-diagram.dwg', 'application/octet-stream', 2048), fileOf(972, 'support-contract.bin', 'application/octet-stream', 4096)];
+const HISTORY = { data: [
+  { id: id(981), ci_id: PORTAL_ID, code: 'activity.ci_file_attached', actor: { type: 'USER', id: OTHER.id }, occurred_at: '2026-11-14T09:25:00Z', change_set: { media_id: { to: FILES[1].id } } },
+  { id: id(982), ci_id: PORTAL_ID, code: 'activity.ci_stage_changed', actor: { type: 'USER', id: OTHER.id }, occurred_at: '2026-11-13T09:00:00Z', change_set: { stage: { from: 'IN_STOCK', to: 'IN_USE' } } },
+  { id: id(983), ci_id: PORTAL_ID, code: 'activity.ci_changed', actor: { type: 'SERVICE_ACCOUNT', id: id(990) }, occurred_at: '2026-11-12T06:00:00Z', change_set: { source: { to: 'glpi' }, version: { changed: true } } },
+  { id: id(984), ci_id: PORTAL_ID, code: 'activity.ci_created', actor: { type: 'USER', id: ACCOUNT.id }, occurred_at: '2026-10-01T08:00:00Z', change_set: {} },
+], page: { next_cursor: null, has_more: false } };
+
 async function open(browser, { width = 1280, height = 900, path = `/cis/${PORTAL_ID}`, role = 'OWNER' } = {}) {
   const { page, context, failures } = await signedIn(browser, width, height);
   const written = [];
@@ -138,6 +151,15 @@ async function open(browser, { width = 1280, height = 900, path = `/cis/${PORTAL
     if (at === `/cis/${PORTAL_ID}/backlinks`) return route.fulfill({ json: BACKLINKS });
     if (at === `/cis/${PORTAL_ID}/impact`) return route.fulfill({ json: IMPACT[url.searchParams.get('direction') ?? 'DOWNSTREAM'] });
     if (at === `/cis/${LAPTOP.id}/asset`) return route.fulfill({ json: ASSET });
+    if (at === `/cis/${PORTAL_ID}/attachments` && method === 'GET') return route.fulfill({ json: { data: FILES, page: { next_cursor: null, has_more: false } } });
+    if (at === `/cis/${PORTAL_ID}/history` && method === 'GET') return route.fulfill({ json: HISTORY });
+    const held = FILES.find((each) => at === `/media/${each.id}`);
+    if (held && method === 'GET') return route.fulfill({ json: held });
+    const filed = /^\/cis\/([^/]+)\/attachments\/([^/]+)$/.exec(at);
+    if (filed && (method === 'PUT' || method === 'DELETE')) {
+      written.push({ call: `${method} ${at}` });
+      return route.fulfill({ json: { ci_id: filed[1], media_ids: FILES.map((each) => each.id).filter((each) => each !== filed[2]) } });
+    }
     const compliance = /^\/cis\/([^/]+)\/compliance$/.exec(at);
     if (compliance && method === 'PUT') {
       const body = request.postDataJSON();
@@ -254,9 +276,9 @@ test('chromium: the attributes say their source, two to a row, and count the rec
   assert.deepEqual(terms.map((each) => each.replace(/\s+/gu, ' ').trim()), ['Address on the web · by hand', 'Version · from glpi', 'runtime · from glpi', 'hours']);
   const [first, second] = await list.locator('.attribute').evaluateAll((all) => all.slice(0, 2).map((each) => each.getBoundingClientRect().top));
   assert.equal(first, second, 'two attributes stand side by side on a desk');
-  // The marks: attributes, relations, impact, work and the register, each with its count.
+  // The marks: attributes, relations, impact, work, the register, the files and the history.
   const shown = (await marks(page).getByRole('link').allTextContents()).map((each) => each.replace(/\s+/gu, ' ').trim());
-  assert.deepEqual(shown, ['Attributes4', 'Relations4', 'Impact1', 'Work on it3', 'Register record']);
+  assert.deepEqual(shown, ['Attributes4', 'Relations4', 'Impact1', 'Work on it3', 'Register record', 'Files2', 'History']);
   const missing = page.locator('[data-missing-attributes]');
   assert.equal((await missing.textContent()).trim(), '+ 3 recommended attributes of the object type are missing');
   await missing.click();
@@ -457,5 +479,67 @@ test('chromium: a reader without write sees no write anywhere', async (t) => {
   assert.equal(await head(page).getByRole('button', { name: /^Actions for/u }).count(), 0, 'the head offers a ⋯ to a reader');
   await page.getByRole('radio', { name: 'List' }).click();
   assert.equal(await page.locator('[data-ci-relation-list]').getByRole('button').count(), 0, 'a relation row offers a ⋯ to a reader');
+  assert.deepEqual(failures, []);
+});
+
+// UC-AST-01 checks 12 and 13: the files as a grid opened in the one viewer, taken off by a writer;
+// the history newest first, each step a sentence with what moved.
+test('chromium: the files and the history follow the register as the scene marks them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures, written } = await open(browser);
+  t.after(() => context.close());
+
+  const files = page.locator('[data-ci-files]');
+  await files.locator('[data-attachment]').first().waitFor({ timeout: 20_000 });
+  const labels = (await marks(page).getByRole('link').allTextContents()).map((each) => each.replace(/\s+/gu, ' ').trim());
+  assert.deepEqual(labels.slice(-3), ['Register record', 'Files2', 'History']);
+  // A grid of cards, the drop tile last, for a writer (ET-4).
+  assert.equal(await files.locator('ul[data-view=grid] > li[data-attachment]').count(), 2);
+  assert.equal(await files.locator('li.add').count(), 1);
+
+  // The one viewer, paging over the object's files (UC-MED-05 check 2).
+  await files.getByRole('button', { name: 'rack-diagram.dwg' }).click();
+  const viewer = page.getByRole('dialog', { name: 'File viewer' });
+  await viewer.waitFor({ timeout: 5_000 });
+  const position = async () => ((await viewer.locator('[data-viewer-position]').textContent()) ?? '').replace(/\s+/gu, ' ').trim();
+  assert.match(await position(), /^· 1 of 2 · on /u);
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(() => /2 of 2/u.test(document.querySelector('[data-viewer-position]')?.textContent ?? ''), null, { timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await viewer.waitFor({ state: 'detached', timeout: 5_000 });
+
+  // A writer takes one off.
+  await files.locator(`[data-attachment="${FILES[0].id}"]`).hover();
+  await files.locator(`[data-attachment="${FILES[0].id}"]`).getByRole('button', { name: 'Detach' }).click();
+  await waitFor(page, written, `DELETE /cis/${PORTAL_ID}/attachments/${FILES[0].id}`);
+
+  // The history, newest first, each step a sentence with what moved.
+  const history = page.locator('[data-ci-history]');
+  const sentences = await history.locator('li').evaluateAll((all) => all.map((each) => each.textContent.replace(/\s+/gu, ' ').trim()));
+  assert.equal(sentences.length, 4);
+  assert.match(sentences[0], /added a file.*File.*support-contract\.bin/u);
+  assert.match(sentences[1], /changed the stage.*In stock.*In use/u);
+  assert.match(sentences[2], /changed this object.*Source.*glpi/u);
+  assert.match(sentences[3], /^You created this object|created this object/u);
+  assert.deepEqual(failures, []);
+});
+
+// UC-AST-01 check 13: on a phone the files and the history are read and nothing is written.
+test('chromium: on a phone the files and the history are read, nothing is put on or taken off', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, { width: 390, height: 844 });
+  t.after(() => context.close());
+
+  await page.getByRole('list', { name: 'Stage of Portal-API' }).waitFor({ timeout: 20_000 });
+  await marks(page).getByRole('link', { name: /Files/u }).click();
+  const files = page.locator('#ci-files');
+  await files.locator('[data-attachment]').first().waitFor({ state: 'visible', timeout: 10_000 });
+  assert.equal(await files.getByRole('button', { name: 'Detach' }).count(), 0);
+  assert.equal(await files.locator('li.add').count(), 0);
+  await marks(page).getByRole('link', { name: /History/u }).click();
+  await page.locator('#ci-history').waitFor({ state: 'visible', timeout: 5_000 });
+  assert.equal(await page.locator('#ci-files').isVisible(), false);
   assert.deepEqual(failures, []);
 });

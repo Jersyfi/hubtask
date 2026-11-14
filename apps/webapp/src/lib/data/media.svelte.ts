@@ -21,7 +21,7 @@
  * when it is clicked, and a cover asks once and asks again when what it holds has expired.
  */
 
-import type { CoverInput, ItemAttachments, MediaObject, MediaPage, WorkItem } from '@hubtask/sync-engine';
+import type { CiAttachments, CoverInput, ItemAttachments, MediaObject, MediaPage, WorkItem } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -30,6 +30,9 @@ import { touchesOf } from './touches.ts';
 
 /** The entry's attachments — a page of media records, and the only path a write here touches. */
 export const attachmentsPath = (itemId: string) => `/items/${itemId}/attachments`;
+
+/** An inventory object's files (UC-AST-01 check 12): a page of media records, written online only. */
+export const ciFilesPath = (ciId: string) => `/cis/${ciId}/attachments`;
 
 /** One media record. Where a usable transfer target comes from, and the only place one does. */
 export const mediaPath = (mediaId: string) => `/media/${mediaId}`;
@@ -225,6 +228,16 @@ class Media {
       undefined,
       { invalidates: [attachmentsPath(itemId)] },
     );
+  }
+
+  /** Puts an object on an inventory object; only its files are read again. */
+  async attachToCi(ciId: string, mediaId: string): Promise<CiAttachments> {
+    return engine.mutate<CiAttachments>('PUT', `${ciFilesPath(ciId)}/${mediaId}`, undefined, { invalidates: [ciFilesPath(ciId), `/cis/${ciId}/history`] });
+  }
+
+  /** Takes it off; the upload stays until nothing points at it. */
+  async detachFromCi(ciId: string, mediaId: string): Promise<CiAttachments> {
+    return engine.mutate<CiAttachments>('DELETE', `${ciFilesPath(ciId)}/${mediaId}`, undefined, { invalidates: [ciFilesPath(ciId), `/cis/${ciId}/history`] });
   }
 
   async #read(mediaId: string): Promise<void> {

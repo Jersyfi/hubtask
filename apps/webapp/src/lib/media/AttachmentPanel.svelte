@@ -30,7 +30,7 @@
   import type { MediaObject, MediaPage, WorkItem } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { attachmentsPath, media } from '../data/media.svelte.ts';
+  import { attachmentsPath, ciFilesPath, media } from '../data/media.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { acceptFor, fileKindOf, isReady, isWithinUploadLimit, keepsOffline, uploadLimitOf } from '../data/media.ts';
   import { resource } from '../data/resource.svelte.ts';
@@ -46,7 +46,9 @@
    * who reads it; attaching and detaching are a change the server refuses otherwise (P-05).
    */
   interface Props {
-    item: WorkItem;
+    /** The entry the files are on; or `ci`, the inventory object (UC-AST-01 check 12). */
+    item?: WorkItem;
+    ci?: { readonly id: string; readonly name: string };
     isChangeable: boolean;
     /** A grid of cards or a list of rows (ET-4); the entry keeps the reader's choice. */
     view?: 'grid' | 'list';
@@ -59,7 +61,14 @@
     ownerKey?: string;
   }
 
-  const { item, isChangeable, view = 'list', shownRows, lead, leadCount = 0, ownerKey }: Props = $props();
+  const { item, ci, isChangeable, view = 'list', shownRows, lead, leadCount = 0, ownerKey }: Props = $props();
+
+  /** Whose files these are: an entry's, kept offline where the app holds files, or an object's, online only. */
+  const holder = $derived(
+    item
+      ? { path: attachmentsPath(item.id), title: item.title, attach: (id: string) => media.attach(item.id, id), detach: (id: string) => media.detach(item.id, id) }
+      : { path: ciFilesPath(ci!.id), title: ci!.name, attach: (id: string) => media.attachToCi(ci!.id, id), detach: (id: string) => media.detachFromCi(ci!.id, id) },
+  );
 
   /**
    * A card's picture is its kind - a mark and the name's ending - never the file's content: an
@@ -89,7 +98,7 @@
 
   // The path is taken once, as every other subscription here takes one: the view is rebuilt per
   // entry, so a path that re-derived would resubscribe on every unrelated change.
-  const page = resource<MediaPage>({ path: untrack(() => attachmentsPath(item.id)) });
+  const page = resource<MediaPage>({ path: untrack(() => holder.path) });
   const rows = $derived(page.state.status === 'ready' ? (page.state.data.data ?? []) : []);
 
   /** Opens the viewer on one file with every file of the entry beside it (F-1). */
@@ -97,7 +106,7 @@
     viewer.open({
       files: rows,
       index: rows.findIndex((each) => each.id === object.id),
-      owner: { key: ownerKey, title: item.title },
+      owner: { key: ownerKey, title: holder.title },
     });
   }
 
@@ -178,12 +187,12 @@
         signal: abort.signal,
         onProgress: (moved) => (sent = moved),
       });
-      await media.attach(item.id, object.id);
+      await holder.attach(object.id);
       chosen = undefined;
     } catch (error) {
       let cause = error;
       // Without the server, the installed apps keep the file and send it later, like any change.
-      if (!abort.signal.aborted && keepsOffline(error, engine.holdsFiles)) {
+      if (item && !abort.signal.aborted && keepsOffline(error, engine.holdsFiles)) {
         try {
           await media.keep(item.id, file);
           chosen = undefined;
@@ -221,7 +230,7 @@
     failure = undefined;
     notice = undefined;
     try {
-      await media.detach(item.id, object.id);
+      await holder.detach(object.id);
       notice = t('app.media.detached');
     } catch (error) {
       failure = renderProblem(error as never, messages).message;

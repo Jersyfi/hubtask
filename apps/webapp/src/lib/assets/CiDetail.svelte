@@ -6,7 +6,7 @@
   // stage as a step bar, jump marks with counts, the main column and the property rail. The main
   // column holds what grows: the attributes with the source that wrote each, the relations as a
   // picture or a list, the impact both ways, the work on it and what mentions it, the register
-  // record with the device's life. The rail holds responsibility, protection need, origin and the
+  // record with the device's life, its files and its history (UC-AST-01 checks 12 and 13). The rail holds responsibility, protection need, origin and the
   // saved groups (`CiRail`).
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS there is no edit, no
@@ -19,7 +19,7 @@
   import {
     Banner, Breadcrumb, Button, DetailPage, FoldingSection, Input, JumpMarks, Menu, ObjectHead, Select, Stack, StateLozenge, StepBar, type SelectOption,
   } from '@hubtask/design-system/components';
-  import type { CiAsset, CiClass, CiGroup, CiGroupList, CiImpact, CiRelationType, CiWork, ConfigurationItem, ConfigurationItemList, HubQueueList } from '@hubtask/sync-engine';
+  import type { CiAsset, CiClass, MediaPage, CiGroup, CiGroupList, CiImpact, CiRelationType, CiWork, ConfigurationItem, ConfigurationItemList, HubQueueList } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -42,6 +42,9 @@
   import { renderProblem } from '../problem.ts';
   import AttributeField from './AttributeField.svelte';
   import CiAssetPart from './CiAssetPart.svelte';
+  import CiHistoryPart from './CiHistoryPart.svelte';
+  import AttachmentPanel from '../media/AttachmentPanel.svelte';
+  import { ciFilesPath } from '../data/media.svelte.ts';
   import CiImpactPart from './CiImpactPart.svelte';
   import CiRail from './CiRail.svelte';
   import CiRelations from './CiRelations.svelte';
@@ -275,6 +278,24 @@
       : undefined,
   );
 
+  // The object's files (UC-AST-01 check 12; ET-4, F-1): a grid with previews, dropped anywhere on
+  // the section by a writer on a screen that writes and with the network; read on a phone.
+  const filesRead = resource<MediaPage>(untrack(() => ciFilesPath(ci.id)));
+  const fileRows = $derived(filesRead.state.status === 'ready' ? filesRead.state.data.data : []);
+  let filesPanel = $state<ReturnType<typeof AttachmentPanel> | undefined>(undefined);
+  let isDropping = $state(false);
+  function dragOver(event: DragEvent) {
+    if (!mayAct || !event.dataTransfer?.types.includes('Files')) return;
+    event.preventDefault();
+    isDropping = true;
+  }
+  function dropFiles(event: DragEvent) {
+    isDropping = false;
+    if (!mayAct || !event.dataTransfer?.files.length) return;
+    event.preventDefault();
+    void filesPanel?.attach([...event.dataTransfer.files]);
+  }
+
   // Jump marks with counts (ET-2); on a phone the switch between the sections, the relations first.
   const relationCount = $derived((ci.relations ?? []).length);
   const workCount = $derived(work.state.status === 'ready' ? work.state.data.data.length : undefined);
@@ -286,8 +307,10 @@
       { id: 'ci-impact', label: t('app.object.mark_impact'), count: count(downstream?.reached.length) },
       { id: 'ci-work', label: t('app.object.mark_work'), count: count(workCount) },
       { id: 'ci-register', label: t('app.object.mark_register') },
+      { id: 'ci-files', label: t('app.object.mark_files'), count: count(fileRows.length) },
+      { id: 'ci-history', label: t('app.object.mark_history') },
     ];
-    return viewport.isCompact ? [all[1]!, all[3]!, all[0]!, all[2]!, all[4]!] : all;
+    return viewport.isCompact ? [all[1]!, all[3]!, all[0]!, all[2]!, all[4]!, all[5]!, all[6]!] : all;
   });
   let mark = $state<string>(untrack(() => (viewport.isCompact ? 'ci-relations' : 'ci-attributes')));
 
@@ -383,6 +406,16 @@
     <CiWorkPart {ci} work={work.state} {desks} {mayAct} />
 
     <CiAssetPart {ci} {classes} {hubCis} mayWrite={mayEdit} />
+
+    <FoldingSection id="ci-files" title={t('app.object.mark_files')} count={fileRows.length > 0 ? String(fileRows.length) : undefined}>
+      {#snippet children()}
+        <div class="files" class:dropping={isDropping} role="presentation" data-ci-files ondragover={dragOver} ondragleave={() => (isDropping = false)} ondrop={dropFiles}>
+          <AttachmentPanel bind:this={filesPanel} ci={{ id: ci.id, name: ci.name }} isChangeable={mayAct} view="grid" ownerKey={typeWord} />
+        </div>
+      {/snippet}
+    </FoldingSection>
+
+    <CiHistoryPart {ci} {known} files={fileRows} {word} />
   </div>
 </DetailPage>
 
@@ -447,6 +480,8 @@
   .missing:hover { background: var(--bg-surface-hover); }
   .missing:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
   .buttons { display: flex; flex-wrap: wrap; gap: var(--sp-100); justify-content: flex-end; }
+  .files { border-radius: var(--r-md); }
+  .files.dropping { outline: var(--bw-thick) dashed var(--accent-primary); outline-offset: var(--sp-050); background: var(--accent-primary-subtle); }
 
   /* On a phone the marks are the switch: one section shows (§7). */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
@@ -456,6 +491,8 @@
     .ci-main[data-show='ci-relations'] > :global(#ci-relations),
     .ci-main[data-show='ci-impact'] > :global(#ci-impact),
     .ci-main[data-show='ci-work'] > :global(#ci-work),
-    .ci-main[data-show='ci-register'] > :global(#ci-register) { display: flex; }
+    .ci-main[data-show='ci-register'] > :global(#ci-register),
+    .ci-main[data-show='ci-files'] > :global(#ci-files),
+    .ci-main[data-show='ci-history'] > :global(#ci-history) { display: flex; }
   }
 </style>
