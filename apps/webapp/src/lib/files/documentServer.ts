@@ -26,7 +26,7 @@ export function isTestable(kind: DocumentServerKind, url: string): boolean {
 
 /** How many of the two values moved from what is stored. */
 export function movedFrom(stored: DocumentServer | undefined, kind: DocumentServerKind, url: string): number {
-  const was = stored ?? { kind: 'NONE' as const };
+  const was = choiceOf(stored?.kind ?? 'NONE', stored?.url ?? '');
   const next = choiceOf(kind, url);
   return (was.kind !== next.kind ? 1 : 0) + ((was.url ?? '') !== (next.url ?? '') ? 1 : 0);
 }

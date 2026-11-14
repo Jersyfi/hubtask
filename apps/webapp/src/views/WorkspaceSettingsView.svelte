@@ -345,7 +345,7 @@
     }
     if (id === 'files') {
       if (!serverHeld) return {};
-      return serverHeld.kind !== 'NONE'
+      return serverHeld.kind && serverHeld.kind !== 'NONE'
         ? { status: t(`app.workspace.files_kind_${serverHeld.kind}`), statusTone: 'set' }
         : { status: t('app.workspace.status_default') };
     }

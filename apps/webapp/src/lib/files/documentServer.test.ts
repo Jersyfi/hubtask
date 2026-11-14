@@ -25,6 +25,8 @@ test('only a server with an address can be tested', () => {
 
 test('what moved is counted against what is stored, an absent answer as none', () => {
   assert.equal(movedFrom(undefined, 'NONE', ''), 0);
+  // An answer without a kind (a proxy's page, an older server) is none, not a change to save.
+  assert.equal(movedFrom({} as never, 'NONE', ''), 0);
   assert.equal(movedFrom({ kind: 'NONE' }, 'EURO_OFFICE', 'https://office.example'), 2);
   assert.equal(movedFrom({ kind: 'COLLABORA_ONLINE', url: 'https://office.example' }, 'COLLABORA_ONLINE', 'https://office.example/'), 0);
   assert.equal(movedFrom({ kind: 'COLLABORA_ONLINE', url: 'https://office.example' }, 'ONLYOFFICE', 'https://office.example'), 1);
