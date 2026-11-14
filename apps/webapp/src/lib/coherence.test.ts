@@ -247,8 +247,11 @@ test('a switched-off product is its start page: its glyph, its name, its sentenc
   assert.match(hero, /icon=\{row\?\.icon/u, 'the product\'s own glyph');
   assert.match(hero, /title=\{name\}/u, 'the product\'s name as the title');
   assert.match(off, /<TemplateCards templates=\{cards\} shape="row"/u);
-  // Time offers its three ways to record, goals and time a side way beside the switch.
-  assert.match(off, /'app\.time\.way_timer'[^]*'app\.time\.way_week'[^]*'app\.time\.way_billable'/u);
+  // Time offers its three ways to record (shared with its start page while on), goals and time a
+  // side way beside the switch.
+  assert.match(off, /module === 'TIME' \? timeWays\(starts\.cards/u);
+  const time = sources.find(({ path }) => path === 'views/TimeView.svelte')?.text ?? '';
+  assert.match(time, /timeWays\(starts\.cards/u, 'time\'s start page draws other cards');
   assert.match(off, /GOALS: \{ code: 'app\.goals\.empty_side_dashboard'/u);
   const cards = sources.find(({ path }) => path === 'lib/product/TemplateCards.svelte')?.text ?? '';
   assert.match(cards, /\.cards\[data-shape='row'\] \{ grid-template-columns: repeat\(var\(--cards\), minmax\(0, 1fr\)\); \}/u);
