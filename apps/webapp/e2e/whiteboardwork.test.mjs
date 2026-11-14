@@ -122,18 +122,41 @@ test('chromium: a chosen note carries the bar above it in its order, and the car
   assert.deepEqual(order, ['colour', 'size', 'arrow', 'comment', 'lock', 'task', 'more'], 'the bar is not in its order');
   const above = await box(bar);
   assert.ok(above.y + above.height <= note.y, 'the bar is not above the selection');
-  // Its one primary act is tinted as the brand (scene wsel).
-  const tinted = await bar.locator('[data-bar=task]').evaluate((button) => {
-    const probe = document.createElement('span');
-    probe.style.color = 'var(--text-brand)';
-    document.body.append(probe);
-    const brand = getComputedStyle(probe).color;
-    probe.remove();
-    return getComputedStyle(button).color === brand;
-  });
-  assert.ok(tinted, 'Make a task is not tinted as the brand');
+  // Its act is a secondary like every bar's, never a brand tint of its own (B-3).
+  assert.equal(await bar.locator('[data-bar=task]').getAttribute('data-tone'), 'secondary', 'Make a task is not the bar\'s secondary');
   await bar.locator('[data-bar=task]').click();
   await page.locator('[data-board-make]').waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+// A click on a connector inside a frame chose the frame behind it, so its route and its removal
+// were out of reach.
+test('chromium: a connector inside a frame is chosen by a click, its bar offers its routes and its removal', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const elements = [
+    ...ELEMENTS.filter((e) => e.kind !== 'CARD'),
+    { id: 's3', kind: 'STICKY', x: 260, y: 260, width: 140, height: 140, text: 'Retro earlier', color_token: 'amber' },
+    { id: 'k1', kind: 'CONNECTOR', from: 's1', to: 's3', x: 0, y: 0, width: 0, height: 0 },
+  ];
+  const { page, context, failures } = await open(browser, { elements });
+  t.after(() => context.close());
+  const canvas = page.getByRole('application');
+  const line = canvas.locator('g.connector');
+  await line.waitFor({ timeout: 20_000 });
+  // Half way along the line from the first note to the third, inside the frame "Went well".
+  const at = await line.locator('path').evaluate((path) => { const p = path.getPointAtLength(path.getTotalLength() / 2); return { x: p.x, y: p.y }; });
+  const point = await screenOf(page, at.x, at.y);
+  await page.mouse.click(point.x, point.y);
+  assert.equal(await line.evaluate((g) => g.classList.contains('chosen')), true, 'the click did not choose the connector');
+  assert.equal(await canvas.locator('g.frame.chosen').count(), 0, 'the frame behind was chosen');
+  // Its bar stands over the line and offers the routes; a connector connects nothing further.
+  const bar = page.locator('[data-board-bar]');
+  await bar.waitFor({ timeout: 5_000 });
+  await bar.locator('[data-bar=more]').click();
+  for (const route of ['Straight', 'Elbow', 'Curved']) await page.getByRole('menuitem', { name: route }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByRole('menuitem', { name: 'Take off' }).count(), 1, 'the connector cannot be removed from its bar');
+  assert.equal(await page.getByRole('menuitem', { name: /^Connect to/u }).count(), 0, 'a connector offers to connect');
   assert.deepEqual(failures, []);
 });
 

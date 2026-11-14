@@ -30,7 +30,7 @@
   } from '@hubtask/sync-engine';
   import {
     Board, DEFAULT_SIZE, Doc, Facilitation, PEN_WIDTH, ROUTES, SHAPES, align, bounds, box, connectorPath, copy, culled,
-    elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, shapeWords, readCopied, snap, strokePath,
+    connectorPoints, elementId, fit, fromMinimap, hit, labelPoint, lines, linkHost, minimap, outlinePath, paste, pdfOfJpeg, shapeWords, readCopied, snap, strokePath,
     strokesOf, template, toBoard, toSvg, touches, withGroups, withinFrame, zoomAt,
     type Element, type ElementKind, type Guide, type Pen, type Point, type Shape, type TemplateName, type Viewport,
   } from '@hubtask/whiteboard';
@@ -461,7 +461,7 @@
       gesture = { kind: 'pan', startX: event.clientX, startY: event.clientY, viewX: view.x, viewY: view.y };
       return;
     }
-    if (writable && tool === 'CONNECTOR' && target) {
+    if (writable && tool === 'CONNECTOR' && target && target.kind !== 'CONNECTOR') {
       gesture = { kind: 'connect', from: target.id, endX: at.x, endY: at.y };
       return;
     }
@@ -505,7 +505,8 @@
     if (target && target.kind !== 'FRAME') {
       if (event.shiftKey) choose(selected.includes(target.id) ? selected.filter((id) => id !== target.id) : [...selected, target.id]);
       else if (!selected.includes(target.id)) choose([target.id]);
-      if (writable) gesture = { kind: 'move', startX: at.x, startY: at.y, anchor: target.id, originX: target.x, originY: target.y };
+      // A connector follows the objects it joins: chosen, it is changed from the bar, not dragged.
+      if (writable && target.kind !== 'CONNECTOR') gesture = { kind: 'move', startX: at.x, startY: at.y, anchor: target.id, originX: target.x, originY: target.y };
       return;
     }
     if (target && !event.shiftKey) choose([target.id]);
@@ -592,12 +593,12 @@
     }
     if (g?.kind === 'connect' && g.byHandle) {
       const target = hit(elements, pointOf(event));
-      if (target && target.id !== g.from) connectTo(g.from, target.id);
+      if (target && target.kind !== 'CONNECTOR' && target.id !== g.from) connectTo(g.from, target.id);
       return;
     }
     if (g?.kind !== 'connect') return;
     const target = hit(elements, pointOf(event));
-    if (target && target.id !== g.from) {
+    if (target && target.kind !== 'CONNECTOR' && target.id !== g.from) {
       model.add({ id: elementId(), kind: 'CONNECTOR', from: g.from, to: target.id, route: 'STRAIGHT', start: 'NONE', end: 'ARROW', x: 0, y: 0, width: 0, height: 0 });
     }
     used();
@@ -1391,7 +1392,10 @@
   );
   /** Where the selection stands on the screen: the bar sits above it, centred. */
   const selectionOnScreen = $derived.by(() => {
-    const area = bounds(chosenAll.filter((e) => e.kind !== 'CONNECTOR'));
+    // A connector chosen alone stands where its line runs, between the objects it joins.
+    const lines = chosenAll.filter((e) => e.kind === 'CONNECTOR').flatMap((e) => connectorPoints(e, byId));
+    const area = bounds(chosenAll.filter((e) => e.kind !== 'CONNECTOR'))
+      ?? bounds(lines.map((p, i): Element => ({ id: `line-${i}`, kind: 'TEXT', x: p.x, y: p.y, width: 0, height: 0 })));
     if (!area) return undefined;
     return {
       x: ((area.left + area.right) / 2 - view.x) * view.zoom,
@@ -1457,7 +1461,7 @@
     ...(chosen?.kind === 'SHAPE' ? SHAPES.map((each) => ({ id: `shape:${each}`, label: t(`app.whiteboards.shape_${each.toLowerCase()}`), icon: 'shapes' as const })) : []),
     ...(chosen?.kind === 'CONNECTOR' ? ROUTES.map((each) => ({ id: `route:${each}`, label: t(`app.whiteboards.route_${each.toLowerCase()}`), icon: 'move-up-right' as const })) : []),
     ...(chosen?.kind === 'LINK' ? [{ id: 'address', label: t('app.whiteboards.link_address'), icon: 'link' as const }] : []),
-    { id: 'connect', label: t('app.whiteboards.connect_to'), icon: 'move-up-right', hasSeparatorBefore: true },
+    ...(chosen?.kind === 'CONNECTOR' ? [] : [{ id: 'connect', label: t('app.whiteboards.connect_to'), icon: 'move-up-right' as const, hasSeparatorBefore: true }]),
     { id: 'add', label: t('app.whiteboards.add_to_selection'), icon: 'plus' },
     ...(isGrouped ? [{ id: 'ungroup', label: t('app.whiteboards.ungroup'), icon: 'group' as const }] : selected.length > 1 ? [{ id: 'group', label: t('app.whiteboards.group'), icon: 'group' as const }] : []),
     { id: 'duplicate', label: t('app.whiteboards.duplicate'), icon: 'copy' },

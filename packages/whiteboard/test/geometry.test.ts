@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { connectorPath, culled, ends, fit, hit, shapeWords, toSvg, withinFrame, zoomAt, type Element } from '../src/index.ts';
+import { CONNECTOR_REACH, connectorPath, connectorPoints, culled, ends, fit, hit, shapeWords, toSvg, withinFrame, zoomAt, type Element } from '../src/index.ts';
 
 const a: Element = { id: 'a', kind: 'STICKY', x: 0, y: 0, width: 100, height: 100 };
 const b: Element = { id: 'b', kind: 'SHAPE', x: 300, y: 0, width: 100, height: 100 };
@@ -122,4 +122,20 @@ test('a shape\'s words stand centred inside its outline', () => {
   assert.ok(begin.rows.length >= 1 && begin.rows.every((r) => r.y > -360 + 20 && r.y < -360 + 80), JSON.stringify(begin.rows));
   const svg = toSvg([{ ...ellipse, text: 'Kunde öffnet App' }], { title: 't', colours: { paper: 'p', ink: 'i', line: 'l', surface: 's', label: () => undefined }, unavailable: '-', margin: 0 });
   assert.match(svg, /text-anchor="middle">Kunde/);
+});
+
+// A click on a connector inside a frame chose the frame behind it: connectors were never hit.
+test('a point on a connector\'s line hits the connector, an object over it and its edges first', () => {
+  const frame: Element = { id: 'f', kind: 'FRAME', x: -50, y: -50, width: 600, height: 300 };
+  const all = [frame, a, b, link];
+  // Half way along the straight line between a and b, inside the frame.
+  assert.equal(hit(all, { x: 200, y: 52 })?.id, 'l');
+  assert.equal(hit(all, { x: 200, y: 50 + CONNECTOR_REACH + 2 })?.id, 'f', 'beside the line, the frame');
+  assert.equal(hit(all, { x: 99, y: 50 })?.id, 'a', 'the object keeps its edge where the line leaves it');
+  // An elbow is hit along its corners' segments, a curve along its sampled line.
+  const elbow = { ...link, route: 'ELBOW' as const };
+  assert.equal(hit([frame, a, b, elbow], { x: 200, y: 51 })?.id, 'l');
+  const curved = { ...link, route: 'CURVED' as const };
+  const [middle] = connectorPoints(curved, new Map([a, b, curved].map((e) => [e.id, e]))).slice(8, 9);
+  assert.equal(hit([frame, a, b, curved], middle!)?.id, 'l');
 });

@@ -7,7 +7,7 @@
  * only what is in view), which object a point hits, and the viewport's pan and zoom.
  */
 
-import { touches } from './draw.ts';
+import { toSegment, touches } from './draw.ts';
 import type { Element } from './scene.ts';
 
 export interface Point { x: number; y: number }
@@ -151,8 +151,55 @@ export function culled(elements: readonly Element[], view: Viewport, margin = 0)
   });
 }
 
-/** The top-most object under a point, connectors aside; a frame only where nothing else is. */
+/** The points a connector's line runs through: its route's corners, a curve sampled. */
+export function connectorPoints(connector: Element, byId: ReadonlyMap<string, Element>): Point[] {
+  const [a, b] = ends(connector, byId);
+  switch (connector.route) {
+    case 'ELBOW': {
+      const midX = (a.x + b.x) / 2;
+      return [a, { x: midX, y: a.y }, { x: midX, y: b.y }, b];
+    }
+    case 'CURVED': {
+      const bend = Math.abs(b.x - a.x) / 2;
+      const c1 = { x: a.x + bend, y: a.y };
+      const c2 = { x: b.x - bend, y: b.y };
+      return Array.from({ length: 17 }, (_, k) => {
+        const t = k / 16;
+        const u = 1 - t;
+        return {
+          x: u ** 3 * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t ** 3 * b.x,
+          y: u ** 3 * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t ** 3 * b.y,
+        };
+      });
+    }
+    default:
+      return [a, b];
+  }
+}
+
+/** How near a point must come to a connector's line to take it: a thin line, a finger's reach. */
+export const CONNECTOR_REACH = 8;
+
+/**
+ * The top-most object under a point; else a connector whose line the point lies on, so an object
+ * keeps its edge where a connector leaves it; a frame only where nothing else is.
+ */
 export function hit(elements: readonly Element[], point: Point): Element | undefined {
+  const object = objectAt(elements, point);
+  if (object && object.kind !== 'FRAME') return object;
+  const byId = new Map(elements.map((each) => [each.id, each]));
+  for (let i = elements.length - 1; i >= 0; i--) {
+    const e = elements[i];
+    if (e?.kind !== 'CONNECTOR') continue;
+    const line = connectorPoints(e, byId);
+    for (let k = 1; k < line.length; k++) {
+      if (toSegment(point, line[k - 1] as Point, line[k] as Point) <= CONNECTOR_REACH) return e;
+    }
+  }
+  return object;
+}
+
+function objectAt(elements: readonly Element[], point: Point): Element | undefined {
   let frame: Element | undefined;
   for (let i = elements.length - 1; i >= 0; i--) {
     const e = elements[i];
