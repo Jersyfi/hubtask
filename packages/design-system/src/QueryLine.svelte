@@ -548,6 +548,9 @@
   @media (width < 600px) {
     .list { inline-size: 100%; }
     .option { min-block-size: var(--layout-nav-touchrow); }
+    /* The words' field is a thumb's target (§7): it takes the line's height, not its padding. */
+    .line { padding-block: 0; }
+    .input { align-self: stretch; min-block-size: var(--layout-target); }
   }
 
   @media (prefers-reduced-motion: reduce) {

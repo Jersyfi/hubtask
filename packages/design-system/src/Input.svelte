@@ -155,8 +155,11 @@
     cursor: not-allowed;
   }
 
+  /* The field fills the shell's height, so a press anywhere on the shell lands in it: at the
+     spacious density the shell is a thumb's target while the text box alone is not. */
   .input {
     flex: 1;
+    align-self: stretch;
     min-width: 0;
     border: 0;
     background: transparent;
