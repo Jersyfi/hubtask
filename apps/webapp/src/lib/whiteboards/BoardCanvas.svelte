@@ -1747,6 +1747,8 @@
           onpointerdown={(event) => { event.stopPropagation(); openThread = pin.thread.id; sheet = 'comments'; }}
           onkeydown={(event) => { if (event.key === 'Enter') { openThread = pin.thread.id; sheet = 'comments'; } }}
         >
+          <!-- Unseen: the pin's press is layout.target square around its drawn mark (§7). -->
+          <rect class="pin-hit" x="-5" y="-39" width="44" height="44" />
           <path d="M 0 0 L 0 -22 Q 0 -30 8 -30 L 26 -30 Q 34 -30 34 -22 L 34 -12 Q 34 -4 26 -4 L 8 -4 Z" />
           <text x="17" y="-12" text-anchor="middle">{pin.count}</text>
         </g>
@@ -2629,6 +2631,7 @@
   .votes circle { fill: var(--accent-primary); }
   .votes text { fill: var(--text-inverse); font-weight: var(--fw-semibold); }
   .pin { cursor: pointer; }
+  .pin .pin-hit { fill: transparent; }
   .pin path { fill: var(--accent-primary); stroke: var(--bg-surface); stroke-width: 1.5; }
   .pin text { fill: var(--text-inverse); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .pin.open path { stroke: var(--text-primary); stroke-width: 2.5; }

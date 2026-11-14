@@ -89,4 +89,10 @@
   .add:hover { border-color: var(--border-subtle); }
   .add:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
   .refusal { margin: 0; color: var(--text-danger); }
+
+  /* A thumb's target (§7): the add field is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .add { min-block-size: var(--layout-target); }
+  }
 </style>
