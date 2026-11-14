@@ -2709,6 +2709,55 @@ type PortfolioUpdate struct {
 	CreatedAt   pgtype.Timestamptz
 }
 
+type Post struct {
+	TenantID      pgtype.UUID
+	PageID        pgtype.UUID
+	HubID         pgtype.UUID
+	Template      *string
+	PublishAt     pgtype.Timestamptz
+	PublishedAt   pgtype.Timestamptz
+	FeaturedUntil pgtype.Timestamptz
+	Audience      string
+	GroupIds      []pgtype.UUID
+	Discussion    bool
+	Notify        bool
+	ConfirmBy     pgtype.Timestamptz
+}
+
+type PostConfirmation struct {
+	TenantID    pgtype.UUID
+	PageID      pgtype.UUID
+	AccountID   pgtype.UUID
+	ConfirmedAt pgtype.Timestamptz
+}
+
+type PostReaction struct {
+	TenantID  pgtype.UUID
+	ReplyID   pgtype.UUID
+	AccountID pgtype.UUID
+	Reaction  string
+}
+
+type PostRead struct {
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	AccountID pgtype.UUID
+	ReadAt    pgtype.Timestamptz
+}
+
+type PostReply struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	PageID    pgtype.UUID
+	ParentID  pgtype.UUID
+	AuthorID  pgtype.UUID
+	Body      string
+	CreatedAt pgtype.Timestamptz
+	EditedAt  pgtype.Timestamptz
+	DeletedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type PrivacyIncident struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
