@@ -25,6 +25,7 @@ test('a key this client does not know, or an image not resolved, draws no cover'
   assert.equal(coverBackground({ source: 'IMAGE', key: 'm', position: 30 }, 'https://h/x.png'), 'url("https://h/x.png") center 30% / cover no-repeat');
 });
 
+// UC-DOC-16 check 3: a picture is moved up or down and kept between 0 and 100.
 test('a cover is moved by dragging, between its top and its foot', () => {
   assert.equal(draggedPosition(50, 50, 200), 25, 'dragged down shows more of the top');
   assert.equal(draggedPosition(50, -400, 200), 100);

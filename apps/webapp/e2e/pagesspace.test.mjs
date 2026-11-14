@@ -314,7 +314,7 @@ test('a cover takes a picture from the image library the workspace offers (UC-DO
   }
 });
 
-// E-18, UC-DOC-16 (scene pcover): a cover over the content's width, the icon and title under the
+// E-18, UC-DOC-16 checks 1 and 2 (scene pcover): a cover over the content's width, the icon and title under the
 // picture; picked from the design system's gradients, the gallery or an upload, and taken away.
 test('a page takes a cover over its width, picked in tabs, the title under it (UC-DOC-16)', async () => {
   const browser = await chromium.launch();

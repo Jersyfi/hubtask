@@ -757,7 +757,7 @@ func TestAVerifiedPageRanksBeforeAnEquallyGoodUnverifiedOne(t *testing.T) {
 	}
 }
 
-// A page's cover is read as it was written and taken away again (migration 0400, UC-DOC-16); the
+// A page's cover is read as it was written and taken away again (migration 0400, UC-DOC-16 checks 3 and 4); the
 // workspace next door neither reads nor writes it.
 func TestAPagesCoverIsReadAsWrittenInItsWorkspaceAlone(t *testing.T) {
 	ctx := context.Background()

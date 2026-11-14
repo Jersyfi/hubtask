@@ -14,7 +14,7 @@ import (
 )
 
 // A cover is a gradient, a gallery picture or an image, shown from a place between its top and
-// its foot (E-18, UC-DOC-16); anything else is refused with what was wrong.
+// its foot (E-18, UC-DOC-16 check 4); anything else is refused with what was wrong.
 func TestACoverIsCheckedAsAskedFor(t *testing.T) {
 	cases := []struct {
 		name     string
