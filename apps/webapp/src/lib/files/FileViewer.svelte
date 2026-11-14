@@ -270,7 +270,7 @@
       {#if markOf(file)}<span class="mark wide-only"><LabelChip name={markOf(file)} colorToken={markColourOf(file)} /></span>{/if}
       <h2 class="name" title={file.file_name ?? undefined}>{file.file_name ?? t('app.media.unnamed')}</h2>
       <span class="where wide-only" data-viewer-position>
-        · {t('app.viewer.position', { n: String(viewer.index + 1), m: String(files.length) })}{#if opened.owner?.key || opened.owner?.title} · {t('app.viewer.on', { name: opened.owner?.key ?? opened.owner?.title ?? '' })}{/if}
+        · {t('app.viewer.position', { n: String(viewer.index + 1), m: String(files.length) })}{#if opened.owner?.key || opened.owner?.title}{` · ${t('app.viewer.on', { name: opened.owner?.key ?? opened.owner?.title ?? '' })}`}{/if}
       </span>
       <div class="acts">
         {#if canZoom}<span class="wide-only"><Button tone="secondary" size="sm" icon="search" onclick={nextZoom}>{t('app.viewer.zoom', { percent: String(Math.round(zoom * 100)) })}</Button></span>{/if}
