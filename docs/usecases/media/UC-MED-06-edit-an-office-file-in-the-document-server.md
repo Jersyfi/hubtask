@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-09]
 state: specified
 tasks: []
-checked_by: [test/integration/wopi_contract_test.go, core/application/service/media/Wopi_test.go, core/application/service/knowledge/Media_test.go, test/integration/wopi_repository_test.go, infrastructure/security/WopiToken_test.go, core/domain/model/media/Wopi_test.go]
+checked_by: [test/integration/wopi_contract_test.go, core/application/service/media/Wopi_test.go, core/application/service/knowledge/Media_test.go, apps/webapp/src/lib/files/documentServer.test.ts, infrastructure/documentserver/Server_test.go, test/integration/wopi_repository_test.go, infrastructure/security/WopiToken_test.go, core/domain/model/media/Wopi_test.go]
 ---
 
 # Edit an office file in the document server
@@ -49,4 +49,3 @@ is kept.
 ## Today
 
 * Check 2: not met — the launch into the server is the owner's decision (ADR-0104); *Bearbeiten* stays hidden.
-* Check 1: not met — the choice is served (`/media:document-server`); the settings section is not built yet.

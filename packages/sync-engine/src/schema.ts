@@ -802,6 +802,10 @@ export type MediaObject = components['schemas']['MediaObject'];
 export type MediaTransfer = components['schemas']['MediaTransfer'];
 export type MediaUploadRequest = components['schemas']['MediaUploadRequest'];
 export type MediaPage = components['schemas']['MediaPage'];
+/** The workspace's document server, where office files are shown as PDF and edited (UC-MED-06). */
+export type DocumentServer = components['schemas']['DocumentServer'];
+export type DocumentServerCheck = components['schemas']['DocumentServerCheck'];
+export type MediaEditingSession = components['schemas']['MediaEditingSession'];
 /** The cover as the entry carries it: a colour token, or an image by its media identifier. */
 export type Cover = components['schemas']['Cover'];
 export type CoverInput = components['schemas']['CoverInput'];
