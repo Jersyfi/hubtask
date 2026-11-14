@@ -355,6 +355,7 @@ export type PageLanguageLink = components['schemas']['PageLanguageLink'];
 export type PageLanguageVariant = components['schemas']['PageLanguageVariant'];
 export type PageLanguageVariants = components['schemas']['PageLanguageVariants'];
 export type ArticleSuggestionList = components['schemas']['ArticleSuggestionList'];
+export type PortalKnowledge = components['schemas']['PortalKnowledge'];
 export type Article = components['schemas']['Article'];
 /** The service desk (M5): the requester portal, calendars, SLA policies and an entry's goals, canned replies. */
 export type ArticleRating = components['schemas']['ArticleRating'];

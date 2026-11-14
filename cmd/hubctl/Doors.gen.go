@@ -552,6 +552,11 @@ var generatedCommands = []door{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"title"}},
+	{Group: "article", Verb: "spaces", OperationID: "listPortalKnowledge", Method: "GET", Path: "/portal-knowledge", Summary: "What a service's portal shares of the knowledge base",
+		Query: []doorParam{
+			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title"}},
 	{Group: "article", Verb: "suggest", OperationID: "suggestArticles", Method: "GET", Path: "/articles", Summary: "The articles a service's portal offers for what a requester types",
 		Query: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
@@ -2039,6 +2044,7 @@ var generatedCommands = []door{
 		},
 		Body: []doorParam{
 			{Name: "collection_id", Kind: "uuid", Help: "", Required: true},
+			{Name: "with_subpages", Kind: "boolean", Help: "Share the page with everything under it, as a knowledge space", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"collection_id", "helpful", "page_id", "published_at", "published_by"}},
 	{Group: "page", Verb: "release", OperationID: "publishPage", Method: "POST", Path: "/pages/{pageId}:publish", Summary: "Publish what waits on a page",

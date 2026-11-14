@@ -132,7 +132,7 @@ func TestAnArticleIsReadInTheRequestersLanguage(t *testing.T) {
 		t.Fatalf("ListPageLanguageVariants(variant): %+v %v", listed, err)
 	}
 
-	if _, err := (PublishPageToPortal{Space: f.space}).Execute(ctx, as(anna), source.ID, desk); err != nil {
+	if _, err := (PublishPageToPortal{Space: f.space}).Execute(ctx, as(anna), source.ID, desk, false); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {

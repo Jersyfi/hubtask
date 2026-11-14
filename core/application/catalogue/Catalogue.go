@@ -172,6 +172,7 @@ func Descriptors() []usecase.Descriptor {
 		knowledgeservice.LinkPageLanguageVariant{}.Descriptor(),
 		knowledgeservice.UnlinkPageLanguageVariant{}.Descriptor(),
 		knowledgeservice.SuggestArticles{}.Descriptor(),
+		knowledgeservice.ListPortalKnowledge{}.Descriptor(),
 		knowledgeservice.ReadArticle{}.Descriptor(),
 		knowledgeservice.RateArticle{}.Descriptor(),
 		knowledgeservice.ListSharedPages{}.Descriptor(),

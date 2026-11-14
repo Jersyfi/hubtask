@@ -3019,6 +3019,10 @@ func (pending) UnlinkPageLanguageVariant(w http.ResponseWriter, r *http.Request,
 	notAvailable(w, r)
 }
 
+func (pending) ListPortalKnowledge(w http.ResponseWriter, r *http.Request, _ openapi.ListPortalKnowledgeParams) {
+	notAvailable(w, r)
+}
+
 func (pending) SuggestArticles(w http.ResponseWriter, r *http.Request, _ openapi.SuggestArticlesParams) {
 	notAvailable(w, r)
 }

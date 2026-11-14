@@ -2556,6 +2556,7 @@ func run() error {
 		knowledgeservice.LinkPageLanguageVariant{Space: pageSpace}.Descriptor(),
 		knowledgeservice.UnlinkPageLanguageVariant{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SuggestArticles{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListPortalKnowledge{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadArticle{Space: pageSpace}.Descriptor(),
 		knowledgeservice.RateArticle{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListSharedPages{Space: pageSpace}.Descriptor(),

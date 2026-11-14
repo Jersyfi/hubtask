@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
@@ -20,6 +21,10 @@ type PageArticleRepository struct{}
 func NewPageArticleRepository() PageArticleRepository { return PageArticleRepository{} }
 
 var _ repository.Articles = PageArticleRepository{}
+
+// errOrphanSharedPage is a page under a space read before the space itself, which the query's
+// order rules out.
+var errOrphanSharedPage = errors.New("a shared page arrived before its space")
 
 // Publish publishes the page to the collection.
 func (PageArticleRepository) Publish(ctx context.Context, article knowledge.Article) (bool, error) {
@@ -37,6 +42,7 @@ func (PageArticleRepository) Publish(ctx context.Context, article knowledge.Arti
 	}
 	rows, err := queries.PublishPageArticle(ctx, sqlc.PublishPageArticleParams{
 		PageID: ids[0], CollectionID: ids[1], PublishedBy: by, At: timestampOf(article.PublishedAt),
+		WithSubpages: article.WithSubpages,
 	})
 	if err != nil {
 		return false, pageFailed("publishing the article", err)
@@ -82,27 +88,69 @@ func (PageArticleRepository) Of(ctx context.Context, pageID shared.ID) ([]knowle
 		}
 		by, err := optionalID(row.PublishedBy)
 		return knowledge.Article{
-			PageID: pageID, CollectionID: collection, PublishedBy: by, PublishedAt: timeFrom(row.PublishedAt),
-			Views: row.Views, Helpful: row.Helpful, Unhelpful: row.Unhelpful,
+			PageID: pageID, CollectionID: collection, WithSubpages: row.WithSubpages, PublishedBy: by,
+			PublishedAt: timeFrom(row.PublishedAt), Views: row.Views, Helpful: row.Helpful, Unhelpful: row.Unhelpful,
 		}, err
 	})
 }
 
-// Published answers whether the page is published to the collection.
-func (PageArticleRepository) Published(ctx context.Context, pageID, collectionID shared.ID) (bool, error) {
+// Source answers the publication the page is read through in the collection; zero for none.
+func (PageArticleRepository) Source(ctx context.Context, pageID, collectionID shared.ID) (shared.ID, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
-		return false, err
+		return "", err
 	}
 	ids, err := pageUUIDs(pageID, collectionID)
 	if err != nil {
-		return false, err
+		return "", err
 	}
-	held, err := queries.IsPageArticle(ctx, sqlc.IsPageArticleParams{PageID: ids[0], CollectionID: ids[1]})
+	rows, err := queries.PageArticleSource(ctx, sqlc.PageArticleSourceParams{PageID: ids[0], CollectionID: ids[1]})
 	if err != nil {
-		return false, pageFailed("reading the article", err)
+		return "", pageFailed("reading the article", err)
 	}
-	return held, nil
+	if len(rows) == 0 {
+		return "", nil
+	}
+	return idFrom(rows[0])
+}
+
+// Shared answers what the collection's portal shares, publications in the order they were made.
+func (PageArticleRepository) Shared(ctx context.Context, collectionID shared.ID) ([]repository.SharedKnowledge, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	key, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.PortalKnowledge(ctx, key)
+	if err != nil {
+		return nil, pageFailed("reading the portal's knowledge", err)
+	}
+	out := []repository.SharedKnowledge{}
+	for _, row := range rows {
+		id, err := idFrom(row.PageID)
+		if err != nil {
+			return nil, err
+		}
+		if row.Depth == 0 {
+			out = append(out, repository.SharedKnowledge{
+				PageID: id, Title: row.Title, Icon: row.Icon, WithSubpages: row.WithSubpages, Pages: []repository.SharedPage{},
+			})
+			continue
+		}
+		parent, err := idFrom(row.ParentID)
+		if err != nil {
+			return nil, err
+		}
+		if len(out) == 0 {
+			return nil, pageFailed("reading the portal's knowledge", errOrphanSharedPage)
+		}
+		last := &out[len(out)-1]
+		last.Pages = append(last.Pages, repository.SharedPage{PageID: id, ParentID: parent, Title: row.Title, Icon: row.Icon})
+	}
+	return out, nil
 }
 
 // Search answers the collection's articles a text finds.

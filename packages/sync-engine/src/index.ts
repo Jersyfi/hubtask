@@ -182,6 +182,7 @@ export type {
   PageLanguageVariant,
   PageLanguageVariants,
   ArticleSuggestionList,
+  PortalKnowledge,
   Article,
   ArticleRating,
   RequestCatalogue,

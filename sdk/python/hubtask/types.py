@@ -6186,6 +6186,7 @@ class PagePublicLinkMinted(TypedDict, total=False):
 class PageArticle(TypedDict, total=False):
     page_id: Required[str]
     collection_id: Required[str]
+    with_subpages: Required[bool]
     published_by: Required[str | None]
     published_at: Required[str]
     views: Required[int]
@@ -6219,6 +6220,9 @@ class Article(TypedDict, total=False):
     body: Required[str]
     content_language: Required[str | None]
     updated_at: Required[str]
+
+class PortalKnowledge(TypedDict, total=False):
+    data: Required[list[dict[str, Any]]]
 
 class ArticleRating(TypedDict, total=False):
     page_id: Required[str]

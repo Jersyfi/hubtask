@@ -971,6 +971,11 @@ export class HubtaskClient {
     return this.call("GET", "/articles", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** What a service's portal shares of the knowledge base */
+  listPortalKnowledge(options: CallOptions & { readonly query?: NonNullable<operations["listPortalKnowledge"]['parameters']['query']> } = {}): Promise<operations["listPortalKnowledge"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/portal-knowledge", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Open an article of a service's portal */
   readArticle(pageId: string, options: CallOptions & { readonly query?: NonNullable<operations["readArticle"]['parameters']['query']> } = {}): Promise<operations["readArticle"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/articles/{pageId}", { "pageId": pageId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

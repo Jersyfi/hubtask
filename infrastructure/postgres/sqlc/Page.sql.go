@@ -681,25 +681,6 @@ func (q *Queries) InsertPageVersion(ctx context.Context, arg InsertPageVersionPa
 	return err
 }
 
-const isPageArticle = `-- name: IsPageArticle :one
-SELECT EXISTS (
-  SELECT 1 FROM page_article
-  WHERE tenant_id = current_tenant_id() AND page_id = $1 AND collection_id = $2
-) AS held
-`
-
-type IsPageArticleParams struct {
-	PageID       pgtype.UUID
-	CollectionID pgtype.UUID
-}
-
-func (q *Queries) IsPageArticle(ctx context.Context, arg IsPageArticleParams) (bool, error) {
-	row := q.db.QueryRow(ctx, isPageArticle, arg.PageID, arg.CollectionID)
-	var held bool
-	err := row.Scan(&held)
-	return held, err
-}
-
 const isPageSharedWith = `-- name: IsPageSharedWith :one
 SELECT EXISTS (
   SELECT 1 FROM page_share
@@ -1165,15 +1146,60 @@ func (q *Queries) PageAncestors(ctx context.Context, id pgtype.UUID) ([]PageAnce
 	return items, nil
 }
 
+const pageArticleSource = `-- name: PageArticleSource :many
+WITH RECURSIVE up (id, parent_id, depth) AS (
+  SELECT p.id, p.parent_id, 0 FROM page p
+  WHERE p.tenant_id = current_tenant_id() AND p.id = $2
+  UNION ALL
+  SELECT p.id, p.parent_id, up.depth + 1 FROM page p
+  JOIN up ON p.tenant_id = current_tenant_id() AND p.id = up.parent_id
+  WHERE up.depth < 16
+)
+SELECT a.page_id FROM up
+JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = up.id
+  AND a.collection_id = $1
+WHERE up.depth = 0 OR a.with_subpages
+ORDER BY up.depth
+LIMIT 1
+`
+
+type PageArticleSourceParams struct {
+	CollectionID pgtype.UUID
+	PageID       pgtype.UUID
+}
+
+// The publication a page is read through in a service: the page itself where it is published,
+// else the nearest page above it shared as a space; none for neither. Its openings and ratings
+// are the publication's.
+func (q *Queries) PageArticleSource(ctx context.Context, arg PageArticleSourceParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, pageArticleSource, arg.CollectionID, arg.PageID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var page_id pgtype.UUID
+		if err := rows.Scan(&page_id); err != nil {
+			return nil, err
+		}
+		items = append(items, page_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pageArticles = `-- name: PageArticles :many
-SELECT a.collection_id, a.published_by, a.published_at, a.views,
+SELECT a.collection_id, a.published_by, a.published_at, a.views, a.with_subpages,
        count(r.account_id) FILTER (WHERE r.helpful)::bigint AS helpful,
        count(r.account_id) FILTER (WHERE NOT r.helpful)::bigint AS unhelpful
 FROM page_article a
 LEFT JOIN page_article_rating r
   ON r.tenant_id = a.tenant_id AND r.page_id = a.page_id AND r.collection_id = a.collection_id
 WHERE a.tenant_id = current_tenant_id() AND a.page_id = $1
-GROUP BY a.collection_id, a.published_by, a.published_at, a.views
+GROUP BY a.collection_id, a.published_by, a.published_at, a.views, a.with_subpages
 ORDER BY a.published_at, a.collection_id
 `
 
@@ -1182,6 +1208,7 @@ type PageArticlesRow struct {
 	PublishedBy  pgtype.UUID
 	PublishedAt  pgtype.Timestamptz
 	Views        int64
+	WithSubpages bool
 	Helpful      int64
 	Unhelpful    int64
 }
@@ -1201,6 +1228,7 @@ func (q *Queries) PageArticles(ctx context.Context, pageID pgtype.UUID) ([]PageA
 			&i.PublishedBy,
 			&i.PublishedAt,
 			&i.Views,
+			&i.WithSubpages,
 			&i.Helpful,
 			&i.Unhelpful,
 		); err != nil {
@@ -1662,10 +1690,83 @@ func (q *Queries) PagesSharedWith(ctx context.Context, arg PagesSharedWithParams
 	return items, nil
 }
 
+const portalKnowledge = `-- name: PortalKnowledge :many
+WITH RECURSIVE reach (root_id, page_id, parent_id, depth, path) AS (
+  SELECT a.page_id, a.page_id, NULL::uuid, 0, ARRAY[]::text[]
+  FROM page_article a
+  JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
+  WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $1
+    AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  UNION ALL
+  SELECT r.root_id, c.id, c.parent_id, r.depth + 1, r.path || (c.order_key || c.id::text)
+  FROM reach r
+  JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = r.root_id
+    AND a.collection_id = $1 AND a.with_subpages
+  JOIN page c ON c.tenant_id = current_tenant_id() AND c.parent_id = r.page_id
+    AND c.deleted_at IS NULL AND c.archived_at IS NULL AND NOT c.restricted
+    AND c.language_source_id IS NULL AND NOT c.template
+  WHERE r.depth < 16
+), ranked AS (
+  SELECT r.root_id, r.page_id, r.parent_id, r.depth, r.path, row_number() OVER (PARTITION BY r.root_id ORDER BY r.path) AS place
+  FROM reach r
+)
+SELECT r.root_id, r.page_id, r.parent_id, p.title, p.icon, a.with_subpages, r.depth
+FROM ranked r
+JOIN page p ON p.tenant_id = current_tenant_id() AND p.id = r.page_id
+JOIN page_article a ON a.tenant_id = current_tenant_id() AND a.page_id = r.root_id
+  AND a.collection_id = $1
+WHERE r.place <= 501
+ORDER BY a.published_at, r.root_id, r.path
+`
+
+type PortalKnowledgeRow struct {
+	RootID       pgtype.UUID
+	PageID       pgtype.UUID
+	ParentID     pgtype.UUID
+	Title        string
+	Icon         string
+	WithSubpages bool
+	Depth        int32
+}
+
+// What a service's portal shares: each publication, and under a space every live page a
+// requester reads, parents before children in their order. A page behind a restriction or
+// archived is left out with everything under it; language variants are read in their source's
+// place, never listed. At most 500 pages under one space.
+func (q *Queries) PortalKnowledge(ctx context.Context, collectionID pgtype.UUID) ([]PortalKnowledgeRow, error) {
+	rows, err := q.db.Query(ctx, portalKnowledge, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PortalKnowledgeRow{}
+	for rows.Next() {
+		var i PortalKnowledgeRow
+		if err := rows.Scan(
+			&i.RootID,
+			&i.PageID,
+			&i.ParentID,
+			&i.Title,
+			&i.Icon,
+			&i.WithSubpages,
+			&i.Depth,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const publishPageArticle = `-- name: PublishPageArticle :execrows
-INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at)
-VALUES (current_tenant_id(), $1, $2, $3, $4)
-ON CONFLICT (tenant_id, page_id, collection_id) DO NOTHING
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, with_subpages)
+VALUES (current_tenant_id(), $1, $2, $3, $4,
+        $5)
+ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET with_subpages = EXCLUDED.with_subpages
+WHERE page_article.with_subpages IS DISTINCT FROM EXCLUDED.with_subpages
 `
 
 type PublishPageArticleParams struct {
@@ -1673,14 +1774,17 @@ type PublishPageArticleParams struct {
 	CollectionID pgtype.UUID
 	PublishedBy  pgtype.UUID
 	At           pgtype.Timestamptz
+	WithSubpages bool
 }
 
+// Publishing again the same way changes nothing; the other way changes only whether it is a space.
 func (q *Queries) PublishPageArticle(ctx context.Context, arg PublishPageArticleParams) (int64, error) {
 	result, err := q.db.Exec(ctx, publishPageArticle,
 		arg.PageID,
 		arg.CollectionID,
 		arg.PublishedBy,
 		arg.At,
+		arg.WithSubpages,
 	)
 	if err != nil {
 		return 0, err
@@ -1804,12 +1908,24 @@ func (q *Queries) RestorePageSubtree(ctx context.Context, arg RestorePageSubtree
 }
 
 const searchPageArticles = `-- name: SearchPageArticles :many
-WITH articles AS (
-  SELECT a.page_id, a.views
+WITH RECURSIVE reach (page_id, views, spread, depth) AS (
+  SELECT a.page_id, a.views, a.with_subpages, 0
   FROM page_article a
-  JOIN page s ON s.tenant_id = a.tenant_id AND s.id = a.page_id
   WHERE a.tenant_id = current_tenant_id() AND a.collection_id = $3
-    AND s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  UNION ALL
+  -- Under a space (PO-4): live pages, stopping at one restricted or archived.
+  SELECT c.id, 0::bigint, true, r.depth + 1
+  FROM reach r
+  JOIN page c ON c.tenant_id = current_tenant_id() AND c.parent_id = r.page_id
+    AND c.deleted_at IS NULL AND c.archived_at IS NULL AND NOT c.restricted
+    AND c.language_source_id IS NULL AND NOT c.template
+  WHERE r.spread AND r.depth < 16
+), articles AS (
+  SELECT DISTINCT ON (r.page_id) r.page_id, r.views
+  FROM reach r
+  JOIN page s ON s.tenant_id = current_tenant_id() AND s.id = r.page_id
+  WHERE s.deleted_at IS NULL AND s.archived_at IS NULL AND NOT page_behind_restriction(s.id)
+  ORDER BY r.page_id, r.views DESC
 ), chosen AS (
   SELECT DISTINCT ON (r.page_id) r.page_id AS article_id, r.views, p.title, p.icon, p.updated_at,
          p.body, p.content_language, p.search_document,
@@ -1856,10 +1972,11 @@ type SearchPageArticlesRow struct {
 	Excerpt         string
 }
 
-// The live articles of one service a text finds, ranked; with no text, the most read. A page
-// behind a restriction is never an article a requester reads. Each article is offered in the
-// first of `languages` (lower case, preferred first) a live, unrestricted variant of its page is
-// written in, else as the page itself, and is found by the words of the text it is offered in.
+// The live articles of one service a text finds, ranked - the pages under a space among them;
+// with no text, the most read. A page behind a restriction is never an article a requester
+// reads. Each article is offered in the first of `languages` (lower case, preferred first) a
+// live, unrestricted variant of its page is written in, else as the page itself, and is found by
+// the words of the text it is offered in.
 func (q *Queries) SearchPageArticles(ctx context.Context, arg SearchPageArticlesParams) ([]SearchPageArticlesRow, error) {
 	rows, err := q.db.Query(ctx, searchPageArticles,
 		arg.Text,

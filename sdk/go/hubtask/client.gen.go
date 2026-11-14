@@ -22058,6 +22058,9 @@ type PageArticle struct {
 
 	// Views Openings in the portal.
 	Views int64 `json:"views"`
+
+	// WithSubpages Shared as a space: every page under it reaches the portal too.
+	WithSubpages bool `json:"with_subpages"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -23305,6 +23308,27 @@ type PolicyLock string
 
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
+
+// PortalKnowledge defines model for PortalKnowledge.
+type PortalKnowledge struct {
+	// Data What a service's portal shares, in the order it was shared.
+	Data []struct {
+		Icon   string             `json:"icon"`
+		PageId openapi_types.UUID `json:"page_id"`
+
+		// Pages The pages under a space a requester reads, parents before their children and in their order; empty for a single article.
+		Pages []struct {
+			Icon     string             `json:"icon"`
+			PageId   openapi_types.UUID `json:"page_id"`
+			ParentId openapi_types.UUID `json:"parent_id"`
+			Title    string             `json:"title"`
+		} `json:"pages"`
+		Title string `json:"title"`
+
+		// WithSubpages A space: `pages` holds what lies under it.
+		WithSubpages bool `json:"with_subpages"`
+	} `json:"data"`
+}
 
 // PortalMergedRequest The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false.
 type PortalMergedRequest struct {
@@ -31021,6 +31045,9 @@ type UpdatePageParams struct {
 // PublishPageToPortalJSONBody defines parameters for PublishPageToPortal.
 type PublishPageToPortalJSONBody struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// WithSubpages Share the page with everything under it, as a knowledge space.
+	WithSubpages *bool `json:"with_subpages,omitempty"`
 }
 
 // SearchCoverImagesParams defines parameters for SearchCoverImages.
@@ -31180,6 +31207,11 @@ type ReadWorkloadParams struct {
 type SetWorkspaceToleranceJSONBody struct {
 	Lock              *bool `json:"lock,omitempty"`
 	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
+// ListPortalKnowledgeParams defines parameters for ListPortalKnowledge.
+type ListPortalKnowledgeParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 }
 
 // DeletePortfolioParams defines parameters for DeletePortfolio.
@@ -41886,7 +41918,7 @@ type ClientInterface interface {
 
 	// PublishPageToPortalWithBody Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -41895,7 +41927,7 @@ type ClientInterface interface {
 
 	// PublishPageToPortal Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -42514,6 +42546,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
 	SetWorkspaceTolerance(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPortalKnowledge What a service's portal shares of the knowledge base
+	//
+	// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+	//
+	// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+	ListPortalKnowledge(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPortfolios The portfolios
 	//
@@ -62745,7 +62784,7 @@ func (c *Client) ReadPageAccess(ctx context.Context, pageId PageId, reqEditors .
 
 // PublishPageToPortalWithBody Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes any type of body and a specified content type.
 //
@@ -62764,7 +62803,7 @@ func (c *Client) PublishPageToPortalWithBody(ctx context.Context, pageId PageId,
 
 // PublishPageToPortal Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -64134,6 +64173,23 @@ func (c *Client) SetWorkspaceToleranceWithBody(ctx context.Context, contentType 
 // Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
 func (c *Client) SetWorkspaceTolerance(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceToleranceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPortalKnowledge What a service's portal shares of the knowledge base
+//
+// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+//
+// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+func (c *Client) ListPortalKnowledge(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPortalKnowledgeRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -101898,6 +101954,56 @@ func NewSetWorkspaceToleranceRequestWithBody(server string, contentType string, 
 	return req, nil
 }
 
+// NewListPortalKnowledgeRequest constructs an http.Request for the ListPortalKnowledge method
+func NewListPortalKnowledgeRequest(server string, params *ListPortalKnowledgeParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/portal-knowledge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "collection_id", params.CollectionId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListPortfoliosRequest constructs an http.Request for the ListPortfolios method
 func NewListPortfoliosRequest(server string) (*http.Request, error) {
 	var err error
@@ -121396,7 +121502,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishPageToPortalWithBodyWithResponse Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -121405,7 +121511,7 @@ type ClientWithResponsesInterface interface {
 
 	// PublishPageToPortalWithResponse Publish a page to a service's portal
 	//
-	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+	// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -122086,6 +122192,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /plans:tolerance (the `SetWorkspaceTolerance` operationId).
 	SetWorkspaceToleranceWithResponse(ctx context.Context, body SetWorkspaceToleranceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceToleranceResult, error)
+
+	// ListPortalKnowledgeWithResponse What a service's portal shares of the knowledge base
+	//
+	// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+	ListPortalKnowledgeWithResponse(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*ListPortalKnowledgeResult, error)
 
 	// ListPortfoliosWithResponse The portfolios
 	//
@@ -157681,6 +157796,54 @@ func (r SetWorkspaceToleranceResult) ContentType() string {
 	return ""
 }
 
+type ListPortalKnowledgeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PortalKnowledge
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPortalKnowledgeResult) GetJSON200() *PortalKnowledge {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPortalKnowledgeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPortalKnowledgeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPortalKnowledgeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPortalKnowledgeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPortalKnowledgeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListPortfoliosResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -182976,7 +183139,7 @@ func (c *ClientWithResponses) ReadPageAccessWithResponse(ctx context.Context, pa
 
 // PublishPageToPortalWithBodyWithResponse Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -182991,7 +183154,7 @@ func (c *ClientWithResponses) PublishPageToPortalWithBodyWithResponse(ctx contex
 
 // PublishPageToPortalWithResponse Publish a page to a service's portal
 //
-// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
+// Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -184127,6 +184290,21 @@ func (c *ClientWithResponses) SetWorkspaceToleranceWithResponse(ctx context.Cont
 		return nil, err
 	}
 	return ParseSetWorkspaceToleranceResult(rsp)
+}
+
+// ListPortalKnowledgeWithResponse What a service's portal shares of the knowledge base
+//
+// Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /portal-knowledge (the `ListPortalKnowledge` operationId).
+func (c *ClientWithResponses) ListPortalKnowledgeWithResponse(ctx context.Context, params *ListPortalKnowledgeParams, reqEditors ...RequestEditorFn) (*ListPortalKnowledgeResult, error) {
+	rsp, err := c.ListPortalKnowledge(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPortalKnowledgeResult(rsp)
 }
 
 // ListPortfoliosWithResponse The portfolios
@@ -212323,6 +212501,39 @@ func ParseSetWorkspaceToleranceResult(rsp *http.Response) (*SetWorkspaceToleranc
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest WorkspaceTolerance
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPortalKnowledgeResult parses an HTTP response from a ListPortalKnowledgeWithResponse call
+func ParseListPortalKnowledgeResult(rsp *http.Response) (*ListPortalKnowledgeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPortalKnowledgeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PortalKnowledge
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

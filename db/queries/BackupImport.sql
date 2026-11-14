@@ -2482,14 +2482,16 @@ SELECT EXISTS (
 DELETE FROM public_form;
 
 -- name: ImportPageArticle :execrows
-INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views)
-SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0)
+INSERT INTO page_article (tenant_id, page_id, collection_id, published_by, published_at, views, with_subpages)
+SELECT r.tenant_id, r.page_id, r.collection_id, r.published_by, r.published_at, coalesce(r.views, 0),
+       coalesce(r.with_subpages, false)
 FROM jsonb_populate_record(
   NULL::page_article,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
 ) r
 ON CONFLICT (tenant_id, page_id, collection_id) DO UPDATE SET
-  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views
+  published_by = EXCLUDED.published_by, published_at = EXCLUDED.published_at, views = EXCLUDED.views,
+  with_subpages = EXCLUDED.with_subpages
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsPageArticle :one

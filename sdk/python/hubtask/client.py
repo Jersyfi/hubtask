@@ -791,6 +791,10 @@ class Client:
         """The articles a service's portal offers for what a requester types"""
         return self._call("GET", "/articles", {}, query, {}, None, "none", None, "json")
 
+    def list_portal_knowledge(self, *, query: dict[str, Any] | None = None) -> "PortalKnowledge":
+        """What a service's portal shares of the knowledge base"""
+        return self._call("GET", "/portal-knowledge", {}, query, {}, None, "none", None, "json")
+
     def read_article(self, page_id: str, *, query: dict[str, Any] | None = None) -> "Article":
         """Open an article of a service's portal"""
         return self._call("GET", "/articles/{pageId}", {"pageId": page_id}, query, {}, None, "none", None, "json")

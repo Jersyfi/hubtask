@@ -218,6 +218,23 @@ type PublicLinks interface {
 	Delete(ctx context.Context, pageID shared.ID) (bool, error)
 }
 
+// SharedKnowledge is one publication of a portal: a single article, or a space with its pages.
+type SharedKnowledge struct {
+	PageID       shared.ID
+	Title        string
+	Icon         string
+	WithSubpages bool
+	Pages        []SharedPage
+}
+
+// SharedPage is one page under a shared space.
+type SharedPage struct {
+	PageID   shared.ID
+	ParentID shared.ID
+	Title    string
+	Icon     string
+}
+
 // ArticleHit is one article a portal's question finds.
 type ArticleHit struct {
 	PageID  shared.ID
@@ -239,8 +256,12 @@ type Articles interface {
 	Unpublish(ctx context.Context, pageID, collectionID shared.ID) (bool, error)
 	// Of answers where a page is published, with its openings and ratings.
 	Of(ctx context.Context, pageID shared.ID) ([]knowledge.Article, error)
-	// Published answers whether the page is published to the collection.
-	Published(ctx context.Context, pageID, collectionID shared.ID) (bool, error)
+	// Source answers the publication the page is read through in the collection: the page itself
+	// where it is published, else the nearest page above it shared as a space; zero for none.
+	Source(ctx context.Context, pageID, collectionID shared.ID) (shared.ID, error)
+	// Shared answers what the collection's portal shares: each publication and, under a space, the
+	// live pages a requester reads, parents first, none behind a restriction or under one.
+	Shared(ctx context.Context, collectionID shared.ID) ([]SharedKnowledge, error)
 	// Search answers the collection's live, unrestricted articles a text finds; empty text the most
 	// read. Each is offered, and found, as the first of languages (lower case, preferred first) a
 	// live, unrestricted variant of its page is written in, else as the page itself.

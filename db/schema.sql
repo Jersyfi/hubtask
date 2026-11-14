@@ -1872,6 +1872,8 @@ CREATE TABLE page_article (
   published_by  uuid,
   published_at  timestamptz NOT NULL,
   views         bigint NOT NULL DEFAULT 0 CHECK (views >= 0),
+  -- Shared as a space: every page under it reaches the portal too (migration 0420).
+  with_subpages boolean NOT NULL DEFAULT false,
   PRIMARY KEY (tenant_id, page_id, collection_id),
   CONSTRAINT page_article_page_fkey FOREIGN KEY (tenant_id, page_id)
     REFERENCES page (tenant_id, id) ON DELETE CASCADE,

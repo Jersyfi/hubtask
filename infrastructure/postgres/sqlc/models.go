@@ -2510,6 +2510,7 @@ type PageArticle struct {
 	PublishedBy  pgtype.UUID
 	PublishedAt  pgtype.Timestamptz
 	Views        int64
+	WithSubpages bool
 }
 
 type PageArticleRating struct {

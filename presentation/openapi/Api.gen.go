@@ -22052,6 +22052,9 @@ type PageArticle struct {
 
 	// Views Openings in the portal.
 	Views int64 `json:"views"`
+
+	// WithSubpages Shared as a space: every page under it reaches the portal too.
+	WithSubpages bool `json:"with_subpages"`
 }
 
 // PageBacklinkList defines model for PageBacklinkList.
@@ -23299,6 +23302,27 @@ type PolicyLock string
 
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
+
+// PortalKnowledge defines model for PortalKnowledge.
+type PortalKnowledge struct {
+	// Data What a service's portal shares, in the order it was shared.
+	Data []struct {
+		Icon   string             `json:"icon"`
+		PageId openapi_types.UUID `json:"page_id"`
+
+		// Pages The pages under a space a requester reads, parents before their children and in their order; empty for a single article.
+		Pages []struct {
+			Icon     string             `json:"icon"`
+			PageId   openapi_types.UUID `json:"page_id"`
+			ParentId openapi_types.UUID `json:"parent_id"`
+			Title    string             `json:"title"`
+		} `json:"pages"`
+		Title string `json:"title"`
+
+		// WithSubpages A space: `pages` holds what lies under it.
+		WithSubpages bool `json:"with_subpages"`
+	} `json:"data"`
+}
 
 // PortalMergedRequest The request a requester's own was merged into, as its requester reads it: where it stands, the team's public replies and its SLA goals - never an internal note, the team's fields or what its own requester wrote. When the caller may not raise requests where it now is, only its number is given and `readable` is false.
 type PortalMergedRequest struct {
@@ -31015,6 +31039,9 @@ type UpdatePageParams struct {
 // PublishPageToPortalJSONBody defines parameters for PublishPageToPortal.
 type PublishPageToPortalJSONBody struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// WithSubpages Share the page with everything under it, as a knowledge space.
+	WithSubpages *bool `json:"with_subpages,omitempty"`
 }
 
 // SearchCoverImagesParams defines parameters for SearchCoverImages.
@@ -31174,6 +31201,11 @@ type ReadWorkloadParams struct {
 type SetWorkspaceToleranceJSONBody struct {
 	Lock              *bool `json:"lock,omitempty"`
 	TimeToleranceDays *int  `json:"time_tolerance_days,omitempty"`
+}
+
+// ListPortalKnowledgeParams defines parameters for ListPortalKnowledge.
+type ListPortalKnowledgeParams struct {
+	CollectionId CollectionId `form:"collection_id" json:"collection_id"`
 }
 
 // DeletePortfolioParams defines parameters for DeletePortfolio.
@@ -35625,6 +35657,9 @@ type ServerInterface interface {
 	// SetWorkspaceTolerance Set the time tolerance every plan inherits
 	// (PUT /plans:tolerance)
 	SetWorkspaceTolerance(w http.ResponseWriter, r *http.Request)
+	// ListPortalKnowledge What a service's portal shares of the knowledge base
+	// (GET /portal-knowledge)
+	ListPortalKnowledge(w http.ResponseWriter, r *http.Request, params ListPortalKnowledgeParams)
 	// ListPortfolios The portfolios
 	// (GET /portfolios)
 	ListPortfolios(w http.ResponseWriter, r *http.Request)
@@ -58693,6 +58728,39 @@ func (siw *ServerInterfaceWrapper) SetWorkspaceTolerance(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ListPortalKnowledge operation middleware
+func (siw *ServerInterfaceWrapper) ListPortalKnowledge(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListPortalKnowledgeParams
+
+	// ------------- Required query parameter "collection_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "collection_id", r.URL.Query(), &params.CollectionId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "collection_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPortalKnowledge(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListPortfolios operation middleware
 func (siw *ServerInterfaceWrapper) ListPortfolios(w http.ResponseWriter, r *http.Request) {
 
@@ -66105,6 +66173,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/approval-delegation", wrapper.SetApprovalDelegation)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/request-catalogue", wrapper.ListRequestCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles", wrapper.SuggestArticles)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/portal-knowledge", wrapper.ListPortalKnowledge)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/articles/{pageId}", wrapper.ReadArticle)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/articles/{pageId}:rate", wrapper.RateArticle)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/requests", wrapper.ListMyRequests)

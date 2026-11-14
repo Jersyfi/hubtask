@@ -7481,6 +7481,38 @@
         }
       }
     },
+    "/portal-knowledge": {
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listPortalKnowledge",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "article spaces",
+        "summary": "What a service's portal shares of the knowledge base",
+        "description": "Every article and every space published to the service's portal, each space with the pages under it a requester reads: live, never behind a restriction nor under one, never a language variant (opening a page answers it in the reader's language). At most 500 pages per space. Needs REQUEST at the collection.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/CollectionId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The shared knowledge",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalKnowledge"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/articles/{pageId}": {
       "parameters": [
         {
@@ -35900,7 +35932,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "page publish",
         "summary": "Publish a page to a service's portal",
-        "description": "Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. Never a page behind a restriction (`pages.article_restricted`); publishing twice changes nothing. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.\n",
+        "description": "Publishes the page as an article of one service's portal: the requesters of that collection read it and are offered it while they type a request. With `with_subpages`, the page is shared as a space: every page under it reaches the same requesters, as it stands at each reading, except a page behind a restriction and everything under that. Never a page behind a restriction (`pages.article_restricted`); publishing twice the same way changes nothing, publishing again the other way changes only `with_subpages`. Needs MANAGE_MEMBERS on the page's hub and READ at the collection.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -35915,6 +35947,11 @@
                   "collection_id": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "with_subpages": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Share the page with everything under it, as a knowledge space."
                   }
                 }
               }
@@ -71265,6 +71302,7 @@
         "required": [
           "page_id",
           "collection_id",
+          "with_subpages",
           "published_by",
           "published_at",
           "views",
@@ -71279,6 +71317,10 @@
           "collection_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "with_subpages": {
+            "type": "boolean",
+            "description": "Shared as a space: every page under it reaches the portal too."
           },
           "published_by": {
             "type": [
@@ -71480,6 +71522,73 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PortalKnowledge": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "description": "What a service's portal shares, in the order it was shared.",
+            "items": {
+              "type": "object",
+              "required": [
+                "page_id",
+                "title",
+                "icon",
+                "with_subpages",
+                "pages"
+              ],
+              "properties": {
+                "page_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "icon": {
+                  "type": "string"
+                },
+                "with_subpages": {
+                  "type": "boolean",
+                  "description": "A space: `pages` holds what lies under it."
+                },
+                "pages": {
+                  "type": "array",
+                  "description": "The pages under a space a requester reads, parents before their children and in their order; empty for a single article.\n",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "page_id",
+                      "parent_id",
+                      "title",
+                      "icon"
+                    ],
+                    "properties": {
+                      "page_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "parent_id": {
+                        "type": "string",
+                        "format": "uuid"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "icon": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       },

@@ -855,6 +855,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `page_article.rated` | RateArticle | `page_article` | INFO | Every time |
+| `page_article.read` | ListPortalKnowledge | `page_article` | INFO | When refused |
 | `page_article.read` | ReadArticle | `page_article` | INFO | Every time |
 | `page_article.read` | SuggestArticles | `page_article` | INFO | When refused |
 

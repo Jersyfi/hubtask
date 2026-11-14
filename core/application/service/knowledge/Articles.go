@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/knowledge"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -24,6 +25,7 @@ const (
 	PublishPageToPortalName     = "PublishPageToPortal"
 	UnpublishPageFromPortalName = "UnpublishPageFromPortal"
 	SuggestArticlesName         = "SuggestArticles"
+	ListPortalKnowledgeName     = "ListPortalKnowledge"
 	ReadArticleName             = "ReadArticle"
 	RateArticleName             = "RateArticle"
 
@@ -68,7 +70,7 @@ func fieldInvalid(path, code string) error {
 // ArticleOutput is where a page is published (api/openapi.yaml, schema PageArticle).
 func ArticleOutput(a domain.Article) usecase.Output {
 	return usecase.Output{
-		"page_id": a.PageID.String(), "collection_id": a.CollectionID.String(),
+		"page_id": a.PageID.String(), "collection_id": a.CollectionID.String(), "with_subpages": a.WithSubpages,
 		"published_by": idOrNil(a.PublishedBy), "published_at": a.PublishedAt,
 		"views": a.Views, "helpful": a.Helpful, "unhelpful": a.Unhelpful,
 	}
@@ -80,7 +82,7 @@ func ArticleOutput(a domain.Article) usecase.Output {
 type PublishPageToPortal struct{ Space Space }
 
 // Execute publishes.
-func (h PublishPageToPortal) Execute(ctx context.Context, actor appshared.ActorContext, pageID, collectionID shared.ID) (domain.Article, error) {
+func (h PublishPageToPortal) Execute(ctx context.Context, actor appshared.ActorContext, pageID, collectionID shared.ID, withSubpages bool) (domain.Article, error) {
 	if err := actor.RequireScope(pagesWrite); err != nil {
 		return domain.Article{}, err
 	}
@@ -112,12 +114,14 @@ func (h PublishPageToPortal) Execute(ctx context.Context, actor appshared.ActorC
 		if article, err = domain.NewArticle(page.ID, collectionID, actor.AccountID, readers[page.ID], now); err != nil {
 			return err
 		}
+		article.WithSubpages = withSubpages
 		added, err := h.Space.Articles.Publish(ctx, article)
 		if err != nil || !added {
 			return err
 		}
 		return h.Space.record(ctx, actor, PageArticlePublishedAction, pageTarget, page.ID, []audit.Change{
 			{Field: "collection_id", Classification: audit.Open, To: collectionID.String()},
+			{Field: "with_subpages", Classification: audit.Open, To: withSubpages},
 		}, now)
 	})
 	return article, err
@@ -128,13 +132,16 @@ func (h PublishPageToPortal) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: PublishPageToPortalName, Permission: service.PermissionManageMembers,
 		Summary: "Publishes a page as an article of one service's portal: the requesters of that " +
-			"collection read it and are offered it while they type a request. The page alone, as it " +
-			"stands at each reading. Never a page behind a restriction; publishing twice changes nothing.",
+			"collection read it and are offered it while they type a request, as it stands at each " +
+			"reading. With with_subpages the page is shared as a space: every live page under it " +
+			"too, except one behind a restriction and what lies under that. Never a page behind a " +
+			"restriction; publishing twice the same way changes nothing.",
 		SideEffects: "Writes the publication and an audit entry.",
 		TokenScope:  pagesWrite,
 		Input: []usecase.Field{
 			{Name: "page_id", Kind: usecase.KindID, Required: true, Description: "The page."},
 			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The service whose portal shows it."},
+			{Name: "with_subpages", Kind: usecase.KindBool, Description: "Share the page with everything under it, as a knowledge space."},
 		},
 		Audit: usecase.AuditDeclaration{Action: PageArticlePublishedAction, TargetType: pageTarget, Severity: audit.SeverityInfo, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -142,7 +149,7 @@ func (h PublishPageToPortal) Descriptor() usecase.Descriptor {
 			if err != nil {
 				return nil, err
 			}
-			article, err := h.Execute(ctx, actor, ids[0], ids[1])
+			article, err := h.Execute(ctx, actor, ids[0], ids[1], in.Bool("with_subpages"))
 			if err != nil {
 				return nil, err
 			}
@@ -284,31 +291,32 @@ func (h SuggestArticles) Descriptor() usecase.Descriptor {
 	})
 }
 
-// article reads a page published to a service the actor may request at, inside a transaction:
-// trashed, unpublished or restricted since, it is not found.
-func (s Space) article(ctx context.Context, pageID, collectionID shared.ID) (domain.Page, error) {
-	held, err := s.Articles.Published(ctx, pageID, collectionID)
+// article reads a page a service's portal shares - published itself or under a space - inside a
+// transaction, with the publication its openings and ratings count on: trashed, unpublished or
+// restricted since, it is not found.
+func (s Space) article(ctx context.Context, pageID, collectionID shared.ID) (domain.Page, shared.ID, error) {
+	source, err := s.Articles.Source(ctx, pageID, collectionID)
 	if err != nil {
-		return domain.Page{}, err
+		return domain.Page{}, "", err
 	}
-	if !held {
-		return domain.Page{}, shared.ErrNotFound.WithDetail("pages.article_not_found")
+	if source.IsZero() {
+		return domain.Page{}, "", shared.ErrNotFound.WithDetail("pages.article_not_found")
 	}
 	page, err := s.find(ctx, pageID, false)
 	if errors.Is(err, shared.ErrNotFound) {
-		return domain.Page{}, shared.ErrNotFound.WithDetail("pages.article_not_found")
+		return domain.Page{}, "", shared.ErrNotFound.WithDetail("pages.article_not_found")
 	}
 	if err != nil {
-		return domain.Page{}, err
+		return domain.Page{}, "", err
 	}
 	readers, err := s.Pages.Readers(ctx, []shared.ID{page.ID})
 	if err != nil {
-		return domain.Page{}, err
+		return domain.Page{}, "", err
 	}
-	if readers[page.ID].Restricted || page.IsArchived() {
-		return domain.Page{}, shared.ErrNotFound.WithDetail("pages.article_not_found")
+	if readers[page.ID].Restricted || page.IsArchived() || (page.ID != source && page.Template) {
+		return domain.Page{}, "", shared.ErrNotFound.WithDetail("pages.article_not_found")
 	}
-	return page, nil
+	return page, source, nil
 }
 
 // ReadArticle opens an article in a service's portal and counts the opening.
@@ -338,14 +346,14 @@ func (h ReadArticle) Execute(ctx context.Context, actor appshared.ActorContext, 
 	}
 	var read ArticleRead
 	err := h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		page, err := h.Space.article(ctx, pageID, collectionID)
+		page, source, err := h.Space.article(ctx, pageID, collectionID)
 		if err != nil {
 			return err
 		}
 		if read, err = h.Space.inLanguageOf(ctx, actor, page); err != nil {
 			return err
 		}
-		if err := h.Space.Articles.CountView(ctx, page.ID, collectionID); err != nil {
+		if err := h.Space.Articles.CountView(ctx, source, collectionID); err != nil {
 			return err
 		}
 		return h.Space.record(ctx, actor, ArticleReadAction, articleTarget, page.ID, nil, h.Space.Clock.Now())
@@ -407,11 +415,11 @@ func (h RateArticle) Execute(ctx context.Context, actor appshared.ActorContext, 
 	}
 	now := h.Space.Clock.Now()
 	return h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		page, err := h.Space.article(ctx, pageID, collectionID)
+		page, source, err := h.Space.article(ctx, pageID, collectionID)
 		if err != nil {
 			return err
 		}
-		if err := h.Space.Articles.Rate(ctx, page.ID, collectionID, actor.AccountID, helpful, now); err != nil {
+		if err := h.Space.Articles.Rate(ctx, source, collectionID, actor.AccountID, helpful, now); err != nil {
 			return err
 		}
 		// The trail names the rating, never the answer: nobody learns who said what (UC-DOC-13/3).
@@ -444,6 +452,70 @@ func (h RateArticle) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return usecase.Output{"page_id": ids[1].String(), "collection_id": ids[0].String(), "helpful": helpful}, nil
+		}),
+	})
+}
+
+// ListPortalKnowledge answers what a service's portal shares of the knowledge base: each article
+// and each space with the pages under it a requester reads (PO-4).
+type ListPortalKnowledge struct{ Space Space }
+
+// Execute answers the shared knowledge.
+func (h ListPortalKnowledge) Execute(ctx context.Context, actor appshared.ActorContext, collectionID shared.ID) ([]repository.SharedKnowledge, error) {
+	if err := actor.RequireScope(pagesRead); err != nil {
+		return nil, err
+	}
+	if _, err := h.Space.service(ctx, actor, collectionID, service.PermissionRequest, ArticleReadAction); err != nil {
+		return nil, err
+	}
+	out := []repository.SharedKnowledge{}
+	if h.Space.Articles == nil {
+		return out, nil
+	}
+	err := h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		out, err = h.Space.Articles.Shared(ctx, collectionID)
+		return err
+	})
+	return out, err
+}
+
+// Descriptor is the catalogue entry.
+func (h ListPortalKnowledge) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ListPortalKnowledgeName, Permission: service.PermissionRequest,
+		Summary: "Answers what a service's portal shares of the knowledge base: every article and " +
+			"every space, each space with the live pages under it a requester reads - none behind " +
+			"a restriction or under one, no language variant, at most 500 per space.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  pagesRead, ReadOnly: true,
+		Input: []usecase.Field{
+			{Name: "collection_id", Kind: usecase.KindID, Required: true, Description: "The service."},
+		},
+		Audit: usecase.AuditDeclaration{Action: ArticleReadAction, TargetType: articleTarget, Severity: audit.SeverityInfo},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("collection_id")
+			if err != nil {
+				return nil, err
+			}
+			spaces, err := h.Execute(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			data := make([]usecase.Output, 0, len(spaces))
+			for _, each := range spaces {
+				pages := make([]usecase.Output, 0, len(each.Pages))
+				for _, page := range each.Pages {
+					pages = append(pages, usecase.Output{
+						"page_id": page.PageID.String(), "parent_id": page.ParentID.String(), "title": page.Title, "icon": page.Icon,
+					})
+				}
+				data = append(data, usecase.Output{
+					"page_id": each.PageID.String(), "title": each.Title, "icon": each.Icon,
+					"with_subpages": each.WithSubpages, "pages": pages,
+				})
+			}
+			return usecase.Output{"data": data}, nil
 		}),
 	})
 }

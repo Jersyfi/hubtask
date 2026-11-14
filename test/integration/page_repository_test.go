@@ -375,11 +375,93 @@ func TestAnArticleIsFoundInItsServiceAndStaysInItsWorkspace(t *testing.T) {
 		if hits, _ := articles.Search(ctx, collection, "", nil, 10); len(hits) != 0 {
 			t.Error("the workspace next door found the articles")
 		}
-		if held, _ := articles.Published(ctx, root, collection); held {
+		if source, _ := articles.Source(ctx, root, collection); !source.IsZero() {
 			t.Error("the workspace next door read the publication")
 		}
 		if removed, _ := articles.Unpublish(ctx, root, collection); removed {
 			t.Error("the workspace next door unpublished the article")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// UC-DOC-13 check 5 (PO-4, migration 0420): a page shared as a space reaches its service with
+// every live page under it - found, read through the space - except a restricted page and what
+// lies under it; the workspace next door neither reads nor lists it.
+func TestASpaceReachesItsServiceWithoutItsRestrictedBranch(t *testing.T) {
+	ctx := context.Background()
+	hub, root, child := seedSpace(ctx, t)
+	collection := collectionFor(ctx, t, tenantA, authorA)
+	articles := postgres.NewPageArticleRepository()
+	pages := postgres.NewPageRepository()
+	at := time.Date(2026, 11, 14, 9, 0, 0, 0, time.UTC)
+	secret, below := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, page := range []knowledge.Page{
+			{ID: secret, HubID: hub, ParentID: root, Title: "Internal budget", Body: "budget for the team",
+				OrderKey: "a1", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1},
+			{ID: below, HubID: hub, ParentID: secret, Title: "Below", Body: "budget detail",
+				OrderKey: "a0", CreatedBy: authorA, CreatedAt: at, UpdatedBy: authorA, UpdatedAt: at, Version: 1},
+		} {
+			if err := pages.Insert(ctx, page); err != nil {
+				return err
+			}
+		}
+		restricted := knowledge.Page{ID: secret, UpdatedBy: authorA, UpdatedAt: at}
+		if err := pages.Restrict(ctx, restricted, []shared.ID{authorA}, 1); err != nil {
+			return err
+		}
+		if added, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, PublishedBy: authorA, PublishedAt: at}); err != nil || !added {
+			t.Errorf("publish %v, %v", added, err)
+		}
+		if source, err := articles.Source(ctx, child, collection); err != nil || !source.IsZero() {
+			t.Errorf("a single article carried its subpage: %v, %v", source, err)
+		}
+		if again, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, PublishedBy: authorA, PublishedAt: at}); err != nil || again {
+			t.Errorf("publishing twice the same way changed %v, %v", again, err)
+		}
+		if widened, err := articles.Publish(ctx, knowledge.Article{PageID: root, CollectionID: collection, WithSubpages: true, PublishedBy: authorA, PublishedAt: at}); err != nil || !widened {
+			t.Errorf("sharing as a space %v, %v", widened, err)
+		}
+		if source, err := articles.Source(ctx, child, collection); err != nil || source != root {
+			t.Errorf("the subpage is read through %v, %v", source, err)
+		}
+		for _, hidden := range []shared.ID{secret, below} {
+			if source, _ := articles.Source(ctx, hidden, collection); source != root {
+				t.Errorf("the source of a restricted branch is the application's to refuse, got %v", source)
+			}
+		}
+		hits, err := articles.Search(ctx, collection, "day", nil, 10)
+		if err != nil || len(hits) != 1 || hits[0].PageID != child {
+			t.Errorf("search under the space %+v, %v", hits, err)
+		}
+		if hits, _ := articles.Search(ctx, collection, "detail", nil, 10); len(hits) != 0 {
+			t.Errorf("the restricted branch was found: %+v", hits)
+		}
+		spaces, err := articles.Shared(ctx, collection)
+		if err != nil || len(spaces) != 1 || spaces[0].PageID != root || !spaces[0].WithSubpages ||
+			len(spaces[0].Pages) != 1 || spaces[0].Pages[0].PageID != child || spaces[0].Pages[0].ParentID != root {
+			t.Errorf("shared %+v, %v", spaces, err)
+		}
+		of, err := articles.Of(ctx, root)
+		if err != nil || len(of) != 1 || !of[0].WithSubpages {
+			t.Errorf("of %+v, %v", of, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if spaces, _ := articles.Shared(ctx, collection); len(spaces) != 0 {
+			t.Error("the workspace next door listed the space")
+		}
+		if source, _ := articles.Source(ctx, child, collection); !source.IsZero() {
+			t.Error("the workspace next door read a page under the space")
+		}
+		if hits, _ := articles.Search(ctx, collection, "day", nil, 10); len(hits) != 0 {
+			t.Error("the workspace next door found a page under the space")
 		}
 		return nil
 	}); err != nil {

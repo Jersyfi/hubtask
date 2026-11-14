@@ -412,6 +412,7 @@ var restDoors = map[string]restDoor{
 	"listPlatformDeliveries":            {UseCase: "ListPlatformDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "limit"}},
 	"listPlatformEvents":                {UseCase: "ListPlatformEvents", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}, QueryAs: map[string]string{"size": "limit"}},
 	"listPlatformSubscriptions":         {UseCase: "ListPlatformSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listPortalKnowledge":               {UseCase: "ListPortalKnowledge", Status: 200, Query: []string{"collection_id"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPortfolioUpdates":              {UseCase: "ListPortfolioUpdates", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPortfolios":                    {UseCase: "ListPortfolios", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listPostReplies":                   {UseCase: "ListPostReplies", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3495,6 +3496,12 @@ func (c *RestController) ListPlatformEvents(w http.ResponseWriter, r *http.Reque
 // ListPlatformSubscriptions answers GET /admin/subscriptions by the generated mapping.
 func (c *RestController) ListPlatformSubscriptions(w http.ResponseWriter, r *http.Request) {
 	c.door(w, r, restDoors["listPlatformSubscriptions"], usecase.Input{}, nil, nil, answerRows(asWritten))
+}
+
+// ListPortalKnowledge answers GET /portal-knowledge by the generated mapping.
+func (c *RestController) ListPortalKnowledge(w http.ResponseWriter, r *http.Request, params openapi.ListPortalKnowledgeParams) {
+	var answer openapi.PortalKnowledge
+	c.door(w, r, restDoors["listPortalKnowledge"], usecase.Input{}, params, nil, &answer)
 }
 
 // ListPortfolioUpdates answers GET /portfolios/{portfolioId}/updates by the generated mapping.
