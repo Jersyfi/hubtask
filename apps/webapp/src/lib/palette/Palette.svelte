@@ -221,6 +221,7 @@
           holds(people.roleOf({ hubId: hereHub.id }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted',
         isOnHubPage: here.hub !== undefined,
         mayCapture: mayCaptureHere(),
+        mayAsk: actor.portals.length > 0,
       },
       t,
     ),

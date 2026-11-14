@@ -248,7 +248,7 @@
           </button>
         {/each}
         {#each portals.slice(0, 1) as portal (portal.collection_id)}
-          <button type="button" class="tilebutton" onclick={() => { create.close(); onnavigate(`/portal/${portal.collection_id}`); }}>
+          <button type="button" class="tilebutton" data-create-ask onclick={() => { create.close(); onnavigate('/portals'); }}>
             <ProductTile icon="inbox" product="desk" size="lg" />
             <span>{t('app.create.request')}</span>
           </button>
@@ -269,16 +269,15 @@
         </section>
       {/if}
       {#if portals.length > 0}
-        <!-- Every department one may ask (PO-1); its own directory page is the portal family's. -->
+        <!-- Every department one may ask, in one directory (PO-1). -->
         <section aria-labelledby="create-ask">
           <h3 class="head" id="create-ask">{t('app.create.ask')}</h3>
           <div class="grid">
-            {#each portals as portal (portal.collection_id)}
-              <button type="button" class="kind" onclick={() => { create.close(); onnavigate(`/portal/${portal.collection_id}`); }}>
-                <ProductTile icon="inbox" product="desk" size="sm" />
-                <span class="words"><span class="name">{portal.name}</span><span class="sub">{t('app.create.ask_sub')}</span></span>
-              </button>
-            {/each}
+            <button type="button" class="kind" data-create-ask onclick={() => { create.close(); onnavigate('/portals'); }}>
+              <ProductTile icon="inbox" product="desk" size="sm" />
+              <span class="words"><span class="name">{t('app.create.request')}</span>
+                <span class="sub">{portals.slice(0, 3).map((portal) => portal.name).join(', ')}{portals.length > 3 ? ' …' : ''}</span></span>
+            </button>
           </div>
         </section>
       {/if}

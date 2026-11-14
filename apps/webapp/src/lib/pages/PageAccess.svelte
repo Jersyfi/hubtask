@@ -8,7 +8,7 @@
   // only its hash is kept.
 
   import { untrack } from 'svelte';
-  import { Badge, Button, CheckboxGroup, Dialog, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, Checkbox, CheckboxGroup, Dialog, Inline, Input, Select, Stack } from '@hubtask/design-system/components';
   import type { PageAccess, PageLanguageVariants, PageList, PageRead } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
@@ -116,6 +116,9 @@
 
   $effect(() => untrack(() => containers.openLevel(hubId)));
   let publishTo = $state('');
+  // A page with everything under it, shared as a knowledge space (PO-4); a restricted page below
+  // never reaches the portal, which the server holds at each reading.
+  let asSpace = $state(true);
   const serviceName = (id: string) => containers.find(id)?.name ?? t('app.pages.access_article_service');
   const publishOptions = $derived([
     { value: '', label: t('app.pages.access_article_choose') },
@@ -129,7 +132,7 @@
   async function publish() {
     if (!publishTo) return;
     const where = publishTo;
-    await act(() => pages.publish(page.id, where), t('app.pages.access_article_published', { name: serviceName(where) }));
+    await act(() => pages.publish(page.id, where, asSpace), t('app.pages.access_article_published', { name: serviceName(where) }));
     publishTo = '';
   }
 
@@ -230,10 +233,18 @@
             <li>
               <span>
                 {serviceName(article.collection_id)}
+                {#if article.with_subpages}<Badge tone="info" size="sm">{t('app.pages.access_article_space')}</Badge>{/if}
                 <span class="meta">{t('app.pages.access_article_counts', {
                   views: String(article.views), helpful: String(article.helpful), unhelpful: String(article.unhelpful),
                 })}</span>
               </span>
+              {#if info.may_share && publishable}
+                <Button size="sm" tone="subtle" data-article-space={article.collection_id}
+                  onclick={() => act(() => pages.publish(page.id, article.collection_id, !article.with_subpages),
+                    t(article.with_subpages ? 'app.pages.access_article_page_only_done' : 'app.pages.access_article_space_done'))}>
+                  {t(article.with_subpages ? 'app.pages.access_article_page_only' : 'app.pages.access_article_as_space')}
+                </Button>
+              {/if}
               {#if info.may_share}
                 <Button size="sm" tone="subtle" onclick={() => act(() => pages.unpublish(page.id, article.collection_id), t('app.pages.access_article_unpublished'))}>
                   {t('app.pages.access_article_unpublish')}
@@ -249,6 +260,7 @@
             <Select label={t('app.pages.access_article_to')} size="sm" options={publishOptions} bind:value={publishTo} />
             <Button size="sm" tone="secondary" onclick={publish}>{t('app.pages.access_article_publish')}</Button>
           </Inline>
+          <Checkbox label={t('app.pages.access_article_with_subpages')} bind:checked={asSpace} />
           <p class="quiet">{t('app.pages.access_article_hint')}</p>
         {/if}
       {/if}

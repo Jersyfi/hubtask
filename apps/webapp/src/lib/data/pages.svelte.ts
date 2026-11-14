@@ -219,8 +219,8 @@ class Pages {
   }
 
   /** Publishes the page to a service's portal, where its requesters read it (UC-DOC-13). */
-  publish(pageId: string, collectionId: string): Promise<PageArticle> {
-    return engine.mutate<PageArticle>('POST', `${pagePath(pageId)}/articles`, { collection_id: collectionId }, {
+  publish(pageId: string, collectionId: string, withSubpages = false): Promise<PageArticle> {
+    return engine.mutate<PageArticle>('POST', `${pagePath(pageId)}/articles`, { collection_id: collectionId, with_subpages: withSubpages }, {
       invalidates: [accessPath(pageId)],
     });
   }
