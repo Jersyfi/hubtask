@@ -28,7 +28,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, Dialog, Icon, IconButton, Input, ProductBand, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
+    Banner, Button, Checkbox, Dialog, Icon, IconButton, Input, PageHeader, ProductBand, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { CapacityList, PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
@@ -56,6 +56,8 @@
   import CapacityEditor from '../lib/time/CapacityEditor.svelte';
   import RunningTimer from '../lib/time/RunningTimer.svelte';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
+  import { isTimeUnused, owesDefaultKinds, writeDefaultKinds } from '../lib/time/kinds.ts';
+  import { timeWays } from '../lib/time/ways.ts';
   import TemplateDialog from '../lib/settings/TemplateDialog.svelte';
   import { WorkspaceStarts } from '../lib/product/workspaceStarts.svelte.ts';
 
@@ -113,7 +115,13 @@
   // --- The kinds of work, for names and choices ---------------------------------------------------
 
   let kinds = $state<WorkTypeList['data']>([]);
-  $effect(() => untrack(() => engine.subscribe<WorkTypeList>({ path: WORK_TYPES }, (next) => { if (next.status === 'ready') kinds = next.data.data; })));
+  /** Answered at all (the page may draw), and answered with the kinds (the start page may stand). */
+  let areKindsRead = $state(false);
+  let areKindsKnown = $state(false);
+  $effect(() => untrack(() => engine.subscribe<WorkTypeList>({ path: WORK_TYPES }, (next) => {
+    if (next.status === 'ready') { kinds = next.data.data; areKindsKnown = true; }
+    if (next.status === 'ready' || next.status === 'failed') areKindsRead = true;
+  })));
   const kindName = (key: string) => kinds.find((each) => each.key === key)?.name ?? key;
   const offeredKinds = $derived(kinds.filter((each) => !each.archived));
   // The sets of kinds of work the workspace may start from (scene emptytime), beside the usual kinds
@@ -135,6 +143,24 @@
   });
   const grid = $derived(sheet ? weekGrid(sheet.records, days) : []);
   const isOpen = $derived(sheet?.state === 'OPEN' || sheet?.state === 'REJECTED');
+  // Time before its first use: the start page in place of the band, the tabs and the week.
+  // The band waits until the week and the kinds are read: its timer writes the usual kinds (§4),
+  // which would end the start page before it was drawn.
+  const isSettled = $derived(current !== 'week' || (areKindsRead && (sheet !== undefined || sheetRefusal !== undefined)));
+  const isStart = $derived(current === 'week' && isTimeUnused(areKindsKnown ? kinds : undefined, sheet?.records.length));
+  const ways = $derived(timeWays(starts.cards, t, { timer: () => onnavigate('/'), week: () => void recordFirst() }));
+  // The first record waits for the usual kinds its dialog offers, written by its own press (§4).
+  let isRecordingFirst = $state(false);
+  async function recordFirst() {
+    if (owesDefaultKinds(kinds, holdsHere('STRUCTURE') === true)) {
+      if (await act(() => writeDefaultKinds((key, fields) => time.defineWorkType(key, fields), t))) isRecordingFirst = true;
+      return;
+    }
+    openRecord(undefined);
+  }
+  $effect(() => {
+    if (isRecordingFirst && offeredKinds.length > 0) untrack(() => { isRecordingFirst = false; openRecord(undefined); });
+  });
   const entryChoices = $derived.by(() => {
     const seen = new Map<string, string>();
     for (const record of sheet?.records ?? []) if (record.entry_id && !seen.has(record.entry_id)) seen.set(record.entry_id, record.entry_title);
@@ -406,14 +432,14 @@
 </script>
 
 <WorkPage {top} {toolbar}>
-  {#snippet tabs()}<ViewBar label={t('app.time.title')} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={select} />{/snippet}
+  {#snippet tabs()}{#if !isStart}<ViewBar label={t('app.time.title')} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={select} />{/if}{/snippet}
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
 
   {#if current === 'week'}
 
     {#if sheetRefusal}
       <FailureNote problem={sheetRefusal} />
-    {:else if !sheet}
+    {:else if !sheet || !areKindsRead}
       <div aria-busy="true"><Skeleton lines={6} /></div>
     {:else}
       {#if sheet.state === 'REJECTED' && sheet.reason}
@@ -451,7 +477,12 @@
         </section>
       {/if}
 
-      {#if sheet.records.length === 0}
+      {#if isStart}
+        <ProductEmpty product="TIME" place={{ type: 'TENANT' }} kind="unused" icon="clock" title={t('app.nav.time')} description={t('app.product_empty.sentence_time')}
+          create={isOpen && (offeredKinds.length > 0 || holdsHere('STRUCTURE') === true) ? { label: t('app.time.first_record'), onclick: () => void recordFirst() } : undefined}
+          isStart templates={ways} templateShape="row"
+          side={maySetUp ? { label: t('app.time.empty_side_kinds'), onclick: () => select('settings') } : undefined} />
+      {:else if sheet.records.length === 0}
         <ProductEmpty product="TIME" place={{ type: 'TENANT' }} kind={isOpen ? 'unused' : 'settled'} icon="clock" title={t('app.time.week_empty')}
           description={isOpen ? t('app.time.week_empty_body') : undefined} create={recordPrimary} isInHead={current === 'week'} isProductHome
           templates={isOpen ? starts.cards : []} templateShape="row"
@@ -609,6 +640,10 @@
 {/snippet}
 
 {#snippet top()}
+  {#if isStart}
+    <!-- The start page's name is its one heading (scene emptytime); a phone's bar still carries it. -->
+    {#if viewport.isCompact}<PageHeader title={t('app.nav.time')} isTitleInBar />{/if}
+  {:else if isSettled}
   <div class="top" data-head="time">
     <ProductBand product="time" icon="clock" name={current === 'week' ? t('app.time.tab_week') : t('app.time.title')} figures={bandFigures}
       state={sheet && current === 'week' ? { label: t(`app.time.state_${sheet.state}`), vocabulary: 'timesheet', state: sheetState(sheet.state) } : undefined}
@@ -627,10 +662,11 @@
          whole title wraps (user-experience.md §5.12). -->
     {#if viewport.isCompact && current === 'week'}<RunningTimer {onnavigate} isCard />{/if}
   </div>
+  {/if}
 {/snippet}
 
 {#snippet toolbar()}
-  {#if current === 'week'}
+  {#if current === 'week' && !isStart}
     <div class="toolbar">
       <div class="nav">
         <Button size="sm" tone="subtle" icon="chevron-left" onclick={() => goWeek(-1)}>{t('app.time.week_before')}</Button>

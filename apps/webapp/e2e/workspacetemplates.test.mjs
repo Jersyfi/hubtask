@@ -175,14 +175,17 @@ for (const [name, key, shows] of [
   });
 }
 
-for (const [name, key, shows] of [
-  ['Kinds of work', 'time_standard', ['Development', 'Meeting', 'Support', 'Training', 'Administration']],
-  ['Consulting', 'time_consulting', ['Consulting', 'Implementation', 'Travel', 'Internal work', 'Sales and offers']],
+// Time never used (no kind of work at all) opens on its start page (scene emptytime): its three ways
+// to record, Billable taking the consultancy's kinds. Once it has kinds, an empty week offers the sets.
+for (const [name, titled, key, shows, hasKinds] of [
+  ['Kinds of work', 'Kinds of work', 'time_standard', ['Development', 'Meeting', 'Support', 'Training', 'Administration'], true],
+  ['Billable', 'Consulting', 'time_consulting', ['Consulting', 'Implementation', 'Travel', 'Internal work', 'Sales and offers'], false],
 ]) {
-  test(`chromium: an empty workspace takes ${name} from time's empty state, and its kinds of work are there`, async (t) => {
+  test(`chromium: an empty workspace takes ${titled} from time's empty state, and its kinds of work are there`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const world = backend();
+    if (hasKinds) world.kinds.push({ key: 'development', name: 'Development', billable: false, archived: false, position: 1, version: 1 });
     const walk = await productWalk(browser, { modules: ['TIME'], answer: world.answer });
     t.after(walk.close);
     const { page } = walk;
@@ -191,8 +194,17 @@ for (const [name, key, shows] of [
     const cards = page.locator('[data-empty-templates]');
     await cards.waitFor({ timeout: 10_000 });
     assert.deepEqual(await cards.getByRole('button').evaluateAll((each) => each.map((card) => card.getAttribute('aria-label'))),
-      ['Kinds of work', 'Consulting']);
-    await take(page, name);
+      hasKinds ? ['Kinds of work', 'Consulting'] : ['Timer on the entry', 'Weekly sheet', 'Billable']);
+    if (!hasKinds) {
+      // The start page is the product's name, its sentence, the first record and the side way - no
+      // band, and nothing written before the reader takes a way.
+      await page.getByRole('heading', { level: 1, name: 'Time' }).waitFor({ timeout: 5_000 });
+      assert.equal(await page.locator('[data-head="time"]').count(), 0, 'the start page sits under the band');
+      assert.equal(await page.getByRole('button', { name: 'Record the first time' }).count(), 1);
+      assert.equal(await page.getByRole('button', { name: 'Set up kinds of work' }).count(), 1);
+      assert.deepEqual(walk.written.filter((each) => each.path.startsWith('/time-work-types')), [], 'the start page wrote kinds');
+    }
+    await take(page, name, titled);
     assert.deepEqual(world.applied, [{ key, hub_id: null }], 'the workspace did not take it, or a hub did');
     await cards.waitFor({ state: 'detached', timeout: 10_000 });
 

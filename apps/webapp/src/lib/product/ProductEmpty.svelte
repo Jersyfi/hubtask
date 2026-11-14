@@ -60,6 +60,11 @@
      * side way beside the main one, and the templates as cards under it.
      */
     isProductHome?: boolean;
+    /**
+     * A product switched on and never used (scenes emptygoals, emptytime): the page's whole start -
+     * the title is the product's name, its one heading, and the page draws no band above it.
+     */
+    isStart?: boolean;
     /** The side way beside the main one: start empty, set up first. */
     side?: Act;
     /**
@@ -70,7 +75,8 @@
     templateShape?: 'stacked' | 'row';
   }
 
-  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome = false, side, templateShape = 'stacked' }: Props = $props();
+  const { kind, title, description, icon, create, clear, templates = [], whoCan, product, place, isInHead = false, isProductHome: isHomeProp = false, isStart = false, side, templateShape = 'stacked' }: Props = $props();
+  const isProductHome = $derived(isHomeProp || isStart);
   const tile = $derived(isProductHome && kind === 'unused' && product ? PRODUCT_TILES[product] : undefined);
 
   const act = $derived(kind === 'filtered' ? clear : isInHead && viewport.isCompact ? undefined : create);
@@ -128,6 +134,7 @@
   {description}
   {icon}
   product={tile}
+  isHome={isStart}
   action={act || (side && kind === 'unused') ? actRow : undefined}
   secondary={offersTemplates && !templateCards ? templateRow : undefined}
   footnote={saysWhoCan || guide || toured ? footnoteLine : undefined}

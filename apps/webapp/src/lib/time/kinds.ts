@@ -20,3 +20,22 @@ export const DEFAULT_KINDS: readonly { readonly key: string; readonly code: stri
 export function owesDefaultKinds(kinds: readonly unknown[] | undefined, mayShape: boolean): boolean {
   return kinds !== undefined && kinds.length === 0 && mayShape;
 }
+
+/**
+ * Whether Time has never been used here: the kinds were read and there are none at all, and the
+ * shown week holds nothing. Its start page stands then (scene emptytime), and nothing is written
+ * before the reader takes a way from it.
+ */
+export function isTimeUnused(kinds: readonly unknown[] | undefined, records: number | undefined): boolean {
+  return kinds !== undefined && kinds.length === 0 && records === 0;
+}
+
+/** Writes the usual kinds, in order, each in the reader's words. */
+export async function writeDefaultKinds(
+  define: (key: string, fields: { name: string; billable: boolean; position: number }) => Promise<unknown>,
+  word: (code: string) => string,
+): Promise<void> {
+  for (const [at, kind] of DEFAULT_KINDS.entries()) {
+    await define(kind.key, { name: word(kind.code), billable: kind.billable, position: at + 1 });
+  }
+}

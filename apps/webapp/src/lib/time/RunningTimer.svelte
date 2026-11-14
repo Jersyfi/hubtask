@@ -21,7 +21,7 @@
   import { dateIn, instantOf, timeIn } from '../i18n/zone.ts';
   import { renderProblem } from '../problem.ts';
   import { holdsHere } from '../data/capability.svelte.ts';
-  import { DEFAULT_KINDS, owesDefaultKinds } from './kinds.ts';
+  import { owesDefaultKinds, writeDefaultKinds } from './kinds.ts';
 
   interface Props {
     onnavigate: (path: string) => void;
@@ -63,9 +63,7 @@
     isSeeding = true;
     void untrack(async () => {
       try {
-        for (const [at, kind] of DEFAULT_KINDS.entries()) {
-          await time.defineWorkType(kind.key, { name: t(kind.code), billable: kind.billable, position: at + 1 });
-        }
+        await writeDefaultKinds((key, fields) => time.defineWorkType(key, fields), t);
       } catch {
         // Kept quiet: the button says why it cannot start, and Time's settings add them by hand.
       }

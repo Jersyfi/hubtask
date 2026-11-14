@@ -20,7 +20,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, Icon, Input, ProductBand, ProgressBar, StateLozenge, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
+    Badge, Button, Dialog, Icon, Input, PageHeader, ProductBand, ProgressBar, StateLozenge, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type ViewLink,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -163,6 +163,13 @@
       onnavigate(address({ period: made.id }));
     }, t('app.goals.period_defined'));
   }
+  /** The start page's main way (scene emptygoals): this quarter begins and its first goal is asked for at once. */
+  async function setFirstGoal() {
+    create.wish('goal');
+    await startQuarter();
+  }
+  // The workspace's goals before their first use: the start page in place of the band and tabs.
+  const isStart = $derived(!hub && current === 'goals' && periods?.length === 0);
   // Every tab of the home starts with its figures (WB-5): the goals', the portfolios', the dashboards'.
   const figureParts = $derived.by(() =>
     current === 'portfolios' ? (portfolioList ? [t('app.goals.figure_portfolios', { count: portfolioList.length })] : [])
@@ -293,7 +300,10 @@
 {#snippet goalsFigure()}{#if figureText}<span class="figure" data-goals-figure>{figureText}</span>{/if}{/snippet}
 <WorkPage>
   {#snippet top()}
-  {#if hub}
+  {#if isStart}
+    <!-- The start page's name is its one heading (scene emptygoals); a phone's bar still carries it. -->
+    {#if viewport.isCompact}<PageHeader title={t('app.nav.goals')} isTitleInBar />{/if}
+  {:else if hub}
     <ToolHead hubId={hub} tool="goals" {current} {onnavigate} {primary} figure={goalsFigure} />
   {:else}
   <ProductBand
@@ -314,7 +324,7 @@
   {/if}
   {/snippet}
   {#snippet tabs()}
-    {#if !hub}<ViewBar label={t('app.goals.title')} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />{/if}
+    {#if !hub && !isStart}<ViewBar label={t('app.goals.title')} views={homeViews} isCompact={viewport.isCompact} closeLabel={t('app.sheet_close')} {current} onnavigate={(next) => onnavigate(address({ tab: next }))} />{/if}
   {/snippet}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
@@ -325,10 +335,10 @@
     {:else if !periods}
       <div aria-busy="true"><Skeleton lines={5} /></div>
     {:else if periods.length === 0}
-      <ProductEmpty product="GOALS" kind="unused" icon="flag" title={t('app.goals.no_periods_title')} description={t('app.goals.no_periods')}
-        create={mayStructure ? { label: t('app.goals.start_quarter', { name: quarterName }), onclick: () => void startQuarter() } : undefined}
-        isProductHome templates={starts.cards} templateShape="row"
-        side={mayStructure ? { label: t('app.goals.another_period'), onclick: () => { periodDraft.name = ''; periodDraft.start = ''; periodDraft.end = ''; isDefining = true; } } : undefined}
+      <ProductEmpty product="GOALS" kind="unused" icon="flag" title={t('app.nav.goals')} description={t('app.product_empty.sentence_goals')}
+        create={mayStructure ? { label: t('app.goals.first_goal'), onclick: () => void setFirstGoal() } : undefined}
+        isStart templates={starts.cards} templateShape="row"
+        side={mayStructure ? { label: t('app.goals.empty_side_dashboard'), onclick: () => onnavigate('/goals?tab=dashboards') } : undefined}
         whoCan={t('app.goals.who_starts_periods')} />
     {:else}
       <div class="controls">

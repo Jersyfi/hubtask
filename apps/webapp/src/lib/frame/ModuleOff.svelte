@@ -15,7 +15,8 @@
   import { PRODUCTS } from '../navigation.ts';
   import { PRODUCT_TILES } from '../product/tiles.ts';
   import TemplateCards from '../product/TemplateCards.svelte';
-  import { WorkspaceStarts, type StartCard } from '../product/workspaceStarts.svelte.ts';
+  import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
+  import { timeWays } from '../time/ways.ts';
   import TemplateDialog from '../settings/TemplateDialog.svelte';
   import { page } from './page.svelte.ts';
   import { toast } from './toasts.svelte.ts';
@@ -49,15 +50,7 @@
    * The cards under the switch: time's three ways to record (scene emptytime) - the timer, the
    * week, the billable template - every other product its shipped templates.
    */
-  const cards = $derived.by((): StartCard[] => {
-    if (module !== 'TIME') return starts.cards;
-    const billable = starts.cards.find((each) => each.key === 'time_consulting');
-    return [
-      { key: 'timer', label: t('app.time.way_timer'), description: t('app.time.way_timer_line'), icon: 'timer' as const, onclick: (): void => void switchOn('/') },
-      { key: 'week', label: t('app.time.way_week'), description: t('app.time.way_week_line'), icon: 'calendar' as const, onclick: (): void => void switchOn('/time') },
-      ...(billable ? [{ ...billable, label: t('app.time.way_billable'), description: t('app.time.way_billable_line') }] : []),
-    ];
-  });
+  const cards = $derived(module === 'TIME' ? timeWays(starts.cards, t, { timer: () => void switchOn('/'), week: () => void switchOn('/time') }) : starts.cards);
 
   async function switchOn(then?: string) {
     isSwitching = true;

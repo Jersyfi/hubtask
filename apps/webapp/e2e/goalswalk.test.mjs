@@ -106,18 +106,19 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   t.after(walk.close);
   const { page } = walk;
 
-  // The current quarter is offered in one press where no period is set yet (user-experience.md §4, UC-GOL-01 check 10).
+  // With no period yet the goals open on their start page (scene emptygoals): the first goal is one
+  // press, which begins the current quarter and asks for the goal (user-experience.md §4, UC-GOL-01 check 10).
   await page.goto(`${served.origin}/goals`);
+  await page.getByRole('heading', { level: 1, name: 'Goals' }).waitFor({ timeout: 10_000 });
+  assert.equal(await page.getByRole('button', { name: 'Create a dashboard' }).count(), 1, 'the side way is missing');
   const now = new Date();
   const q = Math.floor(now.getUTCMonth() / 3) + 1;
-  await page.getByRole('button', { name: `Start ${now.getUTCFullYear()} Q${q}` }).click();
-  await page.getByRole('button', { name: 'New goal' }).first().waitFor({ timeout: 5_000 });
-  const period = walk.written.find((each) => each.path === '/goal-periods');
-  assert.equal(period.body.name, `${now.getUTCFullYear()} Q${q}`);
-  assert.equal(period.body.start_on, `${now.getUTCFullYear()}-${String((q - 1) * 3 + 1).padStart(2, '0')}-01`);
-
-  await page.getByRole('button', { name: 'New goal' }).first().click();
+  await page.getByRole('button', { name: 'Set the first goal' }).click();
   const goalDialog = page.getByRole('dialog', { name: 'New goal' });
+  await goalDialog.waitFor({ timeout: 5_000 });
+  const period = walk.written.find((each) => each.path === '/goal-periods');
+  assert.equal(period?.body.name, `${now.getUTCFullYear()} Q${q}`);
+  assert.equal(period.body.start_on, `${now.getUTCFullYear()}-${String((q - 1) * 3 + 1).padStart(2, '0')}-01`);
   await goalDialog.getByLabel('Title').fill('Ship the suite');
   await goalDialog.getByRole('button', { name: 'Set goal' }).click();
   await goalDialog.waitFor({ state: 'detached', timeout: 5_000 });

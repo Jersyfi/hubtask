@@ -301,21 +301,25 @@ for (const isLocked of [false, true]) test(`chromium: time - 390 px, each ${isLo
 
 // §4: a workspace's kinds of work are there on first use - the first reader who may write them
 // gets the usual ones, in their words - so the timer starts and a day records.
-test('chromium: time - a workspace without a kind of work is given the usual ones, and the timer starts', async (t) => {
+test('chromium: time - a workspace without a kind of work starts on its start page, is given the usual ones by the first record, and the timer starts', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }) });
   t.after(walk.close);
   const { page } = walk;
 
+  // Scene emptytime: the start page writes nothing; its main way writes the usual kinds and opens the record.
   await page.goto(`${served.origin}/time`);
+  await page.getByRole('heading', { level: 1, name: 'Time' }).waitFor({ timeout: 10_000 });
+  assert.deepEqual(walk.written.filter((each) => each.path.startsWith('/time-work-types')), [], 'the start page wrote kinds');
+  await page.getByRole('button', { name: 'Record the first time' }).click();
+  await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
+  assert.equal(walk.written.filter((each) => each.path.startsWith('/time-work-types')).length, 4, 'the usual kinds were not written');
+  await page.keyboard.press('Escape');
   const start = page.getByRole('button', { name: 'Start timer' });
   await start.waitFor({ timeout: 10_000 });
   for (let waited = 0; await start.isDisabled() && waited < 5000; waited += 100) await page.waitForTimeout(100);
   assert.equal(await start.isDisabled(), false, 'the timer still cannot start');
-  await page.getByRole('button', { name: 'Record time', exact: true }).first().click();
-  await page.getByRole('dialog').getByLabel('Day').waitFor({ timeout: 5_000 });
-  await page.keyboard.press('Escape');
 
   await page.goto(`${served.origin}/time/settings/kinds`);
   await page.getByRole('cell', { name: 'Development', exact: true }).waitFor({ timeout: 10_000 });
