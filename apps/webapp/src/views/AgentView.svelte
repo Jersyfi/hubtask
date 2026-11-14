@@ -18,6 +18,7 @@
   import CaseDialog from '../lib/agents/CaseDialog.svelte';
   import RetireDialog from '../lib/agents/RetireDialog.svelte';
   import RunOnDialog from '../lib/agents/RunOnDialog.svelte';
+  import { expectedFields } from '../lib/agents/expected.ts';
   import { AGENTS_HOME } from '../lib/agents/trail.ts';
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -303,7 +304,13 @@
           actionsLabel={t('app.page.row_actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
           {#snippet cell(each: Case, column: DataColumn)}
             {#if column.id === 'title'}<span class="name">{each.title}</span>
-            {:else}<code class="sub">{JSON.stringify(each.expected)}</code>{/if}
+            {:else}
+              <dl class="expected">
+                {#each expectedFields(each.expected) as field (field.name)}
+                  <div>{#if field.name}<dt>{field.name}</dt>{/if}<dd>{field.value}</dd></div>
+                {/each}
+              </dl>
+            {/if}
           {/snippet}
           {#snippet empty()}<EmptyState kind="unused" title={t('app.agents.cases_empty')} />{/snippet}
         </DataTable>
@@ -397,6 +404,10 @@
   .quiet { margin: 0; color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); overflow-wrap: anywhere; }
   .sub { display: block; color: var(--text-subtle); font-size: var(--fs-075); overflow-wrap: anywhere; }
+  .expected { display: flex; flex-wrap: wrap; gap: var(--sp-025) var(--sp-150); margin: 0; font-size: var(--fs-075); }
+  .expected div { display: flex; gap: var(--sp-050); min-inline-size: 0; }
+  .expected dt { color: var(--text-subtle); }
+  .expected dd { margin: 0; color: var(--text-primary); overflow-wrap: anywhere; }
   .number { font-variant-numeric: tabular-nums; }
   .line { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: end; }
 </style>
