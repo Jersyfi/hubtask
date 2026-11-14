@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import * as Y from 'yjs';
 
-import { Board, MAX_ELEMENTS, type Element } from '../src/index.ts';
+import { Board, DEFAULT_SIZE, MAX_ELEMENTS, type Element } from '../src/index.ts';
 
 const sticky = (id: string, x = 0): Element => ({ id, kind: 'STICKY', x, y: 0, width: 160, height: 160, text: id, color_token: 'amber' });
 
@@ -174,4 +174,11 @@ test('an object knows who put it on the board on every device, outside the saved
   const seeded = new Board(new Y.Doc());
   seeded.seed([sticky('s')]);
   assert.equal(seeded.makerOf('s'), undefined);
+});
+
+// F-4 (scene `wbfiles`): a file put on a board is a card with room for its first page above its
+// name and its pages and size, as tall as it is wide or nearly.
+test('a file is put on the board as a card with room for its first page', () => {
+  const { width, height } = DEFAULT_SIZE.FILE;
+  assert.ok(height >= 160 && height <= width, `${width} × ${height}`);
 });
