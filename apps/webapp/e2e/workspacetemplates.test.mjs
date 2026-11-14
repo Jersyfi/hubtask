@@ -137,10 +137,10 @@ function backend() {
 }
 
 /** Opens the card, takes the template in its dialog and waits for the dialog to close. */
-async function take(page, name) {
+async function take(page, name, titled = name) {
   const cards = page.locator('[data-empty-templates]');
   await cards.getByRole('button', { name, exact: true }).click();
-  const dialog = page.getByRole('dialog', { name });
+  const dialog = page.getByRole('dialog', { name: titled });
   await dialog.getByRole('button', { name: 'Take template' }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
 }
@@ -205,7 +205,8 @@ for (const [name, key, shows] of [
 // A workspace with Goals or Time switched off (the demo's empty workspace) is drawn as the product's
 // first empty state with its switch; whoever may switch it on is offered the same cards, and taking
 // one switches the product on in the same apply (configuration.md §2, a section whose module is off).
-for (const [module, path, name, key] of [['GOALS', '/goals', 'Team health', 'goals_team_health'], ['TIME', '/time', 'Consulting', 'time_consulting']]) {
+// Time's card says its way to record, Billable; its dialog names the template it takes.
+for (const [module, path, name, key, titled] of [['GOALS', '/goals', 'Team health', 'goals_team_health', 'Team health'], ['TIME', '/time', 'Billable', 'time_consulting', 'Consulting']]) {
   test(`chromium: with ${module} switched off, its first empty state offers the templates beside the switch`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
@@ -220,7 +221,7 @@ for (const [module, path, name, key] of [['GOALS', '/goals', 'Team health', 'goa
     await page.evaluate((to) => { history.pushState({}, '', to); dispatchEvent(new PopStateEvent('popstate')); }, path);
     await page.locator('[data-module-off-note]').waitFor({ timeout: 10_000 });
     await page.locator('[data-empty-templates]').getByRole('button', { name, exact: true }).waitFor({ timeout: 10_000 });
-    await take(page, name);
+    await take(page, name, titled);
     assert.deepEqual(world.applied, [{ key, hub_id: null }]);
     const apply = walk.written.find((each) => each.path === '/config:apply');
     assert.equal(apply.body.document.modules[module.toLowerCase()].switch, 'ON', 'the product is not switched on with it');

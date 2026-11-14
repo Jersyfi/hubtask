@@ -19,6 +19,8 @@ import { workspaceTemplates } from './templates.ts';
 
 /** One card: its name, one line and mark, and what pressing it does. */
 export interface StartCard {
+  /** The template's key, which a product's page may draw in its own words. */
+  key: string;
   label: string;
   description?: string;
   icon: IconName;
@@ -53,6 +55,7 @@ export class WorkspaceStarts {
     const offered = workspaceTemplates(list.data.data, this.#module());
     if (offered.some((each) => each.taken_version != null)) return [];
     return offered.map((each) => ({
+      key: each.key,
       label: nameOf(each),
       description: summaryOf(each),
       icon: markOf(each),

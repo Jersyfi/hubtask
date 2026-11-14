@@ -12,9 +12,10 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { switchedOn } from '../product/switchedon.ts';
+  import { PRODUCTS } from '../navigation.ts';
   import { PRODUCT_TILES } from '../product/tiles.ts';
   import TemplateCards from '../product/TemplateCards.svelte';
-  import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
+  import { WorkspaceStarts, type StartCard } from '../product/workspaceStarts.svelte.ts';
   import TemplateDialog from '../settings/TemplateDialog.svelte';
   import { page } from './page.svelte.ts';
   import { toast } from './toasts.svelte.ts';
@@ -32,8 +33,33 @@
   // taking one switches the product on with it (scenes emptygoals, emptytime).
   const starts = new WorkspaceStarts(() => module, () => isProduct && mayShape);
   let refusal = $state<string | undefined>(undefined);
+  const row = $derived(PRODUCTS.find((each) => each.module === module));
+  /** The product's sentence as its start page says it, else the module's hint. */
+  const sentence = $derived.by(() => {
+    const code = `app.product_empty.sentence_${module.toLowerCase()}`;
+    return messages.has(code) ? t(code) : t(`app.modules.hint_${module.toLowerCase()}`);
+  });
+  /** The side way beside the switch, where the product's start page draws one: it switches on and goes there. */
+  const SIDE: Readonly<Record<string, { code: string; path: string }>> = {
+    GOALS: { code: 'app.goals.empty_side_dashboard', path: '/goals?tab=dashboards' },
+    TIME: { code: 'app.time.empty_side_kinds', path: '/time/settings' },
+  };
+  const side = $derived(SIDE[module]);
+  /**
+   * The cards under the switch: time's three ways to record (scene emptytime) - the timer, the
+   * week, the billable template - every other product its shipped templates.
+   */
+  const cards = $derived.by((): StartCard[] => {
+    if (module !== 'TIME') return starts.cards;
+    const billable = starts.cards.find((each) => each.key === 'time_consulting');
+    return [
+      { key: 'timer', label: t('app.time.way_timer'), description: t('app.time.way_timer_line'), icon: 'timer' as const, onclick: (): void => void switchOn('/') },
+      { key: 'week', label: t('app.time.way_week'), description: t('app.time.way_week_line'), icon: 'calendar' as const, onclick: (): void => void switchOn('/time') },
+      ...(billable ? [{ ...billable, label: t('app.time.way_billable'), description: t('app.time.way_billable_line') }] : []),
+    ];
+  });
 
-  async function switchOn() {
+  async function switchOn(then?: string) {
     isSwitching = true;
     refusal = undefined;
     try {
@@ -42,6 +68,7 @@
       // (user-experience.md §2.8), as the card under the switch says it.
       const setup = switchedOn(module).setup;
       toast.show({ text: t('app.modules.switched_on', { module: name }), tone: 'success', ...(setup ? { link: { label: t(setup.code), href: setup.href } } : {}) });
+      if (then) onnavigate?.(then);
     } catch (error) {
       refusal = renderProblem(error as never, messages).message;
     } finally {
@@ -51,9 +78,10 @@
 </script>
 
 {#snippet switchControl()}
-  <Button tone="primary" icon="layout-template" isBusy={isSwitching} busyLabel={t('app.workspace.saving')} onclick={() => void switchOn()}>
+  <Button tone="primary" icon={isProduct ? 'plus' : 'layout-template'} isBusy={isSwitching} busyLabel={t('app.workspace.saving')} onclick={() => void switchOn()}>
     {t('app.module_off.switch_on', { module: name })}
   </Button>
+  {#if isProduct && side}<Button tone="secondary" data-empty-side disabledReason={isSwitching ? t('app.workspace.saving') : undefined} onclick={() => void switchOn(side.path)}>{t(side.code)}</Button>{/if}
 {/snippet}
 
 {#snippet offNote()}
@@ -61,6 +89,9 @@
 {/snippet}
 
 <Stack gap="300">
+  <!-- A product's start page has no head of its own (scenes emptygoals, emptytime): its name is the
+       page's one heading below; on a phone the bar still carries it. -->
+  {#if !isProduct || viewport.isCompact}
   <PageHeader title={name} isTitleInBar={viewport.isCompact}
     breadcrumb={{
       trail: [
@@ -72,13 +103,14 @@
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
     }} />
+  {/if}
   {#if isProduct}
     <!-- A product switched off is drawn as its first empty state (scenes homeplans, homeassets,
          homeagents): its tile, its sentence, the switch - and, under it, that nothing is lost. -->
-    <EmptyState kind="unused" icon="layout-template" product={PRODUCT_TILES[module]} title={t('app.module_off.title', { module: name })}
-      description={t(`app.modules.hint_${module.toLowerCase()}`)}
+    <EmptyState kind="unused" isHome icon={row?.icon ?? 'layout-template'} product={PRODUCT_TILES[module]} title={name}
+      description={sentence}
       action={mayShape ? switchControl : undefined} footnote={offNote} />
-    {#if starts.cards.length > 0}<TemplateCards templates={starts.cards} shape="row" tile={PRODUCT_TILES[module]} />{/if}
+    {#if cards.length > 0}<TemplateCards templates={cards} shape="row" tile={PRODUCT_TILES[module]} />{/if}
   {:else}
     <EmptyState kind="unused" icon="layout-template" title={t('app.module_off.title', { module: name })}
       description={t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}

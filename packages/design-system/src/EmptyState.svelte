@@ -56,9 +56,14 @@
      * on `settled`, which offers nothing.
      */
     footnote?: Snippet;
+    /**
+     * A product's start page (scenes emptygoals, emptytime): the title is the product's name, the
+     * page's one heading, at the band's size; the acts stand in one row.
+     */
+    isHome?: boolean;
   }
 
-  const { kind, title, description, icon, product, action, secondary, footnote }: Props = $props();
+  const { kind, title, description, icon, product, action, secondary, footnote, isHome = false }: Props = $props();
 
   const MARK: Record<Emptiness, IconName> = {
     unused: 'plus',
@@ -71,13 +76,13 @@
   const offersFootnote = $derived(kind !== 'settled' && footnote !== undefined);
 </script>
 
-<div class="empty" data-kind={kind}>
+<div class="empty" data-kind={kind} data-home={isHome ? '' : undefined}>
   {#if product && kind === 'unused'}
     <span class="tile" aria-hidden="true"><ProductTile icon={icon ?? MARK[kind]} {product} size="xl" /></span>
   {:else}
     <span class="mark" aria-hidden="true"><Icon name={icon ?? MARK[kind]} /></span>
   {/if}
-  <p class="title">{title}</p>
+  {#if isHome}<h1 class="title">{title}</h1>{:else}<p class="title">{title}</p>{/if}
   {#if description}<p class="description">{description}</p>{/if}
   {#if offersAction}<div class="action">{@render action?.()}</div>{/if}
   {#if offersSecondary}<div class="secondary">{@render secondary?.()}</div>{/if}
@@ -119,6 +124,13 @@
   }
 
   .action { margin-top: var(--sp-100); }
+  /* The band's two title sizes (one per width), so a product's start and its home read alike. */
+  .empty[data-home] .title { font-size: var(--fs-600); font-weight: var(--fw-bold); }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .empty[data-home] .title { font-size: var(--fs-450); }
+  }
+  .empty[data-home] .action { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-100); }
 
   /* The templates: a row that wraps, as wide as the sentence above it may be. */
   .secondary {

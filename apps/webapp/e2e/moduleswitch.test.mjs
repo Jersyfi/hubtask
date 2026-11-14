@@ -128,7 +128,8 @@ test('chromium: a product\'s home with its module off is drawn as its empty stat
   const { page } = walk;
 
   await page.goto(`${served.origin}/plans`);
-  await page.getByText('is switched off in this workspace').waitFor({ timeout: 10_000 });
+  // Its start page (scenes emptygoals, emptytime): the product's name is the page's one heading.
+  await page.locator('.empty[data-home]').getByRole('heading', { level: 1 }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('.empty[data-kind="unused"] > .tile').count(), 1, 'the product\'s tile');
   await page.locator('[data-module-off-note]').getByText('Nothing kept for it is lost while it is off.').waitFor();
   await page.getByRole('button', { name: /^Switch .+ on$/u }).click();

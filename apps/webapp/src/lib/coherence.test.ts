@@ -239,3 +239,30 @@ test('every small control listed reaches a thumb\'s target on a phone (P-2, §7)
   const calendar = sources.find((each) => each.path === 'lib/entries/CalendarView.svelte')?.text ?? '';
   assert.match(calendar, /\.entry \{ display: flex; align-items: center; min-block-size: var\(--layout-target\); \}/u);
 });
+
+test('a switched-off product is its start page: its glyph, its name, its sentence, the switch, cards in a row (E-1, E-2, E-3)', () => {
+  const off = sources.find(({ path }) => path === 'lib/frame/ModuleOff.svelte')?.text ?? '';
+  const [hero] = tagsOf(off, 'EmptyState').filter((tag) => tag.includes('isHome'));
+  assert.ok(hero, 'the product form of the empty state');
+  assert.match(hero, /icon=\{row\?\.icon/u, 'the product\'s own glyph');
+  assert.match(hero, /title=\{name\}/u, 'the product\'s name as the title');
+  assert.match(off, /<TemplateCards templates=\{cards\} shape="row"/u);
+  // Time offers its three ways to record, goals and time a side way beside the switch.
+  assert.match(off, /'app\.time\.way_timer'[^]*'app\.time\.way_week'[^]*'app\.time\.way_billable'/u);
+  assert.match(off, /GOALS: \{ code: 'app\.goals\.empty_side_dashboard'/u);
+  const cards = sources.find(({ path }) => path === 'lib/product/TemplateCards.svelte')?.text ?? '';
+  assert.match(cards, /\.cards\[data-shape='row'\] \{ grid-template-columns: repeat\(var\(--cards\), minmax\(0, 1fr\)\); \}/u);
+});
+
+test('an empty collection starts from a template first and adds an entry beside it (E-4)', () => {
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  assert.match(list, /\{#if isTemplateFirst\}<Button tone="primary" icon="copy" onclick=\{ontemplate\}>/u);
+  assert.match(list, /<Button tone=\{isTemplateFirst \? 'secondary' : 'primary'\} icon="plus" data-opener="add-entry"/u);
+});
+
+test('a list grouped by status heads each group with the queue\'s badge and no chip per top row (L-2)', () => {
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  assert.match(list, /\{#if badge\}<StateLozenge label=\{name\} tone=\{badge\} \/>/u);
+  assert.match(list, /const rowChipOf = \(row: Row\) => \(isByStatus && row\.depth === 0 \? undefined : chipFor\(row\.item\)\);/u);
+  assert.match(list, /\.group-head \.twist \{ position: relative; z-index: 1; \}/u, 'the toggle stands above the next row (P-2)');
+});
