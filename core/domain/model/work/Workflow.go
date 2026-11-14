@@ -370,6 +370,24 @@ func (ws Workflows) Find(key string) (Workflow, bool) {
 	return Workflow{}, false
 }
 
+// StepName answers a published step's name as the team wrote it - its own, else its target
+// status's - or "" where neither is named: a key is never shown as a name (P-12).
+func (ws Workflows) StepName(workflow, step string) string {
+	w, ok := ws.Find(workflow)
+	if !ok {
+		return ""
+	}
+	found, ok := w.Published.Step(step)
+	if !ok {
+		return ""
+	}
+	if found.Name != "" {
+		return found.Name
+	}
+	target, _ := w.Published.Status(found.To)
+	return target.Name
+}
+
 // NewWorkflowInput is what a workspace's own workflow is made of.
 type NewWorkflowInput struct {
 	ID       shared.ID

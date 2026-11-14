@@ -32513,6 +32513,7 @@ components:
         on_behalf_of: { type: [string, "null"], format: uuid, description: "On the caller's own list: the person away they decide for." }
         workflow: { type: string }
         step: { type: string }
+        step_name: { type: [string, "null"], description: "The step's name as its workflow publishes it now - the step's own, else the status it leads into; null where neither is named." }
         item_version: { type: integer, description: "The entry's version when the approval was asked." }
         state: { type: string, enum: [PENDING, APPROVED, DECLINED, WITHDRAWN] }
         current_level: { type: integer }

@@ -13956,8 +13956,11 @@ type Approval struct {
 	RequestedBy openapi_types.UUID  `json:"requested_by"`
 	State       ApprovalState       `json:"state"`
 	Step        string              `json:"step"`
-	Version     int                 `json:"version"`
-	Workflow    string              `json:"workflow"`
+
+	// StepName The step's name as its workflow publishes it now - the step's own, else the status it leads into; null where neither is named.
+	StepName *string `json:"step_name,omitempty"`
+	Version  int     `json:"version"`
+	Workflow string  `json:"workflow"`
 }
 
 // ApprovalDecisionsVerdict defines model for Approval.Decisions.Verdict.

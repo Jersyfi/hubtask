@@ -2161,6 +2161,7 @@ func run() error {
 	stepApprovals := servicedeskservice.Approvals{
 		Store: deskApprovals, Items: items, Containers: containers, Groups: groups,
 		Roles: authorizer, Steps: approvalSteps, Desk: serviceDesk, Timers: reviewClocks, Notify: approvalNotice,
+		Workflows: workflows,
 	}
 	// The planning module (M2): a plan is a hub or a collection, read for whoever may see its
 	// entries; an accepted move goes through UpdateWorkItem in the registry.

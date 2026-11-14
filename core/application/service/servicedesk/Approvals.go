@@ -66,6 +66,8 @@ type Approvals struct {
 	// is armed, nobody is told.
 	Timers ApprovalTimers
 	Notify ApprovalNotifier
+	// Workflows names each approval's step for its readers; nil names none.
+	Workflows workrepo.Workflows
 }
 
 var _ work.StepApprovals = Approvals{}
@@ -113,6 +115,28 @@ func (a Approvals) Moved(ctx context.Context, item workdomain.WorkItem) error {
 		return err
 	}
 	return a.levelEnded(ctx, pending, pending.Current)
+}
+
+// stepNames reads the workspace's workflows once, for naming the steps of the approvals a read
+// answers (P-12). Inside the caller's transaction.
+func (a Approvals) stepNames(ctx context.Context) (workdomain.Workflows, error) {
+	if a.Workflows == nil {
+		return nil, nil
+	}
+	rows, err := a.Workflows.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return workdomain.NewWorkflows(rows), nil
+}
+
+// namedOutput answers an approval as its readers read it, its step by the workflow's name for it.
+func namedOutput(approval domain.Approval, decisions []domain.Decision, mayDecide bool, flows workdomain.Workflows) usecase.Output {
+	out := ApprovalOutput(approval, decisions, mayDecide)
+	if name := flows.StepName(approval.Workflow, approval.Step); name != "" {
+		out["step_name"] = name
+	}
+	return out
 }
 
 // counted answers the people a level names, in its groups and by its person fields.
@@ -345,7 +369,7 @@ func ApprovalOutput(approval domain.Approval, decisions []domain.Decision, mayDe
 		"item_version": approval.ItemVersion, "state": string(approval.State), "current_level": approval.Current,
 		"levels": levels, "decisions": trail, "requested_by": approval.RequestedBy.String(),
 		"requested_at": approval.RequestedAt.UTC(), "decided_at": nil, "due_at": nil, "may_decide": mayDecide,
-		"version": approval.Version,
+		"version": approval.Version, "step_name": nil,
 	}
 	if approval.DecidedAt != nil {
 		out["decided_at"] = approval.DecidedAt.UTC()
@@ -381,6 +405,7 @@ func (h DecideApproval) Execute(ctx context.Context, actor appshared.ActorContex
 	var (
 		decided   domain.Approval
 		decisions []domain.Decision
+		flows     workdomain.Workflows
 	)
 	// The step is taken inside the decision's transaction, so a step refused - a form now missing
 	// an answer, a workflow changed - refuses the answer too, rather than leaving an approved
@@ -428,12 +453,15 @@ func (h DecideApproval) Execute(ctx context.Context, actor appshared.ActorContex
 			audit.Change{Field: "level", Classification: audit.Open, To: decision.Level}); err != nil {
 			return err
 		}
+		if flows, err = a.stepNames(ctx); err != nil {
+			return err
+		}
 		return h.move(ctx, actor, decided)
 	})
 	if err != nil {
 		return nil, err
 	}
-	return ApprovalOutput(decided, decisions, false), nil
+	return namedOutput(decided, decisions, false, flows), nil
 }
 
 // move takes the step once approved, or the way to the decline status once declined, as an
@@ -605,10 +633,14 @@ func (h ListMyApprovals) rows(ctx context.Context, reader *standing, pending []d
 	if err := prefetchItems(ctx, reader, items); err != nil {
 		return nil, nil, err
 	}
+	flows, err := h.Approvals.stepNames(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
 	out := make([]usecase.Output, 0, len(theirs))
 	taken := make([]domain.Approval, 0, len(theirs))
 	for _, each := range theirs {
-		row := ApprovalOutput(each.approval, decisions[each.approval.ID], true)
+		row := namedOutput(each.approval, decisions[each.approval.ID], true, flows)
 		if item, err := reader.item(ctx, each.approval.ItemID); err == nil {
 			// The approver reads what they decide on: the entry's title and number, never more.
 			row["item_title"], row["item_number"] = item.Title, item.Number
@@ -682,6 +714,10 @@ func (h ReadEntryApprovals) Execute(ctx context.Context, actor appshared.ActorCo
 		if err != nil {
 			return err
 		}
+		flows, err := a.stepNames(ctx)
+		if err != nil {
+			return err
+		}
 		now := a.Desk.Clock.Now()
 		for _, approval := range approvals {
 			decisions, err := a.Store.Decisions(ctx, approval.ID)
@@ -692,7 +728,7 @@ func (h ReadEntryApprovals) Execute(ctx context.Context, actor appshared.ActorCo
 			if err != nil {
 				return err
 			}
-			out = append(out, ApprovalOutput(approval, decisions, who.Direct || !who.OnBehalfOf.IsZero()))
+			out = append(out, namedOutput(approval, decisions, who.Direct || !who.OnBehalfOf.IsZero(), flows))
 		}
 		return nil
 	})

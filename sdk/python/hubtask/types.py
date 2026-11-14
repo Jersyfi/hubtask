@@ -2383,6 +2383,7 @@ class Approval(TypedDict, total=False):
     on_behalf_of: str | None
     workflow: Required[str]
     step: Required[str]
+    step_name: str | None
     item_version: Required[int]
     state: Required[Literal["PENDING", "APPROVED", "DECLINED", "WITHDRAWN"]]
     current_level: Required[int]
