@@ -15739,6 +15739,7 @@
   "app.posts.start_WELCOME": "## Wer zu uns kommt\n\n\n\n## Woran sie arbeiten wird\n\n\n\n## Sagt Hallo\n\n",
   "app.posts.for_writers": "Für Autorinnen und Autoren",
   "app.posts.confirmed_of": "Bestätigt: {confirmed} von {audience}",
+  "app.posts.confirmed_who": "Wer bestätigt hat",
   "app.posts.remind": "Erinnern",
   "app.posts.reminded": "Wer noch nicht bestätigt hat, wurde erinnert",
   "app.posts.overdue": "Frist abgelaufen",

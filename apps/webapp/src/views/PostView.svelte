@@ -6,15 +6,15 @@
   // *seen by* -, the read confirmation's band, the discussion under the words, and for writers
   // *confirmed 21 of 45* with *Remind*, *Publish* now or at a moment, and the templates as chips.
 
-  import { Badge, Banner, Button, Icon, Menu, Popover, ProgressBar, Spinner, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
-  import type { Page, PageList, Post, PostList } from '@hubtask/sync-engine';
+  import { Avatar, Badge, Banner, Button, Icon, Menu, Popover, ProgressBar, Spinner, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
+  import type { Page, PageList, Post, PostConfirmations, PostList } from '@hubtask/sync-engine';
   import { untrack } from 'svelte';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { pagePath, pages, templatesPath, writtenBody } from '../lib/data/pages.svelte.ts';
-  import { POST_TEMPLATES, hubPostsPath, postMoment, postPath, posts, readingMinutes, settingsOf } from '../lib/data/posts.svelte.ts';
+  import { POST_TEMPLATES, hubPostsPath, postConfirmationsPath, postMoment, postPath, posts, readingMinutes, settingsOf } from '../lib/data/posts.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -106,6 +106,11 @@
   // --- Writers' panel (scene post 4): confirmed 21 of 45, Remind --------------------------------
   const confirmations = $derived(post?.confirmations ?? undefined);
   const share = $derived(confirmations && confirmations.audience > 0 ? Math.round((confirmations.confirmed / confirmations.audience) * 100) : 0);
+  // Who confirmed is read apart, by writers alone: the post itself carries only the count (B-5).
+  const whoPath = $derived(post?.may_write && post.state === 'PUBLISHED' && post.confirm_by ? postConfirmationsPath(post.page_id) : undefined);
+  const who = $derived(whoPath ? resource<PostConfirmations>(whoPath) : undefined);
+  const confirmedIds = $derived(who?.state.status === 'ready' ? (who.state.data.confirmed_ids ?? []) : []);
+  $effect(() => accounts.resolve(confirmedIds));
 </script>
 
 {#snippet kicker()}
@@ -178,6 +183,11 @@
           {/if}
         </span>
         <ProgressBar label={t('app.posts.confirmed_of', { confirmed: String(confirmations.confirmed), audience: String(confirmations.audience) })} value={share} />
+        {#if confirmedIds.length > 0}
+          <ul class="who-confirmed" aria-label={t('app.posts.confirmed_who')} data-post-confirmed-by>
+            {#each confirmedIds as each (each)}<li><Avatar name={nameOf(each)} size="sm" /><span>{nameOf(each)}</span></li>{/each}
+          </ul>
+        {/if}
         {#if confirmations.overdue}<Badge size="sm" tone="warning">{t('app.posts.overdue')}</Badge>{/if}
       {/if}
       <span class="quiet">{[t('app.posts.audience_line', { audience: audienceName }), post.featured_until ? t('app.posts.featured_until', { date: formatDay(post.featured_until, messages.locale) }) : ''].filter(Boolean).join(' · ')}</span>
@@ -249,5 +259,7 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
+  .who-confirmed { display: flex; flex-wrap: wrap; gap: var(--sp-100) var(--sp-200); margin: 0; padding: 0; list-style: none; }
+  .who-confirmed li { display: inline-flex; align-items: center; gap: var(--sp-100); }
   .link { border: none; background: none; padding: 0; font: inherit; color: var(--text-brand); cursor: pointer; }
 </style>

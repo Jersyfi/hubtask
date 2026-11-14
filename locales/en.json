@@ -15739,6 +15739,7 @@
   "app.posts.start_WELCOME": "## Who joins us\n\n\n\n## What they will work on\n\n\n\n## Say hello\n\n",
   "app.posts.for_writers": "For writers",
   "app.posts.confirmed_of": "Confirmed: {confirmed} of {audience}",
+  "app.posts.confirmed_who": "Who confirmed",
   "app.posts.remind": "Remind",
   "app.posts.reminded": "Those who have not confirmed were reminded",
   "app.posts.overdue": "Deadline passed",
