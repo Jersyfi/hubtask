@@ -255,6 +255,8 @@ export const ROUTES: readonly Route[] = [
   // from a mention, a search hit or a backlink, which know the page and not its hub.
   { name: 'hub-pages', pattern: '/hubs/:id/pages' },
   { name: 'page', pattern: '/pages/:id' },
+  // A hub's posts, one of them to read, and one to write (UC-DOC-17, UC-DOC-18); a mail links the second.
+  { name: 'hub-posts', pattern: '/hubs/:id/posts' },
   // The reader's own notes and the pages shared with them (UC-DOC-07, UC-DOC-08).
   { name: 'notes', pattern: '/notes' },
   // The approvals waiting for the reader's yes (UC-SVC-09). End-user: deciding is the work.

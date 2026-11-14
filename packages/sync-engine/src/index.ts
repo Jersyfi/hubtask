@@ -172,6 +172,8 @@ export type {
   PostConfirmations,
   PostSettings,
   PostCreate,
+  PostReplyCreate,
+  PostReminded,
   CoverImageFetched,
   PageArticle,
   PageLanguageLink,

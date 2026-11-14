@@ -12,7 +12,7 @@ const post = (id: string, at: string, more: Partial<Post> = {}): Post => ({
   page_id: id, hub_id: 'h', title: id, icon: null, template: null, state: 'PUBLISHED', publish_at: at, published_at: at,
   featured_until: null, featured: false, audience: 'HUB', group_ids: [], everyone_in_workspace: false, discussion: true,
   notify: true, confirm_by: null, created_by: null, created_at: at, seen_count: 0, seen: true, confirmed: false,
-  may_write: false, ...more,
+  may_write: false, cover: null, excerpt: '', reading_minutes: 1, reply_count: 0, labels: [], ...more,
 });
 
 // UC-DOC-17 check 7: the hub column's section is the published posts, newest first, a few, the

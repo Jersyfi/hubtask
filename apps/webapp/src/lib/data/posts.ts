@@ -71,3 +71,11 @@ export const REACTIONS = [
   { id: 'CELEBRATE', mark: '🎉' },
   { id: 'IDEA', mark: '💡' },
 ] as const;
+
+/** The post's own templates (B-1), in the order the writer is offered them, with their marks. */
+export const POST_TEMPLATES = [
+  { id: 'ANNOUNCEMENT', mark: '📣' },
+  { id: 'RELEASE_NOTE', mark: '🚀' },
+  { id: 'MONTHLY_REVIEW', mark: '📅' },
+  { id: 'WELCOME', mark: '👋' },
+] as const;

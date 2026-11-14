@@ -89,6 +89,7 @@
     TokenView: () => import('./views/TokenView.svelte'),
     TrashView: () => import('./views/TrashView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
+    PostsView: () => import('./views/PostsView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
     DeskReportsView: () => import('./views/DeskReportsView.svelte'),
@@ -588,6 +589,10 @@
           onreplace: (path: string) => router.replace(path),
         }}
       />
+    {/key}
+  {:else if route.name === 'hub-posts'}
+    {#key route.path}
+      <LazyView load={views.PostsView} props={{ hubId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'whiteboard'}
     {#key route.path}

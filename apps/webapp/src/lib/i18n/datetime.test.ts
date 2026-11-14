@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateTime, formatDay, formatDue, formatDueShort, formatPlainDay, formatRelative, formatToday } from './datetime.ts';
+import { formatDateTime, formatDay, formatDue, formatDueShort, formatMonth, formatPlainDay, formatRelative, formatToday } from './datetime.ts';
 
 test('a moment is written the way the locale writes moments', () => {
   // Not the exact string — that is the platform's and it moves between ICU versions. What is
@@ -103,4 +103,11 @@ test('a short due counts days in the zone it is read in, not in UTC', () => {
   // 23:30 in Berlin on the 24th is still "today" there, though it is the 24th 21:30 UTC.
   const now = Date.parse('2026-10-24T06:00:00Z');
   assert.equal(formatDueShort('2026-10-24T21:30:00Z', 'en', 'Europe/Berlin', { now }), 'today 11:30 PM');
+});
+
+test('a month heading names the month and its year, whichever way it is given', () => {
+  assert.equal(formatMonth('2026-11', 'en'), 'November 2026');
+  assert.equal(formatMonth('2026-11', 'de'), 'November 2026');
+  assert.equal(formatMonth('2026-03-01T08:00:00Z', 'de'), 'März 2026');
+  assert.equal(formatMonth('soon', 'en'), 'soon');
 });

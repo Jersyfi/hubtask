@@ -46,6 +46,13 @@ export function formatLongDay(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'long' }).format(at);
 }
 
+/** A month as a heading names it - "November 2026" - from a month (`2026-11`) or an instant. */
+export function formatMonth(month: string, locale: string): string {
+  const at = Date.parse(month.length === 7 ? `${month}-15T12:00:00Z` : month);
+  if (Number.isNaN(at)) return month;
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(at);
+}
+
 /**
  * A calendar day (`2026-11-03`) as the reader writes one, or `—` for none. A plain date has no
  * zone, so it is read on UTC's clock: on the device's, its midnight is the day before west of
