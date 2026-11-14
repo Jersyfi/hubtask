@@ -20,13 +20,15 @@
                 "kind": "NUMBER",
                 "start": 6,
                 "target": 2,
-                "unit": "h"
+                "unit": "h",
+                "current": 6
               },
               {
                 "title": "Entries carried over into the next sprint",
                 "kind": "PERCENT",
                 "start": 30,
-                "target": 10
+                "target": 10,
+                "current": 30
               }
             ]
           },
@@ -37,13 +39,15 @@
                 "title": "Team pulse: how good we feel",
                 "kind": "PERCENT",
                 "start": 60,
-                "target": 80
+                "target": 80,
+                "current": 60
               },
               {
                 "title": "People who learned a new area",
                 "kind": "NUMBER",
                 "start": 0,
-                "target": 4
+                "target": 4,
+                "current": 0
               }
             ]
           }

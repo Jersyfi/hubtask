@@ -275,3 +275,35 @@ func TestAWorkspaceTemplateIsTakenOnceByKey(t *testing.T) {
 		t.Errorf("taking the template again changes %v", changes)
 	}
 }
+
+// UC-GOL-01 check 12: a shipped goal set's key results stand at their start, so a goal taken today
+// shows no progress it did not make - a key result counting down would otherwise stand at its target.
+func TestAShippedGoalSetStartsWhereItsKeyResultsStart(t *testing.T) {
+	templates, err := bundledTemplates()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sets := 0
+	for _, template := range templates {
+		for key, block := range template.Document[sectionGoalSets] {
+			sets++
+			if block[spanAttribute] == nil {
+				t.Errorf("%s: %s names no span, so it is no period around today", template.Key, key)
+			}
+			goals, _ := block["goals"].([]any)
+			for _, raw := range goals {
+				goal, _ := raw.(map[string]any)
+				results, _ := goal["key_results"].([]any)
+				for _, r := range results {
+					result, _ := r.(map[string]any)
+					if result["current"] == nil || result["current"] != result["start"] {
+						t.Errorf("%s: %q starts at %v, not at its start %v", template.Key, result["title"], result["current"], result["start"])
+					}
+				}
+			}
+		}
+	}
+	if sets != 3 {
+		t.Errorf("%d goal sets shipped, want 3", sets)
+	}
+}

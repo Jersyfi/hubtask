@@ -19,20 +19,23 @@
                 "title": "Satisfaction after a closed request",
                 "kind": "PERCENT",
                 "start": 72,
-                "target": 85
+                "target": 85,
+                "current": 72
               },
               {
                 "title": "Median first response",
                 "kind": "NUMBER",
                 "start": 8,
                 "target": 4,
-                "unit": "h"
+                "unit": "h",
+                "current": 8
               },
               {
                 "title": "Requests solved on first contact",
                 "kind": "PERCENT",
                 "start": 55,
-                "target": 70
+                "target": 70,
+                "current": 55
               }
             ]
           },
@@ -43,13 +46,15 @@
                 "title": "Customers who renew",
                 "kind": "PERCENT",
                 "start": 80,
-                "target": 90
+                "target": 90,
+                "current": 80
               },
               {
                 "title": "Cancellations per month",
                 "kind": "NUMBER",
                 "start": 12,
-                "target": 6
+                "target": 6,
+                "current": 12
               }
             ]
           }
