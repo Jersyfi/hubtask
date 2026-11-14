@@ -5,9 +5,9 @@ context: knowledge
 actors: [PE-member, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-17, P-18]
-state: partial
+state: built
 tasks: []
-checked_by: [core/domain/model/knowledge/Cover_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/pages/covers.test.ts]
+checked_by: [core/domain/model/knowledge/Cover_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/pages/covers.test.ts, core/application/service/knowledge/CoverImages_test.go, infrastructure/coverimages/Openverse_test.go, apps/webapp/e2e/pagesspace.test.mjs]
 ---
 
 # Give a page a cover
@@ -31,9 +31,8 @@ The team's onboarding page gets the green hills of the gallery as its cover; a n
 ## Where it ends
 
 * A gradient or a gallery picture is drawn by its key from the design system's tokens; no colour, path or address is stored, and a key a client does not know draws as no cover.
-* Without the provider switched on, no request leaves the workspace for a cover.
+* Without the provider switched on, no request leaves the workspace for a cover. The workspace's
+  setting `knowledge.cover_images` chooses it; the installation or a plan may lock it.
+* The provider's picture is uploaded as any other cover image, through the upload's checks; who
+  made it is kept with the cover as its credit.
 * A cover is the page's alone: a space, a template or a post takes none from it.
-
-## Today
-
-* Check 5: not met — the administration's image-provider switch and the server's fetch through `GuardedClient` are not built; the picker shows the three other sources. Tracked in the work-surface concept (E-18).
