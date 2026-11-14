@@ -1216,6 +1216,17 @@ type CmdbCiGroup struct {
 	Version   int32
 }
 
+type CmdbCiHistory struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	CiID       pgtype.UUID
+	ActorType  string
+	ActorID    pgtype.UUID
+	Verb       string
+	ChangeSet  []byte
+	OccurredAt pgtype.Timestamptz
+}
+
 type CmdbCiIdentifier struct {
 	TenantID pgtype.UUID
 	CiID     pgtype.UUID

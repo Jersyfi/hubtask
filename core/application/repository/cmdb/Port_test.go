@@ -19,6 +19,7 @@ func TestEveryPortMethodTakesAContextAndCanFail(t *testing.T) {
 		reflect.TypeFor[Assurance](),
 		reflect.TypeFor[Store](),
 		reflect.TypeFor[Connectors](),
+		reflect.TypeFor[History](),
 	} {
 		for i := range port.NumMethod() {
 			m := port.Method(i)

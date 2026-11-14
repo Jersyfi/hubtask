@@ -1023,6 +1023,10 @@ class Client:
         """Take a file off an object"""
         return self._call("DELETE", "/cis/{ciId}/attachments/{mediaId}", {"ciId": ci_id, "mediaId": media_id}, None, {}, None, "none", None, "json")
 
+    def list_ci_history(self, ci_id: str, *, query: dict[str, Any] | None = None) -> "CiHistoryPage":
+        """An object's history"""
+        return self._call("GET", "/cis/{ciId}/history", {"ciId": ci_id}, query, {}, None, "none", None, "json")
+
     def list_entry_cis(self, item_id: str) -> "EntryCis":
         """The objects an entry names as affected"""
         return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")

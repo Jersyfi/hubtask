@@ -3001,6 +3001,33 @@ func (e CiGroupFilterStages) Valid() bool {
 	}
 }
 
+// Defines values for CiHistoryStepActorType.
+const (
+	CiHistoryStepActorTypeAIAGENT        CiHistoryStepActorType = "AI_AGENT"
+	CiHistoryStepActorTypeAUTOMATION     CiHistoryStepActorType = "AUTOMATION"
+	CiHistoryStepActorTypeSERVICEACCOUNT CiHistoryStepActorType = "SERVICE_ACCOUNT"
+	CiHistoryStepActorTypeSYSTEM         CiHistoryStepActorType = "SYSTEM"
+	CiHistoryStepActorTypeUSER           CiHistoryStepActorType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the CiHistoryStepActorType enum.
+func (e CiHistoryStepActorType) Valid() bool {
+	switch e {
+	case CiHistoryStepActorTypeAIAGENT:
+		return true
+	case CiHistoryStepActorTypeAUTOMATION:
+		return true
+	case CiHistoryStepActorTypeSERVICEACCOUNT:
+		return true
+	case CiHistoryStepActorTypeSYSTEM:
+		return true
+	case CiHistoryStepActorTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiImpactDirection.
 const (
 	CiImpactDirectionDOWNSTREAM CiImpactDirection = "DOWNSTREAM"
@@ -15982,6 +16009,32 @@ type CiGroupMembers struct {
 	} `json:"data"`
 	Group CiGroup `json:"group"`
 }
+
+// CiHistoryPage defines model for CiHistoryPage.
+type CiHistoryPage struct {
+	Data []CiHistoryStep `json:"data"`
+	Page PageInfo        `json:"page"`
+}
+
+// CiHistoryStep One step of an object's history. Append-only: nothing edits one, and what removes one is the removal of the object it belongs to.
+type CiHistoryStep struct {
+	Actor struct {
+		Id   *openapi_types.UUID    `json:"id"`
+		Type CiHistoryStepActorType `json:"type"`
+	} `json:"actor"`
+
+	// ChangeSet What moved, keyed by field: `from` and `to` where the history keeps the values - the stage, a person, a place, an object at the other end, a file, the source that wrote - and `changed: true` for an attribute, whose value the object itself shows.
+	ChangeSet map[string]interface{} `json:"change_set"`
+	CiId      openapi_types.UUID     `json:"ci_id"`
+
+	// Code The message the client renders, from locales/*.json - activity.ci_created and the rest.
+	Code       string             `json:"code"`
+	Id         openapi_types.UUID `json:"id"`
+	OccurredAt time.Time          `json:"occurred_at"`
+}
+
+// CiHistoryStepActorType defines model for CiHistoryStep.Actor.Type.
+type CiHistoryStepActorType string
 
 // CiHold defines model for CiHold.
 type CiHold struct {
@@ -29835,6 +29888,12 @@ type SetCiComplianceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListCiHistoryParams defines parameters for ListCiHistory.
+type ListCiHistoryParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ReadCiImpactParams defines parameters for ReadCiImpact.
 type ReadCiImpactParams struct {
 	Direction *ReadCiImpactParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -37895,6 +37954,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListCiHistory An object's history
+	//
+	// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+	ListCiHistory(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadCiImpact What an object's failure reaches
 	//
@@ -53665,6 +53731,23 @@ func (c *Client) SetCiComplianceWithBody(ctx context.Context, ciId openapi_types
 // Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 func (c *Client) SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetCiComplianceRequest(c.Server, ciId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiHistory An object's history
+//
+// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+func (c *Client) ListCiHistory(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiHistoryRequest(c.Server, ciId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -82539,6 +82622,79 @@ func NewSetCiComplianceRequestWithBody(server string, ciId openapi_types.UUID, p
 			req.Header.Set("If-Match", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewListCiHistoryRequest constructs an http.Request for the ListCiHistory method
+func NewListCiHistoryRequest(server string, ciId openapi_types.UUID, params *ListCiHistoryParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/history", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -117761,6 +117917,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /cis/{ciId}/compliance (the `SetCiCompliance` operationId).
 	SetCiComplianceWithResponse(ctx context.Context, ciId openapi_types.UUID, params *SetCiComplianceParams, body SetCiComplianceJSONRequestBody, reqEditors ...RequestEditorFn) (*SetCiComplianceResult, error)
 
+	// ListCiHistoryWithResponse An object's history
+	//
+	// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+	ListCiHistoryWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*ListCiHistoryResult, error)
+
 	// ReadCiImpactWithResponse What an object's failure reaches
 	//
 	// DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
@@ -139038,6 +139203,54 @@ func (r SetCiComplianceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetCiComplianceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiHistoryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiHistoryPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiHistoryResult) GetJSON200() *CiHistoryPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiHistoryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiHistoryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiHistoryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiHistoryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiHistoryResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -176871,6 +177084,21 @@ func (c *ClientWithResponses) SetCiComplianceWithResponse(ctx context.Context, c
 	return ParseSetCiComplianceResult(rsp)
 }
 
+// ListCiHistoryWithResponse An object's history
+//
+// The object's own history, newest first: who did what, and when - made, changed by hand or by a source, its stage, owner, location or protection need changed, related and unrelated, confirmed and attested, registered and moved, files put on and taken off. It is the product's record and not the audit trail: readable by whoever reads the hub, deleted with the object. Each step carries a message code the client renders. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/history (the `ListCiHistory` operationId).
+func (c *ClientWithResponses) ListCiHistoryWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ListCiHistoryParams, reqEditors ...RequestEditorFn) (*ListCiHistoryResult, error) {
+	rsp, err := c.ListCiHistory(ctx, ciId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiHistoryResult(rsp)
+}
+
 // ReadCiImpactWithResponse What an object's failure reaches
 //
 // DOWNSTREAM, everything that suffers when it fails, with the services among them; UPSTREAM, everything whose failure it suffers. Needs READ on the hub.
@@ -200089,6 +200317,39 @@ func ParseSetCiComplianceResult(rsp *http.Response) (*SetCiComplianceResult, err
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest ConfigurationItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiHistoryResult parses an HTTP response from a ListCiHistoryWithResponse call
+func ParseListCiHistoryResult(rsp *http.Response) (*ListCiHistoryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiHistoryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiHistoryPage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

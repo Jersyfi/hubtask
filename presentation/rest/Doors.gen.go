@@ -345,6 +345,7 @@ var restDoors = map[string]restDoor{
 	"listCiDuplicates":                  {UseCase: "ListCiDuplicates", Status: 200, Query: []string{"limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listCiGroupMembers":                {UseCase: "ListCiGroupMembers", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCiGroups":                      {UseCase: "ListCiGroups", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listCiHistory":                     {UseCase: "ListCiHistory", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listCiHolds":                       {UseCase: "ListCiHolds", Status: 200, Query: []string{"limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
 	"listCiRelationTypes":               {UseCase: "ListCiRelationTypes", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listCiRuns":                        {UseCase: "ListCiRuns", Status: 200, Query: []string{"limit"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"limit"}},
@@ -3131,6 +3132,12 @@ func (c *RestController) ListCiGroupMembers(w http.ResponseWriter, r *http.Reque
 func (c *RestController) ListCiGroups(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var answer openapi.CiGroupList
 	c.door(w, r, restDoors["listCiGroups"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
+}
+
+// ListCiHistory answers GET /cis/{ciId}/history by the generated mapping.
+func (c *RestController) ListCiHistory(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params openapi.ListCiHistoryParams) {
+	var answer openapi.CiHistoryPage
+	c.door(w, r, restDoors["listCiHistory"], usecase.Input{"ci_id": ciId.String()}, params, nil, &answer)
 }
 
 // ListCiHolds answers GET /hubs/{hubId}/ci-holds by the generated mapping.

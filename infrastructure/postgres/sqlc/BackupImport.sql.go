@@ -387,6 +387,18 @@ func (q *Queries) ClearCmdbCiGroup(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCmdbCiHistory = `-- name: ClearCmdbCiHistory :execrows
+DELETE FROM cmdb_ci_history
+`
+
+func (q *Queries) ClearCmdbCiHistory(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbCiHistory)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearCmdbCiIdentifier = `-- name: ClearCmdbCiIdentifier :execrows
 DELETE FROM cmdb_ci_identifier
 `
@@ -2181,6 +2193,17 @@ SELECT EXISTS (SELECT 1 FROM cmdb_ci_group WHERE id = ($1::jsonb->>'id')::uuid) 
 
 func (q *Queries) HoldsCmdbCiGroup(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCmdbCiGroup, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbCiHistory = `-- name: HoldsCmdbCiHistory :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_history WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbCiHistory(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbCiHistory, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4848,6 +4871,24 @@ type ImportCmdbCiGroupParams struct {
 
 func (q *Queries) ImportCmdbCiGroup(ctx context.Context, arg ImportCmdbCiGroupParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCmdbCiGroup, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbCiHistory = `-- name: ImportCmdbCiHistory :execrows
+INSERT INTO cmdb_ci_history (id, tenant_id, ci_id, actor_type, actor_id, verb, change_set, occurred_at)
+SELECT r.id, r.tenant_id, r.ci_id, r.actor_type, r.actor_id, r.verb, r.change_set, r.occurred_at
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_history,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO NOTHING
+`
+
+func (q *Queries) ImportCmdbCiHistory(ctx context.Context, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbCiHistory, payload)
 	if err != nil {
 		return 0, err
 	}

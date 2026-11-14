@@ -516,6 +516,9 @@ func (s Inventory) merge(ctx context.Context, actor appshared.ActorContext, surv
 		if err := s.recordCI(ctx, actor, CIMergedAction, merged, []string{"merged_into"}); err != nil {
 			return domain.CI{}, err
 		}
+		if err := s.chronicle(ctx, actor, merged.ID, domain.VerbMerged, map[string]domain.Moved{"merged_into": {To: survivorID.String()}}); err != nil {
+			return domain.CI{}, err
+		}
 	}
 	if err := s.Store.UpdateCI(ctx, survivor, expected); err != nil {
 		return domain.CI{}, err

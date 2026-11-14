@@ -979,6 +979,14 @@ var entities = []Entity{
 		},
 	},
 	{
+		// An object's own history (migration 0435): a delta on the moment of each step, as an
+		// entry's history is.
+		Name: "cmdb_ci_history", Table: "cmdb_ci_history", Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_ci"},
+		},
+	},
+	{
 		Name: "cmdb_software_aliases", Table: "cmdb_software_alias", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
 	},
 	// The service desk's business calendars, SLA policies and what became of each goal on an entry

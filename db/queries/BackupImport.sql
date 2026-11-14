@@ -3866,6 +3866,21 @@ SELECT EXISTS (
 -- name: ClearCmdbCiMedia :execrows
 DELETE FROM cmdb_ci_media;
 
+-- name: ImportCmdbCiHistory :execrows
+INSERT INTO cmdb_ci_history (id, tenant_id, ci_id, actor_type, actor_id, verb, change_set, occurred_at)
+SELECT r.id, r.tenant_id, r.ci_id, r.actor_type, r.actor_id, r.verb, r.change_set, r.occurred_at
+FROM jsonb_populate_record(
+  NULL::cmdb_ci_history,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO NOTHING;
+
+-- name: HoldsCmdbCiHistory :one
+SELECT EXISTS (SELECT 1 FROM cmdb_ci_history WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbCiHistory :execrows
+DELETE FROM cmdb_ci_history;
+
 -- name: ImportCmdbSoftwareAlias :execrows
 INSERT INTO cmdb_software_alias (id, tenant_id, match_publisher, match_product, publisher, product, updated_by, updated_at, version)
 SELECT r.id, r.tenant_id, r.match_publisher, r.match_product, r.publisher, r.product, r.updated_by, r.updated_at, r.version

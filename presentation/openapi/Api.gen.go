@@ -2995,6 +2995,33 @@ func (e CiGroupFilterStages) Valid() bool {
 	}
 }
 
+// Defines values for CiHistoryStepActorType.
+const (
+	CiHistoryStepActorTypeAIAGENT        CiHistoryStepActorType = "AI_AGENT"
+	CiHistoryStepActorTypeAUTOMATION     CiHistoryStepActorType = "AUTOMATION"
+	CiHistoryStepActorTypeSERVICEACCOUNT CiHistoryStepActorType = "SERVICE_ACCOUNT"
+	CiHistoryStepActorTypeSYSTEM         CiHistoryStepActorType = "SYSTEM"
+	CiHistoryStepActorTypeUSER           CiHistoryStepActorType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the CiHistoryStepActorType enum.
+func (e CiHistoryStepActorType) Valid() bool {
+	switch e {
+	case CiHistoryStepActorTypeAIAGENT:
+		return true
+	case CiHistoryStepActorTypeAUTOMATION:
+		return true
+	case CiHistoryStepActorTypeSERVICEACCOUNT:
+		return true
+	case CiHistoryStepActorTypeSYSTEM:
+		return true
+	case CiHistoryStepActorTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiImpactDirection.
 const (
 	CiImpactDirectionDOWNSTREAM CiImpactDirection = "DOWNSTREAM"
@@ -15976,6 +16003,32 @@ type CiGroupMembers struct {
 	} `json:"data"`
 	Group CiGroup `json:"group"`
 }
+
+// CiHistoryPage defines model for CiHistoryPage.
+type CiHistoryPage struct {
+	Data []CiHistoryStep `json:"data"`
+	Page PageInfo        `json:"page"`
+}
+
+// CiHistoryStep One step of an object's history. Append-only: nothing edits one, and what removes one is the removal of the object it belongs to.
+type CiHistoryStep struct {
+	Actor struct {
+		Id   *openapi_types.UUID    `json:"id"`
+		Type CiHistoryStepActorType `json:"type"`
+	} `json:"actor"`
+
+	// ChangeSet What moved, keyed by field: `from` and `to` where the history keeps the values - the stage, a person, a place, an object at the other end, a file, the source that wrote - and `changed: true` for an attribute, whose value the object itself shows.
+	ChangeSet map[string]interface{} `json:"change_set"`
+	CiId      openapi_types.UUID     `json:"ci_id"`
+
+	// Code The message the client renders, from locales/*.json - activity.ci_created and the rest.
+	Code       string             `json:"code"`
+	Id         openapi_types.UUID `json:"id"`
+	OccurredAt time.Time          `json:"occurred_at"`
+}
+
+// CiHistoryStepActorType defines model for CiHistoryStep.Actor.Type.
+type CiHistoryStepActorType string
 
 // CiHold defines model for CiHold.
 type CiHold struct {
@@ -29829,6 +29882,12 @@ type SetCiComplianceParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListCiHistoryParams defines parameters for ListCiHistory.
+type ListCiHistoryParams struct {
+	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ReadCiImpactParams defines parameters for ReadCiImpact.
 type ReadCiImpactParams struct {
 	Direction *ReadCiImpactParamsDirection `form:"direction,omitempty" json:"direction,omitempty"`
@@ -34691,6 +34750,9 @@ type ServerInterface interface {
 	// SetCiCompliance Set an object's lifecycle and compliance fields
 	// (PUT /cis/{ciId}/compliance)
 	SetCiCompliance(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params SetCiComplianceParams)
+	// ListCiHistory An object's history
+	// (GET /cis/{ciId}/history)
+	ListCiHistory(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ListCiHistoryParams)
 	// ReadCiImpact What an object's failure reaches
 	// (GET /cis/{ciId}/impact)
 	ReadCiImpact(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ReadCiImpactParams)
@@ -44137,6 +44199,61 @@ func (siw *ServerInterfaceWrapper) SetCiCompliance(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetCiCompliance(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiHistory operation middleware
+func (siw *ServerInterfaceWrapper) ListCiHistory(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCiHistoryParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiHistory(w, r, ciId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66840,6 +66957,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/attachments", wrapper.ListCiAttachments)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/cis/{ciId}/attachments/{mediaId}", wrapper.DetachCiMedia)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/attachments/{mediaId}", wrapper.AttachCiMedia)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/history", wrapper.ListCiHistory)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/cis", wrapper.ListEntryCis)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.UnaffectEntryCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.AffectEntryCi)

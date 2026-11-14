@@ -3099,6 +3099,10 @@ func (pending) ListCiAttachments(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
+func (pending) ListCiHistory(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListCiHistoryParams) {
+	notAvailable(w, r)
+}
+
 func (pending) AttachCiMedia(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.MediaId) {
 	notAvailable(w, r)
 }

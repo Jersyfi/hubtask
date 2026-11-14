@@ -1436,6 +1436,21 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"cmdb_ci_history": {
+		delta: true,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbCiHistory(ctx, sqlc.ExportCmdbCiHistoryParams{
+				Since:   optionalTimestamp(page.Since),
+				AfterAt: page.AfterAt,
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbCiHistoryRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"cmdb_software_alias": {
 		delta: false,
 		keys:  1,

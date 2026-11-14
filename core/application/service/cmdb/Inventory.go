@@ -96,6 +96,8 @@ type Inventory struct {
 	HLC     clock.HLCSource
 	// Notify reminds the owners an attestation round waits for; nil tells nobody.
 	Notify RoundNotifier
+	// History keeps each object's own history (migration 0435); nil records none.
+	History repository.History
 	// Files are the uploads an object holds (migration 0434); nil holds none.
 	Files Files
 	// Reader answers, without a record, whether the actor reads other hubs: an upload another

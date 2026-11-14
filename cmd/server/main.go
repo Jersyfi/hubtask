@@ -2241,6 +2241,8 @@ func run() error {
 		Assurance: postgres.NewCmdbAssuranceRepository(),
 		// An object's files and the reader that judges another object's upload (UC-AST-01).
 		Files: mediaObjects, Reader: authorizer,
+		// Each object's own history, written with every write of it (UC-AST-01).
+		History: postgres.NewCmdbHistoryRepository(cursors),
 		// A round's owners reminded by a writer (UC-AST-10).
 		Notify: notification.RecordAttestation{
 			Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
@@ -2860,6 +2862,7 @@ func run() error {
 		cmdbservice.RunCiConnector{Connectors: connectors}.Descriptor(),
 		cmdbservice.ListCiAlerts{Connectors: connectors}.Descriptor(),
 		cmdbservice.AttachCiMedia{Inventory: inventory}.Descriptor(),
+		cmdbservice.ListCiHistory{Inventory: inventory}.Descriptor(),
 		cmdbservice.DetachCiMedia{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiBacklinks{Inventory: inventory, Pointers: cmdbservice.Pointers{
 			Texts: pageSpace.Pages, Boards: boardStudio.Boards, Entries: entryLinks, Reader: authorizer,

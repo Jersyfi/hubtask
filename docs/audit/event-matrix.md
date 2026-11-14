@@ -311,6 +311,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.ci_read` | ListCiDuplicates | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiGroupMembers | `cmdb_ci_group` | INFO | When refused |
 | `cmdb.ci_read` | ListCiGroups | `cmdb_ci_group` | INFO | When refused |
+| `cmdb.ci_read` | ListCiHistory | `cmdb_ci` | INFO | When refused |
 | `cmdb.ci_read` | ListCiHolds | `cmdb_run` | INFO | When refused |
 | `cmdb.ci_read` | ListCiRuns | `cmdb_run` | INFO | When refused |
 | `cmdb.ci_read` | ListCiWork | `cmdb_ci` | INFO | When refused |

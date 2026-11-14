@@ -7089,6 +7089,19 @@ class CiAttachments(TypedDict, total=False):
     ci_id: Required[str]
     media_ids: Required[list[str]]
 
+class CiHistoryPage(TypedDict, total=False):
+    data: Required[list["CiHistoryStep"]]
+    page: Required["PageInfo"]
+
+class CiHistoryStep(TypedDict, total=False):
+    """One step of an object's history. Append-only: nothing edits one, and what removes one is the removal of the object it belongs to."""
+    id: Required[str]
+    ci_id: Required[str]
+    code: Required[str]
+    actor: Required[dict[str, Any]]
+    occurred_at: Required[str]
+    change_set: Required[dict[str, Any]]
+
 class CiWork(TypedDict, total=False):
     ci_id: Required[str]
     data: Required[list["CiWorkEntry"]]

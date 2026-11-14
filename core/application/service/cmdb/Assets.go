@@ -294,6 +294,9 @@ func (h RegisterCiAsset) Descriptor() usecase.Descriptor {
 					if err := s.Assurance.AddAssetMove(ctx, domain.MoveOf(s.IDs.NewID(), a, actor.AccountID, a.UpdatedAt)); err != nil {
 						return err
 					}
+					if err := s.chronicle(ctx, actor, a.CIID, domain.VerbAssetMoved, map[string]domain.Moved{"state": {To: string(a.State)}}); err != nil {
+						return err
+					}
 					if err := s.followStage(ctx, actor, a); err != nil {
 						return err
 					}
@@ -373,6 +376,9 @@ func (s Inventory) followStage(ctx context.Context, actor appshared.ActorContext
 	if err := s.announce(ctx, actor, next); err != nil {
 		return err
 	}
+	if err := s.chronicleChange(ctx, actor, ci, next, "", []string{domain.FieldLifecycle}); err != nil {
+		return err
+	}
 	return s.recordCI(ctx, actor, CIChangedAction, next, []string{domain.FieldLifecycle})
 }
 
@@ -433,6 +439,9 @@ func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 				}
 				moved.Version = a.Version + 1
 				if err := s.Assurance.AddAssetMove(ctx, domain.MoveOf(s.IDs.NewID(), moved, actor.AccountID, now)); err != nil {
+					return err
+				}
+				if err := s.chronicle(ctx, actor, moved.CIID, domain.VerbAssetMoved, map[string]domain.Moved{"state": {From: string(from), To: string(moved.State)}}); err != nil {
 					return err
 				}
 				if err := s.followStage(ctx, actor, moved); err != nil {

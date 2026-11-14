@@ -387,6 +387,11 @@ func (h AttestCi) Descriptor() usecase.Descriptor {
 				if err := s.announce(ctx, actor, updated); err != nil {
 					return err
 				}
+				if err := s.chronicle(ctx, actor, ciID, domain.VerbAttested, map[string]domain.Moved{
+					"verdict": {To: string(a.Verdict)}, "review_due": {To: next.Format(time.DateOnly)},
+				}); err != nil {
+					return err
+				}
 				out = usecase.Output{
 					"campaign_id": id.String(), "ci_id": ciID.String(), "verdict": string(a.Verdict),
 					"attested_by": actor.AccountID.String(), "attested_at": now, "review_due": next.Format(time.DateOnly),
@@ -454,6 +459,11 @@ func (h ConfirmCi) Descriptor() usecase.Descriptor {
 					return err
 				}
 				out = CIOutput(confirmed, nil)
+				if err := s.chronicle(ctx, actor, id, domain.VerbConfirmed, map[string]domain.Moved{
+					"review_due": {To: confirmed.Compliance.ReviewDue.Format(time.DateOnly)},
+				}); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, CIConfirmedAction, ciTarget, id,
 					audit.Change{Field: "review_due", Classification: audit.Open, To: confirmed.Compliance.ReviewDue.Format(time.DateOnly)},
 					audit.Change{Field: "campaigns_answered", Classification: audit.Open, To: itoa(answered)})

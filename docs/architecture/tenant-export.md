@@ -275,6 +275,7 @@ re-mints identities must rewrite exactly these).
 | 148 | `post_follows` | `post_follow` | `hub_id/account_id` | `hub_id`→containers, `account_id`→accounts (who follows a hub's posts, migration 0404) |
 | 149 | `cmdb_asset_moves` | `cmdb_asset_move` | `id` | `ci_id`→cmdb_assets, `hub_id`→containers, `assigned_to`→accounts, `stockroom_id`→cmdb_cis (each cleared when absent) (each step of an asset's life with its moment and who moved it, migration 0430, UC-AST-12) |
 | 150 | `cmdb_ci_media` | `cmdb_ci_media` | `ci_id/media_id` | `ci_id`→cmdb_cis, `media_id`→media_objects (the files an inventory object holds, migration 0434, UC-AST-01) |
+| 151 | `cmdb_ci_history` | `cmdb_ci_history` | `id` | `ci_id`→cmdb_cis (an inventory object's own history: who did what and when, migration 0435, UC-AST-01) |
 | 54 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a

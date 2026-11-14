@@ -399,6 +399,9 @@ func (h SetCiCompliance) Descriptor() usecase.Descriptor {
 				if err := h.Inventory.announce(ctx, actor, next); err != nil {
 					return err
 				}
+				if err := h.Inventory.chronicleChange(ctx, actor, ci, next, "", fields); err != nil {
+					return err
+				}
 				return h.Inventory.recordCI(ctx, actor, CIChangedAction, next, fields)
 			})
 			return out, err
@@ -554,7 +557,7 @@ func (h RelateCis) Descriptor() usecase.Descriptor {
 					ID: h.Inventory.IDs.NewID(), HubID: source.HubID, Type: t.Key, SourceCI: from, TargetCI: to,
 					DataSource: domain.ManualSource, FirstSeen: now, LastSeen: now, CreatedBy: actor.AccountID,
 				}
-				stored, _, err := h.Inventory.Store.PutRelation(ctx, r)
+				stored, inserted, err := h.Inventory.Store.PutRelation(ctx, r)
 				if err != nil {
 					return err
 				}
@@ -564,6 +567,11 @@ func (h RelateCis) Descriptor() usecase.Descriptor {
 				out = RelationOutput(r)
 				if err := h.Inventory.announceRelations(ctx, actor, r); err != nil {
 					return err
+				}
+				if inserted {
+					if err := h.Inventory.chronicleRelation(ctx, actor, r, domain.VerbRelated); err != nil {
+						return err
+					}
 				}
 				return h.Inventory.record(ctx, actor, RelatedAction, relationTarget, r.ID,
 					audit.Change{Field: "type", Classification: audit.Open, To: r.Type})
@@ -604,6 +612,9 @@ func (h UnrelateCis) Descriptor() usecase.Descriptor {
 					return err
 				}
 				if err := h.Inventory.announceUnrelated(ctx, actor, r); err != nil {
+					return err
+				}
+				if err := h.Inventory.chronicleRelation(ctx, actor, r, domain.VerbUnrelated); err != nil {
 					return err
 				}
 				return h.Inventory.record(ctx, actor, UnrelatedAction, relationTarget, id,

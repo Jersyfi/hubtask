@@ -8436,4 +8436,26 @@ CREATE POLICY tenant_isolation ON cmdb_ci_media
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON cmdb_ci_media TO hubtask_app;
 
+-- An inventory object's own history (migration 0435, UC-AST-01): the product's record, not the trail.
+CREATE TABLE cmdb_ci_history (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  ci_id       uuid NOT NULL,
+  actor_type  text NOT NULL CHECK (actor_type IN ('USER', 'SERVICE_ACCOUNT', 'AUTOMATION', 'AI_AGENT', 'SYSTEM')),
+  actor_id    uuid,
+  verb        text NOT NULL CHECK (char_length(verb) BETWEEN 1 AND 64),
+  change_set  jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(change_set) = 'object'),
+  occurred_at timestamptz NOT NULL,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_ci_history_ci_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX cmdb_ci_history_page_idx ON cmdb_ci_history (tenant_id, ci_id, occurred_at DESC, id DESC);
+CREATE INDEX cmdb_ci_history_actor_idx ON cmdb_ci_history (tenant_id, actor_id) WHERE actor_id IS NOT NULL;
+ALTER TABLE cmdb_ci_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_ci_history FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_ci_history
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON cmdb_ci_history TO hubtask_app;
+
 COMMIT;

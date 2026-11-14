@@ -905,6 +905,15 @@ var generatedCommands = []door{
 			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "history", OperationID: "listCiHistory", Method: "GET", Path: "/cis/{ciId}/history", Summary: "An object's history",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Query: []doorParam{
+			{Name: "cursor", Kind: "string", Help: "", Required: false},
+			{Name: "size", Kind: "integer", Help: "", Required: false},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id"}},
 	{Group: "ci", Verb: "hold dismiss", OperationID: "dismissCiHold", Method: "POST", Path: "/ci-holds/{holdId}:dismiss", Summary: "Close a held item",
 		PathParams: []doorParam{
 			{Name: "holdId", Kind: "uuid", Help: "", Required: true},

@@ -10,6 +10,7 @@ import (
 	mediarepo "github.com/Jersyfi/hubtask/core/application/repository/media"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/cmdb"
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
@@ -85,18 +86,21 @@ func (s Inventory) changeFiles(ctx context.Context, actor appshared.ActorContext
 	}
 	var held []shared.ID
 	err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		ci, err := s.Store.FindCI(ctx, ciID, true)
-		if err != nil {
+		if _, err := s.Store.FindCI(ctx, ciID, true); err != nil {
 			return err
-		}
-		if !ci.MergedInto.IsZero() {
-			return shared.ErrConflict.WithDetail("cmdb.ci_merged")
 		}
 		moved, err := s.linkFile(ctx, ciID, mediaID, attach)
 		if err != nil {
 			return err
 		}
 		if held, err = s.Files.CiMediaIDs(ctx, ciID); err != nil || !moved {
+			return err
+		}
+		verb := domain.VerbFileAttached
+		if !attach {
+			verb = domain.VerbFileRemoved
+		}
+		if err := s.chronicle(ctx, actor, ciID, verb, map[string]domain.Moved{"media_id": fileSide(mediaID, attach)}); err != nil {
 			return err
 		}
 		return s.record(ctx, actor, action, ciTarget, ciID,
@@ -184,6 +188,13 @@ func (s Inventory) readsAnyHub(ctx context.Context, actor appshared.ActorContext
 	return false
 }
 
+func fileSide(mediaID shared.ID, attach bool) domain.Moved {
+	if attach {
+		return domain.Moved{To: mediaID.String()}
+	}
+	return domain.Moved{From: mediaID.String()}
+}
+
 // CiFilesOutput is the shape both directions answer (schema CiAttachments).
 func CiFilesOutput(ciID shared.ID, ids []shared.ID) usecase.Output {
 	out := make([]string, 0, len(ids))
@@ -225,7 +236,7 @@ func (h AttachCiMedia) Descriptor() usecase.Descriptor {
 		Summary: "Puts a confirmed upload on a configuration item, so that every reader of its hub may read it: one " +
 			"the caller uploaded, or one an object of a hub they read holds. Idempotent. The bytes are shared, never " +
 			"copied - attaching raises the upload's reference count.",
-		SideEffects: "Writes the link, raises the reference count, and an audit entry.",
+		SideEffects: "Writes the link, raises the reference count, a step of the object's history and an audit entry.",
 		TokenScope:  cisWrite,
 		Input:       filesInput("attach"),
 		Audit:       usecase.AuditDeclaration{Action: CIFileAttachedAction, TargetType: ciTarget, Severity: audit.SeverityInfo, Required: true},
@@ -239,7 +250,7 @@ func (h DetachCiMedia) Descriptor() usecase.Descriptor {
 		Name: DetachCiMediaName, Permission: service.PermissionWriteItems,
 		Summary: "Takes a file off a configuration item. Idempotent. The upload itself stays - other things may hold " +
 			"it - and one that loses its last reference is removed by the media reconciliation.",
-		SideEffects: "Removes the link, lowers the reference count, writes and an audit entry.",
+		SideEffects: "Removes the link, lowers the reference count, writes a step of the object's history and an audit entry.",
 		TokenScope:  cisWrite,
 		Input:       filesInput("detach"),
 		Audit:       usecase.AuditDeclaration{Action: CIFileRemovedAction, TargetType: ciTarget, Severity: audit.SeverityInfo, Required: true},

@@ -461,6 +461,7 @@ func Descriptors() []usecase.Descriptor {
 		cmdbservice.ListCiAlerts{}.Descriptor(),
 		cmdbservice.ListCiBacklinks{}.Descriptor(),
 		cmdbservice.AttachCiMedia{}.Descriptor(),
+		cmdbservice.ListCiHistory{}.Descriptor(),
 		cmdbservice.DetachCiMedia{}.Descriptor(),
 		work.ListLinkTypes{}.Descriptor(),
 		work.CreateLinkType{}.Descriptor(),

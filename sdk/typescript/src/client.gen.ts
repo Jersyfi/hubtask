@@ -1265,6 +1265,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/cis/{ciId}/attachments/{mediaId}", { "ciId": ciId, "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** An object's history */
+  listCiHistory(ciId: string, options: CallOptions & { readonly query?: NonNullable<operations["listCiHistory"]['parameters']['query']> } = {}): Promise<operations["listCiHistory"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/history", { "ciId": ciId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The objects an entry names as affected */
   listEntryCis(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/cis", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
