@@ -15878,6 +15878,7 @@
   "media.document_server_private_network": "Diese Adresse liegt in einem privaten Netz, und diese Installation erlaubt dort keinen Dokumentenserver. Nutze einen Server mit öffentlicher https-Adresse oder bitte den Betrieb der Installation, einen im privaten Netz zu erlauben.",
   "media.document_server_unreachable": "Unter dieser Adresse hat nichts geantwortet. Prüfe die Adresse und ob der Server läuft.",
   "media.document_server_no_discovery": "Unter dieser Adresse hat etwas geantwortet, aber kein Dokumentenserver: Es kam keine WOPI-Discovery. Prüfe die Adresse.",
+  "media.document_server_no_editor": "Der Dokumentenserver hat keinen Editor für diese Art Datei.",
   "media.edit": "Datei zum Bearbeiten geöffnet",
   "wopi.operation_unknown": "Der Dokumentenserver hat etwas verlangt, das dieser Arbeitsbereich nicht anbietet.",
   "wopi.token_invalid": "Der Link zu dieser Datei ist abgelaufen. Öffne die Datei erneut."

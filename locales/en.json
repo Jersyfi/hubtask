@@ -15878,6 +15878,7 @@
   "media.document_server_private_network": "This address lies inside a private network, and this installation does not allow a document server there. Use a server with a public https address, or ask the installation's operator to allow one on the private network.",
   "media.document_server_unreachable": "Nothing answered at this address. Check the address and that the server is running.",
   "media.document_server_no_discovery": "Something answered at this address, but not as a document server: it gave no WOPI discovery. Check the address.",
+  "media.document_server_no_editor": "The document server has no editor for this kind of file.",
   "media.edit": "Opened a file for editing",
   "wopi.operation_unknown": "The document server asked for something this workspace does not offer.",
   "wopi.token_invalid": "The link to this file has expired. Open the file again."

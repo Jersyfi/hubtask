@@ -4558,7 +4558,13 @@ func run() error {
 			if info, statErr := os.Stat(previousUIAssets); statErr == nil && info.IsDir() {
 				handler = handler.WithPrevious(os.DirFS(previousUIAssets))
 			}
-			ui = handler.FramingSources(cfg.UI.FrameSources)
+			// The editor's frame opens, per page load, for the document server the page's
+			// workspace entered and no other (ADR-0104, security.md §9).
+			framed := mediaservice.FramedServer{
+				Tenants: signInStore, Wopi: postgres.WopiRepository{}, UnitOfWork: unitOfWork,
+				Multi: cfg.Tenancy == envport.TenancyMulti, InstallationHost: installationHost,
+			}
+			ui = handler.FramingSources(cfg.UI.FrameSources).WithDocumentServers(framed.OriginFor)
 			build = webui.Build(files)
 			if webui.IsPlaceholder(files) {
 				// Worth saying once at startup rather than leaving somebody to discover it in a

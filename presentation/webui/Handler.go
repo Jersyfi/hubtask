@@ -4,14 +4,18 @@
 package webui
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 // ContentSecurityPolicy is the policy for the UI origin, decided in ADR-0028 - as it stands for an
@@ -152,6 +156,32 @@ type Handler struct {
 	build string
 	// previous is the previous release's content-hashed assets (WithPrevious), nil for none.
 	previous fs.FS
+	// documentServer answers the origin of the document server the workspace a page loads in has
+	// entered (WithDocumentServers), nil for none.
+	documentServer func(ctx context.Context, host string) (string, error)
+}
+
+// WithDocumentServers answers the handler with the document's policy opened, per page load, for
+// the document server the workspace on the request's host entered: its origin joins `frame-src`
+// and replaces `form-action 'none'`, so the viewer can post the editor's token into a frame
+// (ADR-0104). Only the document; an asset keeps the closed policy, and so does a page whose
+// lookup fails.
+func (h Handler) WithDocumentServers(origin func(ctx context.Context, host string) (string, error)) Handler {
+	h.documentServer = origin
+	return h
+}
+
+// WithDocumentServer is a policy opened for one document server's origin; empty answers it
+// unchanged.
+func WithDocumentServer(policy, origin string) string {
+	if origin == "" {
+		return policy
+	}
+	policy = strings.Replace(policy, "form-action 'none'", "form-action "+origin, 1)
+	if strings.Contains(policy, "; frame-src ") {
+		return strings.Replace(policy, "; frame-src ", "; frame-src "+origin+" ", 1)
+	}
+	return policy + "; frame-src " + origin
 }
 
 // WithPrevious answers the handler with the previous release's assets beside its own bundle: a
@@ -273,6 +303,16 @@ func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) serve(w http.ResponseWriter, r *http.Request, name string) {
+	if name == indexPath && h.documentServer != nil {
+		origin, err := h.documentServer(r.Context(), r.Host)
+		if err != nil {
+			slog.WarnContext(r.Context(), "the workspace's document server could not be read for the page's policy",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
+		if err == nil && origin != "" {
+			w.Header().Set("Content-Security-Policy", WithDocumentServer(h.policy, origin))
+		}
+	}
 	if contentHashed.MatchString(name) {
 		w.Header().Set("Cache-Control", immutableCache)
 	} else {
