@@ -68,6 +68,7 @@ func (g roleGate) Permits(_ context.Context, actor appshared.ActorContext, reque
 func (g roleGate) Permitted(_ context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error) {
 	out := make([]bool, len(paths))
 	for i := range paths {
+		request.Path = paths[i]
 		out[i] = g.allows(actor, request)
 	}
 	return out, nil
@@ -303,7 +304,7 @@ func (f postFixture) post(t *testing.T, in usecase.Input) shared.ID {
 // The matrix: a post's audience and moment × account kind, each through the catalogue entry the
 // REST, MCP and hubctl doors call alike (the parity gate holds them to one). Nobody without READ on
 // the hub sees a post; a scheduled one only its writers; one narrowed to a group only the group's
-// readers - and an agent no more than its person.
+// readers - and an agent no more than its person. The pictures and files in its body go with it.
 func TestAPostReachesItsAudienceAloneThroughEveryDoor(t *testing.T) {
 	ahead := start.Add(time.Hour).Format(time.RFC3339)
 	for _, row := range []struct {
@@ -331,8 +332,10 @@ func TestAPostReachesItsAudienceAloneThroughEveryDoor(t *testing.T) {
 				list, listErr := call(t, ListHubPosts{Space: f.space}.Descriptor(), actorOf(account), usecase.Input{"hub_id": hub.String()})
 				listed := listErr == nil && len(list["data"].([]any)) == 1
 				_, pageErr := (ReadPage{Space: f.space}).Execute(context.Background(), actorOf(account), id)
-				if (readErr == nil) != wants || listed != wants || (pageErr == nil) != wants {
-					t.Errorf("account %s: read %v, listed %v, page %v; wants seen %v", account, readErr, listed, pageErr, wants)
+				// A picture or a file in the post's body is read by whoever the post is for (UC-MED-05/6).
+				files, filesErr := PageMediaReach{Space: f.space}.ReadsAny(context.Background(), actorOf(account), []shared.ID{id})
+				if (readErr == nil) != wants || listed != wants || (pageErr == nil) != wants || filesErr != nil || files != wants {
+					t.Errorf("account %s: read %v, listed %v, page %v, files %v (%v); wants seen %v", account, readErr, listed, pageErr, files, filesErr, wants)
 				}
 			}
 		})
