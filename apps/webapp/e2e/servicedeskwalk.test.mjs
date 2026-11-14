@@ -37,7 +37,7 @@ function deskBackend() {
   });
   const approval = (item, number) => ({
     id: id(), item_id: item.id, item_title: item.title, item_number: number, on_behalf_of: null, workflow: 'requests', step: 'approve',
-    item_version: 1, state: 'PENDING', current_level: 1,
+    step_name: 'Get the manager\'s yes', item_version: 1, state: 'PENDING', current_level: 1,
     levels: [{ rule: 'ANY', count: 1, approvers: [ACCOUNT.id], roles: [], needed: 1 }],
     decisions: [], requested_by: OTHER.id, requested_at: at(-3 * HOUR), decided_at: null, due_at: at(21 * HOUR), may_decide: true, version: 1,
   });
@@ -176,9 +176,13 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
   const beside = page.locator('[data-approval]');
   await beside.waitFor({ timeout: 5_000 });
   assert.match(await beside.innerText(), /Waiting[\s\S]*Mara Lind asked on [\s\S]*Level 1/);
+  // The team reads the step by the workflow's name for it, never its key (P-12).
+  assert.match(await beside.innerText(), /to take “Get the manager's yes”/);
+  assert.doesNotMatch(await beside.innerText(), /“approve”/);
 
   await page.goto(`${served.origin}/approvals`);
   const first = page.locator('article').filter({ hasText: REQUEST.title });
+  await first.getByText('to take “Get the manager\'s yes”', { exact: false }).waitFor({ timeout: 5_000 });
   await first.getByRole('button', { name: 'Approve' }).click();
   // Decided, it leaves the list: only what still waits for the reader's yes is listed.
   await first.waitFor({ state: 'detached', timeout: 5_000 });

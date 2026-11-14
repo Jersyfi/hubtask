@@ -807,7 +807,7 @@
                 {@const approval = row.approval}
                 <span class="need-mark" data-product="approvals" aria-hidden="true"><Icon name="user-check" size="sm" /></span>
                 <a class="subject" href={`/items/${approval.item_id}`}>{`${approval.item_number ? `#${approval.item_number} ` : ''}${approval.item_title ?? ''}`}</a>
-                <span class="from">{[approval.step, formatRelative(approval.requested_at, messages.locale)].join(' · ')}</span>
+                <span class="from">{[approval.step_name, formatRelative(approval.requested_at, messages.locale)].filter(Boolean).join(' · ')}</span>
                 <span class="acts">
                   {#if approval.may_decide}
                     <Button size="sm" tone="subtle" onclick={() => void approve(approval)}>{t('app.approvals.approve')}</Button>

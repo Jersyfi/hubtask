@@ -14424,6 +14424,7 @@
   "app.approvals.yes_of": "{yes} of {needed} yes",
   "app.approvals.asked_by": "{name} asked on {at} to take “{step}”",
   "app.approvals.asked_by_portal": "{name} asked for your approval on {at}",
+  "app.approvals.asked_unnamed": "{name} asked for approval on {at}",
   "app.approvals.due": "due {at}",
   "app.approvals.for_person": "for {name}, who is away",
   "app.approvals.decided": "{name} on {at}",

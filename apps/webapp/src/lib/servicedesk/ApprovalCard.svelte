@@ -115,9 +115,11 @@
       {#if approval.on_behalf_of}<span class="quiet">{t('app.approvals.for_person', { name: name(approval.on_behalf_of) })}</span>{/if}
     </Inline>
     <p class="quiet">
-      <!-- The portal's reader reads no step key (P-12): the team's step is the team's word. -->
-      {!isPortal ? t('app.approvals.asked_by', { name: name(approval.requested_by), at: at(approval.requested_at), step: approval.step })
-        : t('app.approvals.asked_by_portal', { name: name(approval.requested_by), at: at(approval.requested_at) })}
+      <!-- A step is read by its workflow's name, never its key (P-12); the portal's reader reads
+           none - the team's step is the team's word. -->
+      {#if isPortal}{t('app.approvals.asked_by_portal', { name: name(approval.requested_by), at: at(approval.requested_at) })}
+      {:else if approval.step_name}{t('app.approvals.asked_by', { name: name(approval.requested_by), at: at(approval.requested_at), step: approval.step_name })}
+      {:else}{t('app.approvals.asked_unnamed', { name: name(approval.requested_by), at: at(approval.requested_at) })}{/if}
       {#if approval.state === 'PENDING' && approval.due_at} · {t('app.approvals.due', { at: at(approval.due_at) })}{/if}
     </p>
     <ol class="levels">
@@ -156,7 +158,7 @@
 {#if approval.may_decide && approval.state === 'PENDING'}
   <Dialog
     size="m"
-    title={t('app.approvals.answer_title', { title: approval.item_title ?? approval.step })}
+    title={t('app.approvals.answer_title', { title: approval.item_title ?? approval.step_name ?? '' })}
     bind:isOpen={isAnswering}
     dismissLabel={t('app.page.cancel')}
     onClose={() => (refusal = undefined)}
