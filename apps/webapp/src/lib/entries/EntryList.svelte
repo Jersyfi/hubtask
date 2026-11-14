@@ -2404,6 +2404,14 @@
   /* Every list's phone row (§7, scene queue 4): the check and the title, the person at the end of
      the title's line; under the title the meta line and, on a desk, the SLA bar, each one line. */
   .row[data-phone] { position: relative; }
+  /* The whole phone row opens its entry (§7): the title's press is stretched over the row, and the
+     row's own controls - the tick, the state, the person - stand above it. */
+  .row[data-phone] :global(.task-row > .row) { position: relative; }
+  .row[data-phone] :global(.task-row > .row > .content) { position: static; }
+  .row[data-phone] :global(.task-row > .row > .content::after) { content: ''; position: absolute; inset: 0; }
+  .row[data-phone] :global(.task-row > .row > .leading),
+  .row[data-phone] .phone-meta :global(button),
+  .row[data-phone] .phone-person { position: relative; z-index: 1; }
   .row[data-phone] :global(.task-row > .row) {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;

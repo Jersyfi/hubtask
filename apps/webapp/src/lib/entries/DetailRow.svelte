@@ -163,4 +163,10 @@
     font-size: var(--fs-075);
     font-weight: var(--fw-medium);
   }
+
+  /* A thumb's target (§7): a row is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .detail-row { min-block-size: var(--layout-target); align-items: center; }
+  }
 </style>

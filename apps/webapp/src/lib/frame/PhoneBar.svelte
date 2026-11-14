@@ -112,7 +112,8 @@
   .back {
     display: flex;
     align-items: center;
-    min-inline-size: 0;
+    /* Its words give way, never its press: at least a thumb's width (§7). */
+    min-inline-size: var(--layout-target);
     min-block-size: var(--layout-nav-touchrow);
     padding-inline-end: var(--sp-050);
     color: var(--text-brand);
