@@ -716,6 +716,10 @@
   });
 
   /** Grouped or put in another order, the list is not the manual order, so nothing is dragged. */
+  /** Every group ends in its own add line (L-6): the foot then adds no second one under them. */
+  const hasGroupAdds = $derived(
+    !root && arrangement !== undefined && !sections && (arrangement.grouping === 'column' || (arrangement.grouping === 'status' && withSla)),
+  );
   const isArranged = $derived((arrangement !== undefined && arrangement.grouping !== 'none' && !sections) || query?.sort !== undefined);
   /** Whether the done group stands open. Folded, as the concept draws it. */
   let isDoneOpen = $state(false);
@@ -1608,7 +1612,7 @@
         </button>
       {/if}
 
-      {#if !isReadOnly && mayCreate && topTypes().length > 0 && !isAddedInPlace}
+      {#if !isReadOnly && mayCreate && topTypes().length > 0 && !isAddedInPlace && !hasGroupAdds}
         {#if !(viewport.isCompact && !root)}
           <!-- Capture, pointed here: a door into the one add, said as quietly as the board's column
                foot says it (design-system.md §11.8). Not on a phone's collection, where the bottom

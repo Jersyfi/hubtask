@@ -246,7 +246,6 @@
             </div>
           {/if}
         </div>
-        {#if !setup.order}<p class="quiet">{t('app.viewcfg.manual_hint')}</p>{/if}
         {#if isList}
           <p class="label">{t('app.viewcfg.done')}</p>
           <div class="chips" role="group" aria-label={t('app.viewcfg.done')}>
