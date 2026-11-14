@@ -845,6 +845,14 @@ var generatedCommands = []door{
 			{Name: "status", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "confirm", OperationID: "confirmCi", Method: "POST", Path: "/cis/{ciId}:confirm", Summary: "Confirm an object is as recorded",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "review_months", Kind: "integer", Help: "How far the next review moves on from today; 12 when not given", Required: false},
+		},
+		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
 	{Group: "ci", Verb: "create", OperationID: "createCi", Method: "POST", Path: "/hubs/{hubId}/cis", Summary: "Make an object by hand",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
@@ -1015,6 +1023,11 @@ var generatedCommands = []door{
 			{Name: "limit", Kind: "integer", Help: "", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"id", "name", "version"}},
+	{Group: "cmdb", Verb: "campaign remind", OperationID: "remindCiCampaign", Method: "POST", Path: "/ci-campaigns/{campaignId}:remind", Summary: "Remind the owners who have not answered yet",
+		PathParams: []doorParam{
+			{Name: "campaignId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"reminded"}},
 	{Group: "cmdb", Verb: "campaign show", OperationID: "readCiCampaign", Method: "GET", Path: "/ci-campaigns/{campaignId}", Summary: "A certification campaign with every object asked",
 		PathParams: []doorParam{
 			{Name: "campaignId", Kind: "uuid", Help: "", Required: true},
@@ -1099,6 +1112,12 @@ var generatedCommands = []door{
 			{Name: "service_id", Kind: "uuid", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "key", "name", "version"}},
+	{Group: "cmdb", Verb: "group delete", OperationID: "deleteCiGroup", Method: "DELETE", Path: "/hubs/{hubId}/ci-groups/{groupKey}", Summary: "Delete an object group by its key",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+			{Name: "groupKey", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: true, StepUp: false, List: false, Columns: []string(nil)},
 	{Group: "cmdb", Verb: "group ls", OperationID: "listCiGroups", Method: "GET", Path: "/hubs/{hubId}/ci-groups", Summary: "A hub's object groups",
 		PathParams: []doorParam{
 			{Name: "hubId", Kind: "uuid", Help: "", Required: true},

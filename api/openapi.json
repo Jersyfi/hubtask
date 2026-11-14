@@ -9810,6 +9810,54 @@
         }
       }
     },
+    "/cis/{ciId}:confirm": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "confirmCi",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci confirm",
+        "summary": "Confirm an object is as recorded",
+        "description": "Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.\n",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CiConfirm"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigurationItem"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/cis/{ciId}/compliance": {
       "parameters": [
         {
@@ -10274,6 +10322,44 @@
         }
       }
     },
+    "/ci-campaigns/{campaignId}:remind": {
+      "parameters": [
+        {
+          "name": "campaignId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "post": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "remindCiCampaign",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "cmdb campaign remind",
+        "summary": "Remind the owners who have not answered yet",
+        "description": "Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "Reminded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiCampaignReminded"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ci-campaigns/{campaignId}/cis/{ciId}": {
       "parameters": [
         {
@@ -10464,6 +10550,32 @@
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "deleteCiGroup",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-rest-path": {
+          "groupKey": "key"
+        },
+        "x-hubtask-cli": "cmdb group delete",
+        "summary": "Delete an object group by its key",
+        "description": "The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Deleted"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -66837,7 +66949,8 @@
               "EMERGENCY_ACCESS",
               "REQUEST_REPLY",
               "SLA",
-              "POST"
+              "POST",
+              "ATTESTATION"
             ],
             "description": "What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.\n"
           }
@@ -74510,6 +74623,21 @@
             "type": "string",
             "format": "date-time"
           },
+          "confirmed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a person last confirmed it is as recorded, by itself or in a campaign."
+          },
+          "confirmed_by": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
           "version": {
             "type": "integer"
           }
@@ -76587,6 +76715,29 @@
             }
           }
         ]
+      },
+      "CiConfirm": {
+        "type": "object",
+        "properties": {
+          "review_months": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 60,
+            "description": "How far the next review moves on from today; 12 when not given."
+          }
+        }
+      },
+      "CiCampaignReminded": {
+        "type": "object",
+        "required": [
+          "reminded"
+        ],
+        "properties": {
+          "reminded": {
+            "type": "integer",
+            "description": "How many people were reminded."
+          }
+        }
       },
       "CiAttest": {
         "type": "object",

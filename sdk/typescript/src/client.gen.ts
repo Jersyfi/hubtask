@@ -1225,6 +1225,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/cis/{ciId}", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Confirm an object is as recorded */
+  confirmCi(ciId: string, body: NonNullable<operations["confirmCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["confirmCi"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/cis/{ciId}:confirm", { "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set an object's lifecycle and compliance fields */
   setCiCompliance(ciId: string, body: NonNullable<operations["setCiCompliance"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setCiCompliance"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/cis/{ciId}/compliance", { "ciId": ciId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
@@ -1280,6 +1285,11 @@ export class HubtaskClient {
     return this.call("POST", "/ci-campaigns/{campaignId}:close", { "campaignId": campaignId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Remind the owners who have not answered yet */
+  remindCiCampaign(campaignId: string, options: CallOptions = {}): Promise<operations["remindCiCampaign"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/ci-campaigns/{campaignId}:remind", { "campaignId": campaignId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Answer a campaign's question about an object */
   attestCi(campaignId: string, ciId: string, body: NonNullable<operations["attestCi"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["attestCi"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", { "campaignId": campaignId, "ciId": ciId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
@@ -1298,6 +1308,11 @@ export class HubtaskClient {
   /** Define or change an object group by its key */
   defineCiGroup(hubId: string, groupKey: string, body: NonNullable<operations["defineCiGroup"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["defineCiGroup"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", { "hubId": hubId, "groupKey": groupKey }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Delete an object group by its key */
+  deleteCiGroup(hubId: string, groupKey: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/hubs/{hubId}/ci-groups/{groupKey}", { "hubId": hubId, "groupKey": groupKey }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** The objects a group holds now */

@@ -116,6 +116,7 @@ var restDoors = map[string]restDoor{
 	"configureLdapDirectory":            {UseCase: "ConfigureLdapDirectory", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: true, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"every_minutes"}},
 	"confirmAddress":                    {UseCase: "ConfirmAddress", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"tenant_header"}},
 	"confirmAuthenticatorReplacement":   {UseCase: "ConfirmAuthenticatorReplacement", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"confirmCi":                         {UseCase: "ConfirmCi", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string{"review_months"}},
 	"confirmMediaUpload":                {UseCase: "ConfirmMediaUpload", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"confirmPost":                       {UseCase: "ConfirmPost", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"confirmTotp":                       {UseCase: "ConfirmTotp", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -196,6 +197,7 @@ var restDoors = map[string]restDoor{
 	"deleteBucket":                      {UseCase: "DeleteBucket", Status: 200, Query: []string{"new_done_bucket_id"}, IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteBusinessCalendar":            {UseCase: "DeleteBusinessCalendar", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteChatBot":                     {UseCase: "DeleteChatBot", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"deleteCiGroup":                     {UseCase: "DeleteCiGroup", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteComment":                     {UseCase: "DeleteComment", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteCustomField":                 {UseCase: "DeleteCustomField", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"deleteDashboard":                   {UseCase: "DeleteDashboard", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -609,6 +611,7 @@ var restDoors = map[string]restDoor{
 	"rejectTimesheet":                   {UseCase: "RejectTimesheet", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"relateCis":                         {UseCase: "RelateCis", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"releaseLegalHold":                  {UseCase: "ReleaseLegalHold", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"remindCiCampaign":                  {UseCase: "RemindCiCampaign", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"remindPost":                        {UseCase: "RemindPost", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeAbsence":                     {UseCase: "RemoveAbsence", Status: 204, Query: []string(nil), IfMatch: true, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"removeAgentCase":                   {UseCase: "RemoveAgentCase", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -1522,6 +1525,13 @@ func (c *RestController) ConfirmAuthenticatorReplacement(w http.ResponseWriter, 
 	c.door(w, r, restDoors["confirmAuthenticatorReplacement"], usecase.Input{}, nil, &body, &answer)
 }
 
+// ConfirmCi answers POST /cis/{ciId}:confirm by the generated mapping.
+func (c *RestController) ConfirmCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID) {
+	var body openapi.ConfirmCiJSONRequestBody
+	var answer openapi.ConfigurationItem
+	c.door(w, r, restDoors["confirmCi"], usecase.Input{"ci_id": ciId.String()}, nil, &body, &answer)
+}
+
 // ConfirmMediaUpload answers POST /media/{mediaId}:confirm by the generated mapping.
 func (c *RestController) ConfirmMediaUpload(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId, params openapi.ConfirmMediaUploadParams) {
 	c.door(w, r, restDoors["confirmMediaUpload"], usecase.Input{"media_id": mediaId.String()}, params, nil, answerBy(mediaResponse))
@@ -2061,6 +2071,11 @@ func (c *RestController) DeleteBusinessCalendar(w http.ResponseWriter, r *http.R
 // DeleteChatBot answers DELETE /chat-bots/{botId} by the generated mapping.
 func (c *RestController) DeleteChatBot(w http.ResponseWriter, r *http.Request, botId openapi_types.UUID) {
 	c.door(w, r, restDoors["deleteChatBot"], usecase.Input{"bot_id": botId.String()}, nil, nil, nil)
+}
+
+// DeleteCiGroup answers DELETE /hubs/{hubId}/ci-groups/{groupKey} by the generated mapping.
+func (c *RestController) DeleteCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params openapi.DeleteCiGroupParams) {
+	c.door(w, r, restDoors["deleteCiGroup"], usecase.Input{"hub_id": hubId.String(), "key": groupKey}, params, nil, nil)
 }
 
 // DeleteComment answers DELETE /items/{itemId}/comments/{commentId} by the generated mapping.
@@ -4783,6 +4798,12 @@ func (c *RestController) RelateCis(w http.ResponseWriter, r *http.Request) {
 func (c *RestController) ReleaseLegalHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID) {
 	var body openapi.ReleaseLegalHoldJSONRequestBody
 	c.door(w, r, restDoors["releaseLegalHold"], usecase.Input{"hold_id": holdId.String()}, nil, &body, answerBy(legalHoldResponse))
+}
+
+// RemindCiCampaign answers POST /ci-campaigns/{campaignId}:remind by the generated mapping.
+func (c *RestController) RemindCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID) {
+	var answer openapi.CiCampaignReminded
+	c.door(w, r, restDoors["remindCiCampaign"], usecase.Input{"campaign_id": campaignId.String()}, nil, nil, &answer)
 }
 
 // RemindPost answers POST /posts/{pageId}:remind by the generated mapping.

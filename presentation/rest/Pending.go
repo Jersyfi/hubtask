@@ -3055,6 +3055,18 @@ func (pending) DefineCiGroup(w http.ResponseWriter, r *http.Request, _ openapi_t
 	notAvailable(w, r)
 }
 
+func (pending) DeleteCiGroup(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ string, _ openapi.DeleteCiGroupParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ConfirmCi(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) RemindCiCampaign(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) DefineSoftwareAlias(w http.ResponseWriter, r *http.Request, _ openapi.DefineSoftwareAliasParams) {
 	notAvailable(w, r)
 }

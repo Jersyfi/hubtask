@@ -6106,6 +6106,7 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 // Defines values for InvitationDeliveryCategory.
 const (
 	InvitationDeliveryCategoryASSIGNMENT      InvitationDeliveryCategory = "ASSIGNMENT"
+	InvitationDeliveryCategoryATTESTATION     InvitationDeliveryCategory = "ATTESTATION"
 	InvitationDeliveryCategoryCOMMENT         InvitationDeliveryCategory = "COMMENT"
 	InvitationDeliveryCategoryEMERGENCYACCESS InvitationDeliveryCategory = "EMERGENCY_ACCESS"
 	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
@@ -6122,6 +6123,8 @@ const (
 func (e InvitationDeliveryCategory) Valid() bool {
 	switch e {
 	case InvitationDeliveryCategoryASSIGNMENT:
+		return true
+	case InvitationDeliveryCategoryATTESTATION:
 		return true
 	case InvitationDeliveryCategoryCOMMENT:
 		return true
@@ -15647,6 +15650,12 @@ type CiCampaignList struct {
 	Data []CiCampaign `json:"data"`
 }
 
+// CiCampaignReminded defines model for CiCampaignReminded.
+type CiCampaignReminded struct {
+	// Reminded How many people were reminded.
+	Reminded int `json:"reminded"`
+}
+
 // CiCampaignStart defines model for CiCampaignStart.
 type CiCampaignStart struct {
 	Classes      *[]string           `json:"classes,omitempty"`
@@ -15720,6 +15729,12 @@ type CiComplianceStage string
 
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
+
+// CiConfirm defines model for CiConfirm.
+type CiConfirm struct {
+	// ReviewMonths How far the next review moves on from today; 12 when not given.
+	ReviewMonths *int `json:"review_months,omitempty"`
+}
 
 // CiConnector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
@@ -17042,8 +17057,12 @@ type ConfigVersionList struct {
 type ConfigurationItem struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	Class      string                 `json:"class"`
-	CreatedAt  time.Time              `json:"created_at"`
-	CreatedBy  *openapi_types.UUID    `json:"created_by,omitempty"`
+
+	// ConfirmedAt When a person last confirmed it is as recorded, by itself or in a campaign.
+	ConfirmedAt *time.Time          `json:"confirmed_at,omitempty"`
+	ConfirmedBy *openapi_types.UUID `json:"confirmed_by,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by,omitempty"`
 
 	// Decision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
 	Decision *CiDecision `json:"decision,omitempty"`
@@ -30430,6 +30449,12 @@ type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// DeleteCiGroupParams defines parameters for DeleteCiGroup.
+type DeleteCiGroupParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DefineCiGroupParams defines parameters for DefineCiGroup.
 type DefineCiGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -32588,6 +32613,9 @@ type MoveCiAssetJSONRequestBody = CiAssetMove
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
 
+// ConfirmCiJSONRequestBody defines body for ConfirmCi for application/json ContentType.
+type ConfirmCiJSONRequestBody = CiConfirm
+
 // SetCiConnectorCredentialJSONRequestBody defines body for SetCiConnectorCredential for application/json ContentType.
 type SetCiConnectorCredentialJSONRequestBody = CiConnectorCredential
 
@@ -34600,6 +34628,9 @@ type ServerInterface interface {
 	// CloseCiCampaign Stop a campaign taking answers
 	// (POST /ci-campaigns/{campaignId}:close)
 	CloseCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID, params CloseCiCampaignParams)
+	// RemindCiCampaign Remind the owners who have not answered yet
+	// (POST /ci-campaigns/{campaignId}:remind)
+	RemindCiCampaign(w http.ResponseWriter, r *http.Request, campaignId openapi_types.UUID)
 	// ResolveCiDuplicate Merge a duplicate or call it distinct
 	// (POST /ci-duplicates/{duplicateId}:resolve)
 	ResolveCiDuplicate(w http.ResponseWriter, r *http.Request, duplicateId openapi_types.UUID)
@@ -34645,6 +34676,9 @@ type ServerInterface interface {
 	// ListCiWork The entries an object is part of
 	// (GET /cis/{ciId}/work)
 	ListCiWork(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
+	// ConfirmCi Confirm an object is as recorded
+	// (POST /cis/{ciId}:confirm)
+	ConfirmCi(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
 	// SetCiConnectorCredential Set a connector's credential
 	// (PUT /cmdb-connectors/{connectorId}/credential)
 	SetCiConnectorCredential(w http.ResponseWriter, r *http.Request, connectorId openapi_types.UUID)
@@ -35071,6 +35105,9 @@ type ServerInterface interface {
 	// ListCiGroups A hub's object groups
 	// (GET /hubs/{hubId}/ci-groups)
 	ListCiGroups(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// DeleteCiGroup Delete an object group by its key
+	// (DELETE /hubs/{hubId}/ci-groups/{groupKey})
+	DeleteCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params DeleteCiGroupParams)
 	// DefineCiGroup Define or change an object group by its key
 	// (PUT /hubs/{hubId}/ci-groups/{groupKey})
 	DefineCiGroup(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID, groupKey string, params DefineCiGroupParams)
@@ -43515,6 +43552,32 @@ func (siw *ServerInterfaceWrapper) CloseCiCampaign(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// RemindCiCampaign operation middleware
+func (siw *ServerInterfaceWrapper) RemindCiCampaign(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "campaignId" -------------
+	var campaignId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "campaignId", r.PathValue("campaignId"), &campaignId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "campaignId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemindCiCampaign(w, r, campaignId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ResolveCiDuplicate operation middleware
 func (siw *ServerInterfaceWrapper) ResolveCiDuplicate(w http.ResponseWriter, r *http.Request) {
 
@@ -44009,6 +44072,32 @@ func (siw *ServerInterfaceWrapper) ListCiWork(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCiWork(w, r, ciId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmCi operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmCi(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmCi(w, r, ciId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -49456,6 +49545,65 @@ func (siw *ServerInterfaceWrapper) ListCiGroups(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListCiGroups(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCiGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCiGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "groupKey" -------------
+	var groupKey string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "groupKey", r.PathValue("groupKey"), &groupKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupKey", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteCiGroupParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCiGroup(w, r, hubId, groupKey, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66538,6 +66686,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/cmdb-health", wrapper.ReadCmdbHealth)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}", wrapper.ReadCi)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/cis/{ciId}", wrapper.UpdateCi)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/cis/{ciId}:confirm", wrapper.ConfirmCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/compliance", wrapper.SetCiCompliance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/backlinks", wrapper.ListCiBacklinks)
@@ -66549,9 +66698,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/ci-campaigns", wrapper.StartCiCampaign)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-campaigns/{campaignId}", wrapper.ReadCiCampaign)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-campaigns/{campaignId}:close", wrapper.CloseCiCampaign)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ci-campaigns/{campaignId}:remind", wrapper.RemindCiCampaign)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ci-campaigns/{campaignId}/cis/{ciId}", wrapper.AttestCi)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-work", wrapper.ListHubCiWork)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/ci-groups", wrapper.ListCiGroups)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/hubs/{hubId}/ci-groups/{groupKey}", wrapper.DeleteCiGroup)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/ci-groups/{groupKey}", wrapper.DefineCiGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ci-groups/{groupId}/members", wrapper.ListCiGroupMembers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/service-map", wrapper.ReadServiceMap)

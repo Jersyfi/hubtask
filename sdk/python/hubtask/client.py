@@ -991,6 +991,10 @@ class Client:
         """Change an object by hand"""
         return self._call("PATCH", "/cis/{ciId}", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def confirm_ci(self, ci_id: str, body: "CiConfirm") -> "ConfigurationItem":
+        """Confirm an object is as recorded"""
+        return self._call("POST", "/cis/{ciId}:confirm", {"ciId": ci_id}, None, {}, body, "json", "application/json", "json")
+
     def set_ci_compliance(self, ci_id: str, body: "CiCompliance", *, if_match: str | None = None) -> "ConfigurationItem":
         """Set an object's lifecycle and compliance fields"""
         return self._call("PUT", "/cis/{ciId}/compliance", {"ciId": ci_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
@@ -1035,6 +1039,10 @@ class Client:
         """Stop a campaign taking answers"""
         return self._call("POST", "/ci-campaigns/{campaignId}:close", {"campaignId": campaign_id}, None, {"If-Match": if_match}, None, "none", None, "json")
 
+    def remind_ci_campaign(self, campaign_id: str) -> "CiCampaignReminded":
+        """Remind the owners who have not answered yet"""
+        return self._call("POST", "/ci-campaigns/{campaignId}:remind", {"campaignId": campaign_id}, None, {}, None, "none", None, "json")
+
     def attest_ci(self, campaign_id: str, ci_id: str, body: "CiAttest") -> "CiAttestation":
         """Answer a campaign's question about an object"""
         return self._call("PUT", "/ci-campaigns/{campaignId}/cis/{ciId}", {"campaignId": campaign_id, "ciId": ci_id}, None, {}, body, "json", "application/json", "json")
@@ -1050,6 +1058,10 @@ class Client:
     def define_ci_group(self, hub_id: str, group_key: str, body: "CiGroupDefine", *, if_match: str | None = None) -> "CiGroup":
         """Define or change an object group by its key"""
         return self._call("PUT", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def delete_ci_group(self, hub_id: str, group_key: str, *, if_match: str | None = None) -> None:
+        """Delete an object group by its key"""
+        return self._call("DELETE", "/hubs/{hubId}/ci-groups/{groupKey}", {"hubId": hub_id, "groupKey": group_key}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def list_ci_group_members(self, group_id: str) -> "CiGroupMembers":
         """The objects a group holds now"""

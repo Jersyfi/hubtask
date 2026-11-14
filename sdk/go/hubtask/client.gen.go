@@ -6112,6 +6112,7 @@ func (e InstanceSettingsPlanAppliedThrough) Valid() bool {
 // Defines values for InvitationDeliveryCategory.
 const (
 	InvitationDeliveryCategoryASSIGNMENT      InvitationDeliveryCategory = "ASSIGNMENT"
+	InvitationDeliveryCategoryATTESTATION     InvitationDeliveryCategory = "ATTESTATION"
 	InvitationDeliveryCategoryCOMMENT         InvitationDeliveryCategory = "COMMENT"
 	InvitationDeliveryCategoryEMERGENCYACCESS InvitationDeliveryCategory = "EMERGENCY_ACCESS"
 	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
@@ -6128,6 +6129,8 @@ const (
 func (e InvitationDeliveryCategory) Valid() bool {
 	switch e {
 	case InvitationDeliveryCategoryASSIGNMENT:
+		return true
+	case InvitationDeliveryCategoryATTESTATION:
 		return true
 	case InvitationDeliveryCategoryCOMMENT:
 		return true
@@ -15653,6 +15656,12 @@ type CiCampaignList struct {
 	Data []CiCampaign `json:"data"`
 }
 
+// CiCampaignReminded defines model for CiCampaignReminded.
+type CiCampaignReminded struct {
+	// Reminded How many people were reminded.
+	Reminded int `json:"reminded"`
+}
+
 // CiCampaignStart defines model for CiCampaignStart.
 type CiCampaignStart struct {
 	Classes      *[]string           `json:"classes,omitempty"`
@@ -15726,6 +15735,12 @@ type CiComplianceStage string
 
 // CiComplianceStatus defines model for CiCompliance.Status.
 type CiComplianceStatus string
+
+// CiConfirm defines model for CiConfirm.
+type CiConfirm struct {
+	// ReviewMonths How far the next review moves on from today; 12 when not given.
+	ReviewMonths *int `json:"review_months,omitempty"`
+}
 
 // CiConnector A program a hub's objects are pulled from, or that posts alerts or a GLPI Agent's inventory to it. Never its credential; `secret` is present once, in the answer that drew an intake's.
 type CiConnector struct {
@@ -17048,8 +17063,12 @@ type ConfigVersionList struct {
 type ConfigurationItem struct {
 	Attributes map[string]interface{} `json:"attributes"`
 	Class      string                 `json:"class"`
-	CreatedAt  time.Time              `json:"created_at"`
-	CreatedBy  *openapi_types.UUID    `json:"created_by,omitempty"`
+
+	// ConfirmedAt When a person last confirmed it is as recorded, by itself or in a campaign.
+	ConfirmedAt *time.Time          `json:"confirmed_at,omitempty"`
+	ConfirmedBy *openapi_types.UUID `json:"confirmed_by,omitempty"`
+	CreatedAt   time.Time           `json:"created_at"`
+	CreatedBy   *openapi_types.UUID `json:"created_by,omitempty"`
 
 	// Decision What the reconciliation did with one item and why: the rule that matched, the attributes taken, those kept and by which source, a duplicate's candidates, a hold's or refusal's reason as a message code. It names attributes, never values.
 	Decision *CiDecision `json:"decision,omitempty"`
@@ -30436,6 +30455,12 @@ type ListCiDuplicatesParams struct {
 	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
 }
 
+// DeleteCiGroupParams defines parameters for DeleteCiGroup.
+type DeleteCiGroupParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // DefineCiGroupParams defines parameters for DefineCiGroup.
 type DefineCiGroupParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -32593,6 +32618,9 @@ type MoveCiAssetJSONRequestBody = CiAssetMove
 
 // SetCiComplianceJSONRequestBody defines body for SetCiCompliance for application/json ContentType.
 type SetCiComplianceJSONRequestBody = CiCompliance
+
+// ConfirmCiJSONRequestBody defines body for ConfirmCi for application/json ContentType.
+type ConfirmCiJSONRequestBody = CiConfirm
 
 // SetCiConnectorCredentialJSONRequestBody defines body for SetCiConnectorCredential for application/json ContentType.
 type SetCiConnectorCredentialJSONRequestBody = CiConnectorCredential
@@ -37671,6 +37699,13 @@ type ClientInterface interface {
 	// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
 	CloseCiCampaign(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RemindCiCampaign Remind the owners who have not answered yet
+	//
+	// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+	RemindCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 	//
 	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -37841,6 +37876,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
 	ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmCiWithBody Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCiWithBody(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConfirmCi Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCi(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetCiConnectorCredentialWithBody Set a connector's credential
 	//
@@ -39569,6 +39622,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 	ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteCiGroup Delete an object group by its key
+	//
+	// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+	//
+	// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+	DeleteCiGroup(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DefineCiGroupWithBody Define or change an object group by its key
 	//
@@ -53167,6 +53227,23 @@ func (c *Client) CloseCiCampaign(ctx context.Context, campaignId openapi_types.U
 	return c.Client.Do(req)
 }
 
+// RemindCiCampaign Remind the owners who have not answered yet
+//
+// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+func (c *Client) RemindCiCampaign(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemindCiCampaignRequest(c.Server, campaignId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ResolveCiDuplicateWithBody Merge a duplicate or call it distinct
 //
 // With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -53538,6 +53615,44 @@ func (c *Client) ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, para
 // Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
 func (c *Client) ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCiWorkRequest(c.Server, ciId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmCiWithBody Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *Client) ConfirmCiWithBody(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmCiRequestWithBody(c.Server, ciId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConfirmCi Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *Client) ConfirmCi(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConfirmCiRequest(c.Server, ciId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -57406,6 +57521,23 @@ func (c *Client) ListCiDuplicates(ctx context.Context, hubId openapi_types.UUID,
 // Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 func (c *Client) ListCiGroups(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListCiGroupsRequest(c.Server, hubId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteCiGroup Delete an object group by its key
+//
+// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+//
+// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+func (c *Client) DeleteCiGroup(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteCiGroupRequest(c.Server, hubId, groupKey, params)
 	if err != nil {
 		return nil, err
 	}
@@ -81566,6 +81698,40 @@ func NewCloseCiCampaignRequest(server string, campaignId openapi_types.UUID, par
 	return req, nil
 }
 
+// NewRemindCiCampaignRequest constructs an http.Request for the RemindCiCampaign method
+func NewRemindCiCampaignRequest(server string, campaignId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "campaignId", campaignId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ci-campaigns/%s:remind", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewResolveCiDuplicateRequest calls the generic ResolveCiDuplicate builder with application/json body
 func NewResolveCiDuplicateRequest(server string, duplicateId openapi_types.UUID, body ResolveCiDuplicateJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -82242,6 +82408,53 @@ func NewListCiWorkRequest(server string, ciId openapi_types.UUID) (*http.Request
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewConfirmCiRequest calls the generic ConfirmCi builder with application/json body
+func NewConfirmCiRequest(server string, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConfirmCiRequestWithBody(server, ciId, "application/json", bodyReader)
+}
+
+// NewConfirmCiRequestWithBody constructs an http.Request for the ConfirmCi method, with any body, and a specified content type
+func NewConfirmCiRequestWithBody(server string, ciId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s:confirm", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -89490,6 +89703,62 @@ func NewListCiGroupsRequest(server string, hubId openapi_types.UUID) (*http.Requ
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewDeleteCiGroupRequest constructs an http.Request for the DeleteCiGroup method
+func NewDeleteCiGroupRequest(server string, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "groupKey", groupKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/ci-groups/%s", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -117046,6 +117315,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /ci-campaigns/{campaignId}:close (the `CloseCiCampaign` operationId).
 	CloseCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, params *CloseCiCampaignParams, reqEditors ...RequestEditorFn) (*CloseCiCampaignResult, error)
 
+	// RemindCiCampaignWithResponse Remind the owners who have not answered yet
+	//
+	// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+	RemindCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemindCiCampaignResult, error)
+
 	// ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 	//
 	// With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -117234,6 +117512,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
 	ListCiWorkWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiWorkResult, error)
+
+	// ConfirmCiWithBodyWithResponse Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error)
+
+	// ConfirmCiWithResponse Confirm an object is as recorded
+	//
+	// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+	ConfirmCiWithResponse(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error)
 
 	// SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
 	//
@@ -119132,6 +119428,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /hubs/{hubId}/ci-groups (the `ListCiGroups` operationId).
 	ListCiGroupsWithResponse(ctx context.Context, hubId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiGroupsResult, error)
+
+	// DeleteCiGroupWithResponse Delete an object group by its key
+	//
+	// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+	DeleteCiGroupWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*DeleteCiGroupResult, error)
 
 	// DefineCiGroupWithBodyWithResponse Define or change an object group by its key
 	//
@@ -137657,6 +137962,54 @@ func (r CloseCiCampaignResult) ContentType() string {
 	return ""
 }
 
+type RemindCiCampaignResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiCampaignReminded
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemindCiCampaignResult) GetJSON200() *CiCampaignReminded {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemindCiCampaignResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemindCiCampaignResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemindCiCampaignResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemindCiCampaignResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemindCiCampaignResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ResolveCiDuplicateResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -138371,6 +138724,54 @@ func (r ListCiWorkResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCiWorkResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConfirmCiResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ConfigurationItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ConfirmCiResult) GetJSON200() *ConfigurationItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConfirmCiResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConfirmCiResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConfirmCiResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConfirmCiResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConfirmCiResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -145278,6 +145679,47 @@ func (r ListCiGroupsResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ListCiGroupsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteCiGroupResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteCiGroupResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteCiGroupResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteCiGroupResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteCiGroupResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteCiGroupResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -175674,6 +176116,21 @@ func (c *ClientWithResponses) CloseCiCampaignWithResponse(ctx context.Context, c
 	return ParseCloseCiCampaignResult(rsp)
 }
 
+// RemindCiCampaignWithResponse Remind the owners who have not answered yet
+//
+// Tells each owning person of a still pending object once per call, naming how many of their objects wait. Refused `cmdb.nobody_to_remind` when no pending object has an owning person, and `cmdb.campaign_closed` on a closed campaign. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ci-campaigns/{campaignId}:remind (the `RemindCiCampaign` operationId).
+func (c *ClientWithResponses) RemindCiCampaignWithResponse(ctx context.Context, campaignId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemindCiCampaignResult, error) {
+	rsp, err := c.RemindCiCampaign(ctx, campaignId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemindCiCampaignResult(rsp)
+}
+
 // ResolveCiDuplicateWithBodyWithResponse Merge a duplicate or call it distinct
 //
 // With a survivor, the others are merged into it and retired as merged, never deleted; without one, the objects are recorded as distinct. Needs WRITE_ITEMS on the hub.
@@ -175987,6 +176444,36 @@ func (c *ClientWithResponses) ListCiWorkWithResponse(ctx context.Context, ciId o
 		return nil, err
 	}
 	return ParseListCiWorkResult(rsp)
+}
+
+// ConfirmCiWithBodyWithResponse Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *ClientWithResponses) ConfirmCiWithBodyWithResponse(ctx context.Context, ciId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error) {
+	rsp, err := c.ConfirmCiWithBody(ctx, ciId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmCiResult(rsp)
+}
+
+// ConfirmCiWithResponse Confirm an object is as recorded
+//
+// Its next review moves review_months on from today (12 when not given), and the object records who confirmed it and when. A pending question of an open campaign about it is answered CONFIRMED at the same time. The owning person confirms with READ on the hub, anybody else with WRITE_ITEMS.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /cis/{ciId}:confirm (the `ConfirmCi` operationId).
+func (c *ClientWithResponses) ConfirmCiWithResponse(ctx context.Context, ciId openapi_types.UUID, body ConfirmCiJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmCiResult, error) {
+	rsp, err := c.ConfirmCi(ctx, ciId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConfirmCiResult(rsp)
 }
 
 // SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
@@ -179169,6 +179656,21 @@ func (c *ClientWithResponses) ListCiGroupsWithResponse(ctx context.Context, hubI
 		return nil, err
 	}
 	return ParseListCiGroupsResult(rsp)
+}
+
+// DeleteCiGroupWithResponse Delete an object group by its key
+//
+// The group is gone; the objects it held are unchanged. Needs WRITE_ITEMS on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /hubs/{hubId}/ci-groups/{groupKey} (the `DeleteCiGroup` operationId).
+func (c *ClientWithResponses) DeleteCiGroupWithResponse(ctx context.Context, hubId openapi_types.UUID, groupKey string, params *DeleteCiGroupParams, reqEditors ...RequestEditorFn) (*DeleteCiGroupResult, error) {
+	rsp, err := c.DeleteCiGroup(ctx, hubId, groupKey, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteCiGroupResult(rsp)
 }
 
 // DefineCiGroupWithBodyWithResponse Define or change an object group by its key
@@ -198588,6 +199090,39 @@ func ParseCloseCiCampaignResult(rsp *http.Response) (*CloseCiCampaignResult, err
 	return response, nil
 }
 
+// ParseRemindCiCampaignResult parses an HTTP response from a RemindCiCampaignWithResponse call
+func ParseRemindCiCampaignResult(rsp *http.Response) (*RemindCiCampaignResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemindCiCampaignResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiCampaignReminded
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseResolveCiDuplicateResult parses an HTTP response from a ResolveCiDuplicateWithResponse call
 func ParseResolveCiDuplicateResult(rsp *http.Response) (*ResolveCiDuplicateResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -199066,6 +199601,39 @@ func ParseListCiWorkResult(rsp *http.Response) (*ListCiWorkResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiWork
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConfirmCiResult parses an HTTP response from a ConfirmCiWithResponse call
+func ParseConfirmCiResult(rsp *http.Response) (*ConfirmCiResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConfirmCiResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ConfigurationItem
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -204033,6 +204601,35 @@ func ParseListCiGroupsResult(rsp *http.Response) (*ListCiGroupsResult, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteCiGroupResult parses an HTTP response from a DeleteCiGroupWithResponse call
+func ParseDeleteCiGroupResult(rsp *http.Response) (*DeleteCiGroupResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteCiGroupResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

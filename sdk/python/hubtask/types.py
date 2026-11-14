@@ -5339,7 +5339,7 @@ class InvitationDelivery(TypedDict, total=False):
     at: Required[str]
     code: Required[str | None]
     params: dict[str, Any]
-    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA", "POST"]
+    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA", "POST", "ATTESTATION"]
 
 class SignInDetail(TypedDict, total=False):
     account_id: Required[str]
@@ -6731,6 +6731,8 @@ ConfigurationItem = TypedDict("ConfigurationItem", {
     "created_at": Required[str],
     "updated_by": str,
     "updated_at": Required[str],
+    "confirmed_at": str | None,
+    "confirmed_by": str | None,
     "version": Required[int],
 }, total=False)
 
@@ -7153,6 +7155,12 @@ class CiCampaignDetail(TypedDict, total=False):
     version: Required[int]
     score: Required[dict[str, Any]]
     attestations: Required[list[dict[str, Any]]]
+
+class CiConfirm(TypedDict, total=False):
+    review_months: int
+
+class CiCampaignReminded(TypedDict, total=False):
+    reminded: Required[int]
 
 class CiAttest(TypedDict, total=False):
     verdict: Required[Literal["CONFIRMED", "DISPUTED"]]
