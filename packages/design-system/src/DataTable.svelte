@@ -648,7 +648,9 @@
     .data-table[data-kind='work'] :global(tr.row > td[data-role='title']) { inline-size: auto; max-inline-size: none; }
     .data-table[data-kind='work'] .cut { white-space: normal; }
     .data-table[data-kind='work'] :global(tr.row > td.select) { padding-block-start: var(--sp-025); }
-    .data-table[data-stacked] :global(tbody td) { block-size: auto; }
+    /* As specific as the work row's fixed height, which would otherwise hold each line at it. */
+    .data-table[data-stacked] :global(tbody td),
+    .data-table[data-kind][data-stacked] :global(tbody tr.row > td) { block-size: auto; }
     .data-table :global(tr.row > td.stack) { display: flex; flex-direction: column; gap: var(--sp-050); grid-area: stack; min-inline-size: 0; }
     .data-table :global(tr.add-row) { display: block; }
     .data-table :global(tr.add-row td) { display: block; padding: var(--sp-100) var(--sp-200); }

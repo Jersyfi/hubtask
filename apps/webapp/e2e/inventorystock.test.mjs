@@ -437,6 +437,11 @@ test('chromium 390 px: rows stack with their meta line, and nothing writes', asy
   const meta = page.locator('[data-ci-meta]').first();
   await meta.waitFor({ timeout: 20_000 });
   assert.match((await meta.innerText()).replace(/\s+/gu, ' '), /Application service · In use · .+ · 2 open/);
+  // A list row as the scene draws it: the title and its meta line, as tall as they are.
+  const row = page.locator('tbody tr.row').first();
+  const [rowBox, titleBox, metaBox] = await Promise.all([row.boundingBox(), row.locator('td[data-role="title"]').boundingBox(), meta.boundingBox()]);
+  const slack = rowBox.height - titleBox.height - metaBox.height;
+  assert.ok(slack < 40, `the phone's row is ${Math.round(slack)} px taller than its title and meta line`);
   assert.equal(await page.locator('[data-inventory-tree]').count(), 0, 'the tree takes a column on a phone');
   // The tree folds into one choice.
   await page.getByLabel('Object type or saved group').selectOption({ label: '· Laptop · 2' });
