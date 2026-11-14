@@ -55,7 +55,7 @@ async function open(browser, { width, outsider, path, approvals = [APPROVAL] }) 
     if (p === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, display_name: 'Lena Berg', has_access: !outsider, portals: [{ collection_id: IT, name: 'IT help' }, { collection_id: HR, name: 'People' }] } });
     if (p === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: outsider ? [] : ['READ', 'WRITE_ITEMS'] } });
     if (p === '/request-catalogue') return route.fulfill({ json: { desk: { name: NAMES[collection], description: '', icon: null, color_token: null, logo_media_id: null }, data: KINDS[collection] ?? [], may_raise: true } });
-    if (p === '/requests') return route.fulfill({ json: { data: collection === IT ? [request(MINE, IT, 'The VPN drops')] : [request('01a0e2e0-0000-7000-8000-0000000051f3', HR, 'Certificate for leave', { status_name: null, status_category: 'TODO', created_at: '2026-11-11T09:00:00Z' })], page_info: { next_cursor: null }, organisation: null } });
+    if (p === '/requests') return route.fulfill({ json: { data: collection === IT ? [request(MINE, IT, 'The VPN drops', { last_reply_at: '2026-11-12T09:40:00Z', next_due_at: '2026-11-12T14:00:00Z' })] : [request('01a0e2e0-0000-7000-8000-0000000051f3', HR, 'Certificate for leave', { status_name: null, status_category: 'TODO', created_at: '2026-11-11T09:00:00Z' })], page_info: { next_cursor: null }, organisation: null } });
     if (p === `/requests/${THEIRS}` || p === `/requests/${MINE}`) {
       if (!outsider && p === `/requests/${THEIRS}`) return route.fulfill({ status: 404, json: { status: 404, code: 'errors.not_found' } });
       return route.fulfill({ json: { ...request(p.split('/').pop(), IT, 'The VPN drops'), comments: [], sla: [], satisfaction: null, merged_into: null } });
@@ -105,6 +105,14 @@ test('chromium 1280 px: an outsider gets the portal frame alone, approvals on to
   const mine = page.locator('[data-portal-mine]');
   await mine.getByText('Being worked on').waitFor({ timeout: 10_000 });
   assert.equal(await mine.getByText('in_progress').count(), 0);
+  // What comes next says when the team replied (P-12).
+  await mine.getByText(/The team replied/).waitFor({ timeout: 10_000 });
+  // The outsiders' start in two columns (scene `portalext`): what to ask and the knowledge on the
+  // left, what waits and their requests beside it.
+  const box = async (selector) => page.locator(selector).first().boundingBox();
+  const [ask, waits, own] = [await box('[data-portal-kind]'), await box('[data-portal-waiting]'), await box('[data-portal-mine]')];
+  assert.ok(waits.x > ask.x + ask.width, 'what waits stands beside the kinds');
+  assert.ok(Math.abs(own.x - waits.x) < 2 && own.y > waits.y, 'the requests stand under what waits');
 
   await page.locator('[data-portal-tab="approvals"]').click();
   await page.waitForURL(`**/portal/${IT}/approvals`);
@@ -145,6 +153,9 @@ test('chromium 375 px: on a phone the outsider has four portal tabs at the foot'
   await page.locator('[data-portal-frame] button[aria-haspopup="dialog"]').click();
   const languages = page.getByRole('dialog').locator('[data-portal-language]');
   await languages.getByText('Deutsch').waitFor({ timeout: 5_000 });
+  // On a phone what waits comes first, before the kinds.
+  const [waits, ask] = [await page.locator('[data-portal-waiting]').boundingBox(), await page.locator('[data-portal-kind]').first().boundingBox()];
+  assert.ok(waits.y < ask.y, 'what waits stands above the kinds');
   assert.deepEqual(failures, []);
 });
 

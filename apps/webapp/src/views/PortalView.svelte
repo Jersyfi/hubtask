@@ -105,17 +105,16 @@
   {:else}<ContainerMark look={{ type: 'COLLECTION', icon: desk?.icon || null, color_token: desk?.color_token || null }} size="md" />{/if}
 {/snippet}
 
-<WorkPage>
-<div class="portal" data-portal-start>
-  <section class="hero" aria-labelledby="portal-greeting">
-    <p class="eyebrow">{#if desk}<span class="mark">{@render deskMark()}</span>{/if}{head.title}</p>
+{#snippet hero()}
+  <section class="hero" data-band={outside ? '' : undefined} aria-labelledby="portal-greeting">
+    {#if !outside}<p class="eyebrow">{#if desk}<span class="mark">{@render deskMark()}</span>{/if}{head.title}</p>{/if}
     <h1 class="greeting" id="portal-greeting">
       {outside && firstName !== '' ? t('app.portal.greeting_named', { name: firstName }) : t('app.portal.greeting')}
     </h1>
     {#if !isTeam}
       <div class="search" role="search">
         <SearchField label={t('app.portal.search')} isLabelHidden clearLabel={t('app.portal.search_clear')} size="md"
-          placeholder={t('app.portal.search_placeholder')} bind:value={query} data-portal-search />
+          placeholder={outside ? t('app.portal.search_placeholder_outside') : t('app.portal.search_placeholder')} bind:value={query} data-portal-search />
         {#if query.trim() !== ''}
           <div class="found" data-portal-found>
             {#if foundKinds.length > 0}
@@ -143,6 +142,113 @@
       <p class="hint">{head.subtitle}</p>
     {/if}
   </section>
+{/snippet}
+
+{#snippet waitingCard()}
+  {#if waiting.length > 0}
+    <!-- On top of the start page (PO-3): decided here, the team's entry never opened. -->
+    <section class="card waiting" aria-labelledby="portal-yes" data-portal-waiting>
+      <Stack gap="100">
+        <h2 class="heading" id="portal-yes">{outside ? t('app.portal.waiting_outside') : t('app.portal.waiting_for_yes')}</h2>
+        {#each waiting.slice(0, 2) as approval (approval.id)}
+          <ApprovalCard {approval} />
+        {/each}
+        {#if waiting.length > 2 || waitingHasMore}
+          <a href={`/portal/${collectionId}/approvals`} data-portal-more-approvals onclick={go(`/portal/${collectionId}/approvals`)}>{t('app.portal.more_waiting')}</a>
+        {/if}
+      </Stack>
+    </section>
+  {/if}
+{/snippet}
+
+{#snippet askSection()}
+  {#if kinds.length === 0}
+    <EmptyState kind="unused" icon="inbox" title={t('app.portal.none')} description={t('app.portal.none_body')} />
+  {:else}
+    <section class="ask" aria-labelledby="portal-ask">
+      <h2 class="label" id="portal-ask">{outside ? t('app.portal.ask_outside') : t('app.portal.ask')}</h2>
+      <ul class="tiles" data-rows={outside ? '' : undefined} aria-label={t('app.portal.kind')}>
+        {#each kinds as each (each.key)}
+          <li>
+            <button type="button" class="tile" data-portal-kind={each.key} onclick={() => ask(each)}>
+              <span class="tile-mark"><Icon name={markOfKind(each.icon)} size="sm" /></span>
+              <span class="words">
+                <span class="tile-name">{each.name || each.key}</span>
+                {#if each.description}<span class="tile-sub">{each.description}</span>{/if}
+              </span>
+            </button>
+          </li>
+        {/each}
+      </ul>
+    </section>
+  {/if}
+{/snippet}
+
+{#snippet mineCard()}
+  <section class="card mine" aria-labelledby="portal-mine" data-portal-mine>
+    <div class="card-head">
+      <h2 class="heading" id="portal-mine">{outside ? t('app.portal.mine_outside') : t('app.portal.mine')}</h2>
+      <a href={`/portal/${collectionId}/requests`} onclick={go(`/portal/${collectionId}/requests`)}>{t('app.portal.mine_all')}</a>
+    </div>
+    {#if mine.state.status === 'ready' && requests.length === 0}
+      <ProductEmpty product="SERVICE_DESK" kind="unused" title={t('app.portal.mine_none')} />
+    {:else if mine.state.status === 'ready'}
+      <RequestRows {requests} {onnavigate} isStacked={outside} />
+    {:else}
+      <div aria-busy="true"><Skeleton lines={3} /></div>
+    {/if}
+  </section>
+{/snippet}
+
+{#snippet spaceList()}
+  <ul class="spaces" data-rows={outside ? '' : undefined}>
+    {#each spaces.slice(0, 4) as space (space.page_id)}
+      <li>
+        <a class="space" href={`/portal/${collectionId}/articles/${space.page_id}`} data-portal-space={space.page_id}
+          onclick={go(`/portal/${collectionId}/articles/${space.page_id}`)}>
+          <span class="space-icon" aria-hidden="true">{#if space.icon}{space.icon}{:else}<Icon name="book-open" size="sm" />{/if}</span>
+          <span class="words">
+            <span class="tile-name">{space.title}</span>
+            <span class="tile-sub">{space.with_subpages ? t('app.portal.space_count', { count: String(space.pages.length + 1) }) : t('app.portal.article_single')}</span>
+          </span>
+        </a>
+      </li>
+    {/each}
+  </ul>
+{/snippet}
+
+{#snippet knowledgeCard()}
+  <section class="card know" aria-labelledby="portal-knowledge" data-portal-knowledge>
+    <div class="card-head">
+      <h2 class="heading" id="portal-knowledge">{spaces.length > 0 ? t('app.portal.knowledge_for', { name: head.title }) : t('app.portal.often_read')}</h2>
+      {#if spaces.length > 0}<a href={`/portal/${collectionId}/knowledge`} onclick={go(`/portal/${collectionId}/knowledge`)}>{t('app.portal.knowledge_all')}</a>{/if}
+    </div>
+    {#if spaces.length > 0}
+      {@render spaceList()}
+    {:else}
+      <ArticleSuggestions {collectionId} text="" isPlain onopen={(pageId) => onnavigate?.(`/portal/${collectionId}/articles/${pageId}`)} />
+    {/if}
+  </section>
+{/snippet}
+
+{#snippet knowledgeSection()}
+  <!-- Outside the shared spaces stand as tiles under their own label (scene `portalext`, PO-4). -->
+  {#if spaces.length > 0}
+    <section class="know" aria-labelledby="portal-knowledge" data-portal-knowledge>
+      <div class="label-head">
+        <h2 class="label" id="portal-knowledge">{t('app.portal.knowledge_for', { name: head.title })}</h2>
+        <a href={`/portal/${collectionId}/knowledge`} onclick={go(`/portal/${collectionId}/knowledge`)}>{t('app.portal.knowledge_all')}</a>
+      </div>
+      {@render spaceList()}
+    </section>
+  {:else}
+    {@render knowledgeCard()}
+  {/if}
+{/snippet}
+
+<WorkPage>
+<div class="portal" data-portal-start data-outside={outside ? '' : undefined}>
+  {@render hero()}
 
   {#if isTeam}
     <EmptyState kind="unused" icon="inbox" title={t('app.portal.team_view')} description={t('app.portal.team_view_body')}>
@@ -158,81 +264,29 @@
     <div aria-busy="true"><Skeleton lines={4} /></div>
   {/if}
 
-  {#if waiting.length > 0}
-    <!-- On top of the start page (PO-3): decided here, the team's entry never opened. -->
-    <section class="card" aria-labelledby="portal-yes" data-portal-waiting>
-      <Stack gap="100">
-        <h2 class="heading" id="portal-yes">{t('app.portal.waiting_for_yes')}</h2>
-        {#each waiting.slice(0, 2) as approval (approval.id)}
-          <ApprovalCard {approval} />
-        {/each}
-        {#if waiting.length > 2 || waitingHasMore}
-          <a href={`/portal/${collectionId}/approvals`} data-portal-more-approvals onclick={go(`/portal/${collectionId}/approvals`)}>{t('app.portal.more_waiting')}</a>
-        {/if}
-      </Stack>
-    </section>
-  {/if}
-
-  {#if mayRaise}
-    {#if kinds.length === 0}
-      <EmptyState kind="unused" icon="inbox" title={t('app.portal.none')} description={t('app.portal.none_body')} />
-    {:else}
-      <section aria-labelledby="portal-ask">
-        <h2 class="label" id="portal-ask">{t('app.portal.ask')}</h2>
-        <ul class="tiles" aria-label={t('app.portal.kind')}>
-          {#each kinds as each (each.key)}
-            <li>
-              <button type="button" class="tile" data-portal-kind={each.key} onclick={() => ask(each)}>
-                <span class="tile-mark"><Icon name={markOfKind(each.icon)} size="sm" /></span>
-                <span class="tile-name">{each.name || each.key}</span>
-                {#if each.description}<span class="tile-sub">{each.description}</span>{/if}
-              </button>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
-
-    <div class="pair">
-      <section class="card" aria-labelledby="portal-mine" data-portal-mine>
-        <div class="card-head">
-          <h2 class="heading" id="portal-mine">{t('app.portal.mine')}</h2>
-          <a href={`/portal/${collectionId}/requests`} onclick={go(`/portal/${collectionId}/requests`)}>{t('app.portal.mine_all')}</a>
-        </div>
-        {#if mine.state.status === 'ready' && requests.length === 0}
-          <ProductEmpty product="SERVICE_DESK" kind="unused" title={t('app.portal.mine_none')} />
-        {:else if mine.state.status === 'ready'}
-          <RequestRows {requests} {onnavigate} />
-        {:else}
-          <div aria-busy="true"><Skeleton lines={3} /></div>
-        {/if}
-      </section>
-
-      <section class="card" aria-labelledby="portal-knowledge" data-portal-knowledge>
-        <div class="card-head">
-          <h2 class="heading" id="portal-knowledge">{spaces.length > 0 ? t('app.portal.knowledge_for', { name: head.title }) : t('app.portal.often_read')}</h2>
-          {#if spaces.length > 0}<a href={`/portal/${collectionId}/knowledge`} onclick={go(`/portal/${collectionId}/knowledge`)}>{t('app.portal.knowledge_all')}</a>{/if}
-        </div>
-        {#if spaces.length > 0}
-          <ul class="spaces">
-            {#each spaces.slice(0, 4) as space (space.page_id)}
-              <li>
-                <a class="space" href={`/portal/${collectionId}/articles/${space.page_id}`} data-portal-space={space.page_id}
-                  onclick={go(`/portal/${collectionId}/articles/${space.page_id}`)}>
-                  <span class="space-icon" aria-hidden="true">{#if space.icon}{space.icon}{:else}<Icon name="book-open" size="sm" />{/if}</span>
-                  <span class="words">
-                    <span class="tile-name">{space.title}</span>
-                    <span class="tile-sub">{space.with_subpages ? t('app.portal.space_count', { count: String(space.pages.length + 1) }) : t('app.portal.article_single')}</span>
-                  </span>
-                </a>
-              </li>
-            {/each}
-          </ul>
-        {:else}
-          <ArticleSuggestions {collectionId} text="" isPlain onopen={(pageId) => onnavigate?.(`/portal/${collectionId}/articles/${pageId}`)} />
-        {/if}
-      </section>
+  {#if outside && mayRaise}
+    <!-- The outsiders' start (scene `portalext`): what to ask and the shared knowledge on the
+         left, what waits for them and their requests beside it; one column on a phone, what
+         waits first. -->
+    <div class="split" data-portal-split>
+      <div class="main">
+        {@render askSection()}
+        {@render knowledgeSection()}
+      </div>
+      <div class="side">
+        {@render waitingCard()}
+        {@render mineCard()}
+      </div>
     </div>
+  {:else}
+    {@render waitingCard()}
+    {#if mayRaise}
+      {@render askSection()}
+      <div class="pair">
+        {@render mineCard()}
+        {@render knowledgeCard()}
+      </div>
+    {/if}
   {/if}
 
   <!-- Asked only of somebody who manages the workspace's members: a requester's portal would
@@ -256,6 +310,19 @@
     display: flex; flex-direction: column; align-items: center; gap: var(--sp-150); text-align: center;
     padding: var(--sp-500) var(--sp-300); border-radius: var(--r-lg);
     background: linear-gradient(135deg, var(--product-desk-surface), var(--accent-primary-subtle));
+  }
+  /* Outside the hero is the frame's band from edge to edge (scene `portalext`): it takes back the
+     main region's padding. */
+  .hero[data-band] {
+    margin: calc(-1 * var(--sp-300)) calc(-1 * var(--sp-300)) 0; border-radius: 0; gap: var(--sp-200);
+    padding: var(--sp-600) var(--sp-400) var(--sp-500);
+    background: linear-gradient(160deg, var(--label-teal-bg), var(--bg-canvas) 80%);
+  }
+  .hero[data-band] .greeting { font-size: var(--fs-600); }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), the main region's own padding step; a media query cannot read a custom property. */
+  @media (width < 600px) {
+    .hero[data-band] { margin: calc(-1 * var(--sp-200)) calc(-1 * var(--sp-200)) 0; padding: var(--sp-400) var(--sp-200) var(--sp-300); }
+    .hero[data-band] .greeting { font-size: var(--fs-400); }
   }
   .eyebrow { margin: 0; display: inline-flex; align-items: center; gap: var(--sp-100); color: var(--product-desk-ink); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .mark { display: inline-flex; }
@@ -290,12 +357,26 @@
     display: inline-flex; padding: var(--sp-050); border-radius: var(--r-md);
     background: var(--product-desk-surface); color: var(--product-desk-ink);
   }
+  /* Outside a kind and a space read as a row: the mark beside its words, two to a line. */
+  .tiles[data-rows], .spaces[data-rows] { gap: var(--sp-150); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-field-sm)), 1fr)); }
+  .tiles[data-rows] .tile { flex-direction: row; align-items: flex-start; gap: var(--sp-150); padding: var(--sp-200); }
+  .spaces[data-rows] .space { padding: var(--sp-200); gap: var(--sp-150); align-items: flex-start; }
   .tile-name { font-weight: var(--fw-semibold); }
   .tile-sub { color: var(--text-secondary); font-size: var(--fs-075); }
+  .split { display: flex; flex-direction: column; gap: var(--sp-200); }
+  .main, .side { display: contents; }
+  .split .waiting { order: 0; }
+  .split .ask { order: 1; }
+  .split .mine { order: 2; }
+  .split .know { order: 3; }
+  .label-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-100); }
   .pair { display: grid; gap: var(--sp-300); grid-template-columns: minmax(0, 1fr); }
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a container query cannot read a custom property. */
   @container (inline-size >= 905px) {
     .pair { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+    .split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--sp-400); align-items: start; padding-inline: var(--sp-200); }
+    .main, .side { display: flex; flex-direction: column; gap: var(--sp-300); min-inline-size: 0; }
+    .side { gap: var(--sp-200); }
   }
   .card { padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-100); margin-block-end: var(--sp-100); }

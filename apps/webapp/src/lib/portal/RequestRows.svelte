@@ -18,8 +18,10 @@
     /** The department's name per collection, where several stand together. */
     departmentOf?: (collectionId: string) => string | undefined;
     onnavigate?: (path: string) => void;
+    /** The state beside the title rather than beside both lines (scene `portalext`'s side column). */
+    isStacked?: boolean;
   }
-  const { requests, departmentOf, onnavigate }: Props = $props();
+  const { requests, departmentOf, onnavigate, isStacked = false }: Props = $props();
 
   const words = $derived({ received: t('app.portal.state_received'), working: t('app.portal.state_working'), done: t('app.portal.state_done') });
   function stepOf(request: PortalRequest): string {
@@ -33,7 +35,7 @@
   }
 </script>
 
-<ul class="rows" data-portal-requests>
+<ul class="rows" data-portal-requests data-stacked={isStacked ? '' : undefined}>
   {#each requests as request (request.id)}
     {@const state = requestState(request, words)}
     {@const department = departmentOf?.(request.collection_id)}
@@ -57,7 +59,7 @@
   .rows { list-style: none; margin: 0; padding: 0; }
   .rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .row {
-    display: flex; align-items: center; gap: var(--sp-150); padding: var(--sp-150) var(--sp-200);
+    display: flex; align-items: center; gap: var(--sp-150); padding: var(--sp-150) 0;
     color: inherit; text-decoration: none; min-block-size: var(--sp-600);
   }
   .row:hover { background: var(--bg-surface-hover); }
@@ -66,4 +68,5 @@
   .title { font-weight: var(--fw-medium); overflow-wrap: anywhere; }
   .meta { color: var(--text-secondary); font-size: var(--fs-075); }
   .state { flex: none; }
+  [data-stacked] .row { align-items: flex-start; }
 </style>
