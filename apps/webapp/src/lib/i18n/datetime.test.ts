@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateTime, formatDay, formatDue, formatDueShort, formatMonth, formatPlainDay, formatRelative, formatToday } from './datetime.ts';
+import { formatClock, formatDateTime, formatDay, formatDue, formatDueShort, formatMonth, formatPlainDay, formatRelative, formatToday } from './datetime.ts';
 
 test('a moment is written the way the locale writes moments', () => {
   // Not the exact string — that is the platform's and it moves between ICU versions. What is
@@ -110,4 +110,10 @@ test('a month heading names the month and its year, whichever way it is given', 
   assert.equal(formatMonth('2026-11', 'de'), 'November 2026');
   assert.equal(formatMonth('2026-03-01T08:00:00Z', 'de'), 'März 2026');
   assert.equal(formatMonth('soon', 'en'), 'soon');
+});
+
+test('a clock time is read on the zone given, the hour as the locale writes it', () => {
+  assert.equal(formatClock('2026-11-13T00:37:00Z', 'de-DE', 'Europe/Berlin'), '01:37');
+  assert.equal(formatClock('2026-11-13T00:37:00Z', 'en', 'Europe/Berlin'), '1:37 AM');
+  assert.equal(formatClock('not a time', 'de-DE', 'Europe/Berlin'), 'not a time');
 });

@@ -39,6 +39,13 @@ export function formatTime(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(at);
 }
 
+/** The time of day of an instant on a zone's clock, as the locale writes it short - "09:40", "9:40 AM". */
+export function formatClock(iso: string, locale: string, zone: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  return new Intl.DateTimeFormat(locale, { timeZone: zone, timeStyle: 'short' }).format(at);
+}
+
 /** The reader's day of an instant in full - "14 October 2026" - where a sentence names the day. */
 export function formatLongDay(iso: string, locale: string): string {
   const at = Date.parse(iso);
