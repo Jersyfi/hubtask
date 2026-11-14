@@ -1591,7 +1591,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON work_item_announcement, work_item_flow, 
 CREATE TABLE durable_timer (
   id               uuid PRIMARY KEY,
   tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW', 'OLA')),
+  purpose          text NOT NULL CHECK (purpose IN ('SLA', 'APPROVAL', 'EFFECTIVENESS_CHECK', 'PAGE_REVIEW', 'OLA', 'POST_PUBLISH')),
   subject_id       uuid NOT NULL,
   name             text NOT NULL CHECK (name ~ '^[a-z][a-z0-9_]{0,49}$'),
   calendar         jsonb NOT NULL,   -- the calendar it was armed on
@@ -2994,7 +2994,7 @@ CREATE TABLE notification (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL,
   -- RETENTION since migration 0062: the advance warning of data-retention.md §6 (R-1).
-  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')),
+  category     text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST')),
   channel      text NOT NULL CHECK (channel IN ('EMAIL')),
   state        text NOT NULL CHECK (state IN ('PENDING','SENT','SUPPRESSED','FAILED')),
   reason       text,                             -- a detail code, never a sentence (rule 8)
@@ -3061,7 +3061,7 @@ CREATE INDEX notification_membership_idx
 CREATE TABLE notification_preference (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   account_id    uuid NOT NULL,
-  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA')),
+  category      text NOT NULL CHECK (category IN ('ASSIGNMENT','MEMBERSHIP','COMMENT','INVITATION','REMINDER','INTEGRATION','RETENTION','EMERGENCY_ACCESS','REQUEST_REPLY','SLA','POST')),
   channel       text NOT NULL CHECK (channel IN ('EMAIL')),
   enabled       boolean NOT NULL DEFAULT true,
   include_title boolean NOT NULL DEFAULT true,   -- data-protection.md §9: the minimum is switchable
@@ -8168,5 +8168,141 @@ ALTER TABLE saved_view ADD COLUMN queue_position integer,
     queue_position IS NULL OR (queue_position BETWEEN 1 AND 1000 AND scope_type = 'HUB'));
 CREATE INDEX saved_view_queue_idx ON saved_view (tenant_id, scope_id, queue_position)
   WHERE queue_position IS NOT NULL;
+
+-- Migration 0398: a dashboard's filter every QUERY widget inherits.
+ALTER TABLE dashboard ADD COLUMN filter text NOT NULL DEFAULT '';
+
+-- Migration 0399: an automation's *for which entries*, a query line; empty is every entry.
+ALTER TABLE automation_rule ADD COLUMN entries text NOT NULL DEFAULT '';
+
+-- Migration 0400: a page's cover (UC-DOC-16).
+ALTER TABLE page ADD COLUMN cover jsonb;
+
+-- Migration 0401: posts, a page with a date (UC-DOC-17, UC-DOC-18). Seen and confirmed are personal
+-- data: gone with the person, never in the trail (rule 10).
+CREATE TABLE post (
+  tenant_id      uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id        uuid NOT NULL,
+  hub_id         uuid NOT NULL,
+  template       text CHECK (template IN ('ANNOUNCEMENT', 'RELEASE_NOTE', 'MONTHLY_REVIEW', 'WELCOME')),
+  publish_at     timestamptz,
+  published_at   timestamptz,
+  featured_until timestamptz,
+  audience       text NOT NULL DEFAULT 'HUB' CHECK (audience IN ('HUB', 'GROUPS')),
+  group_ids      uuid[] NOT NULL DEFAULT '{}' CHECK (cardinality(group_ids) <= 20),
+  discussion     boolean NOT NULL DEFAULT true,
+  notify         boolean NOT NULL DEFAULT true,
+  confirm_by     timestamptz,
+  PRIMARY KEY (tenant_id, page_id),
+  CONSTRAINT post_audience_groups CHECK ((audience = 'GROUPS') = (cardinality(group_ids) > 0)),
+  CONSTRAINT post_page_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES page (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+);
+CREATE INDEX post_hub_idx ON post (tenant_id, hub_id, publish_at DESC);
+CREATE INDEX post_due_idx ON post (publish_at) WHERE published_at IS NULL AND publish_at IS NOT NULL;
+
+CREATE TABLE post_read (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  account_id uuid NOT NULL,
+  read_at    timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT post_read_post_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES post (tenant_id, page_id) ON DELETE CASCADE,
+  CONSTRAINT post_read_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_read_account_idx ON post_read (tenant_id, account_id);
+
+CREATE TABLE post_confirmation (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id      uuid NOT NULL,
+  account_id   uuid NOT NULL,
+  confirmed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, page_id, account_id),
+  CONSTRAINT post_confirmation_post_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES post (tenant_id, page_id) ON DELETE CASCADE,
+  CONSTRAINT post_confirmation_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_confirmation_account_idx ON post_confirmation (tenant_id, account_id);
+
+CREATE TABLE post_reply (
+  id         uuid PRIMARY KEY,
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  page_id    uuid NOT NULL,
+  parent_id  uuid,
+  author_id  uuid,
+  body       text NOT NULL CHECK (octet_length(body) <= 65536),
+  created_at timestamptz NOT NULL,
+  edited_at  timestamptz,
+  deleted_at timestamptz,
+  version    integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT post_reply_post_fkey FOREIGN KEY (tenant_id, page_id)
+    REFERENCES post (tenant_id, page_id) ON DELETE CASCADE,
+  CONSTRAINT post_reply_parent_fkey FOREIGN KEY (tenant_id, parent_id)
+    REFERENCES post_reply (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT post_reply_author_fkey FOREIGN KEY (tenant_id, author_id)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (author_id)
+);
+CREATE INDEX post_reply_page_idx ON post_reply (tenant_id, page_id, created_at);
+CREATE INDEX post_reply_author_idx ON post_reply (tenant_id, author_id);
+
+CREATE TABLE post_reaction (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  reply_id   uuid NOT NULL,
+  account_id uuid NOT NULL,
+  reaction   text NOT NULL CHECK (reaction IN ('THANKS', 'AGREE', 'CELEBRATE', 'IDEA')),
+  PRIMARY KEY (tenant_id, reply_id, account_id, reaction),
+  CONSTRAINT post_reaction_reply_fkey FOREIGN KEY (tenant_id, reply_id)
+    REFERENCES post_reply (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT post_reaction_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_reaction_account_idx ON post_reaction (tenant_id, account_id);
+
+ALTER TABLE post ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_read ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_read FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_read
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_confirmation ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_confirmation FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_confirmation
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_reply ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_reply FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_reply
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+ALTER TABLE post_reaction ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_reaction FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_reaction
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON post, post_reply TO hubtask_app;
+GRANT SELECT, INSERT, DELETE ON post_read, post_confirmation, post_reaction TO hubtask_app;
+
+-- Migration 0404: who follows a hub's posts (UC-DOC-17/5).
+CREATE TABLE post_follow (
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id      uuid NOT NULL,
+  account_id  uuid NOT NULL,
+  followed_at timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, hub_id, account_id),
+  CONSTRAINT post_follow_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT post_follow_account_fkey FOREIGN KEY (tenant_id, account_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX post_follow_account_idx ON post_follow (tenant_id, account_id);
+
+ALTER TABLE post_follow ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_follow FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON post_follow
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, DELETE ON post_follow TO hubtask_app;
 
 COMMIT;
