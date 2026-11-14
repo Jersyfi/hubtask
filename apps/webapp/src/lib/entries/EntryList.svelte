@@ -1488,15 +1488,18 @@
         {/snippet}
       </EmptyState>
     {:else if rows.length === 0}
-      <!-- §4.1's empty state, the one that carries a call to action: capture, pointed here; a
-           template is the side way in (WB-6). -->
-      <EmptyState kind="unused" title={t(root ? 'app.item.no_children' : 'app.entries.none')} icon="task">
+      <!-- §4.1's empty state, as the scene empty draws a first start: a template is the main way
+           where the collection offers one, capture pointed here the side way beside it (WB-6). -->
+      {@const isTemplateFirst = ontemplate !== undefined && !root}
+      <EmptyState kind="unused" title={t(root ? 'app.item.no_children' : 'app.entries.none')} description={isTemplateFirst && mayCreate && !isReadOnly ? t('app.entries.none_body') : undefined} icon="task">
         {#snippet action()}
           {#if !isReadOnly && mayCreate && topTypes().length > 0}
-            {#each addControls as control (control.label)}
-              <Button data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{control.label}</Button>
-            {/each}
-            {#if ontemplate && !root}<Button tone="secondary" icon="copy" onclick={ontemplate}>{t('app.templates.from')}</Button>{/if}
+            <div class="empty-ways">
+              {#if isTemplateFirst}<Button tone="primary" icon="copy" onclick={ontemplate}>{t('app.templates.from')}</Button>{/if}
+              {#each addControls as control (control.label)}
+                <Button tone={isTemplateFirst ? 'secondary' : 'primary'} icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{control.label}</Button>
+              {/each}
+            </div>
           {/if}
         {/snippet}
       </EmptyState>
@@ -2423,6 +2426,8 @@
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */
+
+  .empty-ways { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-100); }
 
   /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
      reaches layout.target beyond its drawn box (P-2). */
