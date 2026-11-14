@@ -182,7 +182,8 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     assert.ok(!rows.includes('Saved views'), `Saved views is still a row of ${rows}`);
     assert.equal(await page.locator('[data-opener="view"]').count(), 1, 'no View panel over the list');
     assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
-    await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
+    // The add line names its kind and where (L-6): *Entry in “…”*.
+    await page.getByRole('main').locator('[data-opener="add-entry"]').first().click();
     const modes = page.getByRole('dialog', { name: 'Capture' }).getByRole('tablist', { name: 'How to add' });
     await modes.waitFor({ timeout: 5_000 });
     assert.equal(await modes.getByRole('tab', { name: 'From a template' }).count(), 1, 'no way to the templates');
