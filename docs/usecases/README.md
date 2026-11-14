@@ -290,6 +290,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-DOC-14](./knowledge/UC-DOC-14-put-pictures-and-files-on-a-page.md) | Put pictures and files on a page | knowledge |
 | [UC-DOC-15](./knowledge/UC-DOC-15-prepare-changes-to-a-page-before-readers-see-them.md) | Prepare changes to a page before readers see them | knowledge |
 | [UC-DOC-16](./knowledge/UC-DOC-16-give-a-page-a-cover.md) | Give a page a cover | knowledge |
+| [UC-DOC-17](./knowledge/UC-DOC-17-announce-news-to-a-hub-as-a-post.md) | Announce news to a hub as a post | knowledge |
+| [UC-DOC-18](./knowledge/UC-DOC-18-read-a-post-discuss-it-and-confirm-it.md) | Read a post, discuss it and confirm it | knowledge |
 | [UC-CNV-01](./whiteboard/UC-CNV-01-draw-on-a-whiteboard-together.md) | Draw on a whiteboard together | whiteboard |
 | [UC-CNV-02](./whiteboard/UC-CNV-02-turn-a-sticky-note-into-a-task-and-keep-it-on-the-board.md) | Turn a sticky note into a task and keep it on the board | whiteboard |
 | [UC-CNV-03](./whiteboard/UC-CNV-03-take-a-whiteboard-out-again.md) | Take a whiteboard out again | whiteboard |
