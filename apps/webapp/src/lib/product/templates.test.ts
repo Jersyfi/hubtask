@@ -97,3 +97,18 @@ test('Try it finds a shipped template for Pages and for Assets', () => {
   assert.equal(tryTemplateOf(catalogue, 'KNOWLEDGE')?.key, 'team_wiki');
   assert.equal(tryTemplateOf(catalogue, 'ASSETS')?.key, 'configuration_items');
 });
+
+// user-experience.md §4 names the ITIL service desk first among the desk's templates, and the
+// `empty` scene's main way is *Desk mit ITIL-Vorlage anlegen*: it leads before a service template
+// whose key sorts earlier (customer_support).
+test('Try it takes the ITIL service desk for the desk', () => {
+  const folder = new URL('../../../../../core/application/service/config/shipped/', import.meta.url);
+  const catalogue = readdirSync(folder).filter((name) => name.endsWith('.json')).sort().map((name) => {
+    const shipped = JSON.parse(readFileSync(new URL(name, folder), 'utf8')) as {
+      key: string; document: { modules?: Record<string, { switch?: string }> }; hub?: unknown;
+    };
+    return { key: shipped.key, origin: 'HUBTASK', document: shipped.document, hub_document: shipped.hub ?? null };
+  });
+  assert.equal(tryTemplateOf(catalogue, 'SERVICE_DESK')?.key, 'itil_service_desk');
+  assert.equal(tryTemplateOf(catalogue, 'PLANNING')?.key, 'classic_project');
+});

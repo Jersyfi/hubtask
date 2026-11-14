@@ -80,6 +80,9 @@ const FAMILY_OF_PRODUCT: Readonly<Record<string, Family>> = {
   SERVICE_DESK: 'service', PLANNING: 'projects', GOALS: 'programmes', KNOWLEDGE: 'teams', ASSETS: 'registers',
 };
 
+/** The template user-experience.md §4 names first for a product, where its family holds several. */
+const FIRST_OF_PRODUCT: Readonly<Record<string, string>> = { SERVICE_DESK: 'itil_service_desk' };
+
 /**
  * The template *Try it* takes for a product (user-experience.md §3.3): one whose main product it
  * is, from the product's own family first; none where no template is mainly for it, and the
@@ -88,7 +91,8 @@ const FAMILY_OF_PRODUCT: Readonly<Record<string, Family>> = {
 export function tryTemplateOf<T extends Offered>(templates: readonly T[], module: string): T | undefined {
   const family = FAMILY_OF_PRODUCT[module];
   const mainly = productTemplates(templates, module, templates.length).filter((each) => mainOf(each) === module);
-  return mainly.find((each) => family !== undefined && familyOf(each as Parameters<typeof familyOf>[0]) === family) ?? mainly[0];
+  const named = FIRST_OF_PRODUCT[module];
+  return mainly.find((each) => each.origin === 'HUBTASK' && each.key === named) ?? mainly.find((each) => family !== undefined && familyOf(each as Parameters<typeof familyOf>[0]) === family) ?? mainly[0];
 }
 
 function mainOf(template: Pick<Offered, 'document'>): string | undefined {
