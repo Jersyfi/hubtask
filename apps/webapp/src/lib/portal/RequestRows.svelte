@@ -9,7 +9,7 @@
   import type { PortalRequest } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
-  import { formatClock, formatDateTime, formatDueShort } from '../i18n/datetime.ts';
+  import { formatClock, formatDueShort } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { nextStep, requestState } from './portal.ts';
 
@@ -34,8 +34,8 @@
     if (step.kind === 'done') return t('app.portal.next_done', { at: near(step.at, true) });
     if (step.kind === 'replied') return t('app.portal.next_replied', { at: near(step.at) });
     if (step.kind === 'promised') return t('app.portal.next_promised', { at: near(step.at) });
-    if (step.kind === 'working') return t('app.portal.next_working', { at: formatDateTime(step.at, messages.locale) });
-    return t('app.portal.next_received', { at: formatDateTime(step.at, messages.locale) });
+    if (step.kind === 'working') return t('app.portal.next_working', { at: near(step.at) });
+    return t('app.portal.next_received', { at: near(step.at) });
   }
 </script>
 
