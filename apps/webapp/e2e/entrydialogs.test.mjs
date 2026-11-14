@@ -19,11 +19,14 @@ test.after(() => served.close());
 
 const DATED = ITEMS.find((each) => each.due_at);
 
+/**
+ * The ⋯ items that edit a property open the property's own picker, as the rail does (D-3): a
+ * popover beside the door, a sheet on a phone - never a dialog of the ladder.
+ */
+const PICKERS = [['Change the due date', 'Dates'], ['Person', 'Assignee'], ['Labels', 'Labels']];
+
 /** The ⋯ item and the rung its dialog takes. */
 const RUNGS = [
-  ['Change the due date', 'm'],
-  ['Person', 'm'],
-  ['Labels', 'm'],
   ['Move to another collection', 's'],
   ['Duplicate', 'm'],
   ['Split a part off', 'l'],
@@ -58,6 +61,20 @@ for (const [width, height] of [[1280, 800], [390, 844]]) {
     await page.goto(`${served.origin}/items/${DATED.id}`);
     await page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
     await page.waitForTimeout(600);
+    for (const [item, name] of PICKERS) {
+      await page.locator('[data-opener="entry-menu"]').first().click();
+      await page.getByRole('menuitem', { name: item }).click();
+      if (width < 600) {
+        const sheet = page.locator('dialog[open].sheet', { has: page.getByRole('heading', { name }) });
+        await sheet.waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${item}: no sheet on a phone`));
+        assert.ok((await sheet.boundingBox()).width >= width - 1, `${item}: the sheet is not the screen's width`);
+      } else {
+        await page.getByRole('dialog', { name }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${item}: no picker beside the door`));
+        assert.equal(await page.locator('dialog[open]').count(), 0, `${item}: opened a dialog of the ladder, not the picker`);
+      }
+      await page.keyboard.press('Escape');
+      await page.locator('dialog[open]').waitFor({ state: 'detached', timeout: 5_000 }).catch(() => {});
+    }
     for (const [item, rung] of RUNGS) {
       await page.locator('[data-opener="entry-menu"]').first().click();
       await page.getByRole('menuitem', { name: item }).click();
