@@ -22,7 +22,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
-  import { resource } from '../data/resource.svelte.ts';
+  import { resourceWhen } from '../data/resource.svelte.ts';
   import { documentServerPath } from './documentServer.svelte.ts';
   import { editorFrameName, startEditing } from './launchEditor.ts';
   import { drawPage, openPdf } from './pdf.ts';
@@ -46,9 +46,12 @@
   let launch = $state<HTMLFormElement>();
   $effect(() => { if (editing && launch) launch.submit(); });
   $effect(() => { if (editing && editing.mediaId !== file?.id) editing = undefined; });
-  // Whether an office file shows as the server's PDF: every member reads the choice.
-  const server = resource<DocumentServer>(documentServerPath);
+  // Whether an office file shows as the server's PDF: every member reads the choice, once the
+  // viewer is open - the frame holds the viewer on every screen.
+  const server = resourceWhen<DocumentServer>(() => (opened ? documentServerPath : undefined));
   const officeAs = $derived(officeShownAs(server.state.status === 'ready' ? server.state.data : undefined));
+  /** The choice answered (or could not be read): before it, an office file waits rather than flashing the card. */
+  const isServerSettled = $derived(server.state.status === 'ready' || server.state.status === 'failed');
 
   /** What the stage draws, once the bytes or the URL arrived. */
   type Drawn =
@@ -79,6 +82,7 @@
     if (!current) return;
     const currentKind = kind;
     const asOffice = officeAs;
+    const isSettled = isServerSettled;
     let isCurrent = true;
     let made: string | undefined;
     zoom = 1;
@@ -87,6 +91,7 @@
     drawn = { kind: 'loading' };
     void (async () => {
       try {
+        if (currentKind === 'office' && !isSettled) return;
         if (currentKind === 'office' && asOffice === 'pdf') {
           drawn = await converted(current);
           return;
