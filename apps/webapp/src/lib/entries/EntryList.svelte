@@ -1125,6 +1125,12 @@
    * simple list's adds its amount and its category, which its still hold opens with *Select* first
    * (ADR-0088).
    */
+  /** What the ＋ under a row says: the one level it adds, or "something" where it may add several. */
+  const addInsideLabel = (row: Row) =>
+    childTypes(row.item.type).length === 1
+      ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
+      : t('app.entries.add_child', { title: row.item.title });
+
   function menuItems(row: Row) {
     const next = isFrozen(row) ? undefined : advanceFor(row.item);
     const menu = entryMenu(
@@ -1156,6 +1162,13 @@
       },
       t,
     );
+    // A phone's row draws no ＋ (§7: title, meta line, SLA bar); adding inside it stays a press
+    // away in its menu, after *Select* and *Open*.
+    if (isPhoneRow && row.archival === 'active' && mayCreate && row.takesChildren) {
+      const at = menu.findIndex((item) => item.id !== 'select' && item.id !== 'open');
+      const inside = { id: 'add-inside', label: addInsideLabel(row) };
+      menu.splice(at === -1 ? menu.length : at, 0, inside);
+    }
     if (!next) return menu;
     // The swipe's act at L1 and L2, without the gesture (WCAG 2.5.7): after *Select* and *Open*.
     const at = menu.findIndex((item) => item.id !== 'select' && item.id !== 'open');
@@ -1405,6 +1418,10 @@
 
   /** One chosen item: what only the list knows answers here, the rest is the screen's actions. */
   function chose(row: Row, id: string) {
+    if (id === 'add-inside') {
+      startAdding(row.item.id);
+      return;
+    }
     if (id === 'advance') {
       void act(row.item.id);
       return;
@@ -1858,9 +1875,7 @@
               <span class="on-hover">
                 <IconButton
                   icon="plus"
-                  label={childTypes(row.item.type).length === 1
-                    ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
-                    : t('app.entries.add_child', { title: row.item.title })}
+                  label={addInsideLabel(row)}
                   size="sm"
                   onclick={() => startAdding(row.item.id)}
                 />
