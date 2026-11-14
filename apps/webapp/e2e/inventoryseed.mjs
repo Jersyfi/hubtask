@@ -161,12 +161,15 @@ const moves = (each) => {
 
 /**
  * Signs in at the width asked on the app `origin` serves, answers the inventory's reads from the seed - as the hub's owner or,
- * with `role`, a member who may only read - and opens `path`. `written` collects every write.
+ * with `role`, a member who may only read - and opens `path`, the clock at `now` if given.
+ * `written` collects every write.
  */
-export async function openInventory(browser, origin, { width = 1280, height = 900, path, role = 'OWNER', scheme = 'light' }) {
+export async function openInventory(browser, origin, { width = 1280, height = 900, path, role = 'OWNER', scheme = 'light', now }) {
   const { page, context, failures } = await signedIn(browser, width, height);
+  if (now) await context.clock.setFixedTime(now);
   await page.emulateMedia({ colorScheme: scheme });
   const written = [];
+  const assets = ASSETS.map((each) => ({ ...each }));
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', (route) => {
     const request = route.request();
@@ -184,8 +187,11 @@ export async function openInventory(browser, origin, { width = 1280, height = 90
     if (method !== 'GET') {
       written.push({ method, at, body: request.postDataJSON?.() ?? null });
       if (/^\/cis\/[^/]+\/asset:move$/.test(at)) {
-        const moved = ASSETS.find((each) => at.includes(each.ci_id));
-        return route.fulfill({ json: { ...moved, state: request.postDataJSON()?.state ?? moved.state, version: moved.version + 1, moves: moves(moved) } });
+        // The register keeps the move, so the reads after it answer the device where it went.
+        const moved = assets.find((each) => at.includes(each.ci_id));
+        const body = request.postDataJSON() ?? {};
+        Object.assign(moved, { state: body.state ?? moved.state, version: moved.version + 1, ...(body.disposal ? { disposal: { ...body.disposal, by: ACCOUNT.id, at: '2026-11-14T10:00:00Z' } } : {}) });
+        return route.fulfill({ json: { ...moved, moves: moves(moved) } });
       }
       if (/\/ci-holds\/[^/]+:dismiss$/.test(at) || /\/ci-holds\/[^/]+$/.test(at)) return route.fulfill({ json: { id: HOLD.id, dismissed: true } });
       return stub(route);
@@ -221,11 +227,11 @@ export async function openInventory(browser, origin, { width = 1280, height = 90
     if (at === `/hubs/${HUB.id}/cmdb-connectors`) return route.fulfill({ json: { data: CONNECTORS } });
     if (at === `/hubs/${HUB.id}/assets`) {
       const state = url.searchParams.get('state');
-      return route.fulfill({ json: { data: ASSETS.filter((each) => !state || each.state === state), next: null } });
+      return route.fulfill({ json: { data: assets.filter((each) => !state || each.state === state), next: null } });
     }
     const record = /^\/cis\/([^/]+)\/asset$/.exec(at);
     if (record) {
-      const found = ASSETS.find((each) => each.ci_id === record[1]);
+      const found = assets.find((each) => each.ci_id === record[1]);
       return found ? route.fulfill({ json: { ...found, moves: moves(found) } }) : route.fulfill({ status: 404, json: { code: 'not_found' } });
     }
     if (at === `/hubs/${HUB.id}/software`) {
