@@ -570,6 +570,9 @@ test('chromium: the attachments announce a page only after the reader asked for 
       }
       return route.fulfill({ json: { data: [file(1), file(2)], page: { next_cursor: 'a2', has_more: true } } });
     }
+    // A PDF card asks for its first page through the file's record; without a download the card keeps its mark.
+    const one = /\/media\/([^/:]+)$/.exec(url.pathname);
+    if (one && route.request().method() === 'GET') return route.fulfill({ json: { ...file(Number(one[1].slice(-2))), id: one[1] } });
     return stub(route);
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
@@ -618,6 +621,10 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
     if (request.method() === 'POST' && url.pathname.includes('/media')) {
       uploads.push(url.pathname);
       return route.fulfill({ status: 503, json: { type: 'about:blank', title: 'Unavailable', status: 503, code: 'common.unavailable' } });
+    }
+    // A PDF card asks for its first page through the file's record; without a download the card keeps its mark.
+    if (/\/media\/[^/:]+$/.test(url.pathname) && request.method() === 'GET') {
+      return route.fulfill({ json: { id: url.pathname.split('/').pop(), file_name: 'brief.pdf', content_type: 'application/pdf', size: 2048, status: 'READY', created_at: '2026-10-01T08:00:00Z' } });
     }
     return stub(route);
   });
