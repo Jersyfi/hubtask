@@ -221,9 +221,10 @@
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .chip { min-block-size: var(--layout-target); padding-inline: var(--sp-150); font-size: var(--fs-075); color: var(--text-primary); background: var(--bg-surface); border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); cursor: pointer; }
   .chip[aria-pressed='true'] { color: var(--text-brand); border-color: var(--accent-primary); background: var(--accent-primary-subtle); }
-  .segments { display: inline-flex; align-self: flex-start; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); overflow: hidden; }
-  .segments button { min-block-size: var(--layout-target); padding-inline: var(--sp-200); font-size: var(--fs-075); color: var(--text-primary); background: var(--bg-surface); border: none; cursor: pointer; }
-  .segments button[aria-pressed='true'] { color: var(--text-inverse); background: var(--accent-primary); }
+  /* One segmented look (T-2): the density switch's - a white chip on a sunken track. */
+  .segments { display: inline-flex; align-self: flex-start; padding: var(--sp-025); border-radius: var(--r-md); overflow: hidden; background: var(--bg-recess); }
+  .segments button { min-block-size: var(--layout-target); padding-inline: var(--sp-200); font-size: var(--fs-075); color: var(--text-secondary); background: transparent; border: none; border-radius: var(--r-sm); cursor: pointer; }
+  .segments button[aria-pressed='true'] { color: var(--text-primary); background: var(--bg-surface); font-weight: var(--fw-semibold); }
   .fields { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-050); }
   .fields li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-100); }
   .save[data-changed] { background: var(--accent-primary-subtle); border-radius: var(--r-md); padding: var(--sp-200); border: none; }

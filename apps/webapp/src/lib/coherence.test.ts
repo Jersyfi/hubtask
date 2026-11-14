@@ -211,3 +211,10 @@ test('a page says nothing before its first sentence: no published hint, the live
   const editor = sources.find(({ path }) => path === 'lib/pages/PageEditor.svelte')?.text ?? '';
   assert.ok(editor.indexOf('<p class="status" aria-live="polite">') > editor.indexOf('<div class="editor page-text" bind:this={host}></div>'), 'the live line stands under the text');
 });
+
+test('a chosen segment or chip never takes the primary\'s fill: one segmented look, one chip tint (T-2)', () => {
+  for (const { path, text } of sources) {
+    const style = text.slice(text.indexOf('<style'));
+    assert.doesNotMatch(style, /\[aria-(pressed|checked)='true'\][^{]*\{[^}]*background: var\(--accent-primary\);/u, path);
+  }
+});

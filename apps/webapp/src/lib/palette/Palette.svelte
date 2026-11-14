@@ -1040,7 +1040,7 @@
   }
 
   .scope:hover { background: var(--bg-surface-hover); }
-  .scope[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary); color: var(--text-inverse); }
+  .scope[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); color: var(--text-brand); }
   .scope .count { font-variant-numeric: tabular-nums; }
 
   .head { text-transform: uppercase; }

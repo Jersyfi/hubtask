@@ -999,7 +999,7 @@
     <div class="bars">
       <div class="controls" role="group" aria-label={t('app.planning.chart')}>
         {#if !isEntriesOnly}
-          <div class="segments" role="group" aria-label={t('app.planning.presentation')}>
+          <div class="segments quiet-segments" role="group" aria-label={t('app.planning.presentation')}>
             {#each ['timeline', 'gantt'] as const as each (each)}
               <button type="button" aria-pressed={setup.presentation === each} data-plan-presentation={each} onclick={() => (setup = { ...setup, presentation: each })}>
                 <Icon name={each === 'gantt' ? 'list' : 'clock'} size="sm" />{t(`app.planning.presentation_${each}`)}
@@ -1384,8 +1384,8 @@
   .legend { margin-inline-start: auto; }
   .segments { display: inline-flex; align-items: center; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-md); overflow: hidden; background: var(--bg-surface); }
   .segments button { display: inline-flex; align-items: center; gap: var(--sp-050); min-block-size: var(--layout-target); padding-inline: var(--sp-150); font: inherit; font-size: var(--fs-075); color: var(--text-primary); background: transparent; border: none; cursor: pointer; }
-  .segments button[aria-pressed='true'] { color: var(--text-inverse); background: var(--accent-primary); }
   .quiet-segments { background: var(--bg-surface-sunken); border-color: transparent; }
+  /* One selected look for every segmented control: the density switch's white chip (T-2). */
   .quiet-segments button[aria-pressed='true'] { color: var(--text-primary); background: var(--bg-surface); font-weight: var(--fw-semibold); }
   .initials { display: inline-flex; align-items: center; justify-content: center; inline-size: var(--sp-300); block-size: var(--sp-300); border-radius: var(--r-full); font-size: var(--fs-065); font-weight: var(--fw-semibold); color: var(--text-brand); background: var(--accent-primary-subtle); }
   .warn { color: var(--text-danger); }

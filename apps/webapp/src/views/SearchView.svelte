@@ -1005,7 +1005,8 @@
     cursor: pointer;
   }
 
-  .chip[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary); color: var(--text-inverse); }
+  /* One chosen chip (T-2): the subtle tint every chip takes, never the primary's fill. */
+  .chip[aria-pressed='true'] { border-color: var(--accent-primary); background: var(--accent-primary-subtle); color: var(--text-brand); }
 
   .chip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
