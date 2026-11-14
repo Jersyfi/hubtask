@@ -721,6 +721,7 @@ content: the canvas and one region.
 | 2 Raised | `bg.raised` + `elevation.raised` | only what moves (a board's card) and at most one focal card | grouping |
 | 3 Overlay | `bg.raised` + the overlay shadow, `bg.scrim` behind a dialog | dialogs, sheets, menus, popovers | a second dialog over the first, except *Discard changes?* |
 | Sunken | `bg.surface-sunken` | a backdrop inside level 0 or 1: a board's column, a code sample, a group row | on raised or overlay |
+| Stage | `stage.surface`, its rail `stage.raised`, its buttons and tiles `stage.control`, ink `stage.ink`/`stage.ink-subtle`; the same in both modes | the file viewer's room: the file is what is lit | anywhere but the viewer |
 
 Inside a region, rows are parted by hairlines and groups by a quiet uppercase label, never by a
 nested box. A table's filter bar stands on the canvas above it and its foot (the count, *Show

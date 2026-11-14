@@ -342,10 +342,10 @@
 </dialog>
 
 <style>
-  .viewer { inline-size: 100vw; block-size: 100dvh; max-inline-size: none; max-block-size: none; margin: 0; padding: 0; border: 0; background: var(--bg-emphasis); color: var(--text-inverse); }
+  .viewer { inline-size: 100vw; block-size: 100dvh; max-inline-size: none; max-block-size: none; margin: 0; padding: 0; border: 0; background: var(--stage-surface); color: var(--stage-ink); }
   .viewer[open] { display: grid; grid-template-rows: auto 1fr auto; }
   .viewer::backdrop { background: var(--bg-scrim); }
-  .top { display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-100) var(--sp-300); border-block-end: var(--bw-hairline) solid var(--border-strong); }
+  .top { display: flex; align-items: center; gap: var(--sp-100); padding: var(--sp-100) var(--sp-300); border-block-end: var(--bw-hairline) solid var(--stage-border); }
   .name { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .where { white-space: nowrap; opacity: 0.8; }
   .acts { display: flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
@@ -374,18 +374,18 @@
   .listing li { display: flex; justify-content: space-between; gap: var(--sp-200); font-family: var(--font-mono); font-size: var(--fs-090); }
   .card { display: grid; justify-items: center; gap: var(--sp-100); padding: var(--sp-500); border-radius: var(--r-lg); background: var(--bg-surface); color: var(--text-primary); text-align: center; max-inline-size: calc(var(--sp-1600) * 7); align-self: center; }
   .card p { margin: 0; }
-  .details { padding: var(--sp-300); border-inline-start: var(--bw-hairline) solid var(--border-strong); overflow: auto; }
+  .details { padding: var(--sp-300); background: var(--stage-raised); border-inline-start: var(--bw-hairline) solid var(--stage-border); overflow: auto; }
   .details h3 { margin: var(--sp-200) 0 var(--sp-050); font-size: var(--fs-075);
     /* design-system-lint-ignore: tracking in em follows the type step it spaces */
     letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
   .details h3:first-child { margin-block-start: 0; }
-  .details p, .details h3, .where, .keys { color: var(--text-inverse); }
+  .details p, .details h3, .where, .keys { color: var(--stage-ink-subtle); }
   .details p { margin: 0; }
   .key { font-family: var(--font-mono); opacity: 0.75; }
-  .foot { display: flex; align-items: center; gap: var(--sp-200); padding: var(--sp-100) var(--sp-300); border-block-start: var(--bw-hairline) solid var(--border-strong); }
+  .foot { display: flex; align-items: center; gap: var(--sp-200); padding: var(--sp-100) var(--sp-300); border-block-start: var(--bw-hairline) solid var(--stage-border); }
   .strip { display: flex; gap: var(--sp-100); margin: 0; padding: 0; list-style: none; overflow-x: auto; flex: 1; }
-  .tile { display: grid; justify-items: center; gap: var(--sp-050); inline-size: calc(var(--sp-1000) + var(--sp-500)); padding: var(--sp-100) var(--sp-050); border: var(--bw-thick) solid transparent; border-radius: var(--r-md); background: var(--bg-glass); color: inherit; font: inherit; font-size: var(--fs-075); cursor: pointer; }
-  .tile[aria-current='true'] { border-color: var(--text-brand); }
+  .tile { display: grid; justify-items: center; gap: var(--sp-050); inline-size: calc(var(--sp-1000) + var(--sp-500)); padding: var(--sp-100) var(--sp-050); border: var(--bw-thick) solid transparent; border-radius: var(--r-md); background: var(--stage-control); color: inherit; font: inherit; font-size: var(--fs-075); cursor: pointer; }
+  .tile[aria-current='true'] { border-color: var(--accent-primary); }
   .tile-name { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .keys { margin: 0; white-space: nowrap; font-size: var(--fs-090); }
   .quiet { opacity: 0.75; }
@@ -400,7 +400,7 @@
     .body { grid-template-columns: 1fr; }
     .details { display: none; }
     .next { inset-inline-end: var(--sp-200); }
-    .details[data-open] { display: block; position: absolute; inset-inline-end: 0; inset-block: var(--sp-600) var(--sp-600); inline-size: min(100%, calc(var(--sp-1600) * 5)); background: var(--bg-emphasis); }
+    .details[data-open] { display: block; position: absolute; inset-inline-end: 0; inset-block: var(--sp-600) var(--sp-600); inline-size: min(100%, calc(var(--sp-1600) * 5)); }
     .narrow-only { display: inline-flex; }
   }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px) less one; a media query cannot read a custom property. */

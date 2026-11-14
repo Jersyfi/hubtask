@@ -123,6 +123,15 @@ const ROLES = {
   'rim.primary': ['decorative', 'as rim.highlight, tinted with the primary hue'],
   'rim.signature': ['decorative', 'as rim.highlight, tinted with the signature hue'],
 
+  // The viewer's dark room (stage.*): the same in both modes, so its ink is measured on its own
+  // planes rather than on the page's surfaces it never stands on.
+  'stage.surface': 'stage-plane',
+  'stage.raised': 'stage-plane',
+  'stage.control': 'stage-plane',
+  'stage.ink': 'stage-ink',
+  'stage.ink-subtle': 'stage-ink',
+  'stage.border': ['decorative', "a hairline between the stage's bars, never the only thing identifying a control"],
+
   // A chart's series are graphical objects (SC 1.4.11): 3:1 against every surface they are drawn on.
   ...Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map((n) => [`chart.categorical.${n}`, 'indicator'])),
 };
@@ -301,6 +310,13 @@ function pairs(mode) {
       for (const [name, background] of against) out.push([dotted, name, on(dotted, background), background, NON_TEXT]);
       const fill = flatten(dotted);
       out.push(['text.inverse', dotted, on('text.inverse', fill), fill, BODY_TEXT]);
+    }
+    if (role === 'stage-ink') {
+      for (const [plane] of tokens) {
+        if (roleOf(plane) !== 'stage-plane') continue;
+        const background = flatten(plane);
+        out.push([dotted, plane, on(dotted, background), background, BODY_TEXT]);
+      }
     }
     if (role === 'label-fg') {
       const background = flatten(tileOf(dotted));
