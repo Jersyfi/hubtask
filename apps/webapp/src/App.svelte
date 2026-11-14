@@ -90,6 +90,7 @@
     TrashView: () => import('./views/TrashView.svelte'),
     PagesView: () => import('./views/PagesView.svelte'),
     PostsView: () => import('./views/PostsView.svelte'),
+    PostView: () => import('./views/PostView.svelte'),
     NotesView: () => import('./views/NotesView.svelte'),
     ProductHomeView: () => import('./views/ProductHomeView.svelte'),
     DeskReportsView: () => import('./views/DeskReportsView.svelte'),
@@ -593,6 +594,10 @@
   {:else if route.name === 'hub-posts'}
     {#key route.path}
       <LazyView load={views.PostsView} props={{ hubId: route.params.id ?? '', onnavigate: (path: string) => router.navigate(path) }} />
+    {/key}
+  {:else if route.name === 'post' || route.name === 'post-write'}
+    {#key route.path}
+      <LazyView load={views.PostView} props={{ pageId: route.params.id ?? '', isWriteAsked: route.name === 'post-write', onnavigate: (path: string) => router.navigate(path) }} />
     {/key}
   {:else if route.name === 'whiteboard'}
     {#key route.path}

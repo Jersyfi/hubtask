@@ -442,6 +442,8 @@ test('anything of a hub shows its hub\'s level; everything else the workspace le
   }
   assert.deepEqual(level('item', { id: 'i' }, {}, 'c'), { kind: 'hub', hubId: 'h' }, 'an entry shows its collection\'s hub');
   assert.deepEqual(level('page', { id: 'p' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a page shows its space');
+  assert.deepEqual(level('hub-posts', { id: 'h' }), { kind: 'hub', hubId: 'h' }, 'a hub\'s posts show its hub');
+  for (const name of ['post', 'post-write']) assert.deepEqual(level(name, { id: 'p' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, `a ${name} shows its hub`);
   assert.deepEqual(level('item', { id: 'i' }), { kind: 'workspace' }, 'until the entry says where it lives');
   assert.deepEqual(level('goal', { id: 'g' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a hub\'s goal shows its hub');
   assert.deepEqual(level('dashboard', { id: 'd' }, {}, 'h'), { kind: 'hub', hubId: 'h' }, 'a hub\'s dashboard shows its hub');

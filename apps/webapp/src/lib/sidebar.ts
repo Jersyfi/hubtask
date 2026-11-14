@@ -34,7 +34,7 @@ const COLLECTION_ROUTES = new Set(['collection', 'collection-timeline', 'collect
  * Routes whose place the screen names once it has read it (`page.locate`): an entry, a page, a
  * board, a CI, a goal, a dashboard. A detail screen stays in the level of the place that owns it.
  */
-const LOCATED_ROUTES = new Set(['item', 'page', 'whiteboard', 'ci', 'goal', 'dashboard']);
+const LOCATED_ROUTES = new Set(['item', 'page', 'post', 'post-write', 'whiteboard', 'ci', 'goal', 'dashboard']);
 
 /**
  * The level a route shows (§2.4, §6.1): anything of a hub - the hub, a tool, a collection, a page,

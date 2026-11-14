@@ -16,7 +16,7 @@
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import { page as frame } from '../lib/frame/page.svelte.ts';
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import {
     AvatarGroup, Badge, Banner, Breadcrumb, Button, Dialog, EmptyState, IconButton, Inline, Input, Menu, PageHeader, PageOutline, Select, Sheet, Spinner, Stack, Switch,
     TemplateCard, TemplateGallery, Textarea, TrustLine, VisuallyHidden, WorkPage,
@@ -73,9 +73,28 @@
     isCreateUnder?: boolean;
     /** The create asked for starts from one of Hubtask's templates: the pages' home's *start with a template*. */
     startWith?: string;
+    /**
+     * A post's page (B-1): the same reader and editor, the post drawing its own head in place of
+     * the trust line, its band, its discussion under the words and its writers' panel beside them.
+     */
+    post?: PostFrame;
   }
 
-  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false, startWith }: Props = $props();
+  interface PostFrame {
+    /** The step between the hub and the post: *Posts*. */
+    trail: { label: string; href: string };
+    /** Its kind and origin, over the title. */
+    kicker?: Snippet;
+    head: Snippet;
+    band?: Snippet;
+    foot: Snippet;
+    aside?: Snippet;
+    acts?: Snippet;
+    /** Words that replace the post's body through the live document: a template's start. */
+    replaceWith?: { body: string };
+  }
+
+  const { hubId: hubFromRoute, pageId, onnavigate, onreplace, isCreateAsked = false, isCreateUnder = false, startWith, post }: Props = $props();
 
   // --- What is read ------------------------------------------------------------------------------
 
@@ -200,7 +219,7 @@
   let chosenStart = $state<PageStart | undefined>(undefined);
   let ownStart = $state<{ id: string; body: string } | undefined>(undefined);
   let isUsingStart = $state(false);
-  const offersStarts = $derived(!!current && current.writable && isBlankBody(writtenBody(current)));
+  const offersStarts = $derived(!post && !!current && current.writable && isBlankBody(writtenBody(current)));
   const ownTemplates = $derived(templateRows.filter((row) => row.id !== current?.id).map((row) => ({ id: row.id, title: row.title, icon: row.icon })));
   $effect(() => {
     if (!offersStarts) chosenStart = undefined;
@@ -491,7 +510,10 @@
   );
 
   // The page's menu: what is not the head's one row, the destructive item last (§5.9).
-  const pageMenu = $derived(current ? [
+  const pageMenu = $derived(current && post ? [
+    { id: 'history', label: t('app.pages.side_history'), icon: 'clock' as const },
+    ...(current.writable ? [{ id: 'trash', label: t('app.pages.to_trash'), icon: 'trash' as const, isDestructive: true, hasSeparatorBefore: true }] : []),
+  ] : current ? [
     ...(current.writable ? [{ id: 'child', label: t('app.pages.new_child'), icon: 'plus' as const }] : []),
     ...(current.writable ? [{ id: 'copy', label: t('app.pages.copy'), icon: 'copy' as const }] : []),
     ...(current.writable ? [{ id: 'move', label: t('app.pages.move'), icon: 'arrow-right' as const }] : []),
@@ -631,6 +653,7 @@
               mark={placeMark}
               trail={[
                 ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
+                ...(post ? [{ id: 'posts', label: post.trail.label, href: post.trail.href }] : []),
                 ...current.ancestors.map((above) => ({ id: above.id, label: above.title, href: `/pages/${above.id}` })),
                 { id: current.id, label: current.title },
               ]}
@@ -658,10 +681,11 @@
                 data-page-comments
                 onclick={() => (viewport.isLarge ? document.querySelector<HTMLElement>('[data-page-comment-new] textarea')?.focus() : toggleSide('comments'))}
               >{String(openThreads)}<VisuallyHidden>{` ${t('app.pages.comments_open', { count: String(openThreads) })}`}</VisuallyHidden></Button>
-              {#if !current.shared && hubId}
+              {#if post?.acts}{@render post.acts()}{/if}
+              {#if !post && !current.shared && hubId}
                 <Button size="sm" tone="secondary" icon="users" aria-pressed={side === 'access'} data-page-share onclick={() => toggleSide('access')}>{t('app.pages.share')}</Button>
               {/if}
-              <StarToggle kind="PAGE" id={current.id} name={current.title} />
+              {#if !post}<StarToggle kind="PAGE" id={current.id} name={current.title} />{/if}
               <Menu label={t('app.pages.page_menu')} items={pageMenu} onselect={choose}>
                 {#snippet trigger(props)}
                   <IconButton icon="ellipsis" label={t('app.pages.page_menu')} size="sm" tone="secondary" data-page-menu {...props} />
@@ -675,7 +699,7 @@
           {/if}
           <div class="reader" class:with-beside={viewport.isLarge}>
             <article class="column" class:with-gutter={current.writable && !viewport.isCompact} class:covered={!!current.cover} aria-labelledby="page-title">
-              {#if current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
+              {#if !post && current.writable && (pageDraft === 'unpublished' || pageDraft === 'draft')}
                 <!-- The drafts band (scene pnew 1): what only its writer sees, with publishing beside it. -->
                 <Banner tone="warning" icon="lock">
                   <span data-page-draft-band><strong>{t('app.pages.draft_word')}</strong> {t(pageDraft === 'unpublished' ? 'app.pages.unpublished_band' : 'app.pages.draft_hint')}</span>
@@ -691,6 +715,7 @@
                 <div class="page-adds"><Button size="sm" tone="subtle" icon="image" data-page-cover-add onclick={addCover}>{t('app.pages.cover_add')}</Button></div>
               {/if}
               {#if current.icon}<span class="icon" aria-hidden="true">{current.icon}</span>{/if}
+              {#if post?.kicker}{@render post.kicker()}{/if}
               {#if current.writable}
                 <!-- A textarea, as an entry's title is, so a long title wraps; Enter saves it. The
                      heading is read, the field is what is seen: the title appears once. -->
@@ -707,6 +732,11 @@
               {:else}
                 <h1 class="title" id="page-title">{current.title}</h1>
               {/if}
+              {#if post}
+                {@render post.head()}
+                <div class="post-labels">{#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}</div>
+                {#if post.band}{@render post.band()}{/if}
+              {:else}
               <TrustLine
                 owner={current.owner_id ? nameOf(current.owner_id) : undefined}
                 ownerRole={t('app.pages.owner_role')}
@@ -724,7 +754,8 @@
                   {#key current.id}<PageLabels page={current} onchoose={(label) => { contentsAsk.label = label; onnavigate(`/hubs/${hubId}/contents`); }} />{/key}
                 {/snippet}
               </TrustLine>
-              {#if current.writable && pageDraft === 'published'}
+              {/if}
+              {#if !post && current.writable && pageDraft === 'published'}
                 <p class="quiet">{t('app.pages.published_hint')}</p>
               {/if}
               {#if offersStarts}
@@ -742,7 +773,7 @@
                   collections={hubId ? containers.collectionsOf(hubId).map((each) => ({ id: each.id, name: each.name })) : []}
                   {onnavigate}
                   {reveal}
-                  replaceWith={replaced}
+                  replaceWith={post?.replaceWith ?? replaced}
                   passages={viewport.isLarge || side === 'comments' ? passages : []}
                   onpassages={passagesMoved}
                   onpresent={(names) => (present = names)}
@@ -761,7 +792,10 @@
               </div>
 
               <!-- What links here, at the page's end (§3 knowledge): a quiet list, not a panel. -->
-              {#if backlinkState.length > 0}
+              {#if post}
+                {#if post.aside && !viewport.isLarge}<div class="post-aside">{@render post.aside()}</div>{/if}
+                {@render post.foot()}
+              {:else if backlinkState.length > 0}
                 <section class="backlinks" aria-labelledby="page-backlinks" data-page-backlinks>
                   <h2 class="caps" id="page-backlinks">{t('app.pages.links_here', { count: String(backlinkState.length) })}</h2>
                   <ul class="hits">
@@ -789,6 +823,7 @@
             {/snippet}
 
             {#snippet beside()}
+              {#if post?.aside && viewport.isLarge}{@render post.aside()}{/if}
               {#if startShown && viewport.isLarge}
                 {@render startPreview()}
               {/if}
@@ -975,6 +1010,8 @@
 {/if}
 
 <style>
+  .post-labels { margin-block: var(--sp-100); }
+  .post-aside { margin-block-start: var(--sp-400); }
   .space {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
