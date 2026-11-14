@@ -3,7 +3,8 @@
 <script lang="ts">
   // *Publish* (scene postwrite 1 and 3, B-3, B-5, B-6): now or at a day and time; who sees it,
   // which only narrows; notify; a read confirmation with its deadline; featured until; the
-  // discussion. On a published post the same panel changes what still can change.
+  // discussion. On a published post the same panel changes what still can change. It stands in the
+  // popover its button opens.
 
   import { Button, Checkbox, CheckboxGroup, Input, Select } from '@hubtask/design-system/components';
   import type { Post, PostSettings } from '@hubtask/sync-engine';
@@ -115,7 +116,7 @@
 </section>
 
 <style>
-  .publish { display: flex; flex-direction: column; gap: var(--sp-150); padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised); }
+  .publish { display: flex; flex-direction: column; gap: var(--sp-150); }
   h2 { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
   .when { display: grid; grid-template-columns: 1fr 1fr; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); overflow: hidden; }
   .when button { border: none; background: none; padding: var(--sp-100); font: inherit; cursor: pointer; color: var(--text-secondary); }

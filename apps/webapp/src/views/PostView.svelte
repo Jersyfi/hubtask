@@ -6,7 +6,7 @@
   // *seen by* -, the read confirmation's band, the discussion under the words, and for writers
   // *confirmed 21 of 45* with *Remind*, *Publish* now or at a moment, and the templates as chips.
 
-  import { Badge, Banner, Button, Icon, Menu, ProgressBar, Spinner, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Icon, Menu, Popover, ProgressBar, Spinner, StateLozenge, VisuallyHidden } from '@hubtask/design-system/components';
   import type { Page, PageList, Post, PostList } from '@hubtask/sync-engine';
   import { untrack } from 'svelte';
 
@@ -135,12 +135,6 @@
 {/snippet}
 
 {#snippet band()}
-  {#if post && isPublishing}
-    <div class="band">
-      <PostPublish {post} hubName={hub?.name ?? ''} {isWorkspaceWide} onclose={() => (isPublishing = false)}
-        ondone={(next) => { isPublishing = false; void read.refresh(); if (next.state === 'PUBLISHED') onnavigate(`/posts/${next.page_id}`); }} />
-    </div>
-  {/if}
   {#if post && post.state === 'PUBLISHED' && post.confirm_by}
     <div class="band" data-post-confirm-band>
       {#if post.confirmed}
@@ -202,10 +196,18 @@
     {#if isWriting && post.state !== 'PUBLISHED'}
       <Button size="sm" tone="subtle" icon="eye" data-post-preview onclick={() => onnavigate(`/posts/${post.page_id}`)}>{t('app.posts.preview')}</Button>
     {/if}
-    <Button size="sm" tone={post.state === 'PUBLISHED' ? 'secondary' : 'primary'} icon={post.state === 'PUBLISHED' ? 'settings' : 'chevron-down'}
-      aria-expanded={isPublishing} data-post-publish-open onclick={() => (isPublishing = !isPublishing)}>
-      {post.state === 'PUBLISHED' ? t('app.posts.settings') : t('app.posts.publish')}
-    </Button>
+    <!-- Scene postwrite 3: the panel hangs from its button at the top right, anchored by the
+         design system's popover, never measured here. -->
+    <Popover label={post.state === 'PUBLISHED' ? t('app.posts.settings') : t('app.posts.publish')} placement={{ side: 'block-end', align: 'end' }} bind:isOpen={isPublishing}>
+      {#snippet trigger(props)}
+        <Button size="sm" tone={post.state === 'PUBLISHED' ? 'secondary' : 'primary'} icon={post.state === 'PUBLISHED' ? 'settings' : 'chevron-down'}
+          data-post-publish-open {...props}>
+          {post.state === 'PUBLISHED' ? t('app.posts.settings') : t('app.posts.publish')}
+        </Button>
+      {/snippet}
+      <PostPublish {post} hubName={hub?.name ?? ''} {isWorkspaceWide} onclose={() => (isPublishing = false)}
+        ondone={(next) => { isPublishing = false; void read.refresh(); if (next.state === 'PUBLISHED') onnavigate(`/posts/${next.page_id}`); }} />
+    </Popover>
   {/if}
 {/snippet}
 
