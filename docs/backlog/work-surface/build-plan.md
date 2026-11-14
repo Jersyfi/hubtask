@@ -172,3 +172,6 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
   the help as the ITIL word for objects in IT operations; code identifiers (`cmdb`) stay. The use cases state
   this meaning explicitly (UC-AST-01's Goal and the assets area's introduction) so it cannot be read as a mere
   inventory tool.
+* Open for the coherence pass: the goals and time empty states' cards follow their mockups
+  (`emptygoals`: Halbjahresziele, Servicedesk-Dashboard, Portfolio; `emptytime`: the three ways to record),
+  with the shipped workspace templates as the cards' content where they fit.
