@@ -9,9 +9,10 @@ protocol it implements is [`offline-sync.md`](../../docs/architecture/offline-sy
 * **No second caller of `fetch`** — in this package or in any first-party client. `FetchTransport`
   is the only one, which makes three promises checkable in one file: every request carries its
   bearer, its `Idempotency-Key` where the operation takes one, and a deadline (rule 7). There is no
-  default of "forever". The webapp's session exchange goes through the transport too. The one
-  request that leaves for an address the engine did not compose is `Transport.transfer` to a
-  presigned URL, and it carries no bearer and `credentials: 'omit'`.
+  default of "forever". The webapp's session exchange goes through the transport too. The two
+  requests that leave for an address the engine did not compose are `Transport.transfer` to a
+  presigned URL and `Transport.receive` from a download target, and they carry no bearer and
+  `credentials: 'omit'`.
   `[partial: ci:node; open: a fetch call in another first-party client, globalThis.fetch]`
 * **No `EventSource`.** It cannot carry a header, so authenticating it would put a token in the
   URL, which `security.md` forbids. The stream is read from a `fetch` response body.

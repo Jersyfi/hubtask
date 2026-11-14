@@ -9,6 +9,7 @@
 
 import { TransportError } from '../src/errors.ts';
 import type {
+  ByteReceive,
   ByteTransfer,
   TransportDocument,
   TransportDocumentHead,
@@ -199,6 +200,18 @@ export class FakeTransport implements Transport {
     if (failure) throw failure;
     const total = transfer.body instanceof Blob ? transfer.body.size : transfer.body.byteLength;
     transfer.onProgress?.(total, total);
+  }
+
+  /** Bytes a `receive` answers, by URL. */
+  readonly received = new Map<string, Blob>();
+
+  async receive(request: ByteReceive): Promise<Blob> {
+    await Promise.resolve();
+    const failure = this.#failures.get(request.url);
+    if (failure) throw failure;
+    const bytes = this.received.get(request.url);
+    if (!bytes) throw new TransportError('problem', { status: 404 });
+    return bytes;
   }
 
   /** Every document asked for, and what was handed back for it. */

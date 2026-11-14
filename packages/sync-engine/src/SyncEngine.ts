@@ -14,7 +14,7 @@
 // the reason this package can be exercised headlessly at all (ADR-0033 §2).
 
 import { TransportError } from './errors.ts';
-import type { ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
+import type { ByteReceive, ByteTransfer, Clock, RequestOptions, Storage, Transport } from './ports.ts';
 import { systemClock } from './ports.ts';
 import type { ChangeRecord } from './schema.ts';
 import { META, Replica, collectionOf } from './replica.ts';
@@ -940,6 +940,14 @@ export class SyncEngine {
     // Named prefixes only. `#invalidate(undefined)` means "everything", which is the right default
     // for a write and the wrong one here: the bytes changed nothing the client is holding.
     if (options.invalidates) this.#invalidate(options.invalidates);
+  }
+
+  /**
+   * receive fetches the bytes behind a download URL the server handed over - for a viewer that
+   * draws a file itself. A pass-through like `transfer`, and it invalidates nothing.
+   */
+  async receive(request: ByteReceive): Promise<Blob> {
+    return this.#transport.receive(request);
   }
 
   /**

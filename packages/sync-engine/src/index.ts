@@ -40,6 +40,7 @@ export type { FailureKind, FieldProblem } from './errors.ts';
 
 export { systemClock } from './ports.ts';
 export type {
+  ByteReceive,
   ByteTransfer,
   Clock,
   RequestOptions,

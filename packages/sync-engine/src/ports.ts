@@ -130,6 +130,17 @@ export interface ByteTransfer {
   readonly onProgress?: (sent: number, total: number) => void;
 }
 
+/**
+ * Bytes fetched from an absolute URL the server handed over - a media object's download target -
+ * for a viewer that draws them itself. The URL is its own credential, like a transfer's: no bearer.
+ */
+export interface ByteReceive {
+  readonly url: string;
+  /** Sized by the expected bytes, like a transfer's. */
+  readonly timeoutMs: number;
+  readonly signal?: AbortSignal;
+}
+
 /** One line of the initial synchronisation: a change record, or the cursor line that ends it. */
 export type SnapshotLine =
   | { readonly kind: 'record'; readonly record: unknown }
@@ -181,6 +192,11 @@ export interface Transport {
    * are stored; rejects with a `TransportError` otherwise.
    */
   transfer(transfer: ByteTransfer): Promise<void>;
+  /**
+   * The bytes behind a download URL the server handed over, with no bearer and no cookie. Rejects
+   * with a `TransportError` when they do not arrive.
+   */
+  receive(request: ByteReceive): Promise<Blob>;
   /**
    * A response that is a **document rather than data**: `POST /views/{id}:export`, which answers
    * CSV, JSON or an iCalendar file for a person to keep.
