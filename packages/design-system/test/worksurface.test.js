@@ -262,6 +262,13 @@ test('a folded column unfolds by a button, and a refused one says why in words (
 
 // --- TaskRow in a calm table (WB-4) -------------------------------------------------------------
 
+// N12, N14: from a tablet's width a ruled row's title is one line, also in a list narrowed by a
+// panel beside it - the viewport decides, not the list's own width, so a row stays compact.
+test('a ruled row keeps its title to one line from a tablet\'s width (N12, N14)', () => {
+  const row = source('TaskRow.svelte');
+  assert.match(row, /@media \(width >= 600px\) \{\s*\.task-row\[data-ruled\] \.title \{ display: block; white-space: nowrap; text-overflow: ellipsis; min-inline-size: 0; \}/);
+});
+
 test('a ruled task row is a line of one region, not a card, and keeps its whole title as a tooltip', () => {
   const row = source('TaskRow.svelte');
   assert.match(row, /data-ruled=\{isRuled \? '' : undefined\}/);

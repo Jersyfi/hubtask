@@ -748,6 +748,8 @@
   /** Grouped by status, the group's head says the status, so a top row draws no chip of its own (L-2). */
   const isByStatus = $derived(arranged !== undefined && arrangement?.grouping === 'status');
   const rowChipOf = (row: Row) => (isByStatus && row.depth === 0 ? undefined : chipFor(row.item));
+  /** A status column of its own before the titles, so every title starts at one place (N12). */
+  const hasStateColumn = $derived(!isKeyFirst && !root && rows.some((row) => rowChipOf(row) !== undefined));
   /** A status group's badge, as the queue draws it; every other grouping's head is its name. */
   function groupBadge(key: string | null): 'success' | 'info' | 'neutral' | undefined {
     if (arrangement?.grouping !== 'status') return undefined;
@@ -1003,10 +1005,13 @@
     const measure = () => {
       const style = getComputedStyle(head);
       const title = head.querySelector<HTMLElement>('.title-head');
-      const lead = head.querySelector<HTMLElement>('.key-head');
       const gap = Number.parseFloat(style.columnGap) || 0;
+      // The desk's key and the status column lead the title; their room is not the title's.
+      const leads = [...head.querySelectorAll<HTMLElement>('.key-head, .state-head')].reduce((sum, lead) => sum + lead.offsetWidth + gap, 0);
+      // Where no pointer hovers, a row's tools stay in it and take their room from the title too.
+      const tools = matchMedia('(hover: none)').matches ? (level?.querySelector<HTMLElement>('.tools')?.offsetWidth ?? 0) : 0;
       let room = head.clientWidth - (Number.parseFloat(style.paddingInlineStart) || 0) - (Number.parseFloat(style.paddingInlineEnd) || 0)
-        - (title ? Number.parseFloat(getComputedStyle(title).flexBasis) || 0 : 0) - (lead ? lead.offsetWidth + gap : 0);
+        - (title ? Number.parseFloat(getComputedStyle(title).flexBasis) || 0 : 0) - leads - (tools > 0 ? tools + gap : 0);
       let count = 0;
       for (const cell of head.querySelectorAll<HTMLElement>('.cells > .col-head')) {
         room -= cell.offsetWidth + gap;
@@ -1018,6 +1023,7 @@
     };
     const observer = new ResizeObserver(measure);
     observer.observe(head);
+    if (level) observer.observe(level);
     measure();
     return () => observer.disconnect();
   });
@@ -1548,8 +1554,9 @@
            rows ruled apart, and the foot that continues the list. -->
       <div class="columns" data-subtree={root ? '' : undefined} data-desk={isKeyFirst && !root ? '' : undefined} role={root ? undefined : 'region'} aria-label={root ? undefined : t('app.entries.region', { name: keyedCollection?.name ?? '' })} data-table={root ? undefined : ''}>
       {#if (arrangement || root) && fields.length > 0}
-        <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
+        <div class="fields-head" bind:this={fieldsHead} data-simple={isSimple ? '' : undefined} data-columns={hasColumns ? '' : undefined} data-state={hasStateColumn ? '' : undefined} aria-hidden={onsort && hasColumns ? undefined : 'true'}>
           {#if isKeyFirst}<span class="col-head key-head">{columnName('key')}</span>{/if}
+          {#if hasStateColumn}<span class="col-head state-head">{t('app.list.col_status')}</span>{/if}
           {#if sortOf('title') && onsort}
             <button type="button" class="col-head title-head" onclick={() => onsort(sortOf('title') ?? '')}>{isKeyFirst ? t('app.desk_queues.col_request') : t('app.list.col_title')}{#if sortField === sortOf('title')}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
           {:else}
@@ -1930,7 +1937,7 @@
       {#snippet chipCell()}
         {@const rowChip = rowChipOf(row)}
         {#if isKeyFirst}<span class="lead-key"><EntryKey collection={keyedCollection} number={row.item.number} /></span>{/if}
-        {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
+        {#if rowChip}<span class="lead-state"><StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} /></span>{:else if hasStateColumn}<span class="lead-state"></span>{/if}
       {/snippet}
       <!-- One row in every list (L1): a simple list's line is the same row, without the twist,
            because nothing is inside it - and a press on it opens it as everywhere (L6). -->
@@ -2244,7 +2251,8 @@
 
     .fields-head[data-simple] { padding-inline-start: calc(var(--sp-600) + var(--sp-150)); }
     /* A desk's key stands where the box would: past the twist alone. */
-    .columns[data-desk] .fields-head { padding-inline-start: calc(var(--sp-800) + var(--sp-100) - var(--sp-300)); }
+    .columns[data-desk] .fields-head,
+    .fields-head[data-state] { padding-inline-start: calc(var(--sp-800) + var(--sp-100) - var(--sp-300)); }
 
     /* A head cell whose field went to the meta line: laid out, so its width is known, not seen -
        at the list's start, where it cannot widen the page past its edge. */
@@ -2281,6 +2289,9 @@
   /* A desk's key leads its row, one width in every row and under its head (scene queue). */
   .key-head,
   .lead-key { flex: none; display: inline-flex; inline-size: var(--sp-1000); }
+  /* The status before the title, one width in every row and under its head (N12). */
+  .state-head,
+  .lead-state { flex: none; display: inline-flex; min-inline-size: calc(var(--sp-1000) * 1.25); }
 
   /* One group head for every grouping (L4) - the simple list's categories, a column, a person, a
      due band - and the done group's fold (L5). */
@@ -2457,6 +2468,11 @@
   .row:has(.meta-line .meta-field > :global(*)) .row-end { grid-column: 3; grid-row: 1 / 3; }
   .meta-line { grid-column: 2; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-150); min-inline-size: 0; font-size: var(--fs-075); color: var(--text-secondary); }
   .meta-line:not(:has(.meta-field > :global(*))) { display: none; }
+  /* Two lines at most from a tablet's width - the title and this one (N12, N14). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
+    .meta-line { flex-wrap: nowrap; overflow: hidden; }
+  }
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */

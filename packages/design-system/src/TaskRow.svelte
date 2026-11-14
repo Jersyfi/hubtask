@@ -224,8 +224,9 @@
     border-color: transparent transparent var(--border-subtle);
   }
   .task-row[data-ruled] > :global(.row:hover) { border-color: transparent transparent var(--border-subtle); background: var(--bg-surface-hover); }
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
-  @container (inline-size >= 600px) {
+  /* One line from a tablet's width, also in a list a panel narrows: the viewport decides (N14). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
     .task-row[data-ruled] .title { display: block; white-space: nowrap; text-overflow: ellipsis; min-inline-size: 0; }
   }
   /* The entry open beside the list: outlined in the brand and tinted, as the concept marks it;

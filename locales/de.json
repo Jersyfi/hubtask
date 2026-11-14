@@ -10507,6 +10507,7 @@
   "app.list.done_bottom": "Erledigtes am Ende",
   "app.list.done_hidden": "Erledigtes ausblenden",
   "app.list.reset": "Wie die Vorlage",
+  "app.list.col_status": "Status",
   "app.list.col_title": "Titel",
   "app.list.col_type": "Typ",
   "app.list.col_amount": "Menge",

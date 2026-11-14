@@ -10507,6 +10507,7 @@
   "app.list.done_bottom": "Done entries at the end",
   "app.list.done_hidden": "Done entries hidden",
   "app.list.reset": "As the template has it",
+  "app.list.col_status": "Status",
   "app.list.col_title": "Title",
   "app.list.col_type": "Type",
   "app.list.col_amount": "Amount",
