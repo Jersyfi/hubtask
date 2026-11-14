@@ -111,7 +111,7 @@
           {#if hub.menu}
             {@const menu = hub.menu}
             {#if menu.items}
-              <Menu keepsAnchor label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} bind:isOpen={isMenuOpen} onselect={(id) => menu.onselect(id)}>
+              <Menu isAnchored label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} bind:isOpen={isMenuOpen} onselect={(id) => menu.onselect(id)}>
                 {#snippet trigger(props)}
                   <button type="button" class="hub-act" aria-label={menu.label} title={menu.label} {...props}><Icon name="ellipsis" size="sm" /></button>
                 {/snippet}

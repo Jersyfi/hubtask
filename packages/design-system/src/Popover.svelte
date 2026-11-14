@@ -39,7 +39,7 @@
      * popover - a picker above all - is a bottom sheet on a phone's width (work-surface concept
      * §7), named with its label and closed by the application's `setCloseLabel`.
      */
-    keepsAnchor?: boolean;
+    isAnchored?: boolean;
   }
 
   let {
@@ -48,7 +48,7 @@
     isOpen = $bindable(false),
     trigger,
     children,
-    keepsAnchor = false,
+    isAnchored = false,
     at,
   }: Props = $props();
 
@@ -67,7 +67,7 @@
   // Decided whenever it opens, however it was opened - its trigger or a caller's binding.
   $effect.pre(() => {
     if (!isOpen) return;
-    const name = keepsAnchor ? undefined : closeName();
+    const name = isAnchored ? undefined : closeName();
     sheetName = name !== undefined && isCompactWidth() ? name : undefined;
   });
 

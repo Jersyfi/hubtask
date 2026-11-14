@@ -200,7 +200,7 @@
 
 {#snippet action(kind: 'menu' | 'add', act: RowAction)}
   {#if act.items}
-    <Menu keepsAnchor
+    <Menu isAnchored
       label={act.label}
       items={act.items}
       placement={act.heading ? { side: 'inline-end', align: 'start' } : { side: 'block-end', align: 'end' }}

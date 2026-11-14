@@ -121,6 +121,8 @@ test('the celebration role carries a duration per tier within its guardrails, an
 test('no density mode puts a control below the minimum target size', () => {
   const space = source.primitive.space;
   const px = (reference) => {
+    // The spacious small control is the touch target itself (work-surface concept §7).
+    if (reference === '{layout.target}') return Number.parseFloat(source.layout.target.$value);
     const step = /^\{primitive\.space\.([^}]+)\}$/.exec(reference)?.[1];
     assert.ok(step, `a density minimum is not a space reference: ${reference}`);
     return Number.parseFloat(space[step].$value);

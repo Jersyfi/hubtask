@@ -301,7 +301,7 @@
     </ul>
     {#if tools && fit === 'menu'}
       <span class="tools-more">
-        <Popover keepsAnchor label={toolsLabel ?? label} placement={{ side: 'block-end', align: 'end' }}>
+        <Popover isAnchored label={toolsLabel ?? label} placement={{ side: 'block-end', align: 'end' }}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={toolsLabel ?? label} size="sm" tone="secondary" {...props} />
           {/snippet}

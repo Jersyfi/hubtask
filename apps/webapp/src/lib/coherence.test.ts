@@ -59,7 +59,7 @@ test('no screen paints a design-system button with a tone of its own', () => {
 test('the application names the sheet a menu becomes on a phone, and only the navigation keeps its menus anchored', () => {
   const app = sources.find(({ path }) => path === 'App.svelte');
   assert.match(app?.text ?? '', /setCloseLabel\(t\('app\.sheet_close'\)\)/u);
-  const anchored = sources.filter(({ text }) => /<Menu keepsAnchor/u.test(text)).map(({ path }) => path);
+  const anchored = sources.filter(({ text }) => /<Menu isAnchored/u.test(text)).map(({ path }) => path);
   for (const path of anchored) assert.match(path, /^lib\/frame\//u, `${path} keeps a menu at its trigger outside the navigation`);
 });
 

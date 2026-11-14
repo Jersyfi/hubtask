@@ -48,7 +48,7 @@ test('every native button the design system draws with words takes the page font
 
 test('a menu opens as a bottom sheet on a phone’s width, and its rows reach the target', () => {
   const menu = source('Menu.svelte');
-  assert.match(menu, /sheetName = keepsAnchor \? undefined : \(closeLabel \?\? closeName\(\)\)/);
+  assert.match(menu, /sheetName = isAnchored \? undefined : \(closeLabel \?\? closeName\(\)\)/);
   assert.match(menu, /isSheet = sheetName !== undefined && isCompactWidth\(\)/);
   assert.match(menu, /<Sheet[\s\S]*?\{items\}/);
   assert.match(menu, /\.item \{[^}]*min-block-size: var\(--density-control-sm-min\)/);
@@ -64,7 +64,7 @@ test('a pressed toggle has one look in every tone: the subtle tint with the acce
 
 test('a popover becomes a bottom sheet on a phone, and can hang from a control another door opened it from', () => {
   const popover = source('Popover.svelte');
-  assert.match(popover, /const name = keepsAnchor \? undefined : closeName\(\);/);
+  assert.match(popover, /const name = isAnchored \? undefined : closeName\(\);/);
   assert.match(popover, /sheetName = name !== undefined && isCompactWidth\(\) \? name : undefined/);
   assert.match(popover, /<Sheet bind:isOpen title=\{label\} closeLabel=\{sheetName\}/);
   assert.match(popover, /const from = at \?\? anchor;/);

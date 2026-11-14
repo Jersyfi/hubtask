@@ -48,7 +48,7 @@
      */
     closeLabel?: string;
     /** Stays at its trigger on every width: the navigation's own menus, which its concept places. */
-    keepsAnchor?: boolean;
+    isAnchored?: boolean;
   }
 
   let {
@@ -60,7 +60,7 @@
     trigger,
     head,
     closeLabel,
-    keepsAnchor = false,
+    isAnchored = false,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -114,7 +114,7 @@
    */
   export function open(index = 0) {
     if (!isOpen) opener = document.activeElement;
-    sheetName = keepsAnchor ? undefined : (closeLabel ?? closeName());
+    sheetName = isAnchored ? undefined : (closeLabel ?? closeName());
     isSheet = sheetName !== undefined && isCompactWidth();
     active = Math.max(0, Math.min(index, items.length - 1));
     isOpen = true;
