@@ -15381,7 +15381,6 @@
   "app.backup.kind_WEBDAV": "A WebDAV share",
   "app.backup.mode_FULL": "Full",
   "app.backup.mode_INCREMENTAL": "Changes since the last",
-  "app.product_home.tab_inventory": "Inventory",
   "app.time.tab_settings": "Settings",
   "app.agents.scopes_pick_hint": "Tick only what its work needs; a token of its account holding more is narrowed to these.",
   "app.agents.scopes_advanced": "Advanced: scopes as text",

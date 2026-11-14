@@ -54,7 +54,8 @@ export function homeTabs(module: string): readonly HomeTab[] {
     case 'ASSETS':
       // The classes and the sources are the workspace's (§8.2), the rest of their setup last.
       return [
-        { id: 'inventory', code: 'app.product_home.tab_inventory', path: '/assets' },
+        // *For you* as on every other home (scene homeassets): what needs attention across hubs.
+        { id: 'inventory', code: 'app.product_home.tab_for_you', path: '/assets' },
         { id: 'classes', code: 'app.cmdb_admin.classes', path: '/assets/classes' },
         { id: 'sources', code: 'app.cmdb_admin.sources', path: '/assets/sources' },
         { id: 'settings', code: 'app.product_home.tab_settings', path: '/assets/settings' },
