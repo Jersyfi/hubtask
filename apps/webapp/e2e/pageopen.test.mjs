@@ -64,6 +64,40 @@ test('the first writer opens a page without saving it; typing saves', async (t) 
   assert.deepEqual(failures, []);
 });
 
+test('leaving a page right after typing saves the last words and throws nothing', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const handbook = PD_PAGES[0];
+  const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true });
+  t.after(close);
+  await page.context().routeWebSocket(/\/realtime\/documents\/page\//, (ws) => {
+    ws.onMessage(() => {});
+    ws.send(EMPTY_DOCUMENT);
+    ws.send(ASK_STATE);
+  });
+  const saves = [];
+  page.on('request', (request) => {
+    if (request.method() !== 'GET' && new URL(request.url()).pathname.endsWith(`/pages/${handbook.id}`)) saves.push(request.postData());
+  });
+  await page.goto(new URL(`/pages/${handbook.id}`, page.url()).href);
+  const body = page.getByRole('textbox', { name: /Product handbook/ });
+  await body.getByText('Welcome to the team.').waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(500);
+  await body.click();
+  await page.keyboard.press(LINE_END);
+  await page.keyboard.type(' Last words.');
+  // Away inside the app before the pause that saves: the page's editor is torn down.
+  await page.evaluate(() => {
+    history.pushState({}, '', '/');
+    window.dispatchEvent(new PopStateEvent('popstate', { state: {} }));
+  });
+  await body.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.waitForTimeout(1_000);
+  assert.equal(saves.length, 1, 'the last words are saved on the way out');
+  assert.match(saves[0], /Last words\./);
+  assert.deepEqual(failures, [], 'leaving writes no state while the page is torn down');
+});
+
 test('a page shows its writing tools only while writing; "/" on an empty line offers the blocks (S-1)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

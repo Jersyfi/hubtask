@@ -643,10 +643,10 @@
       // A writer of a space with drafts edits the draft waiting; a reader reads what was published.
       const body = page.writable ? writtenBody(page) : (page.body ?? '');
       void resolve(body);
-      const blockSeen = (block: SelectedBlock | undefined) => {
+      const blockSeen = (block: SelectedBlock | undefined) => queueMicrotask(() => {
         onblock?.(block);
         taskLine = editor ? taskLineOf(editor) : undefined;
-      };
+      });
       let current = createPageEditor({
         element, body, editable: false, drawing, label: t('app.pages.body_label', { title: page.title }), fallback: t('app.pages.reference_loading'), onBlock: blockSeen,
       });
@@ -687,14 +687,24 @@
           if (seedFromMarkdown(current, body)) lastSaved = markdownOf(current);
         },
       });
-      const present = () => onpresent?.(writersHere(connection.awareness.getStates(), doc.clientID));
+      // Leaving the page blurs the editor while Svelte tears it down, which moves this writer's caret
+      // in the awareness: a state write right then throws (`state_unsafe_mutation`), so who is here
+      // is reported a microtask later, and the teardown's own writes wait the same.
+      let leaving = false;
+      const present = () => queueMicrotask(() => {
+        if (!leaving) onpresent?.(writersHere(connection.awareness.getStates(), doc.clientID));
+      });
       connection.awareness.on('change', present);
       return () => {
+        leaving = true;
         connection.awareness.off('change', present);
-        onpresent?.([]);
         clearTimeout(timer);
-        // What was typed in the last moment is saved on the way out.
-        if (isLive && current.isEditable) void save(markdownOf(current));
+        // What was typed in the last moment is saved on the way out, read while the editor stands.
+        const last = isLive && current.isEditable ? markdownOf(current) : undefined;
+        queueMicrotask(() => {
+          onpresent?.([]);
+          if (last !== undefined) void save(last);
+        });
         current.destroy();
         connection.destroy();
         unsentDocuments.forget(`page:${page.id}`);
@@ -714,7 +724,9 @@
     const marked = passages;
     if (!current) return;
     return untrack(() => {
-      const report = () => onpassages?.(passageTops(current));
+      // A microtask later: leaving blurs the editor while it is torn down (see the live document's
+      // teardown), and a state write right then throws.
+      const report = () => queueMicrotask(() => onpassages?.(passageTops(current)));
       setPassages(current, marked);
       report();
       current.on('transaction', report);
