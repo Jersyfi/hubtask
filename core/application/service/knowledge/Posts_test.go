@@ -520,3 +520,17 @@ func TestAPostsWordsNeverWaitInAPageDraft(t *testing.T) {
 		t.Fatalf("the post's page reads %+v, %v", read, err)
 	}
 }
+
+// A post not yet out is its writers' alone - its live document too: the realtime door asks the
+// locator, and a reader of the hub is refused as if it were not there.
+func TestAScheduledPostsLiveDocumentIsItsWritersAlone(t *testing.T) {
+	f := newPostFixture()
+	ctx := context.Background()
+	id := f.post(t, usecase.Input{"publish_at": start.Add(time.Hour).Format(time.RFC3339)})
+	if _, err := (Locator{Space: f.space}).Locate(ctx, actorOf(member), id); err == nil {
+		t.Fatal("a reader opened a scheduled post's live document")
+	}
+	if _, err := (Locator{Space: f.space}).Locate(ctx, actorOf(writer), id); err != nil {
+		t.Fatalf("its writer is refused: %v", err)
+	}
+}

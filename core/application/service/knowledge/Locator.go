@@ -27,6 +27,10 @@ func (l Locator) Locate(ctx context.Context, actor appshared.ActorContext, id sh
 	if err := l.Space.admitted(ctx, actor, page.ID); err != nil {
 		return realtime.Place{}, err
 	}
+	// A post's document is open to those the post is for at this moment (UC-DOC-17/2).
+	if err := l.Space.hidePosts(ctx, actor, page); err != nil {
+		return realtime.Place{}, err
+	}
 	// In a space with drafts the live document holds words not yet published: its writers alone
 	// open it, and its readers read the page as published (UC-DOC-15).
 	drafts, err := l.Space.pageDrafting(ctx, actor.TenantID, page)
