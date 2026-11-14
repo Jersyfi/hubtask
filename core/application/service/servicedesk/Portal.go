@@ -309,12 +309,7 @@ func requestOutputFor(item workdomain.WorkItem, reader shared.ID, statuses Reque
 		"is_completed": item.Completion.IsCompleted, "completed_at": nil,
 		"created_at": item.CreatedAt.UTC(), "updated_at": item.UpdatedAt.UTC(),
 	}
-	if status, named := statuses[item.ID]; named {
-		out["status_category"] = string(status.Category)
-		if status.Name != "" {
-			out["status_name"] = status.Name
-		}
-	}
+	namedStatus(out, item.ID, statuses)
 	if item.EntryType == "" {
 		out["entry_type"] = workdomain.SystemEntryTypeKey(item.Type)
 	}
@@ -328,6 +323,16 @@ func requestOutputFor(item workdomain.WorkItem, reader shared.ID, statuses Reque
 		out["completed_at"] = item.Completion.CompletedAt.UTC()
 	}
 	return out
+}
+
+// namedStatus sets a request's status name and category as its workflow names them.
+func namedStatus(out usecase.Output, itemID shared.ID, statuses RequestStatuses) {
+	if status, named := statuses[itemID]; named {
+		out["status_category"] = string(status.Category)
+		if status.Name != "" {
+			out["status_name"] = status.Name
+		}
+	}
 }
 
 // ListRequestCatalogue answers the kinds of request a collection offers (UC-SVC-05 check 1).
@@ -714,6 +719,8 @@ type MyRequest struct {
 type MergedRequest struct {
 	Item     workdomain.WorkItem
 	Readable bool
+	// Statuses names the survivor's status when Readable.
+	Statuses RequestStatuses
 	Comments []workdomain.Comment
 	Goals    []domain.EntrySLA
 }
@@ -849,7 +856,10 @@ func (p Portal) survivor(
 		return &answer, nil
 	}
 	err = p.Desk.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		answer.Comments, answer.Goals, err = p.publicView(ctx, survivorID)
+		if answer.Comments, answer.Goals, err = p.publicView(ctx, survivorID); err != nil {
+			return err
+		}
+		answer.Statuses, err = p.statuses(ctx, answer.Item)
 		return err
 	})
 	// The team's replies: what the survivor's own requester wrote is theirs, not the reader's.
@@ -938,12 +948,14 @@ func mergedOutput(merged *MergedRequest, reader shared.ID) any {
 	}
 	out := usecase.Output{
 		"id": merged.Item.ID.String(), "number": merged.Item.Number, "readable": merged.Readable,
-		"title": nil, "status": nil, "is_completed": false, "completed_at": nil,
+		"title": nil, "status": nil, "status_name": nil, "status_category": nil,
+		"is_completed": false, "completed_at": nil,
 		"comments": []usecase.Output{}, "sla": []usecase.Output{},
 	}
 	if !merged.Readable {
 		return out
 	}
+	namedStatus(out, merged.Item.ID, merged.Statuses)
 	out["title"], out["is_completed"] = merged.Item.Title, merged.Item.Completion.IsCompleted
 	if merged.Item.Status != "" {
 		out["status"] = merged.Item.Status

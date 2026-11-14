@@ -51973,6 +51973,27 @@
               "null"
             ]
           },
+          "status_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The status as the desk's workflow names it, as on PortalRequest; null when not readable."
+          },
+          "status_category": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "BACKLOG",
+              "TODO",
+              "IN_PROGRESS",
+              "DONE",
+              null
+            ],
+            "description": "The status's category; null where no workflow runs or when not readable."
+          },
           "is_completed": {
             "type": "boolean"
           },

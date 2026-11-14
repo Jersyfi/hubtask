@@ -8122,6 +8122,33 @@ func (e PolicySource) Valid() bool {
 	}
 }
 
+// Defines values for PortalMergedRequestStatusCategory.
+const (
+	PortalMergedRequestStatusCategoryBACKLOG     PortalMergedRequestStatusCategory = "BACKLOG"
+	PortalMergedRequestStatusCategoryDONE        PortalMergedRequestStatusCategory = "DONE"
+	PortalMergedRequestStatusCategoryINPROGRESS  PortalMergedRequestStatusCategory = "IN_PROGRESS"
+	PortalMergedRequestStatusCategoryLessThannil PortalMergedRequestStatusCategory = "<nil>"
+	PortalMergedRequestStatusCategoryTODO        PortalMergedRequestStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the PortalMergedRequestStatusCategory enum.
+func (e PortalMergedRequestStatusCategory) Valid() bool {
+	switch e {
+	case PortalMergedRequestStatusCategoryBACKLOG:
+		return true
+	case PortalMergedRequestStatusCategoryDONE:
+		return true
+	case PortalMergedRequestStatusCategoryINPROGRESS:
+		return true
+	case PortalMergedRequestStatusCategoryLessThannil:
+		return true
+	case PortalMergedRequestStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PortalRequestStatusCategory.
 const (
 	PortalRequestStatusCategoryBACKLOG     PortalRequestStatusCategory = "BACKLOG"
@@ -23335,8 +23362,17 @@ type PortalMergedRequest struct {
 	Readable    bool               `json:"readable"`
 	Sla         []EntrySlaGoal     `json:"sla"`
 	Status      *string            `json:"status"`
-	Title       *string            `json:"title"`
+
+	// StatusCategory The status's category; null where no workflow runs or when not readable.
+	StatusCategory *PortalMergedRequestStatusCategory `json:"status_category,omitempty"`
+
+	// StatusName The status as the desk's workflow names it, as on PortalRequest; null when not readable.
+	StatusName *string `json:"status_name,omitempty"`
+	Title      *string `json:"title"`
 }
+
+// PortalMergedRequestStatusCategory The status's category; null where no workflow runs or when not readable.
+type PortalMergedRequestStatusCategory string
 
 // PortalOrganisation The organisation a requester belongs to, as the portal names it.
 type PortalOrganisation struct {

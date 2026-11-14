@@ -67,3 +67,29 @@ func TestTheRequesterReadsTheStatusByItsName(t *testing.T) {
 		t.Errorf("a request without a workflow reads %v / %v", out["status_name"], out["status_category"])
 	}
 }
+
+// UC-SVC-05 check 10 and P-12: the request a requester's own was merged into is named as its
+// workflow names it, as long as the reader may read it at all.
+func TestTheSurvivingRequestIsNamedByItsStatus(t *testing.T) {
+	desk := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007d1")
+	merged := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007d2")
+	survivor := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000007d3")
+	portal := Portal{
+		Items: portalItems{rows: map[shared.ID]work.WorkItem{
+			merged:   {ID: merged, CreatedBy: requesterID, CollectionID: desk, Title: "Drucker"},
+			survivor: {ID: survivor, CreatedBy: colleagueID, CollectionID: desk, Title: "Drucker 2. OG", Status: "waiting_for_customer"},
+		}},
+		Containers: containerStore{}, Comments: portalComments{},
+		Links:    portalLinks{{Type: work.LinkTypeDuplicates, SourceID: merged, TargetID: survivor}},
+		Workflow: workservice.WorkflowGate{Workflows: deskWorkflows{desk: desk}},
+		Desk:     Desk{Records: &recordStore{}, Authorizer: &gate{allow: true}, UnitOfWork: inline{}, Audit: discard{}, Clock: at(monday)},
+	}
+	out, err := ReadMyRequest{Portal: portal}.Descriptor().Handler.Invoke(context.Background(), requester(), usecase.Input{"item_id": merged.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	into, _ := out["merged_into"].(usecase.Output)
+	if into == nil || into["status_name"] != "Wartet auf Sie" || into["status_category"] != "IN_PROGRESS" {
+		t.Errorf("the surviving request reads %+v", into)
+	}
+}

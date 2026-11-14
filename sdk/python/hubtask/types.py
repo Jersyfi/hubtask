@@ -2571,6 +2571,8 @@ class PortalMergedRequest(TypedDict, total=False):
     readable: Required[bool]
     title: Required[str | None]
     status: Required[str | None]
+    status_name: str | None
+    status_category: Literal["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] | None
     is_completed: Required[bool]
     completed_at: Required[str | None]
     comments: Required[list["PortalReply"]]
