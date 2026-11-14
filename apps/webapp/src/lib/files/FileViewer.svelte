@@ -414,6 +414,14 @@
   .stage[data-kind='image'], .stage[data-kind='video'], .stage[data-kind='svg'], .stage[data-kind='audio'] { align-content: center; }
   .body { position: relative; }
   .page { position: absolute; inset-block-start: 50%; translate: 0 -50%; }
+  /* The scene's controls on the stage: raised dark buttons, round paging, a framed close. */
+  .acts :global(.button[data-tone='secondary']),
+  .acts :global(.icon-button),
+  .page :global(.icon-button) { background: var(--stage-control); color: var(--stage-ink); border: var(--bw-hairline) solid var(--stage-border); }
+  .acts :global(.button[data-tone='secondary']:hover),
+  .acts :global(.icon-button:hover),
+  .page :global(.icon-button:hover) { background: var(--stage-raised); color: var(--stage-ink); }
+  .page :global(.icon-button) { inline-size: var(--sp-800); block-size: var(--sp-800); border-radius: var(--r-full); }
   .prev { inset-inline-start: var(--sp-200); }
   .next { inset-inline-end: calc(var(--sp-1600) * 2.5 + var(--sp-200)); }
   .picture { max-inline-size: 100%; max-block-size: 70dvh; object-fit: contain; }
