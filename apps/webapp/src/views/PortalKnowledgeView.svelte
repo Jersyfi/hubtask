@@ -76,7 +76,7 @@
 </WorkPage>
 
 <style>
-  .spaces { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-200); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-list-title)), 1fr)); }
+  .spaces { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-200); align-items: start; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-list-title)), 1fr)); }
   .card { padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .title { display: inline-flex; gap: var(--sp-100); align-items: center; font-weight: var(--fw-semibold); color: inherit; text-decoration: none; }
   .title:hover { text-decoration: underline; }
