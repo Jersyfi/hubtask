@@ -92,6 +92,7 @@
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
+  import TemplateCards from '../product/TemplateCards.svelte';
 
   interface Props {
     collectionId: string;
@@ -118,8 +119,12 @@
     query?: ItemsQuery;
     /** Empties what is seen, for the filtered empty state's one act (§4.2). */
     onshowall?: () => void;
-    /** Opens the templates, the empty collection's side way in (WB-6). */
+    /** Opens the templates, the empty collection's main way in (WB-6). */
     ontemplate?: () => void;
+    /** The templates along the path as cards under the empty collection's ways (scene empty). */
+    starts?: readonly { label: string; description?: string; onclick: () => void }[];
+    /** The import, the empty collection's side way where no template is (E-4). */
+    onimport?: () => void;
     /**
      * `LIST_EXPANDED` rather than `LIST_COLLAPSED`: every row that takes children shows them.
      *
@@ -224,6 +229,8 @@
     query,
     onshowall,
     ontemplate,
+    starts,
+    onimport,
     isExpanded = false,
     lastResults,
     onopen,
@@ -1506,7 +1513,8 @@
       </EmptyState>
     {:else if rows.length === 0}
       <!-- §4.1's empty state, as the scene empty draws a first start: a template is the main way
-           where the collection offers one, capture pointed here the side way beside it (WB-6). -->
+           where the collection offers one, the first entry beside it and the templates as cards
+           under them; without one, the first entry and the import as the side way (WB-6, E-4). -->
       {@const isTemplateFirst = ontemplate !== undefined && !root}
       <EmptyState kind="unused" title={t(root ? 'app.item.no_children' : 'app.entries.none')} description={isTemplateFirst && mayCreate && !isReadOnly ? t('app.entries.none_body') : undefined} icon="task">
         {#snippet action()}
@@ -1516,7 +1524,9 @@
               {#each addControls as control (control.label)}
                 <Button tone={isTemplateFirst ? 'secondary' : 'primary'} icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{control.label}</Button>
               {/each}
+              {#if !isTemplateFirst && onimport}<Button tone="secondary" icon="cloud-upload" onclick={onimport}>{t('app.import.open')}</Button>{/if}
             </div>
+            {#if isTemplateFirst && starts && starts.length > 0}<TemplateCards templates={starts} />{/if}
           {/if}
         {/snippet}
       </EmptyState>

@@ -1685,6 +1685,8 @@
               {query}
               onshowall={() => { line = ''; kept = undefined; }}
               ontemplate={!readOnlyReason && templates.of(container.id).length > 0 ? () => (isUsingTemplates = true) : undefined}
+              starts={templates.of(container.id).slice(0, 3).map((each) => ({ label: each.name, description: each.description ?? undefined, onclick: () => (isUsingTemplates = true) }))}
+              onimport={mayShape && !readOnlyReason ? startImport : undefined}
               isExpanded={layout === 'LIST_EXPANDED'}
               {lastResults}
               onopen={opensBeside ? openBeside : undefined}

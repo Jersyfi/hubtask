@@ -22,3 +22,10 @@ test('an empty collection offers a template as the main way and its first entry 
   assert.match(source, /\{#if isTemplateFirst\}<Button tone="primary" icon="copy" onclick=\{ontemplate\}>\{t\('app\.templates\.from'\)\}<\/Button>\{\/if\}/u);
   assert.match(source, /<Button tone=\{isTemplateFirst \? 'secondary' : 'primary'\} icon="plus" data-opener="add-entry"/u);
 });
+
+// E-4: the side way stands where no template does - the import beside the first entry - and the
+// templates along the path stand as cards under the ways, as the scene empty draws them.
+test('an empty collection without a template offers the import as its side way and the templates as cards (E-4)', () => {
+  assert.match(source, /\{#if !isTemplateFirst && onimport\}<Button tone="secondary" icon="cloud-upload" onclick=\{onimport\}>\{t\('app\.import\.open'\)\}<\/Button>\{\/if\}/u);
+  assert.match(source, /\{#if isTemplateFirst && starts && starts\.length > 0\}<TemplateCards templates=\{starts\} \/>\{\/if\}/u);
+});
