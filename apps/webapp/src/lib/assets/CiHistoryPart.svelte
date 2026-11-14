@@ -79,7 +79,9 @@
       .map(([field, moved]) => {
         const from = valueOf(field, moved.from);
         const to = valueOf(field, moved.to);
-        const detail = moved.changed ? t('app.activity.changed')
+        // A file put on or taken off is named: "set to" would say a value replaced another.
+        const detail = field === 'media_id' ? (to ?? from ?? t('app.activity.no_detail'))
+          : moved.changed ? t('app.activity.changed')
           : from && to ? t('app.activity.from_to', { from, to })
           : to ? t('app.activity.set_to', { to })
           : from ? t('app.activity.cleared_from', { from })
