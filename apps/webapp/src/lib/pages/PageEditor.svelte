@@ -80,6 +80,8 @@
   }
 
   const { page, spacePages, views, onnavigate, onblock, reveal, passages = [], onpassages, collections = [], replaceWith, onpresent, onheadings, oncomment }: Props = $props();
+  /** The page's pictures and files as the body draws them, in order: the viewer's strip (F-1). */
+  const held: string[] = [];
 
   const SAVE_AFTER_MS = 1_500;
 
@@ -135,8 +137,12 @@
     mount: (ref: ReferenceAttrs, into: HTMLElement) => {
       const kind = ref.kind.toUpperCase();
       if (kind === 'MEDIA') {
-        const view = mount(PagePicture, { target: into, props: { mediaId: ref.id } });
-        return () => void unmount(view);
+        held.push(ref.id);
+        const view = mount(PagePicture, { target: into, props: { mediaId: ref.id, siblings: () => [...new Set(held)], owner: () => ({ title: page.title }) } });
+        return () => {
+          held.splice(held.indexOf(ref.id), 1);
+          void unmount(view);
+        };
       }
       // A view and a whiteboard live in the page under one head (S-4).
       if (kind !== 'WHITEBOARD' && kind !== 'VIEW') return undefined;

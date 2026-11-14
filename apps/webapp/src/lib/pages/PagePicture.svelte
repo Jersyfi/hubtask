@@ -2,18 +2,25 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // One of a page's pictures and files where the body draws it (UC-DOC-14): an image the server
-  // serves inline as itself, anything else as a card that opens the file. An object the reader may
-  // not read is a card saying so - never its name.
+  // serves inline as itself, anything else as a card. Either opens the one viewer (F-1) with every
+  // file the page draws at its foot. An object the reader may not read is a card saying so - never
+  // its name.
+
+  import type { MediaObject } from '@hubtask/sync-engine';
 
   import { media } from '../data/media.svelte.ts';
-  import { toast } from '../frame/toasts.svelte.ts';
+  import { viewer, type ViewerOwner } from '../files/viewer.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
     mediaId: string;
+    /** Every file the page draws, this one among them, in the body's order. */
+    siblings?: () => readonly string[];
+    /** The page, for "2 of 5 · on <page>". */
+    owner?: () => ViewerOwner;
   }
 
-  const { mediaId }: Props = $props();
+  const { mediaId, siblings = () => [mediaId], owner }: Props = $props();
 
   $effect(() => media.resolve([mediaId]));
 
@@ -22,22 +29,40 @@
   const isPicture = $derived((record?.content_type ?? '').startsWith('image/') && record?.content_type !== 'image/svg+xml');
   const source = $derived(isPicture ? media.coverUrl(mediaId, Date.now()) : undefined);
 
-  async function open() {
-    const url = await media.downloadUrl(mediaId, Date.now());
-    if (url) window.open(url, '_blank', 'noopener');
-    else toast.show({ text: t('app.pages.file_unavailable'), tone: 'danger' });
+  function open() {
+    const ids = siblings();
+    media.resolve(ids);
+    const files = ids.map((id) => media.recordOf(id)).filter((each): each is MediaObject => each !== undefined);
+    viewer.open({ files, index: files.findIndex((each) => each.id === mediaId), owner: owner?.() });
   }
+
+  // An address naming this file (`?file=`, the viewer's *link*) opens it once its record is read.
+  let isLinkedOpened = false;
+  $effect(() => {
+    if (isLinkedOpened || !record) return;
+    isLinkedOpened = true;
+    if (new URL(globalThis.location.href).searchParams.get('file') === mediaId) open();
+  });
 </script>
 
 {#if source}
-  <img class="picture" src={source} alt={name} />
+  <button type="button" class="picture-open" onclick={open} aria-label={t('app.pages.file_open', { name })}>
+    <img class="picture" src={source} alt={name} />
+  </button>
 {:else if record}
-  <button type="button" class="file" onclick={() => void open()} aria-label={t('app.pages.file_open', { name })}>{name}</button>
+  <button type="button" class="file" onclick={open} aria-label={t('app.pages.file_open', { name })}>{name}</button>
 {:else}
   <span class="file file--quiet">{t('app.pages.file_unavailable')}</span>
 {/if}
 
 <style>
+  .picture-open {
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+  }
   .picture {
     display: block;
     max-inline-size: 100%;

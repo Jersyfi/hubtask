@@ -45,4 +45,4 @@ closes the viewer with Esc.
 
 ## Today
 
-* Check 2: not met — the viewer opens from an entry and a board; a page, a post, an inventory item and the portal still download.
+* Check 2: partly met — the viewer opens from an entry, a page and a board; a post, an inventory item and the portal hold no files yet (the contract has no file route for them), so there is nothing to open there.
