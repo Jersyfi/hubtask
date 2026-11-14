@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DRAWN_LIMIT, markOf, neighbour, parseCsv, viewOf, zipListing } from './viewing.ts';
+import { DRAWN_LIMIT, markOf, neighbour, officeShownAs, parseCsv, viewOf, zipListing } from './viewing.ts';
 
 const ready = (content_type: string, file_name: string, extra: { inline?: boolean; size?: number; status?: 'READY' | 'PENDING_SCAN' } = {}) => ({
   content_type, file_name, size: extra.size ?? 1000, status: extra.status ?? 'READY' as const, inline: extra.inline,
@@ -76,4 +76,13 @@ test('← and → wrap at either end', () => {
   assert.equal(neighbour(0, 9, -1), 8);
   assert.equal(neighbour(8, 9, 1), 0);
   assert.equal(neighbour(1, 9, 1), 2);
+});
+
+// UC-MED-05 check 3: an office file is shown as the PDF the workspace's document server makes;
+// without a server - or before its answer arrived - it is the card.
+test('an office file is the server’s PDF where the workspace has a server, else the card', () => {
+  assert.equal(officeShownAs(undefined), 'card');
+  assert.equal(officeShownAs({ kind: 'NONE' }), 'card');
+  assert.equal(officeShownAs({ kind: 'COLLABORA_ONLINE', url: 'https://office.example' }), 'pdf');
+  assert.equal(officeShownAs({ kind: 'EURO_OFFICE', url: 'https://office.example' }), 'pdf');
 });

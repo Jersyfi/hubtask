@@ -1547,7 +1547,7 @@ func (c *RestController) ConvertJumbleEntry(w http.ResponseWriter, r *http.Reque
 	c.door(w, r, restDoors["convertJumbleEntry"], usecase.Input{"entry_id": entryId.String()}, params, &body, answerBy(jumbleEntryResponse))
 }
 
-// ConvertMediaToPdf answers GET /media/{mediaId}:pdf by the adapter in Wopi, which holds the connection.
+// ConvertMediaToPdf answers POST /media/{mediaId}:pdf by the adapter in Wopi, which holds the connection.
 func (c *RestController) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, mediaId openapi.MediaId) {
 	if c.Wopi == nil {
 		c.pending.ConvertMediaToPdf(w, r, mediaId)

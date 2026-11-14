@@ -10,7 +10,7 @@
 
   import type { DocNode } from '@hubtask/editor';
   import { Button, IconButton, Kbd, LabelChip } from '@hubtask/design-system/components';
-  import type { MediaObject } from '@hubtask/sync-engine';
+  import { TransportError, type DocumentServer, type MediaObject } from '@hubtask/sync-engine';
   import type { PDFDocumentProxy } from 'pdfjs-dist';
 
   import { accounts } from '../data/accounts.svelte.ts';
@@ -22,9 +22,15 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { platform } from '../platform/index.ts';
   import { renderProblem } from '../problem.ts';
+  import { resource } from '../data/resource.svelte.ts';
+  import { documentServerPath } from './documentServer.svelte.ts';
+  import { EDITOR_LAUNCH, launchEditor } from './launchEditor.ts';
   import { drawPage, openPdf } from './pdf.ts';
   import { viewer } from './viewer.svelte.ts';
-  import { TEXT_LIMIT, isDrawnFromBytes, markColourOf, markOf, neighbour, parseCsv, viewOf, zipListing, type ViewKind, type ZipEntry } from './viewing.ts';
+  import { TEXT_LIMIT, isDrawnFromBytes, markColourOf, markOf, neighbour, officeShownAs, parseCsv, viewOf, zipListing, type ViewKind, type ZipEntry } from './viewing.ts';
+
+  /** A conversion waits on the document server; its own deadline on the server is a minute. */
+  const CONVERSION_TIMEOUT = 75_000;
 
   let dialog = $state<HTMLDialogElement>();
   let stage = $state<HTMLElement>();
@@ -32,8 +38,12 @@
   const files = $derived(opened?.files ?? []);
   const file = $derived<MediaObject | undefined>(files[viewer.index]);
   const kind = $derived<ViewKind>(file ? viewOf(file) : 'card');
-  // *Edit* only where the server says the document server takes this file for this reader (F-3).
-  const isEditable = $derived(false);
+  // *Edit* only where the server says the document server takes this file for this reader (F-3),
+  // and only once the launch is decided (`launchEditor.ts`).
+  const isEditable = $derived(EDITOR_LAUNCH && file?.editable === true);
+  // Whether an office file shows as the server's PDF: every member reads the choice.
+  const server = resource<DocumentServer>(documentServerPath);
+  const officeAs = $derived(officeShownAs(server.state.status === 'ready' ? server.state.data : undefined));
 
   /** What the stage draws, once the bytes or the URL arrived. */
   type Drawn =
@@ -63,6 +73,7 @@
     const current = file;
     if (!current) return;
     const currentKind = kind;
+    const asOffice = officeAs;
     let isCurrent = true;
     let made: string | undefined;
     zoom = 1;
@@ -71,6 +82,10 @@
     drawn = { kind: 'loading' };
     void (async () => {
       try {
+        if (currentKind === 'office' && asOffice === 'pdf') {
+          drawn = await converted(current);
+          return;
+        }
         if (currentKind === 'card' || currentKind === 'office') {
           drawn = { kind: 'card' };
           return;
@@ -98,6 +113,20 @@
       if (drawn.kind === 'pdf') void drawn.document.destroy();
     };
   });
+
+  /** An office file as the PDF its document server makes; a server that converts nothing, the card. */
+  async function converted(current: MediaObject): Promise<Drawn> {
+    try {
+      const answer = await engine.document(`/media/${encodeURIComponent(current.id)}:pdf`, {}, {
+        accept: 'application/pdf', timeoutMs: Math.max(CONVERSION_TIMEOUT, transferTimeoutFor(current.size)),
+      });
+      const document = await openPdf(await answer.body.arrayBuffer());
+      return { kind: 'pdf', document, pages: document.numPages };
+    } catch (error) {
+      if (error instanceof TransportError && error.detailCode === 'media.conversion_unavailable') return { kind: 'card' };
+      throw error;
+    }
+  }
 
   async function draw(as: ViewKind, bytes: Blob, keep: (url: string) => void): Promise<Drawn> {
     if (as === 'svg') {
@@ -183,7 +212,14 @@
   }
 
   async function edit() {
-    // The document server's launch arrives with the WOPI host.
+    if (!file) return;
+    failure = undefined;
+    try {
+      // How the session reaches the server is the launch the owner decides (ADR-0104).
+      await launchEditor(file.id, () => {});
+    } catch (error) {
+      failure = renderProblem(error as never, messages).message;
+    }
   }
 
   const zooms = [1, 1.5, 2, 0.75];

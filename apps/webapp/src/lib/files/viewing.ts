@@ -14,7 +14,7 @@
  * the size.
  */
 
-import type { MediaObject } from '@hubtask/sync-engine';
+import type { DocumentServer, MediaObject } from '@hubtask/sync-engine';
 
 export type ViewKind = 'image' | 'svg' | 'video' | 'audio' | 'pdf' | 'markdown' | 'csv' | 'zip' | 'text' | 'office' | 'card';
 
@@ -36,6 +36,14 @@ const CODE = new Set([
 /** The file name's ending, lower-cased, or empty. */
 export function endingOf(fileName: string | null | undefined): string {
   return /\.([a-z0-9]{1,10})$/i.exec(fileName ?? '')?.[1]?.toLowerCase() ?? '';
+}
+
+/**
+ * How an office file is shown: the PDF the workspace's document server converts it to, or - with
+ * no server, or before the choice was read - the card (UC-MED-05 check 3).
+ */
+export function officeShownAs(server: DocumentServer | undefined): 'pdf' | 'card' {
+  return server !== undefined && server.kind !== 'NONE' ? 'pdf' : 'card';
 }
 
 /** How the viewer shows this object. A file that is not READY is never drawn. */

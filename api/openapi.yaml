@@ -22738,16 +22738,24 @@ paths:
   /media/{mediaId}:pdf:
     parameters:
       - $ref: "#/components/parameters/MediaId"
-    get:
+    post:
       tags: [media]
       operationId: convertMediaToPdf
       x-hubtask-rest: delegated
       x-hubtask-rest-to: Wopi
       description: >
         An office file as a PDF, converted by the workspace's document server, for the viewer to
-        draw. Readable by whoever may read the file. Refused with
+        draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a
+        client fetches it as a document with its bearer. Refused with
         `media.conversion_unavailable` where the workspace has no document server that converts,
         and `media.not_an_office_file` for anything else. A download, never a rendering path.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
       responses:
         "200":
           description: The PDF

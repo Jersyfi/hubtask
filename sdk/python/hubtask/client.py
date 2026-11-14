@@ -3247,9 +3247,9 @@ class Client:
         """GET /media/{mediaId}:content"""
         return self._call("GET", "/media/{mediaId}:content", {"mediaId": media_id}, query, {}, None, "none", None, "raw")
 
-    def convert_media_to_pdf(self, media_id: str) -> bytes:
-        """GET /media/{mediaId}:pdf"""
-        return self._call("GET", "/media/{mediaId}:pdf", {"mediaId": media_id}, None, {}, None, "none", None, "raw")
+    def convert_media_to_pdf(self, media_id: str, body: dict[str, Any]) -> bytes:
+        """POST /media/{mediaId}:pdf"""
+        return self._call("POST", "/media/{mediaId}:pdf", {"mediaId": media_id}, None, {}, body, "json", "application/json", "raw")
 
     def start_media_editing(self, media_id: str) -> "MediaEditingSession":
         """POST /media/{mediaId}:edit"""

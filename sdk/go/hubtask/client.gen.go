@@ -30962,6 +30962,9 @@ type UploadMediaContentParams struct {
 	Token string `form:"token" json:"token"`
 }
 
+// ConvertMediaToPdfJSONBody defines parameters for ConvertMediaToPdf.
+type ConvertMediaToPdfJSONBody = map[string]interface{}
+
 // ListMembershipsParams defines parameters for ListMemberships.
 type ListMembershipsParams struct {
 	ScopeType MembershipScope `form:"scope_type" json:"scope_type"`
@@ -32797,6 +32800,9 @@ type SaveMailSettingsJSONRequestBody = MailSettings
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
+
+// ConvertMediaToPdfJSONRequestBody defines body for ConvertMediaToPdf for application/json ContentType.
+type ConvertMediaToPdfJSONRequestBody = ConvertMediaToPdfJSONBody
 
 // SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
 type SetDocumentServerJSONRequestBody = DocumentServer
@@ -41514,10 +41520,17 @@ type ClientInterface interface {
 	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 	StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	// ConvertMediaToPdfWithBody performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+	// with any type of body and a specified content type.
 	//
-	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
-	ConvertMediaToPdf(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdfWithBody(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConvertMediaToPdf performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdf(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadDocumentServer The workspace's document server
 	//
@@ -61996,11 +62009,28 @@ func (c *Client) StartMediaEditing(ctx context.Context, mediaId MediaId, reqEdit
 	return c.Client.Do(req)
 }
 
-// ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+// ConvertMediaToPdfWithBody performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+// with any type of body and a specified content type.
 //
-// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
-func (c *Client) ConvertMediaToPdf(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewConvertMediaToPdfRequest(c.Server, mediaId)
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *Client) ConvertMediaToPdfWithBody(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConvertMediaToPdfRequestWithBody(c.Server, mediaId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConvertMediaToPdf performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *Client) ConvertMediaToPdf(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConvertMediaToPdfRequest(c.Server, mediaId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -98288,8 +98318,19 @@ func NewStartMediaEditingRequest(server string, mediaId MediaId) (*http.Request,
 	return req, nil
 }
 
-// NewConvertMediaToPdfRequest constructs an http.Request for the ConvertMediaToPdf method
-func NewConvertMediaToPdfRequest(server string, mediaId MediaId) (*http.Request, error) {
+// NewConvertMediaToPdfRequest calls the generic ConvertMediaToPdf builder with application/json body
+func NewConvertMediaToPdfRequest(server string, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConvertMediaToPdfRequestWithBody(server, mediaId, "application/json", bodyReader)
+}
+
+// NewConvertMediaToPdfRequestWithBody constructs an http.Request for the ConvertMediaToPdf method, with any body, and a specified content type
+func NewConvertMediaToPdfRequestWithBody(server string, mediaId MediaId, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -98314,10 +98355,12 @@ func NewConvertMediaToPdfRequest(server string, mediaId MediaId) (*http.Request,
 		return nil, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -120949,12 +120992,19 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error)
 
-	// ConvertMediaToPdfWithResponse performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	// ConvertMediaToPdfWithBodyWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+	// with any type of body and a specified content type.
 	//
-	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
+	ConvertMediaToPdfWithBodyWithResponse(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
+
+	// ConvertMediaToPdfWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+	ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error)
 
 	// ReadDocumentServerWithResponse The workspace's document server
 	//
@@ -182300,13 +182350,26 @@ func (c *ClientWithResponses) StartMediaEditingWithResponse(ctx context.Context,
 	return ParseStartMediaEditingResult(rsp)
 }
 
-// ConvertMediaToPdfWithResponse performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+// ConvertMediaToPdfWithBodyWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request,
+// with any type of body and a specified content type.
 //
-// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
-	rsp, err := c.ConvertMediaToPdf(ctx, mediaId, reqEditors...)
+func (c *ClientWithResponses) ConvertMediaToPdfWithBodyWithResponse(ctx context.Context, mediaId MediaId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
+	rsp, err := c.ConvertMediaToPdfWithBody(ctx, mediaId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConvertMediaToPdfResult(rsp)
+}
+
+// ConvertMediaToPdfWithResponse performs a POST /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// An office file as a PDF, converted by the workspace's document server, for the viewer to draw. Readable by whoever may read the file; a read by `POST`, as an export is, so that a client fetches it as a document with its bearer. Refused with `media.conversion_unavailable` where the workspace has no document server that converts, and `media.not_an_office_file` for anything else. A download, never a rendering path.
+func (c *ClientWithResponses) ConvertMediaToPdfWithResponse(ctx context.Context, mediaId MediaId, body ConvertMediaToPdfJSONRequestBody, reqEditors ...RequestEditorFn) (*ConvertMediaToPdfResult, error) {
+	rsp, err := c.ConvertMediaToPdf(ctx, mediaId, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

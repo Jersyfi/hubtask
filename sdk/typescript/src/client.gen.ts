@@ -4085,9 +4085,9 @@ export class HubtaskClient {
     return this.call("GET", "/media/{mediaId}:content", { "mediaId": mediaId }, options.query, {  }, undefined, "none", undefined, "raw", options.signal);
   }
 
-  /** GET /media/{mediaId}:pdf */
-  convertMediaToPdf(mediaId: string, options: CallOptions = {}): Promise<Response> {
-    return this.call("GET", "/media/{mediaId}:pdf", { "mediaId": mediaId }, undefined, {  }, undefined, "none", undefined, "raw", options.signal);
+  /** POST /media/{mediaId}:pdf */
+  convertMediaToPdf(mediaId: string, body: NonNullable<operations["convertMediaToPdf"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<Response> {
+    return this.call("POST", "/media/{mediaId}:pdf", { "mediaId": mediaId }, undefined, {  }, body, "json", "application/json", "raw", options.signal);
   }
 
   /** POST /media/{mediaId}:edit */

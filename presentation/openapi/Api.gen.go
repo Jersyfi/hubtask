@@ -30956,6 +30956,9 @@ type UploadMediaContentParams struct {
 	Token string `form:"token" json:"token"`
 }
 
+// ConvertMediaToPdfJSONBody defines parameters for ConvertMediaToPdf.
+type ConvertMediaToPdfJSONBody = map[string]interface{}
+
 // ListMembershipsParams defines parameters for ListMemberships.
 type ListMembershipsParams struct {
 	ScopeType MembershipScope `form:"scope_type" json:"scope_type"`
@@ -32791,6 +32794,9 @@ type SaveMailSettingsJSONRequestBody = MailSettings
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
+
+// ConvertMediaToPdfJSONRequestBody defines body for ConvertMediaToPdf for application/json ContentType.
+type ConvertMediaToPdfJSONRequestBody = ConvertMediaToPdfJSONBody
 
 // SetDocumentServerJSONRequestBody defines body for SetDocumentServer for application/json ContentType.
 type SetDocumentServerJSONRequestBody = DocumentServer
@@ -35374,7 +35380,7 @@ type ServerInterface interface {
 	// (POST /media/{mediaId}:edit)
 	StartMediaEditing(w http.ResponseWriter, r *http.Request, mediaId MediaId)
 
-	// (GET /media/{mediaId}:pdf)
+	// (POST /media/{mediaId}:pdf)
 	ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, mediaId MediaId)
 	// ReadDocumentServer The workspace's document server
 	// (GET /media:document-server)
@@ -66710,7 +66716,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:confirm", wrapper.ConfirmMediaUpload)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.DownloadMediaContent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media/{mediaId}:content", wrapper.UploadMediaContent)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media/{mediaId}:pdf", wrapper.ConvertMediaToPdf)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:pdf", wrapper.ConvertMediaToPdf)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/media/{mediaId}:edit", wrapper.StartMediaEditing)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/media:document-server", wrapper.ReadDocumentServer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/media:document-server", wrapper.SetDocumentServer)

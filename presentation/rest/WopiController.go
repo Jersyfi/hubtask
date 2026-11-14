@@ -73,7 +73,7 @@ func (c *WopiDoor) StartMediaEditing(w http.ResponseWriter, r *http.Request, med
 	})
 }
 
-// ConvertMediaToPdf answers GET /media/{mediaId}:pdf: a download, never a rendering path.
+// ConvertMediaToPdf answers POST /media/{mediaId}:pdf: a download, never a rendering path.
 func (c *WopiDoor) ConvertMediaToPdf(w http.ResponseWriter, r *http.Request, mediaID openapi.MediaId) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	actor, _ := appshared.ActorFrom(r.Context())

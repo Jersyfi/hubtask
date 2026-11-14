@@ -46,4 +46,3 @@ closes the viewer with Esc.
 ## Today
 
 * Check 2: not met — the viewer opens from an entry and a board; a page, a post, an inventory item and the portal still download.
-* Check 3: not met — the conversion is served (`GET /media/{id}:pdf`), the viewer does not yet ask for it.
