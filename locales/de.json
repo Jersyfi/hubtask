@@ -9474,6 +9474,7 @@
   "app.timeline.label": "Zeitleiste",
   "app.timeline.undated": "Noch ohne Termin",
   "app.timeline.today_is": "Heute ist {date}, auf der Achse markiert.",
+  "app.timeline.today_mark": "Heute",
   "app.timeline.move_start": "Den Beginn verschieben",
   "app.timeline.move_due": "Die Fälligkeit verschieben",
   "app.timeline.placed_announced": "{title} verschoben.",

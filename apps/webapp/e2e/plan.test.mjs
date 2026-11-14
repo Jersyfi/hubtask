@@ -187,6 +187,11 @@ test('chromium: 1280 px — a knob drawn onto another row makes that row wait', 
   // The chart draws the dependency the schedule holds, and says it in words.
   assert.equal(await page.locator(`.timeline .arrows [data-dependency="${LINK}"]`).count(), 1);
   assert.equal(await page.locator(`.timeline [data-dependency-said="${LINK}"]`).count(), 1);
+  // Said for a screen reader, drawn nowhere under the chart: the arrows have their own tab, and
+  // today is the word on its line (scene gantt).
+  const under = await page.locator('.timeline > .dependencies, .timeline > .said').evaluateAll((all) => all.map((each) => each.getBoundingClientRect().height));
+  assert.ok(under.every((height) => height <= 1), `words stand under the chart: ${under}`);
+  if (await page.locator('.timeline .tick[data-today]').count() > 0) assert.equal((await page.locator('.timeline .today-mark').innerText()).trim(), 'Today');
 
   // From the first bar's knob onto the third row: the third now waits for the first.
   const knob = await middleOf(rowOf(page, FIRST).getByRole('button', { name: 'Drag onto the entry that waits for this one' }));

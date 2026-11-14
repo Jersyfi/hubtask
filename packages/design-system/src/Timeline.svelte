@@ -144,6 +144,11 @@
     today?: string;
     /** What that mark is called, for a reader who cannot see it. */
     todayLabel?: string;
+    /**
+     * A word on the today line itself ("Heute"), as a plan's Gantt draws it: then nothing stands
+     * under the picture - the sentence and the arrows in words are kept for a screen reader only.
+     */
+    todayMark?: string;
     /** What the tray of entries that cannot be placed is called. */
     undatedLabel: string;
     /**
@@ -207,6 +212,7 @@
     gridlines = [],
     today,
     todayLabel,
+    todayMark,
     undatedLabel,
     isTrayFolded = false,
     emptyLabel,
@@ -713,7 +719,7 @@
             data-line={lineColumns.has(column) ? '' : undefined}
             data-today={column === todayColumn ? '' : undefined}
           >
-            {lineColumns.get(column) ?? ''}
+            {lineColumns.get(column) ?? ''}{#if todayMark && column === todayColumn}<span class="today-mark" aria-hidden="true">{todayMark}</span>{/if}
           </span>
         {/each}
       </div>
@@ -857,7 +863,7 @@
   {/if}
   {#if drawn.length > 0}
     <!-- The arrows in words: the picture is for the eye, this is what it says. -->
-    <ul class="dependencies" aria-label={dependenciesLabel}>
+    <ul class="dependencies" class:unseen={todayMark !== undefined} aria-label={dependenciesLabel}>
       {#each drawn as dependency (dependency.id)}
         <li
           id={`${uid}-dep-${dependency.id}`}
@@ -870,7 +876,7 @@
   {/if}
   {#if today !== undefined && todayLabel !== undefined && todayColumn >= 0 && todayColumn < days}
     <!-- The mark is a line, and a line is not readable. The day it stands on is said once. -->
-    <p class="said">{todayLabel}</p>
+    <p class="said" class:unseen={todayMark !== undefined}>{todayLabel}</p>
   {/if}
 </section>
 
@@ -940,7 +946,27 @@
 
   /* Today is the one mark that runs through the whole picture, so that a bar is read against it
      without counting columns. Rule 3: it is drawn on the axis and said in words below. */
-  .tick[data-today] { border-inline-start: var(--bw-ring) solid var(--accent-primary); }
+  .tick[data-today] { position: relative; border-inline-start: var(--bw-ring) solid var(--accent-primary); }
+  .today-mark {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: var(--sp-050);
+    color: var(--accent-primary);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+  }
+  /* Said for a screen reader only, as VisuallyHidden's clip pattern does it. */
+  .unseen {
+    position: absolute;
+    /* design-system-lint-ignore */
+    width: 1px;
+    /* design-system-lint-ignore */
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 
   /* In a track the mark is drawn over the cell rather than as its border: a border is taken out of
      the column, and on today's column - where bars most often start - a bar end would lose the

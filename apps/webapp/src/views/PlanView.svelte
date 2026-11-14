@@ -901,6 +901,7 @@
           {gridlines}
           {today}
           todayLabel={t('app.timeline.today_is', { date: dayLabel(today) })}
+          todayMark={t('app.timeline.today_mark')}
           emptyLabel={t('app.planning.empty')}
           startHandleLabel={t('app.timeline.move_start')}
           dueHandleLabel={t('app.timeline.move_due')}
