@@ -12,7 +12,7 @@
   // **One height for every sheet**: as tall as what it holds, at most 85 % of the screen; beyond
   // that its body scrolls under a head that stays. Every sheet has its grabber, and pulling it down
   // closes the sheet; with `grabLabel` the grabber is also a button that closes it.
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
@@ -103,6 +103,12 @@
     }
     opener = document.activeElement;
     if (!sheet.open) sheet.showModal();
+    // A list of actions is a menu: focus starts on its first row, not on the grabber or the close
+    // button, so the arrows move among the rows at once - never on a destructive one.
+    if (untrack(() => (items?.length ?? 0) > 0)) {
+      const rows = [...sheet.querySelectorAll<HTMLElement>('[role="menuitem"]')];
+      (rows.find((row) => !row.hasAttribute('data-destructive') && row.getAttribute('aria-disabled') !== 'true') ?? rows[0])?.focus();
+    }
     const handle = layers.open('overlay', close);
     const onKeydown = escapeHandler();
     document.addEventListener('keydown', onKeydown);

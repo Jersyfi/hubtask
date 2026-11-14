@@ -295,6 +295,19 @@ test('chromium: 375 px — the page menu is in the bar, and it is the head\'s ow
   const items = (await opened.getByRole('menuitem').allTextContents()).map((item) => item.trim());
   assert.ok(items.length > 0, 'the bar\'s menu is empty');
 
+  // A menu shown as a sheet keeps the menu's keys: focus on its first row, the arrows move, Escape closes.
+  const focused = () => page.evaluate(() => (document.activeElement?.getAttribute('role') === 'menuitem' ? document.activeElement.textContent.trim() : null));
+  await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'menuitem', null, { timeout: 2_000 }).catch(() => undefined);
+  const rows = await opened.getByRole('menuitem').evaluateAll((all) => all.filter((each) => !each.hasAttribute('data-destructive')).map((each) => each.textContent.trim()));
+  assert.equal(await focused(), rows[0], 'focus does not start on the first row');
+  if (items.length > 1) {
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await focused(), items[1], 'ArrowDown does not move to the next row');
+  }
+  await page.keyboard.press('Escape');
+  await opened.waitFor({ state: 'detached', timeout: 2_000 }).catch(() => undefined);
+  assert.equal(await page.getByRole('menu').count(), 0, 'Escape does not close the menu');
+
   assert.deepEqual(failures, []);
 });
 
