@@ -93,14 +93,19 @@
       </section>
       {/if}
     {/each}
-    {#if facts}
+    {#snippet factList()}
+      <dl class="facts">
+        {#each facts?.rows ?? [] as row (row.label)}
+          <div class="fact"><dt>{row.label}</dt><dd>{row.value}</dd></div>
+        {/each}
+      </dl>
+    {/snippet}
+    {#if facts && objectHead}
+      <FoldingSection id="part-facts" title={facts.title}>{#snippet children()}{@render factList()}{/snippet}</FoldingSection>
+    {:else if facts}
       <section class="part">
         <RegionHead title={facts.title} />
-        <dl class="facts">
-          {#each facts.rows as row (row.label)}
-            <div class="fact"><dt>{row.label}</dt><dd>{row.value}</dd></div>
-          {/each}
-        </dl>
+        {@render factList()}
       </section>
     {/if}
     {#if danger}<DangerZone title={danger.title} acts={danger.acts} onact={danger.onact} />{/if}
