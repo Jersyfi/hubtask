@@ -83,6 +83,10 @@ const (
 	// the holders of a role (UC-AUT-09): an overdue invoice, a request arrived. Its own switch, because
 	// what a rule announces is the workspace's arrangement rather than somebody's act.
 	CategorySLA Category = "SLA"
+	// CategoryPost is a hub's post reaching its audience (UC-DOC-17 check 5): published, or a
+	// writer reminding those who have not confirmed it (UC-DOC-18 check 2). Its own switch, because
+	// news from a hub is neither somebody's act on one's work nor a moment one asked for.
+	CategoryPost Category = "POST"
 )
 
 // Categories is the closed set, in the order the schema's check constraint lists them.
@@ -90,7 +94,7 @@ func Categories() []Category {
 	return []Category{
 		CategoryAssignment, CategoryMembership, CategoryComment, CategoryInvitation,
 		CategoryReminder, CategoryIntegration, CategoryRetention, CategoryEmergencyAccess, CategoryRequestReply,
-		CategorySLA,
+		CategorySLA, CategoryPost,
 	}
 }
 

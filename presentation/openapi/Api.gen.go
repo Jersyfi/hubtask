@@ -6033,6 +6033,7 @@ const (
 	InvitationDeliveryCategoryINTEGRATION     InvitationDeliveryCategory = "INTEGRATION"
 	InvitationDeliveryCategoryINVITATION      InvitationDeliveryCategory = "INVITATION"
 	InvitationDeliveryCategoryMEMBERSHIP      InvitationDeliveryCategory = "MEMBERSHIP"
+	InvitationDeliveryCategoryPOST            InvitationDeliveryCategory = "POST"
 	InvitationDeliveryCategoryREMINDER        InvitationDeliveryCategory = "REMINDER"
 	InvitationDeliveryCategoryREQUESTREPLY    InvitationDeliveryCategory = "REQUEST_REPLY"
 	InvitationDeliveryCategoryRETENTION       InvitationDeliveryCategory = "RETENTION"
@@ -6053,6 +6054,8 @@ func (e InvitationDeliveryCategory) Valid() bool {
 	case InvitationDeliveryCategoryINVITATION:
 		return true
 	case InvitationDeliveryCategoryMEMBERSHIP:
+		return true
+	case InvitationDeliveryCategoryPOST:
 		return true
 	case InvitationDeliveryCategoryREMINDER:
 		return true

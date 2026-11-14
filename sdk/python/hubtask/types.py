@@ -5302,7 +5302,7 @@ class InvitationDelivery(TypedDict, total=False):
     at: Required[str]
     code: Required[str | None]
     params: dict[str, Any]
-    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA"]
+    category: Literal["ASSIGNMENT", "MEMBERSHIP", "COMMENT", "INVITATION", "REMINDER", "INTEGRATION", "RETENTION", "EMERGENCY_ACCESS", "REQUEST_REPLY", "SLA", "POST"]
 
 class SignInDetail(TypedDict, total=False):
     account_id: Required[str]

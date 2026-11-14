@@ -506,3 +506,26 @@ func TestARuleNoticeIsWrittenAndReadBack(t *testing.T) {
 		t.Errorf("the SLA switch was not stored: %v", err)
 	}
 }
+
+// A post's notice is a category the table takes (migration 0403, UC-DOC-17 check 5), and so is a
+// person's switch of it.
+func TestAPostNoticeIsWrittenAndReadBack(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	recipient := seedAccount(ctx, t, tenantA)
+	record := pendingNotification(t, tenantA, recipient, authorA, freshID(t))
+	record.Category = domain.CategoryPost
+	if !insertNotification(ctx, t, tenantA, record) {
+		t.Fatal("the record was not written")
+	}
+	if stored, err := findNotification(ctx, t, tenantA, record.ID); err != nil || stored.Category != domain.CategoryPost {
+		t.Errorf("read back as %q (%v)", stored.Category, err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		off := domain.DefaultPreference(tenantA, recipient, domain.CategoryPost, domain.ChannelEmail)
+		off.Enabled, off.UpdatedAt = false, created
+		return preferenceRepo().Save(ctx, off)
+	}); err != nil {
+		t.Errorf("the POST switch was not stored: %v", err)
+	}
+}

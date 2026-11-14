@@ -73,7 +73,8 @@ type Posting struct {
 // PostNotifier tells people about a post. It is handed the people the application judged (rule 2).
 type PostNotifier interface {
 	PostPublished(ctx context.Context, tenant shared.ID, post domain.Post, recipients []shared.ID) error
-	PostReminder(ctx context.Context, tenant shared.ID, post domain.Post, recipients []shared.ID) error
+	// PostReminder is a writer's reminder, naming the writer.
+	PostReminder(ctx context.Context, tenant, writer shared.ID, post domain.Post, recipients []shared.ID) error
 }
 
 func (s Space) posts() (repository.Posts, error) {
@@ -387,7 +388,16 @@ func (s Space) told(ctx context.Context, actor appshared.ActorContext, post doma
 		return err
 	}
 	audience = slices.DeleteFunc(audience, func(id shared.ID) bool { return id == actor.AccountID })
-	return s.Posting.Notify.PostPublished(ctx, actor.TenantID, post, audience)
+	return s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		return s.Posting.Notify.PostPublished(ctx, actor.TenantID, post, audience)
+	})
+}
+
+// ScheduledPostPublished tells a post the timer pass published its audience (PostPublishElapsed's
+// Published). It runs as the system, inside the pass's transaction: the audience is judged person by
+// person at the hub as for a writer's publishing (rule 2).
+func (s Space) ScheduledPostPublished(ctx context.Context, tenant shared.ID, post domain.Post) error {
+	return s.told(ctx, appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: tenant}, post)
 }
 
 // writablePost reads a post for a writer of its hub, recording a refusal.
@@ -896,7 +906,7 @@ func (h RemindPost) Descriptor() usecase.Descriptor {
 			}
 			err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if h.Space.Posting.Notify != nil {
-					if err := h.Space.Posting.Notify.PostReminder(ctx, actor.TenantID, post, open); err != nil {
+					if err := h.Space.Posting.Notify.PostReminder(ctx, actor.TenantID, actor.AccountID, post, open); err != nil {
 						return err
 					}
 				}

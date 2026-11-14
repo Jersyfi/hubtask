@@ -217,7 +217,7 @@ func (t *postTold) PostPublished(_ context.Context, _ shared.ID, _ domain.Post, 
 	t.published = append(t.published, to)
 	return nil
 }
-func (t *postTold) PostReminder(_ context.Context, _ shared.ID, _ domain.Post, to []shared.ID) error {
+func (t *postTold) PostReminder(_ context.Context, _, _ shared.ID, _ domain.Post, to []shared.ID) error {
 	t.reminded = append(t.reminded, to)
 	return nil
 }
@@ -306,19 +306,24 @@ func TestAPostReachesItsAudienceAloneThroughEveryDoor(t *testing.T) {
 }
 
 // The scheduler publishes a scheduled post at the moment asked, by the clock, and arms the next
-// leg of one moved further ahead (B-3).
+// leg of one moved further ahead (B-3); the post it published is told to its audience as a
+// writer's publishing is (UC-DOC-17 check 5).
 func TestTheSchedulerPublishesAPostAtItsMoment(t *testing.T) {
 	f := newPostFixture()
 	at := start.Add(2 * time.Hour)
-	id := f.post(t, usecase.Input{"publish_at": at.Format(time.RFC3339)})
+	id := f.post(t, usecase.Input{"publish_at": at.Format(time.RFC3339), "notify": true})
 	if f.timers.armed[id] != 2*time.Hour {
 		t.Fatalf("armed %v; wants the timer at the post's moment", f.timers.armed)
 	}
-	elapsed := PostPublishElapsed{Pages: f.store, Posts: f.posts, Timers: f.timers, Clock: f.clock}
+	elapsed := PostPublishElapsed{Pages: f.store, Posts: f.posts, Timers: f.timers, Clock: f.clock,
+		Published: f.space.ScheduledPostPublished}
 	f.store.pages[id] = domain.Page{ID: id, HubID: hub}
 	f.clock.at = at.Add(time.Minute)
 	if err := elapsed.Elapsed(context.Background(), appshared.ActorContext{}, calendar.Timer{TenantID: tenant, SubjectID: id}); err != nil {
 		t.Fatal(err)
+	}
+	if len(f.told.published) != 1 || slices.Contains(f.told.published[0], requester) || len(f.told.published[0]) == 0 {
+		t.Errorf("told %v; wants the hub's readers once, never the requester", f.told.published)
 	}
 	if post := f.posts.posts[id]; post.PublishedAt == nil || !post.PublishedAt.Equal(at) {
 		t.Errorf("published %+v; wants at the moment asked", post.PublishedAt)

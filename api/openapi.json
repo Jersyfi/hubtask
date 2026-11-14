@@ -66066,7 +66066,8 @@
               "RETENTION",
               "EMERGENCY_ACCESS",
               "REQUEST_REPLY",
-              "SLA"
+              "SLA",
+              "POST"
             ],
             "description": "What the mail told the person, where it was recorded as a notification. Absent for an invitation that is still queued to be recorded.\n"
           }

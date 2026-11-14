@@ -2080,7 +2080,13 @@ func run() error {
 			Settings: postgres.SettingRepository{},
 		},
 		// A hub's posts, a scheduled one published by its timer (UC-DOC-17, UC-DOC-18).
-		Posting: knowledgeservice.Posting{Posts: postgres.NewPostRepository(), Timers: reviewClocks},
+		Posting: knowledgeservice.Posting{
+			Posts: postgres.NewPostRepository(), Timers: reviewClocks,
+			Notify: notification.RecordPost{
+				Notifications: notifications, Accounts: accounts, Preferences: notificationPreferences,
+				Jobs: jobs, Clock: clockadapter.System{}, IDs: ids, Signals: metrics,
+			},
+		},
 	}
 	// The whiteboard module's boards (M4): a hub's boards, judged at the hub as its pages are.
 	boardStudio := whiteboardservice.Studio{
@@ -5339,6 +5345,7 @@ func run() error {
 				calendardomain.PurposePostPublish: knowledgeservice.PostPublishElapsed{
 					Pages: postgres.NewPageRepository(), Posts: postgres.NewPostRepository(),
 					Timers: reviewClocks, Clock: clockadapter.System{},
+					Published: pageSpace.ScheduledPostPublished,
 				},
 				calendardomain.PurposePageReview: knowledgeservice.PageReviewElapsed{
 					Pages: postgres.NewPageRepository(), Timers: reviewClocks, Clock: clockadapter.System{},
@@ -5436,14 +5443,16 @@ func run() error {
 		queueport.KindApprovalEmail: notificationDelivery,
 		// And under a plan exception's (queue.KindPlanExceptionEmail).
 		queueport.KindPlanExceptionEmail: notificationDelivery,
-		queueport.KindWebhookDeliver:     webhookDelivery,
-		queueport.KindPlatformSweep:      worker.PlatformSweep{Sweep: platformSweep},
-		queueport.KindOwnDomainCheck:     worker.OwnDomainCheck{Check: ownDomainCheck},
-		queueport.KindPlatformDeliver:    platformDelivery,
-		queueport.KindAutomationRun:      automationRun,
-		queueport.KindAutomationHTTP:     outboundCall,
-		queueport.KindBackupRun:          backupRun,
-		queueport.KindBackupVerify:       worker.BackupVerify{Performer: backupPerformer},
+		// And under a post's (queue.KindPostEmail).
+		queueport.KindPostEmail:       notificationDelivery,
+		queueport.KindWebhookDeliver:  webhookDelivery,
+		queueport.KindPlatformSweep:   worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindOwnDomainCheck:  worker.OwnDomainCheck{Check: ownDomainCheck},
+		queueport.KindPlatformDeliver: platformDelivery,
+		queueport.KindAutomationRun:   automationRun,
+		queueport.KindAutomationHTTP:  outboundCall,
+		queueport.KindBackupRun:       backupRun,
+		queueport.KindBackupVerify:    worker.BackupVerify{Performer: backupPerformer},
 		queueport.KindBackupRestore: worker.BackupRestore{
 			Applier: backupApplier, Progress: jobs,
 		},

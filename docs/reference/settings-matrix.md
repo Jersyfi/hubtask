@@ -240,3 +240,4 @@ one workspace, by person and place.
 | `notifications.retention` | PERSON | `SELF` | the person |
 | `notifications.request_reply` | PERSON | `SELF` | the person |
 | `notifications.sla` | PERSON | `SELF` | the person |
+| `notifications.post` | PERSON | `SELF` | the person |

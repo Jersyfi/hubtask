@@ -79,6 +79,12 @@ const (
 	// category, its own sentence - nobody asked for this reminder, the page's verification did.
 	subjectPageReview = "email.page_review.subject"
 	bodyPageReview    = "email.page_review.body"
+	// A post reaching its audience (UC-DOC-17 check 5), and a writer's reminder to confirm it
+	// (UC-DOC-18 check 2): POST's category, told apart by the reminder naming who reminds.
+	subjectPostPublished = "email.post_published.subject"
+	bodyPostPublished    = "email.post_published.body"
+	subjectPostReminder  = "email.post_reminder.subject"
+	bodyPostReminder     = "email.post_reminder.body"
 	// An agent that did what its policy lets it do with its owner told (UC-AGT-02, NOTIFY).
 	subjectAgentNotice = "email.agent_notice.subject"
 	bodyAgentNotice    = "email.agent_notice.body"
@@ -667,6 +673,9 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 	if !loaded.record.PageID.IsZero() {
 		subjectCode, bodyCode = subjectPageReview, bodyPageReview
 	}
+	if loaded.record.Category == domain.CategoryPost {
+		subjectCode, bodyCode = postCodes(loaded.record)
+	}
 	if !loaded.record.AgentID.IsZero() {
 		subjectCode, bodyCode = subjectAgentNotice, bodyAgentNotice
 	}
@@ -776,6 +785,15 @@ func currentCounted(approval servicedesk.Approval) []shared.ID {
 	return approval.Levels[approval.Current].Counted
 }
 
+// postCodes is a post's pair: a reminder names the writer who reminds, a publication nobody - the
+// post went out, by a writer's hand or at its scheduled moment.
+func postCodes(record domain.Notification) (subjectCode, bodyCode string) {
+	if !record.ActorID.IsZero() {
+		return subjectPostReminder, bodyPostReminder
+	}
+	return subjectPostPublished, bodyPostPublished
+}
+
 // codesFor is the category's pair of catalogue keys. A switch rather than a map, so that a
 // category added without its messages does not compile.
 func codesFor(category domain.Category) (subjectCode, bodyCode string) {
@@ -803,6 +821,8 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 		return subjectEmergencyAccess, bodyEmergencyAccess
 	case domain.CategorySLA:
 		return subjectRuleNotice, bodyRuleNotice
+	case domain.CategoryPost:
+		return postCodes(domain.Notification{})
 	case domain.CategoryRequestReply:
 		// The comment's sentence: somebody wrote on the request; only the link differs.
 		return subjectComment, bodyComment
@@ -837,6 +857,8 @@ func link(loaded subject) string {
 		return base + "/administration/webhooks"
 	case !record.ItemID.IsZero():
 		return base + "/items/" + url.PathEscape(record.ItemID.String())
+	case !record.PageID.IsZero() && record.Category == domain.CategoryPost:
+		return base + "/posts/" + url.PathEscape(record.PageID.String())
 	case !record.PageID.IsZero():
 		return base + "/pages/" + url.PathEscape(record.PageID.String())
 	case !record.AgentID.IsZero():

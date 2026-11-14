@@ -151,6 +151,11 @@ const (
 	// PageReviewAttempts.
 	KindPlanExceptionEmail Kind = "notification.plan_exception"
 
+	// KindPostEmail tells a post's audience it was published, or reminds those who have not confirmed
+	// it (UC-DOC-17, UC-DOC-18), under its own kind for the same rolling update: a process of the
+	// previous release does not know the POST category. Its attempt budget is PageReviewAttempts.
+	KindPostEmail Kind = "notification.post"
+
 	// EmergencyAccessAttempts is that job's attempt budget: more than the default, because a
 	// rollout's old processes may claim and return it a few times before a new one runs it, and
 	// each claim spends an attempt.

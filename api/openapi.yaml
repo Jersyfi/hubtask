@@ -40534,7 +40534,7 @@ components:
           description: The failure's parameters, beside its code.
         category:
           type: string
-          enum: [ASSIGNMENT, MEMBERSHIP, COMMENT, INVITATION, REMINDER, INTEGRATION, RETENTION, EMERGENCY_ACCESS, REQUEST_REPLY, SLA]
+          enum: [ASSIGNMENT, MEMBERSHIP, COMMENT, INVITATION, REMINDER, INTEGRATION, RETENTION, EMERGENCY_ACCESS, REQUEST_REPLY, SLA, POST]
           description: >
             What the mail told the person, where it was recorded as a notification. Absent for an
             invitation that is still queued to be recorded.
