@@ -149,3 +149,6 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
   - Finding to file, with consent: a page version restored through the API, MCP or `hubctl` leaves an
     open live document stale; the fix (a document epoch the realtime hub enforces) changes the sync
     protocol.
+* Open for the coherence pass: a whiteboard connector cannot be chosen or deleted in the UI (W-4: every
+  object takes the selection bar); the board's island/bar markup and the pages' `FloatingToolbar` become
+  one component; the selection bar's brand-tinted primary becomes a design-system button tone.
