@@ -123,6 +123,7 @@ func TestTheClaimIsReconciledWithTheBytes(t *testing.T) {
 	}
 }
 
+// UC-MED-05 check 1: SVG is never opened as a document.
 func TestSVGNeverRendersInlineWhicheverWayItArrives(t *testing.T) {
 	// Claimed honestly, sharpened from the XML sniff - and still a download (T-11: SVG is
 	// rasterised or served as a download; rasterising is nobody's job yet).

@@ -18,7 +18,7 @@ import (
 
 // A target is minted at the host the request arrived on - a workspace's own origin - so the page
 // asking for it may fetch it under connect-src/img-src 'self' without CORS; the installation's
-// address is the fallback for a call that came from no request.
+// address is the fallback for a call that came from no request (UC-MED-05 check 5).
 func TestLocalTransfersMintAtTheRequestsHost(t *testing.T) {
 	issuer := NewLocalTransfers(
 		security.NewMediaTokenIssuer(secret.New("an installation secret of decent length")),

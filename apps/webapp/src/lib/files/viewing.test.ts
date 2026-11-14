@@ -10,7 +10,8 @@ const ready = (content_type: string, file_name: string, extra: { inline?: boolea
   content_type, file_name, size: extra.size ?? 1000, status: extra.status ?? 'READY' as const, inline: extra.inline,
 });
 
-// F-2: Hubtask shows these itself; F-5: only the server's inline types go to the browser by URL.
+// F-2: Hubtask shows these itself; F-5: only the server's inline types go to the browser by URL
+// (UC-MED-05 check 1).
 test('the viewer shows each kind its own way, and hands only inline types to the browser', () => {
   assert.equal(viewOf(ready('image/png', 'a.png', { inline: true })), 'image');
   assert.equal(viewOf(ready('video/mp4', 'demo.mp4', { inline: true })), 'video');
