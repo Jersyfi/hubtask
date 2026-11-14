@@ -168,6 +168,8 @@
     create.wish('goal');
     await startQuarter();
   }
+  // On a phone the head pins it where the thumb is (user-experience.md §5.2).
+  const firstGoal = $derived(mayStructure ? { label: t('app.goals.first_goal'), icon: 'plus' as const, onclick: () => void setFirstGoal() } : undefined);
   // The workspace's goals before their first use: the start page in place of the band and tabs.
   const isStart = $derived(!hub && current === 'goals' && periods?.length === 0);
   // Every tab of the home starts with its figures (WB-5): the goals', the portfolios', the dashboards'.
@@ -302,7 +304,7 @@
   {#snippet top()}
   {#if isStart}
     <!-- The start page's name is its one heading (scene emptygoals); a phone's bar still carries it. -->
-    {#if viewport.isCompact}<PageHeader title={t('app.nav.goals')} isTitleInBar />{/if}
+    {#if viewport.isCompact}<PageHeader title={t('app.nav.goals')} isTitleInBar primary={firstGoal} />{/if}
   {:else if hub}
     <ToolHead hubId={hub} tool="goals" {current} {onnavigate} {primary} figure={goalsFigure} />
   {:else}
@@ -336,7 +338,7 @@
       <div aria-busy="true"><Skeleton lines={5} /></div>
     {:else if periods.length === 0}
       <ProductEmpty product="GOALS" kind="unused" icon="flag" title={t('app.nav.goals')} description={t('app.product_empty.sentence_goals')}
-        create={mayStructure ? { label: t('app.goals.first_goal'), onclick: () => void setFirstGoal() } : undefined}
+        create={firstGoal} isInHead
         isStart templates={starts.cards} templateShape="row"
         side={mayStructure ? { label: t('app.goals.empty_side_dashboard'), onclick: () => onnavigate('/goals?tab=dashboards') } : undefined}
         whoCan={t('app.goals.who_starts_periods')} />

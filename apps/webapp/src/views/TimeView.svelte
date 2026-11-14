@@ -144,11 +144,14 @@
   const grid = $derived(sheet ? weekGrid(sheet.records, days) : []);
   const isOpen = $derived(sheet?.state === 'OPEN' || sheet?.state === 'REJECTED');
   // Time before its first use: the start page in place of the band, the tabs and the week.
-  // The band waits until the week and the kinds are read: its timer writes the usual kinds (§4),
+  // The band's timer waits until the week and the kinds are read: it writes the usual kinds (§4),
   // which would end the start page before it was drawn.
   const isSettled = $derived(current !== 'week' || (areKindsRead && (sheet !== undefined || sheetRefusal !== undefined)));
   const isStart = $derived(current === 'week' && isTimeUnused(areKindsKnown ? kinds : undefined, sheet?.records.length));
   const ways = $derived(timeWays(starts.cards, t, { timer: () => onnavigate('/'), week: () => void recordFirst() }));
+  // On a phone the head pins it where the thumb is (user-experience.md §5.2).
+  const firstRecord = $derived(isOpen && (offeredKinds.length > 0 || holdsHere('STRUCTURE') === true)
+    ? { label: t('app.time.first_record'), icon: 'plus' as const, onclick: () => void recordFirst() } : undefined);
   // The first record waits for the usual kinds its dialog offers, written by its own press (§4).
   let isRecordingFirst = $state(false);
   async function recordFirst() {
@@ -479,7 +482,7 @@
 
       {#if isStart}
         <ProductEmpty product="TIME" place={{ type: 'TENANT' }} kind="unused" icon="clock" title={t('app.nav.time')} description={t('app.product_empty.sentence_time')}
-          create={isOpen && (offeredKinds.length > 0 || holdsHere('STRUCTURE') === true) ? { label: t('app.time.first_record'), onclick: () => void recordFirst() } : undefined}
+          create={firstRecord} isInHead
           isStart templates={ways} templateShape="row"
           side={maySetUp ? { label: t('app.time.empty_side_kinds'), onclick: () => select('settings') } : undefined} />
       {:else if sheet.records.length === 0}
@@ -642,8 +645,8 @@
 {#snippet top()}
   {#if isStart}
     <!-- The start page's name is its one heading (scene emptytime); a phone's bar still carries it. -->
-    {#if viewport.isCompact}<PageHeader title={t('app.nav.time')} isTitleInBar />{/if}
-  {:else if isSettled}
+    {#if viewport.isCompact}<PageHeader title={t('app.nav.time')} isTitleInBar primary={firstRecord} />{/if}
+  {:else}
   <div class="top" data-head="time">
     <ProductBand product="time" icon="clock" name={current === 'week' ? t('app.time.tab_week') : t('app.time.title')} figures={bandFigures}
       state={sheet && current === 'week' ? { label: t(`app.time.state_${sheet.state}`), vocabulary: 'timesheet', state: sheetState(sheet.state) } : undefined}
@@ -656,11 +659,11 @@
         label: t('app.product_home.trail'),
         expandLabel: t('app.admin.expand_trail'),
       }}>
-      {#snippet aside()}{#if !viewport.isCompact}<RunningTimer {onnavigate} />{/if}{/snippet}
+      {#snippet aside()}{#if !viewport.isCompact && isSettled}<RunningTimer {onnavigate} />{/if}{/snippet}
     </ProductBand>
     <!-- On a phone the timer is a card of its own above the week (scene time), where an entry's
          whole title wraps (user-experience.md §5.12). -->
-    {#if viewport.isCompact && current === 'week'}<RunningTimer {onnavigate} isCard />{/if}
+    {#if viewport.isCompact && current === 'week' && isSettled}<RunningTimer {onnavigate} isCard />{/if}
   </div>
   {/if}
 {/snippet}
