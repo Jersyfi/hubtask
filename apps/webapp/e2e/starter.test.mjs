@@ -155,7 +155,8 @@ test('chromium: the first start skipped - closed, nothing made', async (t) => {
 
   await page.goto(`${served.origin}/`);
   await dialogOf(page).waitFor({ timeout: 10_000 });
-  await page.getByRole('button', { name: 'Skip' }).last().click();
+  // The dialog's X is named *Close* as every dialog's; closing the first start skips it.
+  await page.locator('dialog[open]').getByRole('button', { name: 'Close' }).first().click();
   await page.waitForTimeout(600);
   assert.deepEqual(sent, [{ path: '/tenant/starter:close' }]);
   assert.equal(await dialogOf(page).isVisible(), false);
