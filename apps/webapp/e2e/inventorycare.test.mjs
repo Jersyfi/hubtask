@@ -2,7 +2,7 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // *Upkeep* of a hub's inventory as the work surface draws it (§6.10, IN-4, scene invcare,
-// UC-AST-06 check 6, UC-AST-07 check 7, UC-AST-10 check 5): (1) six figures, each opening what it
+// UC-AST-06 check 6, UC-AST-07 check 7, UC-AST-10 checks 5 and 7): (1) six figures, each opening what it
 // counts; (2) *To do*, one row per problem with one act - a deviation compared beside its run and
 // settled, a duplicate pair decided side by side; (3) the attestation round with *Remind*; (4) the duplicates;
 // (5) the sources with their runs and *By hand*, a run's decisions behind its row, connecting a

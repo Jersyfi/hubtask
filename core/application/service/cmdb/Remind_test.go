@@ -24,7 +24,7 @@ func (r *reminders) AttestationReminder(_ context.Context, _, writer, campaign s
 	return nil
 }
 
-// UC-AST-10: a writer reminds the owners of objects a round still waits for, each once per call;
+// UC-AST-10 check 7: a writer reminds the owners of objects a round still waits for, each once per call;
 // the answer and the trail say how many, never whom (rule 10). With every owned object answered
 // nobody is reminded and it is refused; a closed round is refused.
 func TestARoundRemindsTheOwnersItWaitsFor(t *testing.T) {

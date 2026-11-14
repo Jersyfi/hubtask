@@ -19,7 +19,7 @@ var (
 	roundHub      = shared.ID("01936f2a-7c1e-7000-8000-0000000000d2")
 )
 
-// UC-AST-10 at the recording: each owner gets one ATTESTATION record naming the round and the
+// UC-AST-10 check 7 at the recording: each owner gets one ATTESTATION record naming the round and the
 // writer, queued under its own kind; the writer is never told of their own reminder, and an owner
 // who switched rounds off is recorded as suppressed with nothing queued.
 func TestARoundsReminderIsRecordedForItsOwners(t *testing.T) {

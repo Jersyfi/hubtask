@@ -38,7 +38,7 @@ func (g *asked) Authorize(_ context.Context, actor appshared.ActorContext, r acc
 	return nil
 }
 
-// UC-AST-10: the owning person confirms their object with READ and its review moves on from the
+// UC-AST-10 check 6: the owning person confirms their object with READ and its review moves on from the
 // workspace's day; the object keeps who confirmed it, a pending question of an open campaign is
 // answered CONFIRMED and the round counts it; anybody else needs WRITE_ITEMS; the trail names the
 // object and the new day only (rule 10).

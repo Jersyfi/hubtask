@@ -6,7 +6,8 @@
 // relations as a picture or a list, the impact both ways, the work on it with its reasons and
 // *Report an incident* naming the object on the new ticket, the rail's responsibility, protection,
 // origin and groups, the register record's life with its moves - and nothing to write for a reader
-// or on a phone (UC-AST-01 checks 8 and 10, UC-AST-05 check 5, UC-AST-09 check 8, UC-AST-12 check 5).
+// or on a phone (UC-AST-01 checks 8 and 10, UC-AST-05 check 5, UC-AST-09 check 8, UC-AST-10 check 6, UC-AST-12 check 5).
+// *Confirm* is the head's primary act for the owning person or a writer.
 //
 // Chromium only: what this asserts is the rendered screen.
 
