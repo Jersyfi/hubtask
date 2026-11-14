@@ -248,6 +248,16 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 
 ---
 
+**The WOPI access token** ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)) is a
+credential kind of its own: an HMAC under the purpose label `hubtask/wopi/v1`, carrying the tenant,
+the person, the file, a write flag and an expiry two hours out; never stored, never logged (the
+query string is not a log field), refused alike when forged, expired or presented for another
+file. The document server presents it on every call; each call is asked again in the application
+layer whether its person reads the file, and to write, whether they may change an entry or a board
+holding it. The token's write flag only narrows.
+
+---
+
 ## 9. HTTP hardening
 
 | Measure | Requirement |
@@ -293,7 +303,10 @@ Rules trigger HTTP calls and agents write, so:
    certificate refuses the start. The object store, an operator-configured endpoint in the database DSN's trust
    class, may use its own client, listed in the architecture test's exceptions, with deadlines,
    refused redirects, the breaker and the bulkhead.
-4. **A causality bound** against loops and amplification (T-09).
+4. **A causality bound** against loops and amplification (T-09). A workspace's document server
+   is reached only through GuardedClient with a deadline, by the public guard: a conversion's
+   answer is handed on only when it is a PDF, and ONLYOFFICE's result only from the server's own
+   origin ([ADR-0104](../adr/ADR-0104-wopi-host-and-file-viewer.md)).
 5. **AI is opt-in per tenant**, off by default; content goes only to the configured provider
    (documented in the data catalogue); AI results are suggestions with provenance.
 6. **MCP tools** carry `readOnly`/`destructive` hints; destructive tools need explicit release per
