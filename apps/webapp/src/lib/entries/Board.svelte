@@ -1124,7 +1124,7 @@
             <!-- The column's own door to capture: pointed at this column, so an entry lands where it
                  is added (design-system.md §11.8). The same field as everywhere else. -->
             {#if mayCreate && !isReadOnly && isBucketBoard}
-              <AddRow label={t('app.entries.add')} onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })} />
+              <AddRow label={t('app.entries.add_in', { group: bucket?.name ?? noColumnName })} onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })} />
             {/if}
           </BucketColumn>
         </div>

@@ -150,7 +150,7 @@ for (const width of [1280, 820]) {
     assert.ok(zone && column && before, 'a column is not drawn');
     assert.ok(zone.width >= column.width - 0.5, `the zone (${zone.width}) is narrower than its folded column (${column.width})`);
     assert.ok(before.x + before.width <= column.x + 0.5, `the column before ends at ${before.x + before.width}, Ohne Spalte starts at ${column.x}`);
-    assert.equal(await unmapped.getByRole('button', { name: /Add an entry/ }).count(), 0, 'a folded column shows its add button');
+    assert.equal(await unmapped.getByRole('button', { name: /Entry in/ }).count(), 0, 'a folded column shows its add button');
   });
 }
 

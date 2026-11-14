@@ -165,6 +165,10 @@ test('a collection\'s foot add says where it adds, as every group\'s does (L-6, 
   const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
   assert.match(list, /<AddRow label=\{root \? control\.label : footAddLabel\}/u);
   assert.match(list, /t\('app\.entries\.add_named_in', \{ name, group \}\) : t\('app\.entries\.add_in', \{ group \}\)/u);
+  // The empty collection's add and a board column's say it the same way (L-6).
+  assert.match(list, /data-opener="add-entry" onclick=\{\(\) => startAdding\('root', control\.type\)\}>\{root \? control\.label : footAddLabel\}<\/Button>/u);
+  const board = sources.find(({ path }) => path === 'lib/entries/Board.svelte')?.text ?? '';
+  assert.match(board, /<AddRow label=\{t\('app\.entries\.add_in', \{ group: bucket\?\.name \?\? noColumnName \}\)\}/u);
 });
 
 test('a release has the one head every object has: its state a status button, publishing the primary (H-1, WB-1)', () => {

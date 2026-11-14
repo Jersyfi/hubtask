@@ -1528,7 +1528,7 @@
             <div class="empty-ways">
               {#if isTemplateFirst}<Button tone="primary" icon="copy" onclick={ontemplate}>{t('app.templates.from')}</Button>{/if}
               {#each addControls as control (control.label)}
-                <Button tone={isTemplateFirst ? 'secondary' : 'primary'} icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{control.label}</Button>
+                <Button tone={isTemplateFirst ? 'secondary' : 'primary'} icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{root ? control.label : footAddLabel}</Button>
               {/each}
               {#if !isTemplateFirst && onimport}<Button tone="secondary" icon="cloud-upload" onclick={onimport}>{t('app.import.open')}</Button>{/if}
             </div>
