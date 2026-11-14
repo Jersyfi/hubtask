@@ -188,6 +188,9 @@ services:
       # end-to-end session overrides it, because the AI provider it configures is a stub container
       # on its own compose network and has no public address to have.
       HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS: ${HUBTASK_HTTP_ALLOW_PRIVATE_NETWORKS:-false}
+      # The one document server a workspace's administration entered may sit on this network -
+      # only that host, never another (security.md §10). On for self-hosting; `false` refuses it.
+      HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK: ${HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK:-true}
       # Where a restore drill's last success is recorded, in the restore-drill volume below - a
       # path no volume mounts is one the read-only container can never read. Two containers have
       # no operator doing continuous archiving, so nothing writes this file by itself: an operator
