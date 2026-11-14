@@ -14988,6 +14988,8 @@
   "app.releases.plan": "Release planen",
   "app.releases.planned": "{name} ist geplant.",
   "app.releases.publish": "Veröffentlichen",
+  "app.releases.status_button": "Status: {state}. Release veröffentlichen",
+  "app.releases.status_from": "Von „{state}“ aus",
   "app.releases.publish_hint": "Was erledigt ist, erscheint in diesem Release. Offene Einträge wandern in das gewählte Release oder hinaus.",
   "app.releases.publish_title": "{name} veröffentlichen",
   "app.releases.release": "Release",

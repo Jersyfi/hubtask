@@ -18,8 +18,8 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Button, Checkbox, Dialog, Icon, IconButton, Input, ProgressBar, Select, Skeleton, Stack, StateLozenge, Textarea,
-    DataTable, WorkPage, type DataColumn,
+    Button, Checkbox, Dialog, Icon, IconButton, Input, ObjectHead, ProgressBar, Select, Skeleton, Stack, StateLozenge, StatusButton, Textarea,
+    DataTable, WorkPage, lozengeLook, type DataColumn,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import type { Release, ReleaseDetail, ReleaseList, SprintList } from '@hubtask/sync-engine';
@@ -230,9 +230,6 @@
     dialogFailure = undefined;
     isReleasing = true;
   }
-  const headMenu = $derived(mayChange
-    ? { label: t('app.releases.more'), items: [{ id: 'delete', label: t('app.releases.delete'), icon: 'trash' as const, isDestructive: true }], onselect: () => { dialogFailure = undefined; isDeleting = true; } }
-    : undefined);
   function addPicked() {
     const release = chosen;
     const ids = [...selected];
@@ -248,7 +245,6 @@
   <ToolHead {hubId} tool="plan" current="releases" {onnavigate}
     figure={hasFigure ? headFigure : undefined}
     primary={mayWrite ? { label: t('app.releases.plan'), icon: 'plus', onclick: () => openPlan(undefined) } : undefined}
-    menu={headMenu}
   />
   {/snippet}
 
@@ -312,25 +308,39 @@
       {#if chosen}
       {@const shown = chosen}
       {@const isLate = groups?.late.has(shown.id) ?? false}
+      {@const lozenge = isLate ? 'late' : shown.state === 'RELEASED' ? 'released' : 'planned'}
+      {@const stateWord = t(isLate ? 'app.releases.badge_late' : `app.releases.badge_${shown.state}`)}
       <section class="card" aria-label={shown.name} data-release-chosen={shown.id}>
-        <div class="card-head">
-          <div class="card-what">
-            <span class="line">
-              <StateLozenge vocabulary="release" state={isLate ? 'late' : shown.state === 'RELEASED' ? 'released' : 'planned'} size="sm"
-                label={t(isLate ? 'app.releases.badge_late' : `app.releases.badge_${shown.state}`)} />
-              <span class="quiet">
-                {#if shown.state === 'RELEASED' && shown.released_at}{t('app.releases.released_on', { day: formatDay(shown.released_at, messages.locale) })}
-                {:else}{t('app.releases.due_on', { day: formatPlainDay(shown.release_on, messages.locale) })} · {t('app.releases.in_days', { count: String(daysTo(shown.release_on)) })}{/if}
-              </span>
-            </span>
-            <h2 class="name">{shown.name}</h2>
-            {#if shown.description}<p class="about">{shown.description}</p>{/if}
-          </div>
-          {#if mayChange}
-            <Button tone="subtle" icon="pencil" onclick={() => openPlan(shown)}>{t('app.releases.change')}</Button>
-            <Button icon="send" data-release-publish onclick={startPublish}>{t('app.releases.publish')}</Button>
-          {/if}
-        </div>
+        <!-- One object, one shape (WB-1, scene grammar): the release's key, its name, and the bar -
+             its state as a status button whose one step publishes, the step as the primary, the day,
+             how much is done; *Ändern* and *Löschen* under ⋯. -->
+        <ObjectHead isCompact hasActsOnPhone
+          objectKey={{ label: t('app.releases.release'), icon: 'tag', product: 'plans' }}
+          title={shown.name}
+          titleLabel={t('app.releases.name')}
+          next={mayChange ? { label: t('app.releases.publish'), icon: 'send', onclick: startPublish } : undefined}
+          due={{ label: shown.state === 'RELEASED' && shown.released_at ? t('app.releases.released_on', { day: formatDay(shown.released_at, messages.locale) }) : `${formatPlainDay(shown.release_on, messages.locale)} · ${t('app.releases.in_days', { count: String(daysTo(shown.release_on)) })}`, tone: isLate ? 'warning' : 'neutral' }}
+          menu={mayChange ? { label: t('app.releases.more'), items: [{ id: 'change', label: t('app.releases.change'), icon: 'pencil' }, { id: 'delete', label: t('app.releases.delete'), icon: 'trash', isDestructive: true }], onselect: (id) => { if (id === 'change') openPlan(shown); else { dialogFailure = undefined; isDeleting = true; } } } : undefined}
+        >
+          {#snippet status()}
+            {#if mayChange}
+              <span data-release-publish><StatusButton
+                current={{ id: lozenge, label: stateWord, category: 'todo' }}
+                look={lozengeLook('release', lozenge)}
+                steps={[{ id: 'publish', label: t('app.releases.publish'), to: { id: 'released', label: t('app.releases.badge_RELEASED'), category: 'done' }, isNext: true }]}
+                label={t('app.releases.status_button', { state: stateWord })}
+                menuTitle={t('app.releases.status_from', { state: stateWord })}
+                onstep={startPublish}
+                closeLabel={t('app.workflows.close')}
+                grabLabel={t('app.workflows.close')}
+              /></span>
+            {:else}
+              <StateLozenge vocabulary="release" state={lozenge} size="md" label={stateWord} />
+            {/if}
+          {/snippet}
+          {#snippet facts()}{#if detail}<span>{t('app.releases.done_of', { done: String(detail.done_count), all: String(detail.done_count + detail.open_count) })}</span>{/if}{/snippet}
+        </ObjectHead>
+        {#if shown.description}<p class="about">{shown.description}</p>{/if}
 
         {#if detail}
           <div class="progress">
@@ -463,10 +473,6 @@
   .release-name { display: inline-flex; align-items: center; gap: var(--sp-050); }
   .release-name b { font-weight: var(--fw-semibold); }
   .card { display: flex; flex-direction: column; gap: var(--sp-200); padding: var(--sp-300); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); min-inline-size: 0; }
-  .card-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-150); }
-  .card-what { display: flex; flex: 1 1 var(--layout-field-sm); flex-direction: column; gap: var(--sp-050); min-inline-size: 0; }
-  .line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
-  .name { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-semibold); }
   .about { margin: 0; color: var(--text-secondary); }
   .progress { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); font-size: var(--fs-075); }
   .bar { flex: 1; min-inline-size: var(--layout-field-sm); }

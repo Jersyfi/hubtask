@@ -166,3 +166,11 @@ test('a collection\'s foot add says where it adds, as every group\'s does (L-6, 
   assert.match(list, /<AddRow label=\{root \? control\.label : footAddLabel\}/u);
   assert.match(list, /t\('app\.entries\.add_named_in', \{ name, group \}\) : t\('app\.entries\.add_in', \{ group \}\)/u);
 });
+
+test('a release has the one head every object has: its state a status button, publishing the primary (H-1, WB-1)', () => {
+  const view = sources.find(({ path }) => path === 'views/ReleaseView.svelte')?.text ?? '';
+  assert.match(view, /<ObjectHead isCompact hasActsOnPhone\s+objectKey=\{\{ label: t\('app\.releases\.release'\), icon: 'tag', product: 'plans' \}\}/u);
+  assert.match(view, /next=\{mayChange \? \{ label: t\('app\.releases\.publish'\), icon: 'send', onclick: startPublish \} : undefined\}/u);
+  assert.match(view, /<StatusButton\s+current=\{\{ id: lozenge, label: stateWord, category: 'todo' \}\}/u);
+  assert.doesNotMatch(view, /class="card-head"/u);
+});
