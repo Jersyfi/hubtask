@@ -108,7 +108,7 @@ func listedGoalSets(marks map[string]configrepo.GoalSet) usecase.Output {
 	return usecase.Output{"data": rows}
 }
 
-// configuration.md §6: a goal set is a period opened with the workspace's goals and their key
+// UC-GOL-01 check 12, configuration.md §6: a goal set is a period opened with the workspace's goals and their key
 // results in one write, marked under its key; a key taken is refused and nothing is marked twice.
 func TestAGoalSetIsAPeriodWithItsGoalsMarkedByItsKey(t *testing.T) {
 	f := newFixture()
@@ -157,7 +157,7 @@ func (refusing) Authorize(context.Context, appshared.ActorContext, access.Reques
 	return shared.ErrForbidden.WithDetail("access.not_permitted")
 }
 
-// configuration.md §6, rule 2: a goal set is refused to whoever may not change the workspace's
+// UC-GOL-01 check 12, rule 2: a goal set is refused to whoever may not change the workspace's
 // structure, before any period is opened.
 func TestAGoalSetIsRefusedWithoutTheRightToAdministerGoals(t *testing.T) {
 	f := newFixture()
@@ -236,8 +236,9 @@ func TestAWorkspacesDocumentCarriesItsKindsOfWork(t *testing.T) {
 	}
 }
 
-// configuration.md §6: a workspace template of kinds of work and a goal set is taken by the
-// workspace, not by making a hub; taking it again makes nothing new.
+// UC-GOL-01 check 12, UC-TIM-01 check 11, configuration.md §6: a workspace template of kinds of
+// work and a goal set is taken by the workspace, not by making a hub; taking it again makes
+// nothing new.
 func TestAWorkspaceTemplateIsTakenOnceByKey(t *testing.T) {
 	f := newFixture()
 	w := newWorkspaceTemplateWorld(f)

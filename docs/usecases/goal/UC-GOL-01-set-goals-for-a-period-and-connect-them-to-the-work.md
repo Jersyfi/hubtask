@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-11, P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs, core/application/service/work/AggregateView_test.go]
+checked_by: [core/domain/model/goal/Goal_test.go, core/application/service/goal/Goal_test.go, test/integration/goal_repository_test.go, apps/webapp/src/lib/data/goals.test.ts, test/architecture/doorsalike_test.go, apps/webapp/e2e/goalswalk.test.mjs, core/application/service/work/AggregateView_test.go, core/application/service/config/GoalSets_test.go, test/integration/goal_set_repository_test.go, apps/webapp/e2e/workspacetemplates.test.mjs]
 ---
 
 # Set goals for a period and connect them to the work
@@ -49,9 +49,15 @@ view's count for whoever looks.
     the period's end; with no period yet it offers the current quarter in one press.
 11. A key result counts what any saved query lists: a view without a summary is counted as the
     number of its entries, as the reader's own query counts them.
+12. With no period yet, the goals' home offers Hubtask's goal sets as cards - this quarter's
+    objectives with their key results, a team's health, the quarter alone - which the workspace
+    takes, never a hub; the goals land in the open period of the quarter's days, or one opened for
+    them, taking a set again makes nothing new, and whoever lacks `STRUCTURE` at the workspace is
+    refused.
 
 ## Where it ends
 
-* No OKR quality hints, goal templates or AI drafting of goals.
+* No OKR quality hints or AI drafting of goals; goal templates are Hubtask's shipped goal sets and
+  a workspace's own (configuration.md §6), never a set written for the reader.
 * No key result fed by an integration's metric; a view's total is the one automatic source.
 * No KPIs kept apart from goals.
