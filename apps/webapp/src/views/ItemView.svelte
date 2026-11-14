@@ -1461,7 +1461,7 @@
       <section id="entry-links" class="plain" tabindex="-1">{#key item.id}<LinksSection {item} mayChange={isWritable} bind:count={linkCount} />{/key}</section>
       <!-- The configuration items it is about, where the assets module is on (UC-AST-09 check 6). -->
       {#if modulesOn.includes('ASSETS')}
-        <section id="entry-affected" class="plain" tabindex="-1">{#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} bind:count={affectedCount} />{/key}</section>
+        <section id="entry-affected" class="plain" tabindex="-1">{#key item.id}<AffectedCis itemId={item.id} mayChange={isWritable} bind:count={affectedCount} hubId={hub?.id} />{/key}</section>
       {/if}
       <!-- One place for files (ET-4): uploaded and linked together - the store's files by address
            (UC-INT-14 checks 1, 2), the attachments readable by whoever reads the entry. -->

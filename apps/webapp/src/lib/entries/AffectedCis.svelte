@@ -29,9 +29,11 @@
     mayChange: boolean;
     /** How many items are named once read: the heading's count and the jump mark's (ET-2). */
     count?: number;
+    /** The entry's hub: the picker opens on its inventory. */
+    hubId?: string;
   }
 
-  let { itemId, mayChange, count = $bindable(undefined) }: Props = $props();
+  let { itemId, mayChange, count = $bindable(undefined), hubId }: Props = $props();
 
   // Keyed on the entry by its caller, so the path is fixed for its life.
   const read = resource<EntryCis>(untrack(() => entryCisPath(itemId)));
@@ -194,7 +196,7 @@
 {#if isOpen}
   <Dialog size="l" primary={{ label: t('app.affected.confirm'), isBusy: isNaming, disabledReason: chosen ? undefined : t('app.affected.choose_first'), onclick: () => void name() }} bind:isOpen title={t('app.affected.picker_title')} dismissLabel={t('app.assets.cancel')} onClose={() => { chosen = undefined; }}>
     <Stack gap="200">
-      <CiPicker {chosen} onchoose={(found) => (chosen = found)} />
+      <CiPicker {chosen} {hubId} onchoose={(found) => (chosen = found)} />
       {#if nameRefusal}<p class="refusal" role="alert">{nameRefusal}</p>{/if}
     </Stack>
     {#snippet actions()}
