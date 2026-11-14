@@ -733,6 +733,8 @@
           hubId: route.params.id ?? '',
           section: route.name === 'hub-inventory-section' ? route.params.section : undefined,
           isCreateAsked: route.query['new'] === '1',
+          line: route.query['line'],
+          group: route.query['group'],
           onnavigate: (path: string) => router.navigate(path),
         }}
       />

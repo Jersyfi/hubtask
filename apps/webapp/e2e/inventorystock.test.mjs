@@ -5,7 +5,8 @@
 // with the firing alerts counted, every former sub-page's address landing on its tab, the query line
 // with the `asset.` keys narrowing the hub's objects on the device, the object-type tree with its
 // counts and the saved groups beside it, the table's columns with the open entries, a line saved as
-// a group, nothing to write for a reader, and rows that stack read-only on a phone
+// a group, a line or a group named in the address, nothing to write for a reader, and rows that
+// stack read-only on a phone
 // (UC-AST-01 checks 8 and 10, UC-AST-11 check 5).
 //
 // Chromium only: what this asserts is the rendered screen.
@@ -194,6 +195,23 @@ test('chromium: the former sub-pages\' addresses land on their tabs', async (t) 
   assert.equal(await register.getAttribute('aria-checked'), 'true');
   await page.getByRole('radio', { name: 'All objects' }).click();
   await page.waitForFunction(() => location.pathname.endsWith('/inventory'), null, { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+// An object's page links here: its trail's object type opens the stock with that type's line, and
+// a saved group in its rail opens the stock with the group's line (scene `ci`).
+test('chromium: the stock opens with the line or the saved group its address names', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory?line=${encodeURIComponent('asset.class: laptop')}` });
+  t.after(() => context.close());
+
+  await page.locator('[data-ci-row]').first().waitFor({ timeout: 20_000 });
+  await rowsAre(page, ['NB-0417', 'NB-0422', 'NB-0233'], 'the line of the address');
+  await page.goto(`${served.origin}/hubs/${HUB.id}/inventory?group=${NO_OWNER_GROUP.id}`);
+  await page.locator('[data-ci-row]').first().waitFor({ timeout: 20_000 });
+  await rowsAre(page, ['NB-0422', 'NB-0233'], 'the group of the address');
+  assert.equal(await page.locator('[data-group=no_owner] .tree-row').getAttribute('aria-current'), 'true');
   assert.deepEqual(failures, []);
 });
 

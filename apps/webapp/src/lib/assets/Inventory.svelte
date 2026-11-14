@@ -58,9 +58,13 @@
     onasked?: () => void;
     /** Where an empty inventory's *Import a file* goes. */
     onimport?: () => void;
+    /** The line it opens with instead of the default (an object page's trail: its object type). */
+    openLine?: string;
+    /** The saved group it opens with, once the groups are read (an object page's rail). */
+    openGroup?: string;
   }
 
-  const { hubId, classes, words, mayWrite, onnavigate, wanting = new Set(), tags = new Map(), isSavedShown = false, asked, onasked, onimport }: Props = $props();
+  const { hubId, classes, words, mayWrite, onnavigate, wanting = new Set(), tags = new Map(), isSavedShown = false, asked, onasked, onimport, openLine, openGroup }: Props = $props();
 
   // The hub's objects: as many at once as the list gives, the rest on *Load more*.
   const BATCH = 500;
@@ -118,7 +122,7 @@
   }
 
   // The line (§6.11): chips and words, the keys the server serves for the inventory.
-  let line = $state(DEFAULT_LINE);
+  let line = $state(untrack(() => openLine) ?? DEFAULT_LINE);
   let tokens = $state<readonly QueryToken[]>([]);
   let text = $state('');
   const assetKeys = $derived<readonly QueryKey[]>(
@@ -202,6 +206,15 @@
     chosenGroup = { id: group.id, line: of.line, attributes: of.attributes };
     line = of.line;
   }
+  // The group the address named, chosen once its filter is read.
+  let isGroupOpened = false;
+  $effect(() => {
+    if (isGroupOpened || !openGroup) return;
+    const found = saved.find((each) => each.id === openGroup);
+    if (!found) return;
+    isGroupOpened = true;
+    untrack(() => chooseGroup(found));
+  });
 
   const rows = $derived(
     narrowed(all, filter, context).filter((each) => !groupActive || holdsAttributes(each, groupActive.attributes)),

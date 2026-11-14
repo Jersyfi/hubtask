@@ -42,9 +42,12 @@
     onnavigate: (path: string) => void;
     /** The home's create act asked for the create dialog (user-experience.md §5.2): opened once. */
     isCreateAsked?: boolean;
+    /** The stock opened with this line, or this saved group's: an object page's trail and rail link here. */
+    line?: string;
+    group?: string;
   }
 
-  const { hubId, section, onnavigate, isCreateAsked = false }: Props = $props();
+  const { hubId, section, onnavigate, isCreateAsked = false, line, group }: Props = $props();
 
   const classesRead = resource<CiClassList>(classesPath);
   const classes = $derived(classesRead.state.status === 'ready' ? classesRead.state.data.data : []);
@@ -173,7 +176,7 @@
     {:else if hubId}
       <div role="region" aria-label={tabLabel(place.tab)} data-inventory-tab={place.tab}>
         {#if place.tab === 'inventory'}
-          <Stock {hubId} {classes} {words} {mayWrite} {onnavigate} part={place.stock} {wanting} isSavedShown={asked0 === 'groups'}
+          <Stock {hubId} {classes} {words} {mayWrite} {onnavigate} part={place.stock} {wanting} {line} {group} isSavedShown={asked0 === 'groups'}
             asked={asked === 'ci' || asked === 'group' ? asked : undefined} onasked={answered} onimport={() => onnavigate(inventoryPath(hubId, 'import'))} />
         {:else if place.tab === 'map'}
           <MapTab {hubId} {classes} {words} />

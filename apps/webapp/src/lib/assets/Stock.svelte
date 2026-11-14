@@ -28,9 +28,12 @@
     asked?: 'ci' | 'group';
     onasked?: () => void;
     onimport?: () => void;
+    /** The line, or the saved group, the stock opens with. */
+    line?: string;
+    group?: string;
   }
 
-  const { hubId, classes, words, mayWrite, onnavigate, part, wanting, isSavedShown = false, asked, onasked, onimport }: Props = $props();
+  const { hubId, classes, words, mayWrite, onnavigate, part, wanting, isSavedShown = false, asked, onasked, onimport, line, group }: Props = $props();
 
   let registered = $state<CiAssetList['data'] | undefined>(undefined);
   let software = $state<number | undefined>(undefined);
@@ -68,7 +71,7 @@
   {:else if part === 'software'}
     <Software {hubId} />
   {:else}
-    <Inventory {hubId} {classes} {words} {mayWrite} {onnavigate} {wanting} {tags} {isSavedShown} {asked} {onasked} {onimport} />
+    <Inventory {hubId} {classes} {words} {mayWrite} {onnavigate} {wanting} {tags} {isSavedShown} {asked} {onasked} {onimport} openLine={line} openGroup={group} />
   {/if}
 </Stack>
 
