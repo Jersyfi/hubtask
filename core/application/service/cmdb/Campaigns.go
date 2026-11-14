@@ -5,6 +5,7 @@ package cmdb
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -22,6 +23,7 @@ const (
 	ReadCiCampaignName  = "ReadCiCampaign"
 	AttestCiName        = "AttestCi"
 	CloseCiCampaignName = "CloseCiCampaign"
+	ConfirmCiName       = "ConfirmCi"
 )
 
 // The audit codes of certification. An attestation names the CI and the verdict, never a name.
@@ -29,6 +31,7 @@ const (
 	CampaignStartedAction audit.Action = "cmdb.campaign_started"
 	CampaignClosedAction  audit.Action = "cmdb.campaign_closed"
 	CIAttestedAction      audit.Action = "cmdb.ci_attested"
+	CIConfirmedAction     audit.Action = "cmdb.ci_confirmed"
 )
 
 const campaignTarget = "cmdb_campaign"
@@ -371,6 +374,9 @@ func (h AttestCi) Descriptor() usecase.Descriptor {
 				updated := ci
 				updated.Compliance.ReviewDue = &next
 				updated.UpdatedBy, updated.UpdatedAt = actor.AccountID, now
+				if a.Verdict == domain.VerdictConfirmed {
+					updated.ConfirmedAt, updated.ConfirmedBy = &now, actor.AccountID
+				}
 				if err := s.Store.UpdateCI(ctx, updated, ci.Version); err != nil {
 					return err
 				}
@@ -389,6 +395,102 @@ func (h AttestCi) Descriptor() usecase.Descriptor {
 			return out, err
 		}),
 	})
+}
+
+// ConfirmCi is a person's word that an object is as recorded, outside a campaign or answering one.
+type ConfirmCi struct{ Inventory Inventory }
+
+// Descriptor is the catalogue entry.
+func (h ConfirmCi) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ConfirmCiName, Permission: service.PermissionRead,
+		Summary: "Confirms an object is as recorded: its next review moves review_months on from today (12 when not " +
+			"given) and it keeps who confirmed it and when. A pending question of an open campaign about it is " +
+			"answered CONFIRMED at the same time. The owning person confirms with READ on the hub; anybody else " +
+			"needs WRITE_ITEMS.",
+		SideEffects: "Writes the CI, any open campaign's answer about it, an audit entry and the change log.", TokenScope: cisWrite,
+		Input: []usecase.Field{
+			{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."},
+			{Name: "review_months", Kind: usecase.KindInt, Description: "How far its next review moves on from today, 1 to 60."},
+		},
+		Audit: usecase.AuditDeclaration{Action: CIConfirmedAction, TargetType: ciTarget, Severity: audit.SeverityInfo, Required: true},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			id, err := in.ID("ci_id")
+			if err != nil {
+				return nil, err
+			}
+			s := h.Inventory
+			placed, err := s.placeOf(ctx, actor, id)
+			if err != nil {
+				return nil, err
+			}
+			owner := !placed.Compliance.OwnerAccount.IsZero() && placed.Compliance.OwnerAccount == actor.AccountID
+			if err := s.authorizeHub(ctx, actor, placed.HubID, !owner, CIConfirmedAction, ciTarget, id); err != nil {
+				return nil, err
+			}
+			var out usecase.Output
+			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				ci, err := s.Store.FindCI(ctx, id, true)
+				if err != nil {
+					return err
+				}
+				now := s.Clock.Now()
+				confirmed, err := ci.Confirm(actor.AccountID, now, now.In(zoneOf(actor)), in.Int("review_months"))
+				if err != nil {
+					return err
+				}
+				answered, err := s.answerOpenCampaigns(ctx, actor, ci, now)
+				if err != nil {
+					return err
+				}
+				if err := s.Store.UpdateCI(ctx, confirmed, ci.Version); err != nil {
+					return err
+				}
+				confirmed.Version++
+				if err := s.announce(ctx, actor, confirmed); err != nil {
+					return err
+				}
+				out = CIOutput(confirmed, nil)
+				return s.record(ctx, actor, CIConfirmedAction, ciTarget, id,
+					audit.Change{Field: "review_due", Classification: audit.Open, To: confirmed.Compliance.ReviewDue.Format(time.DateOnly)},
+					audit.Change{Field: "campaigns_answered", Classification: audit.Open, To: itoa(answered)})
+			})
+			return out, err
+		}),
+	})
+}
+
+// answerOpenCampaigns answers CONFIRMED every open campaign of the CI's hub still waiting for it,
+// so that the round counts the object's own confirmation; it answers how many it answered.
+func (s Inventory) answerOpenCampaigns(ctx context.Context, actor appshared.ActorContext, ci domain.CI, now time.Time) (int, error) {
+	cs, err := s.Assurance.Campaigns(ctx, ci.HubID, 100)
+	if err != nil {
+		return 0, err
+	}
+	answered := 0
+	for _, c := range cs {
+		if c.Closed() {
+			continue
+		}
+		a, err := s.Assurance.FindAttestation(ctx, c.ID, ci.ID)
+		if errors.Is(err, shared.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+		if a.Verdict != domain.VerdictPending {
+			continue
+		}
+		if a, err = c.Answer(a, domain.VerdictConfirmed, actor.AccountID, now); err != nil {
+			return 0, err
+		}
+		if err := s.Assurance.Answer(ctx, a); err != nil {
+			return 0, err
+		}
+		answered++
+	}
+	return answered, nil
 }
 
 // CloseCiCampaign stops a campaign taking answers; its score stays as it stood.

@@ -2778,6 +2778,7 @@ func run() error {
 		cmdbservice.StartCiCampaign{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCiCampaign{Inventory: inventory}.Descriptor(),
 		cmdbservice.AttestCi{Inventory: inventory}.Descriptor(),
+		cmdbservice.ConfirmCi{Inventory: inventory}.Descriptor(),
 		cmdbservice.CloseCiCampaign{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListCiGroups{Inventory: inventory}.Descriptor(),
 		cmdbservice.DefineCiGroup{Inventory: inventory}.Descriptor(),

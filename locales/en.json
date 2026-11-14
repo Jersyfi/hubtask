@@ -24,6 +24,7 @@
   "cmdb.campaign_not_found": "That campaign does not exist.",
   "cmdb.campaign_period_invalid": "The review period is 1 to 60 months.",
   "cmdb.campaign_too_large": "A campaign asks about at most 5,000 objects; name fewer object types.",
+  "cmdb.ci_merged": "This object was merged into another; confirm that one.",
   "cmdb.day_malformed": "A day is written YYYY-MM-DD.",
   "cmdb.disposal_certificate_required": "Disposing of an object needs the reference of the certificate that proves it.",
   "cmdb.disposal_method_unknown": "Disposing of an object needs its method: wiped, destroyed, recycled, returned or sold.",

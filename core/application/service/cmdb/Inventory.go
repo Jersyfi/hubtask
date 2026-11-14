@@ -323,9 +323,12 @@ func CIOutput(ci domain.CI, effective *domain.Protection) usecase.Output {
 	if ci.Compliance.ReviewDue != nil {
 		review = ci.Compliance.ReviewDue.Format("2006-01-02")
 	}
-	var lastSeen any
+	var lastSeen, confirmedAt any
 	if ci.LastSeen != nil {
 		lastSeen = *ci.LastSeen
+	}
+	if ci.ConfirmedAt != nil {
+		confirmedAt = *ci.ConfirmedAt
 	}
 	out := usecase.Output{
 		"id": ci.ID.String(), "hub_id": ci.HubID.String(), "class": ci.Class, "name": ci.Name,
@@ -335,6 +338,7 @@ func CIOutput(ci domain.CI, effective *domain.Protection) usecase.Output {
 		"quantity": ci.Compliance.Quantity, "last_seen_at": lastSeen, "merged_into": idOrNil(ci.MergedInto),
 		"created_by": ci.CreatedBy.String(), "created_at": ci.CreatedAt,
 		"updated_by": ci.UpdatedBy.String(), "updated_at": ci.UpdatedAt, "version": ci.Version,
+		"confirmed_at": confirmedAt, "confirmed_by": idOrNil(ci.ConfirmedBy),
 	}
 	if effective != nil {
 		out["effective_protection"] = protectionOutput(*effective)

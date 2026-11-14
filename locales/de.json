@@ -24,6 +24,7 @@
   "cmdb.campaign_not_found": "Diese Kampagne gibt es nicht.",
   "cmdb.campaign_period_invalid": "Der Prüfzeitraum beträgt 1 bis 60 Monate.",
   "cmdb.campaign_too_large": "Eine Kampagne fragt nach höchstens 5.000 Objekten; nenne weniger Objekttypen.",
+  "cmdb.ci_merged": "Dieses Objekt wurde mit einem anderen zusammengeführt; bestätige jenes.",
   "cmdb.day_malformed": "Ein Tag wird JJJJ-MM-TT geschrieben.",
   "cmdb.disposal_certificate_required": "Die Entsorgung eines Objekts braucht die Nummer des Nachweises, der sie belegt.",
   "cmdb.disposal_method_unknown": "Die Entsorgung eines Objekts braucht ihre Art: gelöscht, vernichtet, recycelt, zurückgegeben oder verkauft.",

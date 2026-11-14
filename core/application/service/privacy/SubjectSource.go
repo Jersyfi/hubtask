@@ -140,7 +140,7 @@ var subjectColumns = map[string][]string{
 	"realtime_update": {"author_id"},
 	// The configuration items they made, changed or own, the relations they made, the
 	// reconciliations they ran and the holds and duplicates they closed (M6).
-	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id"},
+	"cmdb_ci":        {"created_by", "updated_by", "owner_account_id", "confirmed_by"},
 	"cmdb_relation":  {"created_by"},
 	"cmdb_run":       {"actor_id"},
 	"cmdb_hold":      {"resolved_by"},

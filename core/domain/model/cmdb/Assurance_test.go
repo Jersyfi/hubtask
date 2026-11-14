@@ -303,6 +303,45 @@ func TestTheNextReviewFromAMonthsEndStaysInItsMonth(t *testing.T) {
 	}
 }
 
+// A person's confirmation moves the review on from the workspace's day, 12 months when no period
+// is named, and keeps who said so; a period out of range and a merged CI are refused.
+func TestAConfirmationMovesTheReviewAndKeepsWhoSaidSo(t *testing.T) {
+	at, _ := time.Parse(time.RFC3339, "2026-11-14T23:30:00Z")
+	local := at.In(time.FixedZone("ahead", 2*3600))
+	by := id("77")
+	cases := []struct {
+		name   string
+		ci     CI
+		months int
+		want   string
+		detail string
+	}{
+		{"no period is a year from the local day", CI{Status: StatusOK}, 0, "2027-11-15", ""},
+		{"three months", CI{Status: StatusOK}, 3, "2027-02-15", ""},
+		{"sixty months", CI{Status: StatusOK}, 60, "2031-11-15", ""},
+		{"too long", CI{Status: StatusOK}, 61, "", "cmdb.campaign_period_invalid"},
+		{"negative", CI{Status: StatusOK}, -1, "", "cmdb.campaign_period_invalid"},
+		{"merged", CI{Status: StatusMerged, MergedInto: id("88")}, 0, "", "cmdb.ci_merged"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.ci.Confirm(by, at, local, c.months)
+			if c.detail != "" {
+				if !strings.Contains(fmt.Sprint(err), c.detail) {
+					t.Fatalf("err %v, want %s", err, c.detail)
+				}
+				return
+			}
+			if err != nil || got.Compliance.ReviewDue == nil || got.Compliance.ReviewDue.Format(time.DateOnly) != c.want {
+				t.Fatalf("review %v (%v), want %s", got.Compliance.ReviewDue, err, c.want)
+			}
+			if got.ConfirmedBy != by || got.ConfirmedAt == nil || !got.ConfirmedAt.Equal(at) || got.UpdatedBy != by {
+				t.Fatalf("confirmed by %s at %v, updated by %s", got.ConfirmedBy, got.ConfirmedAt, got.UpdatedBy)
+			}
+		})
+	}
+}
+
 // A product's versions are listed newest first by their numbers, not by their letters: 10.0
 // is newer than 9.4, and 1.10 than 1.9.
 func TestAProductsVersionsAreListedNewestFirstByTheirNumbers(t *testing.T) {

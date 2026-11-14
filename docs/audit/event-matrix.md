@@ -299,6 +299,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.ci_attested` | AttestCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_changed` | SetCiCompliance | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_changed` | UpdateCi | `cmdb_ci` | INFO | Every time |
+| `cmdb.ci_confirmed` | ConfirmCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_created` | CreateCi | `cmdb_ci` | INFO | Every time |
 | `cmdb.ci_read` | ListCiAssets | `cmdb_asset` | INFO | When refused |
 | `cmdb.ci_read` | ListCiBacklinks | `cmdb_ci` | INFO | When refused |
