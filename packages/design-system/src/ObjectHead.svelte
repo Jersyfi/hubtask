@@ -120,6 +120,29 @@
     queueMicrotask(() => editButton?.querySelector('button')?.focus());
   }
 
+  // The divider joins the steps to the facts; when the bar wraps between them it would end or
+  // start a line alone, so it is hidden there - kept in the layout, so hiding it moves nothing.
+  let bar = $state<HTMLElement | null>(null);
+  let divider = $state<HTMLElement | null>(null);
+  let isDividerAlone = $state(false);
+  $effect(() => {
+    if (!bar || !divider || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const mark = divider;
+      if (!mark) return;
+      const before = mark.previousElementSibling as HTMLElement | null;
+      const after = mark.nextElementSibling as HTMLElement | null;
+      const middle = (each: HTMLElement) => each.offsetTop + each.offsetHeight / 2;
+      const line = middle(mark);
+      const isOff = (each: HTMLElement | null) => each !== null && Math.abs(middle(each) - line) > mark.offsetHeight;
+      isDividerAlone = before === null || isOff(before) || isOff(after);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    measure();
+    return () => observer.disconnect();
+  });
+
   $effect(() => {
     if (isEditing && field) {
       field.focus();
@@ -189,11 +212,11 @@
     {#if isCompact && !trail && (tools || menu)}<span class="title-ends">{@render ends()}</span>{/if}
   </div>
 
-  <div class="action-bar">
+  <div class="action-bar" bind:this={bar}>
     {#if status}{@render status()}{/if}
     {#if next}<span class="step"><Button tone="primary" size="sm" icon={next.icon} onclick={next.onclick}>{next.label}</Button></span>{/if}
     {#if secondary}<span class="step"><Button tone="secondary" size="sm" onclick={secondary.onclick}>{secondary.label}</Button></span>{/if}
-    {#if person || due || deadline || facts}<span class="divider" aria-hidden="true"></span>{/if}
+    {#if person || due || deadline || facts}<span class="divider" aria-hidden="true" bind:this={divider} data-alone={isDividerAlone ? '' : undefined}></span>{/if}
     {#if person}
       {#if 'name' in person}
         <span class="person"><Avatar name={person.name} src={person.src} size="sm" /><span class="person-name">{person.name}</span></span>
@@ -293,6 +316,7 @@
     margin-inline: var(--sp-050);
     background: var(--border-default);
   }
+  .divider[data-alone] { visibility: hidden; }
 
   .person { display: inline-flex; align-items: center; gap: calc(var(--sp-050) + var(--sp-025)); font-size: var(--fs-075); }
   .person[data-empty] { color: var(--text-subtle); }

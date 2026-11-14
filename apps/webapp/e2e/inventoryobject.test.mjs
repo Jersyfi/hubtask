@@ -265,6 +265,31 @@ test('chromium: the owning person confirms their object without write; the meta 
   assert.deepEqual(failures, []);
 });
 
+test('chromium: the head\'s divider never stands alone at a line\'s end or start, whatever the bar wraps to', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, { width: 820, height: 900 });
+  t.after(() => context.close());
+
+  await page.getByRole('list', { name: 'Stage of Portal-API' }).waitFor({ timeout: 20_000 });
+  const divider = head(page).locator('.action-bar .divider');
+  const wrapped = [];
+  for (const width of [1280, 1000, 905, 860, 820, 760, 700, 640]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(150);
+    const seen = await divider.evaluate((each) => {
+      const middle = (el) => { const box = el.getBoundingClientRect(); return box.top + box.height / 2; };
+      const line = middle(each);
+      const alone = [each.previousElementSibling, each.nextElementSibling].some((el) => !el || Math.abs(middle(el) - line) > each.offsetHeight);
+      return { alone, shown: getComputedStyle(each).visibility === 'visible' };
+    });
+    if (seen.alone) wrapped.push(width);
+    assert.ok(!(seen.alone && seen.shown), `at ${width} px the divider stands alone and is drawn`);
+  }
+  assert.ok(wrapped.includes(820), 'at 820 px the bar wraps between the steps and the facts');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: the attributes say their source, two to a row, and count the recommended ones missing', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
