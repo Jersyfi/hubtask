@@ -220,7 +220,7 @@
       {@render inside()}
     </Drawer>
   {:else}
-    <Popover label={listLabel}>
+    <Popover keepsAnchor label={listLabel}>
       {#snippet trigger(props)}{@render mark(props)}{/snippet}
       {@render inside()}
     </Popover>

@@ -14,7 +14,9 @@
 
   import type { Snippet } from 'svelte';
 
+  import Sheet from './Sheet.svelte';
   import { focusReturn, focusables } from './focus.ts';
+  import { isCompactWidth, closeName } from './media.ts';
   import { openOverlay } from './overlay.ts';
   import type { Placement } from './anchor.ts';
 
@@ -25,8 +27,19 @@
     /** Open state, bindable: a caller that opens it from elsewhere is the ordinary case. */
     isOpen?: boolean;
     /** The control that opens it. It is handed the attributes it has to carry. */
-    trigger: Snippet<[Record<string, unknown>]>;
+    trigger?: Snippet<[Record<string, unknown>]>;
+    /**
+     * Instead of a trigger: the control it hangs from when another door opened it - a menu's ⋯
+     * opening the same picker the rail opens (one picker from every door).
+     */
+    at?: HTMLElement;
     children: Snippet;
+    /**
+     * Stays at its trigger on every width: the navigation's and the app bar's own. Every other
+     * popover - a picker above all - is a bottom sheet on a phone's width (work-surface concept
+     * §7), named with its label and closed by the application's `setCloseLabel`.
+     */
+    keepsAnchor?: boolean;
   }
 
   let {
@@ -35,6 +48,8 @@
     isOpen = $bindable(false),
     trigger,
     children,
+    keepsAnchor = false,
+    at,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -46,6 +61,15 @@
   let surface = $state<HTMLElement | null>(null);
   /** What had focus when it opened, so that closing puts it back (design-system.md §10, 2.4.3). */
   let opener: Element | null = null;
+  /** Opened as a sheet, and the name of its close: decided at the moment it opens. */
+  let sheetName = $state<string | undefined>(undefined);
+
+  // Decided whenever it opens, however it was opened - its trigger or a caller's binding.
+  $effect.pre(() => {
+    if (!isOpen) return;
+    const name = keepsAnchor ? undefined : closeName();
+    sheetName = name !== undefined && isCompactWidth() ? name : undefined;
+  });
 
   const triggerProps = $derived({
     'aria-expanded': isOpen,
@@ -68,8 +92,10 @@
   }
 
   $effect(() => {
-    if (!isOpen || !anchor || !surface) return;
-    const release = openOverlay({ layer: 'popover', trigger: anchor, surface, placement, onDismiss: close });
+    const from = at ?? anchor;
+    if (!isOpen || sheetName !== undefined || !from || !surface) return;
+    if (at && !opener) opener = at;
+    const release = openOverlay({ layer: 'popover', trigger: from, surface, placement, onDismiss: close });
     // Focus moves into the surface: a popover that opened behind the reader's focus is one they
     // have to hunt for with the Tab key.
     focusables(surface)[0]?.focus();
@@ -77,10 +103,16 @@
   });
 </script>
 
-<span class="anchor" bind:this={anchor}>
-  {@render trigger(triggerProps)}
-</span>
-{#if isOpen}
+{#if trigger}
+  <span class="anchor" bind:this={anchor}>
+    {@render trigger(triggerProps)}
+  </span>
+{/if}
+{#if sheetName !== undefined}
+  <Sheet bind:isOpen title={label} closeLabel={sheetName} onClose={() => (sheetName = undefined)}>
+    {@render children()}
+  </Sheet>
+{:else if isOpen}
   <div {id} class="surface" role="dialog" aria-label={label} bind:this={surface}>
     {@render children()}
   </div>

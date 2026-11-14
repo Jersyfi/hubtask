@@ -182,7 +182,7 @@ export type { Align, Justify, Space } from './space.ts';
 
 export { anchorTo, positionArea, raiseToTopLayer, type Alignment, type Placement, type Side } from './anchor.ts';
 
-export { isCompactWidth, setSheetCloseLabel } from './media.ts';
+export { isCompactWidth, setCloseLabel } from './media.ts';
 export { escapeHandler, focusFirst, focusReturn, focusables, rovingIndex, typeAheadIndex } from './focus.ts';
 export { arrive, arrivals, enter, flip, isMotionReduced, leave, reveal } from './motion.ts';
 

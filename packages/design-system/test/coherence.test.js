@@ -48,7 +48,7 @@ test('every native button the design system draws with words takes the page font
 
 test('a menu opens as a bottom sheet on a phone’s width, and its rows reach the target', () => {
   const menu = source('Menu.svelte');
-  assert.match(menu, /sheetName = keepsAnchor \? undefined : \(closeLabel \?\? sheetCloseLabel\(\)\)/);
+  assert.match(menu, /sheetName = keepsAnchor \? undefined : \(closeLabel \?\? closeName\(\)\)/);
   assert.match(menu, /isSheet = sheetName !== undefined && isCompactWidth\(\)/);
   assert.match(menu, /<Sheet[\s\S]*?\{items\}/);
   assert.match(menu, /\.item \{[^}]*min-block-size: var\(--density-control-sm-min\)/);
@@ -60,4 +60,24 @@ test('a pressed toggle has one look in every tone: the subtle tint with the acce
     assert.match(text, new RegExp(`\\.${cls}\\[aria-pressed='true'\\] \\{[^}]*background: var\\(--accent-primary-subtle\\)`), file);
     assert.match(text, new RegExp(`\\.${cls}\\[aria-pressed='true'\\] \\{[^}]*border-color: var\\(--accent-primary\\)`), file);
   }
+});
+
+test('a popover becomes a bottom sheet on a phone, and can hang from a control another door opened it from', () => {
+  const popover = source('Popover.svelte');
+  assert.match(popover, /const name = keepsAnchor \? undefined : closeName\(\);/);
+  assert.match(popover, /sheetName = name !== undefined && isCompactWidth\(\) \? name : undefined/);
+  assert.match(popover, /<Sheet bind:isOpen title=\{label\} closeLabel=\{sheetName\}/);
+  assert.match(popover, /const from = at \?\? anchor;/);
+});
+
+test('every overlay’s ✕ has the one name the application gives, and a dialog has one title size on every rung', () => {
+  for (const file of ['Dialog.svelte', 'Sheet.svelte']) assert.match(source(file), /<IconButton icon="x" label=\{closeName\(\) \?\? /, file);
+  const dialog = source('Dialog.svelte');
+  assert.doesNotMatch(dialog, /\.dialog\[data-size\] \.title \{[^}]*font-size/);
+});
+
+test('a dialog’s foot ends on its one primary, and its ways out are secondary', () => {
+  const dialog = source('Dialog.svelte');
+  assert.match(dialog, /\.actions :global\(\.button\[data-tone='primary'\]\),[^{]*\{ order: 1; \}/);
+  assert.match(dialog, /\.actions :global\(\.button\[data-tone='subtle'\]\) \{[^}]*background: var\(--bg-surface\)/);
 });

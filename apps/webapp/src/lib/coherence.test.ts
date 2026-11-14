@@ -58,7 +58,51 @@ test('no screen paints a design-system button with a tone of its own', () => {
 
 test('the application names the sheet a menu becomes on a phone, and only the navigation keeps its menus anchored', () => {
   const app = sources.find(({ path }) => path === 'App.svelte');
-  assert.match(app?.text ?? '', /setSheetCloseLabel\(t\('app\.sheet_close'\)\)/u);
+  assert.match(app?.text ?? '', /setCloseLabel\(t\('app\.sheet_close'\)\)/u);
   const anchored = sources.filter(({ text }) => /<Menu keepsAnchor/u.test(text)).map(({ path }) => path);
   for (const path of anchored) assert.match(path, /^lib\/frame\//u, `${path} keeps a menu at its trigger outside the navigation`);
+});
+
+/** The dialogs in a file: their opening tag and their body up to the closing tag. */
+function dialogsOf(text: string): { tag: string; body: string }[] {
+  return tagsOf(text, 'Dialog').map((tag) => {
+    const start = text.indexOf(tag) + tag.length;
+    return { tag, body: text.slice(start, text.indexOf('</Dialog>', start)) };
+  });
+}
+
+test('the products’ dialogs hand their one primary to the dialog and keep no submit in their body (D-2)', () => {
+  const files = [
+    'views/GoalsView.svelte', 'views/TimeView.svelte', 'views/DashboardView.svelte', 'views/PagesView.svelte',
+    'lib/entries/DuplicateDialog.svelte',
+  ];
+  for (const file of files) {
+    const text = sources.find(({ path }) => path === file)?.text ?? '';
+    for (const { tag, body } of dialogsOf(text)) {
+      const inBody = body.split('{#snippet actions()}')[0] ?? '';
+      const submits = tagsOf(inBody, 'Button').filter((button) => !/size="sm"/u.test(button) && (!/tone=/u.test(button) || /tone="(primary|danger)"/u.test(button)));
+      if (submits.length > 0) assert.match(tag, /primary=\{/u, `${file}: ${tag.slice(0, 60)} keeps its submit in the body`);
+      assert.doesNotMatch(body, /<Button tone="subtle"[^>]*>\{t\('app\.(pages|links|workspace)\.cancel'\)\}/u, `${file}: a cancel is subtle`);
+    }
+  }
+});
+
+test('a read-only dialog has no primary: the workflow’s picture closes by its ✕', () => {
+  const text = sources.find(({ path }) => path === 'lib/entries/EntryStatus.svelte')?.text ?? '';
+  const picture = dialogsOf(text).find(({ tag }) => tag.includes('app.workflows.picture'));
+  assert.ok(picture);
+  assert.doesNotMatch(picture.body, /tone="primary"/u);
+});
+
+test('the date, person and labels pickers open from the ⋯ as the rail opens them: a popover, a sheet on a phone (D-3)', () => {
+  const text = sources.find(({ path }) => path === 'lib/entries/EntryActions.svelte')?.text ?? '';
+  assert.match(text, /<Popover label=\{title\} bind:isOpen=\{isPickerOpen\} at=\{door\}/u);
+  assert.doesNotMatch(text, /<Dialog size="m" isOpen=\{true\} title=\{t\('app\.(due\.title|people\.assignee|entry_menu\.labels)'\)/u);
+  assert.match(text, /title=\{t\('app\.entry_menu\.move_title'/u);
+});
+
+test('the board’s start is the ladder’s dialog, not a panel of its own (D-4)', () => {
+  const text = sources.find(({ path }) => path === 'lib/whiteboards/BoardCanvas.svelte')?.text ?? '';
+  assert.doesNotMatch(text, /role="dialog"/u);
+  assert.match(text, /<Dialog size="l" isOpen=\{true\} title=\{t\('app\.whiteboards\.begin_title'\)\}/u);
 });

@@ -161,7 +161,7 @@
         {@render inside()}
       </Drawer>
     {:else}
-      <Popover label={label}>
+      <Popover keepsAnchor label={label}>
         {#snippet trigger(props)}{@render mark(props)}{/snippet}
         {@render inside()}
       </Popover>

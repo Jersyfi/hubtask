@@ -19,6 +19,7 @@
   import type { IconName } from './icons/index.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
+  import { closeName } from './media.ts';
   import type { MenuItem } from './overlay.ts';
 
   interface Props {
@@ -150,7 +151,7 @@
     <header class="head">
       <h2 class="title" id={titleId}>{#if icon}<Icon name={icon} size="sm" />{/if}{title}</h2>
       <!-- A thumb's target (§9: 44 px): the regular size, not the small one. -->
-      <IconButton icon="x" label={closeLabel} tone="subtle" onclick={() => close()} />
+      <IconButton icon="x" label={closeName() ?? closeLabel} tone="subtle" onclick={() => close()} />
     </header>
     <div class="body">
       {#if items}

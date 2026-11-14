@@ -18,7 +18,7 @@
 
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
-  import { isCompactWidth, sheetCloseLabel } from './media.ts';
+  import { isCompactWidth, closeName } from './media.ts';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
   import type { Placement } from './anchor.ts';
@@ -44,7 +44,7 @@
     /**
      * The name of the sheet's close control. The menu opens as a bottom sheet on a phone's width
      * (work-surface concept §7) - a menu drawn at its trigger there runs off the screen - named by
-     * this or by the application's `setSheetCloseLabel`.
+     * this or by the application's `setCloseLabel`.
      */
     closeLabel?: string;
     /** Stays at its trigger on every width: the navigation's own menus, which its concept places. */
@@ -114,7 +114,7 @@
    */
   export function open(index = 0) {
     if (!isOpen) opener = document.activeElement;
-    sheetName = keepsAnchor ? undefined : (closeLabel ?? sheetCloseLabel());
+    sheetName = keepsAnchor ? undefined : (closeLabel ?? closeName());
     isSheet = sheetName !== undefined && isCompactWidth();
     active = Math.max(0, Math.min(index, items.length - 1));
     isOpen = true;

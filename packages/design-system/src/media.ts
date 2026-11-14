@@ -22,15 +22,16 @@ export function watchCompactWidth(onchange: (isCompact: boolean) => void): () =>
   return () => query.removeEventListener('change', listener);
 }
 
-// The name of a sheet's close control when a menu opens as one. The application gives it once, in
-// its language, so that every menu becomes a sheet on a phone without each caller handing the same
-// word down; a menu with a `closeLabel` of its own keeps that one. Text is the caller's (ADR-0011).
-let sheetCloseName: string | undefined;
+// The one name of every overlay's close control - a dialog's ✕, a sheet's ✕, a menu become a sheet
+// (work-surface concept §7). The application gives it once, in its language, so that no caller
+// hands down a word of its own and the ✕ is not *Cancel* here and *Close* there. Text is the
+// caller's (ADR-0011).
+let closeLabelName: string | undefined;
 
-export function setSheetCloseLabel(label: string | undefined): void {
-  sheetCloseName = label;
+export function setCloseLabel(label: string | undefined): void {
+  closeLabelName = label;
 }
 
-export function sheetCloseLabel(): string | undefined {
-  return sheetCloseName;
+export function closeName(): string | undefined {
+  return closeLabelName;
 }

@@ -458,7 +458,7 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
   await page.getByRole('button', { name: 'Add project' }).first().click();
   const adding = page.getByRole('dialog', { name: 'Add project' });
   assert.ok(await adding.getByRole('button', { name: 'Save' }).isVisible(), 'the primary is not in the bar on a phone');
-  await adding.getByRole('button', { name: 'Cancel' }).first().click();
+  await adding.getByRole('button', { name: 'Close' }).first().click();
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(wide <= 0, `the page scrolls ${wide} px sideways`);
 

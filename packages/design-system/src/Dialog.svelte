@@ -46,6 +46,7 @@
   import { anchorTo } from './anchor.ts';
   import { escapeHandler, focusReturn } from './focus.ts';
   import { layers } from './layers.ts';
+  import { closeName } from './media.ts';
 
   /** The primary of a sized dialog: drawn last in the foot, and in the bar when it is full screen. */
   export interface DialogAction {
@@ -206,7 +207,7 @@
         </span>
       {/if}
       {#if dismissLabel}
-        <span class="dismiss"><IconButton icon="x" label={dismissLabel} size="sm" onclick={() => dismiss()} /></span>
+        <span class="dismiss"><IconButton icon="x" label={closeName() ?? dismissLabel} size="sm" onclick={() => dismiss()} /></span>
       {/if}
     </header>
     <div class="body" bind:this={body}>{@render children()}</div>
@@ -270,7 +271,9 @@
   }
 
   .dialog[data-size] .head { align-items: center; gap: var(--sp-150); padding: var(--sp-300) var(--sp-300) var(--sp-150); }
-  .dialog[data-size] .title { flex: 1; font-size: var(--fs-500); }
+  /* One title size on every rung of the ladder (the unsized one's): a dialog is told apart by its
+     width, never by a heading that grows with it. */
+  .dialog[data-size] .title { flex: 1; }
   .dialog[data-size] .body {
     flex: 1 1 auto;
     min-block-size: 0;
@@ -370,6 +373,17 @@
     justify-content: flex-end;
     gap: var(--sp-100);
   }
+
+  /* The foot's one order (page-system §5.1): the ways out first and in the secondary look, the
+     one primary at the end, wherever a caller wrote it. */
+  .actions :global(.button[data-tone='primary']),
+  .actions :global(.button[data-tone='danger']:last-child) { order: 1; }
+  .actions :global(.button[data-tone='subtle']) {
+    border-color: var(--border-default);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+  }
+  .actions :global(.button[data-tone='subtle']:hover:not([aria-disabled='true'])) { background: var(--bg-surface-hover); }
 
   @keyframes open {
     from { opacity: 0; transform: scale(0.98); }
