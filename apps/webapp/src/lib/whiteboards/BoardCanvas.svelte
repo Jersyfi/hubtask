@@ -2405,6 +2405,8 @@
   /* The bar above the selection (W-4), its foot on the selection's top edge. */
   .selbar { translate: -50% -100%; z-index: 1; white-space: nowrap; }
   .selbar.below { translate: -50% 0; }
+  /* The bar's one primary act, tinted as the brand while its form is shut (scene wsel). */
+  .selbar :global([data-bar='task'][data-tone='secondary']) { background: var(--accent-primary-subtle); border-color: transparent; color: var(--text-brand); }
   .bar-words { padding-inline: var(--sp-050); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .make {
     position: absolute;

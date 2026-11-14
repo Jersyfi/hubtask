@@ -122,6 +122,16 @@ test('chromium: a chosen note carries the bar above it in its order, and the car
   assert.deepEqual(order, ['colour', 'size', 'arrow', 'comment', 'lock', 'task', 'more'], 'the bar is not in its order');
   const above = await box(bar);
   assert.ok(above.y + above.height <= note.y, 'the bar is not above the selection');
+  // Its one primary act is tinted as the brand (scene wsel).
+  const tinted = await bar.locator('[data-bar=task]').evaluate((button) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--text-brand)';
+    document.body.append(probe);
+    const brand = getComputedStyle(probe).color;
+    probe.remove();
+    return getComputedStyle(button).color === brand;
+  });
+  assert.ok(tinted, 'Make a task is not tinted as the brand');
   await bar.locator('[data-bar=task]').click();
   await page.locator('[data-board-make]').waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
