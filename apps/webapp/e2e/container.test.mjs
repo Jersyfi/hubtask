@@ -94,8 +94,11 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await page.keyboard.press('Escape');
 
   // The list's add opens capture pointed at this collection; the tour's last step finds it by its opener.
-  assert.equal(await page.locator('[data-opener="add-entry"]').first().evaluate((el) => el.textContent.trim()), 'Add an entry');
-  await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
+  // It says what it adds and where: "+ <kind> in “<group>”" (work-surface concept §8, L-6).
+  const add = `Entry in “${COLLECTION.name}”`;
+  assert.equal(await page.locator('[data-opener="add-entry"]').first().evaluate((el) => el.textContent.trim()), add);
+  assert.equal(await head.getByRole('button', { name: add, exact: true }).count(), 0, 'the list\'s add in the head');
+  await page.getByRole('main').getByRole('button', { name: add, exact: true }).first().click();
   const capture = page.getByRole('dialog', { name: 'Capture' });
   await capture.getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
   assert.match(await capture.locator('[data-chip="place"]').innerText(), new RegExp(COLLECTION.name, 'u'));

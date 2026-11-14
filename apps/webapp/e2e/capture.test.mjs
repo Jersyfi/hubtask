@@ -461,7 +461,7 @@ test('chromium: every add opens capture pointed at its place - the chip, suggest
   // A collection of several levels: the head's one add opens capture there, one entry at a time.
   await land(page, `/collections/${COLLECTION.id}`);
   assert.equal(await page.getByRole('button', { name: 'More ways to add an entry' }).count(), 0, 'the add is one button, not a split');
-  await page.getByRole('main').getByRole('button', { name: 'Add an entry' }).first().click();
+  await page.getByRole('main').locator('button[data-opener="add-entry"]').first().click();
   await fieldOf(page).waitFor({ timeout: 5_000 });
   assert.match(await place().innerText(), /Kitchen/u, 'the chip names the collection the add stood in');
   assert.equal(await keep().isChecked(), false);
@@ -485,7 +485,7 @@ test('chromium: every add opens capture pointed at its place - the chip, suggest
 
   // A list typed line after line: capture keeps the field open, and the chip may be changed.
   await land(page, `/collections/${GROCERIES.id}`);
-  await page.getByRole('main').getByRole('button', { name: /^Add/u }).first().click();
+  await page.getByRole('main').locator('button[data-opener="add-entry"]').first().click();
   await fieldOf(page).waitFor({ timeout: 5_000 });
   assert.match(await place().innerText(), /Groceries/u);
   assert.equal(await keep().isChecked(), true, 'a list keeps the field open for the next line');

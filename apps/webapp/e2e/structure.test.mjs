@@ -291,8 +291,9 @@ test('chromium: the owner - a level is named by the name given to it, and by its
   await page.getByText(SHAPE_ITEMS[0].title).first().waitFor();
   const said = await page.locator('[data-opener="add-entry"]').evaluateAll((controls) => controls.map((control) => control.textContent.trim()));
   assert.ok(said.length >= 1, `add controls: ${said}`);
-  assert.ok(said.every((text) => text === 'Add item'), `add controls read ${JSON.stringify(said)}`);
-  assert.equal(await page.getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add left unnamed');
+  // The foot's add says the level and the place: "item in “Shopping”" (work-surface concept §8, L-6).
+  assert.ok(said.every((text) => text === `item in “${SHAPES.list.name}”`), `add controls read ${JSON.stringify(said)}`);
+  assert.ok(!said.some((text) => /^(Add an entry|Entry in)/u.test(text)), 'an add left unnamed');
 
   // An entry's badge names its level by that name.
   await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
@@ -303,8 +304,9 @@ test('chromium: the owner - a level is named by the name given to it, and by its
 
   // Without a name, the catalogue's words: the project adds "an entry", and no name leaks into it.
   await openCollection(page, SHAPES.locked);
-  assert.ok((await page.getByRole('button', { name: 'Add an entry', exact: true }).count()) > 0, 'the unnamed project lost its add');
-  assert.equal(await page.getByRole('button', { name: 'Add item', exact: true }).count(), 0, 'a name leaked into another collection');
+  await page.locator('[data-opener="add-entry"]').first().waitFor({ timeout: 5_000 }).catch(() => assert.fail('the unnamed project lost its add'));
+  const unnamed = await page.locator('[data-opener="add-entry"]').evaluateAll((controls) => controls.map((control) => control.textContent.trim()));
+  assert.ok(unnamed.every((text) => text === 'Add an entry' || text === `Entry in “${SHAPES.locked.name}”`), `a name leaked into another collection: ${JSON.stringify(unnamed)}`);
   assert.deepEqual(failures, []);
 });
 

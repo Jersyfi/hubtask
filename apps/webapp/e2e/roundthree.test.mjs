@@ -106,7 +106,7 @@ test('chromium: no ⚙ beside the collection\'s menu, and *Position…* moves an
   }
 });
 
-test('chromium: the twist only on an entry with parts, and one add for a list grouped by column', { timeout: 60_000 }, async () => {
+test('chromium: the twist only on an entry with parts, and a list grouped by column adds at each column\'s end, not again at its foot', { timeout: 60_000 }, async () => {
   const counted = ITEMS.map((item) => ({ ...item, counts: item.counts ?? { parts: 0, parts_done: 0, comments: 0, attachments: 0 } }));
   const { page, close } = await open(1280, `/collections/${COLLECTION.id}`, {
     answer: (route, request, read) => {
@@ -126,7 +126,14 @@ test('chromium: the twist only on an entry with parts, and one add for a list gr
     await page.locator('[data-view-panel] [data-grouping="column"]').click();
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
-    assert.equal(await page.getByRole('button', { name: 'Add an entry' }).count(), 1, 'one add, at the end');
+    // Each column's group ends in its own add, said with the column (L-2, L-6); no second add at
+    // the list's foot.
+    assert.deepEqual(
+      (await page.locator('[data-opener="add-entry"]').allTextContents()).map((each) => each.trim()),
+      ['Entry in “To do”', 'Entry in “Doing”', 'Entry in “Done”'],
+      'one add per column, at its end',
+    );
+    assert.equal(await page.getByRole('button', { name: 'Add an entry' }).count(), 0, 'a second add at the foot');
   } finally {
     await close();
   }

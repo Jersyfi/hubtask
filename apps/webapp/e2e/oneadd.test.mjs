@@ -35,7 +35,8 @@ async function open(width, path) {
   return session;
 }
 
-const adds = (page) => page.locator('main').getByRole('button', { name: 'Add an entry', exact: true });
+// The list's add, named by its place ("Entry in “…”", L-6), so found by its opener.
+const adds = (page) => page.locator('main button[data-opener="add-entry"]');
 const dialogOf = (page) => page.getByRole('dialog', { name: 'Capture' });
 
 /** The place capture was opened for, and whether it stays open after Enter. */

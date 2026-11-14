@@ -245,8 +245,9 @@ async function openPart(page, tab, mayShape) {
   // A viewer's page menu may hold nothing at all, so it is not where this starts.
   await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   if (tab !== 'Templates') return undefined;
-  // The list's own add, which a reader who may add is offered and nobody else.
-  const add = page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true });
+  // The list's own add, which a reader who may add is offered and nobody else; it is named by
+  // its place ("Entry in “…”"), so it is found by its opener.
+  const add = page.getByRole('main').locator('button[data-opener="add-entry"]');
   await page.waitForTimeout(400);
   if ((await add.count()) === 0) return undefined;
   await add.first().click();
