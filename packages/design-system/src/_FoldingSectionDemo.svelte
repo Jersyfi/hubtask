@@ -50,6 +50,9 @@
 </script>
 
 <div class="column">
+  <FoldingSection id={`${prefix}-files`} title="Files" count="0" emptyLabel="Nothing attached yet.">
+    {#snippet actions()}<Button tone="secondary" size="sm" icon="plus">Attach</Button>{/snippet}
+  </FoldingSection>
   <FoldingSection id={`${prefix}-description`} title="Description" fold={{ kind: 'lines', lines: 12 }} showAllLabel="Show more · Background, Out of scope, Open questions, Risks" showLessLabel="Show less">
     {#snippet actions()}<Button tone="subtle" size="sm" icon="pencil">Edit</Button>{/snippet}
     {#snippet children()}

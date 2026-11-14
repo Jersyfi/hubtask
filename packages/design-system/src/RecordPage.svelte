@@ -9,6 +9,7 @@
 
   import Button from './Button.svelte';
   import DangerZone, { type DangerAct } from './DangerZone.svelte';
+  import FoldingSection from './FoldingSection.svelte';
   import RecordHead from './RecordHead.svelte';
   import PageFrame from './_PageFrame.svelte';
   import { pageBar } from './page.ts';
@@ -22,6 +23,8 @@
     /** *2*. */
     readonly count?: string;
     readonly add?: PageAction;
+    /** Empty: the sentence that says so, and a work object's part stands as one line (WB-3). */
+    readonly emptyLabel?: string;
   }
 
   interface Props {
@@ -67,6 +70,17 @@
   {#snippet children()}
     {#if strip}{@render strip()}{/if}
     {#each lists as item (item.id)}
+      {#if objectHead}
+        <!-- A work object's parts have the entry's one section head (WB-1, WB-3), an empty one a line. -->
+        <FoldingSection id={`part-${item.id}`} title={item.title} count={item.count} emptyLabel={item.emptyLabel}>
+          {#snippet actions()}
+            {#if item.add}
+              <Button size="sm" tone="secondary" icon={item.add.icon ?? 'plus'} onclick={item.add.onclick} disabledReason={item.add.disabledReason} data-opener={item.add.opener}>{item.add.label}</Button>
+            {/if}
+          {/snippet}
+          {#snippet children()}{@render list?.(item)}{/snippet}
+        </FoldingSection>
+      {:else}
       <section class="part">
         <RegionHead title={item.title} note={item.count}>
           {#snippet acts()}
@@ -77,6 +91,7 @@
         </RegionHead>
         {@render list?.(item)}
       </section>
+      {/if}
     {/each}
     {#if facts}
       <section class="part">

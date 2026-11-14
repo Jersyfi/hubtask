@@ -26,10 +26,15 @@
     showAllLabel?: string;
     showLessLabel?: string;
     /** The content; for a list, handed the window of rows to draw. */
-    children: Snippet<[FoldWindow]>;
+    children?: Snippet<[FoldWindow]>;
+    /**
+     * Given, the section is empty and stands as one line (WB-3): its heading, the sentence and its
+     * act - no body, no second line.
+     */
+    emptyLabel?: string;
   }
 
-  const { id, title, count, actions, fold, showAllLabel, showLessLabel, children }: Props = $props();
+  const { id, title, count, actions, fold, showAllLabel, showLessLabel, children, emptyLabel }: Props = $props();
 
   let isOpen = $state(false);
   let body = $state<HTMLElement | null>(null);
@@ -53,12 +58,14 @@
   const bodyId = $derived(`${id}-body`);
 </script>
 
-<section class="section" {id} tabindex="-1" aria-labelledby={`${id}-title`}>
+<section class="section" {id} tabindex="-1" aria-labelledby={`${id}-title`} data-empty={emptyLabel !== undefined ? '' : undefined}>
   <header class="head">
     <h2 class="title" id={`${id}-title`}>{title}</h2>
     {#if count}<span class="count">{count}</span>{/if}
+    {#if emptyLabel !== undefined}<span class="none">{emptyLabel}</span>{/if}
     {#if actions}<span class="actions">{@render actions()}</span>{/if}
   </header>
+  {#if emptyLabel === undefined}
   <!-- A link inside the clamped part is reachable: focus arriving there opens the fold, so it is never hidden (2.4.11). -->
   <div
     class="body"
@@ -69,9 +76,10 @@
       if (isClamped && isOverflowing) isOpen = true;
     }}
   >
-    {@render children(shown)}
+    {@render children?.(shown)}
   </div>
-  {#if canFold && showAllLabel}
+  {/if}
+  {#if emptyLabel === undefined && canFold && showAllLabel}
     <button type="button" class="more" aria-expanded={isOpen} aria-controls={bodyId} onclick={() => (isOpen = !isOpen)}>
       <Icon name={isOpen ? 'chevron-up' : 'chevron-down'} size="sm" />{isOpen ? (showLessLabel ?? showAllLabel) : showAllLabel}
     </button>
@@ -105,6 +113,9 @@
   }
 
   .count { color: var(--text-subtle); font-size: var(--fs-090); }
+  .none { min-inline-size: 0; color: var(--text-secondary); font-size: var(--fs-090); }
+  .section[data-empty] { padding-block: var(--sp-150); }
+  .head { flex-wrap: wrap; }
   .actions { display: inline-flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
   .body { min-inline-size: 0; }

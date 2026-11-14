@@ -88,3 +88,11 @@ test('a head\'s read-only state stands as tall as its status button beside it (H
   const button = source('StatusButton.svelte');
   assert.match(button, /min-block-size: var\(--density-control-sm-min\);\n\s+padding: var\(--sp-050\) var\(--sp-150\);/u);
 });
+
+test('an empty section is one line, and a work object\'s parts take the entry\'s section head (H-6, H-7, WB-3)', () => {
+  const fold = source('FoldingSection.svelte');
+  assert.match(fold, /\{#if emptyLabel !== undefined\}<span class="none">\{emptyLabel\}<\/span>\{\/if\}/u);
+  assert.match(fold, /\{#if emptyLabel === undefined\}\n\s+<!-- A link/u, 'an empty section draws no body');
+  const record = source('RecordPage.svelte');
+  assert.match(record, /\{#if objectHead\}\n\s+<!--[^>]*-->\n\s+<FoldingSection id=\{`part-\$\{item\.id\}`\} title=\{item\.title\} count=\{item\.count\} emptyLabel=\{item\.emptyLabel\}>/u);
+});
