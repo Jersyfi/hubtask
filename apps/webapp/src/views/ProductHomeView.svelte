@@ -45,8 +45,8 @@
   import { renderProblem } from '../lib/problem.ts';
   import { config } from '../lib/data/config.svelte.ts';
   import { productTemplates } from '../lib/product/templates.ts';
-  import { SHIPPED_TEMPLATES, pages, pagesPath } from '../lib/data/pages.svelte.ts';
-  import { START_ICONS } from '../lib/pages/starts.ts';
+  import { pages, pagesPath } from '../lib/data/pages.svelte.ts';
+  import { CHIP_ORDER, START_ICONS } from '../lib/pages/starts.ts';
   import { pagesRead } from '../lib/pages/reading.ts';
   import { classesPath, classWord, cmdb, healthPath } from '../lib/data/cmdb.svelte.ts';
   import NotesView from './NotesView.svelte';
@@ -852,7 +852,7 @@
       <section class="panel" aria-labelledby="product-start" data-pages-start>
         <h2 class="eyebrow" id="product-start">{t('app.product_home.pages_start')}</h2>
         <ul class="start-rows">
-          {#each SHIPPED_TEMPLATES as key (key)}
+          {#each CHIP_ORDER as key (key)}
             <li>
               <ListRow href={`${startAt}&template=${key}`} onactivate={() => onnavigate(`${startAt}&template=${key}`)} label={t(`app.pages.template.${key}.title`)}>
                 {#snippet leading()}<span aria-hidden="true">{START_ICONS[key]}</span>{/snippet}

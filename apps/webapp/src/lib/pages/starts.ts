@@ -18,7 +18,7 @@ export const START_ICONS: Readonly<Record<ShippedTemplate, string>> = {
 };
 
 /** The order the chips stand in, the most used first. */
-const CHIP_ORDER: readonly ShippedTemplate[] = ['meeting', 'decision', 'retro', 'howto', 'brief'];
+export const CHIP_ORDER: readonly ShippedTemplate[] = ['meeting', 'decision', 'retro', 'howto', 'brief'];
 
 /** How many of the space's own templates are chips; the rest wait under *All templates*. */
 export const OWN_CHIPS = 2;
