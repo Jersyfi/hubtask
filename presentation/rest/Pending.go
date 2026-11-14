@@ -3345,6 +3345,14 @@ func (pending) AddHubTemplatePage(w http.ResponseWriter, r *http.Request, _ open
 	notAvailable(w, r)
 }
 
+func (pending) ListGoalSets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) AddGoalSet(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) ListDeadLetters(w http.ResponseWriter, r *http.Request, _ openapi.ListDeadLettersParams) {
 	notAvailable(w, r)
 }

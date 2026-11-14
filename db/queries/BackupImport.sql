@@ -4143,6 +4143,25 @@ SELECT EXISTS (
 -- name: ClearConfigDraft :execrows
 DELETE FROM config_draft;
 
+-- name: ImportConfigGoalSet :execrows
+INSERT INTO config_goal_set (tenant_id, key, period_id, created_at)
+SELECT r.tenant_id, r.key, r.period_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_goal_set,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  period_id = EXCLUDED.period_id, created_at = EXCLUDED.created_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsConfigGoalSet :one
+SELECT EXISTS (
+  SELECT 1 FROM config_goal_set WHERE key = sqlc.arg('payload')::jsonb->>'key'
+) AS held;
+
+-- name: ClearConfigGoalSet :execrows
+DELETE FROM config_goal_set;
+
 -- name: ImportTemplatePage :execrows
 INSERT INTO template_page (tenant_id, page_id, hub_id, key, created_at)
 SELECT r.tenant_id, r.page_id, r.hub_id, r.key, r.created_at

@@ -1442,6 +1442,13 @@ type ConfigDraft struct {
 	Version  int32
 }
 
+type ConfigGoalSet struct {
+	TenantID  pgtype.UUID
+	Key       string
+	PeriodID  pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type ConfigHubTemplateUse struct {
 	TenantID    pgtype.UUID
 	HubID       pgtype.UUID

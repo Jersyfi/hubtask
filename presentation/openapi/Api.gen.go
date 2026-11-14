@@ -19136,6 +19136,27 @@ type GoalPeriodWrite struct {
 	StartOn openapi_types.Date `json:"start_on"`
 }
 
+// GoalSet defines model for GoalSet.
+type GoalSet struct {
+	EndOn    openapi_types.Date `json:"end_on"`
+	Key      string             `json:"key"`
+	Name     string             `json:"name"`
+	PeriodId openapi_types.UUID `json:"period_id"`
+	StartOn  openapi_types.Date `json:"start_on"`
+}
+
+// GoalSetGoal defines model for GoalSetGoal.
+type GoalSetGoal struct {
+	Description *string           `json:"description,omitempty"`
+	KeyResults  *[]KeyResultWrite `json:"key_results,omitempty"`
+	Title       string            `json:"title"`
+}
+
+// GoalSetList defines model for GoalSetList.
+type GoalSetList struct {
+	Data []GoalSet `json:"data"`
+}
+
 // GoalWrite defines model for GoalWrite.
 type GoalWrite struct {
 	Description *string             `json:"description,omitempty"`
@@ -30150,6 +30171,17 @@ type CloseGoalPeriodParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// AddGoalSetJSONBody defines parameters for AddGoalSet.
+type AddGoalSetJSONBody struct {
+	EndOn openapi_types.Date `json:"end_on"`
+
+	// Goals The workspace's goals of the period, each written as creating a goal writes it.
+	Goals   *[]GoalSetGoal     `json:"goals,omitempty"`
+	Key     string             `json:"key"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
+}
+
 // ListGoalsParams defines parameters for ListGoals.
 type ListGoalsParams struct {
 	// PeriodId Only this period's goals.
@@ -32605,6 +32637,9 @@ type ChangeGoalPeriodJSONRequestBody = GoalPeriodWrite
 // CloseGoalPeriodJSONRequestBody defines body for CloseGoalPeriod for application/json ContentType.
 type CloseGoalPeriodJSONRequestBody CloseGoalPeriodJSONBody
 
+// AddGoalSetJSONRequestBody defines body for AddGoalSet for application/json ContentType.
+type AddGoalSetJSONRequestBody AddGoalSetJSONBody
+
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalCreate
 
@@ -34815,6 +34850,12 @@ type ServerInterface interface {
 	// CloseGoalPeriod Close a goal period and grade its goals
 	// (POST /goal-periods/{periodId}:close)
 	CloseGoalPeriod(w http.ResponseWriter, r *http.Request, periodId openapi_types.UUID, params CloseGoalPeriodParams)
+	// ListGoalSets The goal periods a template brought
+	// (GET /goal-sets)
+	ListGoalSets(w http.ResponseWriter, r *http.Request)
+	// AddGoalSet Add a template's goal set
+	// (POST /goal-sets)
+	AddGoalSet(w http.ResponseWriter, r *http.Request)
 	// ListGoals The goals the caller may read
 	// (GET /goals)
 	ListGoals(w http.ResponseWriter, r *http.Request, params ListGoalsParams)
@@ -48217,6 +48258,34 @@ func (siw *ServerInterfaceWrapper) CloseGoalPeriod(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CloseGoalPeriod(w, r, periodId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListGoalSets operation middleware
+func (siw *ServerInterfaceWrapper) ListGoalSets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListGoalSets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddGoalSet operation middleware
+func (siw *ServerInterfaceWrapper) AddGoalSet(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddGoalSet(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66860,6 +66929,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries", wrapper.AddSampleEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/template-pages", wrapper.ListHubTemplatePages)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/template-pages", wrapper.AddHubTemplatePage)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/goal-sets", wrapper.ListGoalSets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/goal-sets", wrapper.AddGoalSet)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/sample-entries:remove", wrapper.RemoveSampleEntries)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/trashed-pages", wrapper.ListTrashedPages)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/pages/{pageId}", wrapper.TrashPage)

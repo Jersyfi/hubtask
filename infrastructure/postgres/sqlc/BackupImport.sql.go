@@ -543,6 +543,18 @@ func (q *Queries) ClearConfigDraft(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearConfigGoalSet = `-- name: ClearConfigGoalSet :execrows
+DELETE FROM config_goal_set
+`
+
+func (q *Queries) ClearConfigGoalSet(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearConfigGoalSet)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearConfigHubTemplateUse = `-- name: ClearConfigHubTemplateUse :execrows
 DELETE FROM config_hub_template_use
 `
@@ -2291,6 +2303,19 @@ SELECT EXISTS (
 
 func (q *Queries) HoldsConfigDraft(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsConfigDraft, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsConfigGoalSet = `-- name: HoldsConfigGoalSet :one
+SELECT EXISTS (
+  SELECT 1 FROM config_goal_set WHERE key = $1::jsonb->>'key'
+) AS held
+`
+
+func (q *Queries) HoldsConfigGoalSet(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsConfigGoalSet, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -5195,6 +5220,31 @@ type ImportConfigDraftParams struct {
 
 func (q *Queries) ImportConfigDraft(ctx context.Context, arg ImportConfigDraftParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importConfigDraft, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importConfigGoalSet = `-- name: ImportConfigGoalSet :execrows
+INSERT INTO config_goal_set (tenant_id, key, period_id, created_at)
+SELECT r.tenant_id, r.key, r.period_id, r.created_at
+FROM jsonb_populate_record(
+  NULL::config_goal_set,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (tenant_id, key) DO UPDATE SET
+  period_id = EXCLUDED.period_id, created_at = EXCLUDED.created_at
+WHERE $2::boolean
+`
+
+type ImportConfigGoalSetParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportConfigGoalSet(ctx context.Context, arg ImportConfigGoalSetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importConfigGoalSet, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

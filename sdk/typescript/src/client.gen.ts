@@ -4200,6 +4200,16 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/template-pages", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The goal periods a template brought */
+  listGoalSets(options: CallOptions = {}): Promise<operations["listGoalSets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/goal-sets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add a template's goal set */
+  addGoalSet(body: NonNullable<operations["addGoalSet"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["addGoalSet"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/goal-sets", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Remove the hub's sample entries */
   removeSampleEntries(hubId: string, options: CallOptions = {}): Promise<operations["removeSampleEntries"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/hubs/{hubId}/sample-entries:remove", { "hubId": hubId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

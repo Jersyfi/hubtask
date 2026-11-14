@@ -18,6 +18,7 @@ var restDoors = map[string]restDoor{
 	"activateAgent":         {UseCase: "ActivateAgent", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addAgentCase":          {UseCase: "AddAgentCase", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addComment":            {UseCase: "AddComment", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "version", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"addGoalSet":            {UseCase: "AddGoalSet", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addHubTemplatePage":    {UseCase: "AddHubTemplatePage", Status: 201, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addLabel":              {UseCase: "AddLabel", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"addMember":             {UseCase: "AddMember", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -369,6 +370,7 @@ var restDoors = map[string]restDoor{
 	"listFileStoreConnections":          {UseCase: "ListFileStoreConnections", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoalCheckIns":                  {UseCase: "ListGoalCheckIns", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoalPeriods":                   {UseCase: "ListGoalPeriods", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listGoalSets":                      {UseCase: "ListGoalSets", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGoals":                         {UseCase: "ListGoals", Status: 200, Query: []string{"hub_id", "owner_id", "parent_id", "period_id", "workspace_only"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listGroups":                        {UseCase: "ListGroups", Status: 200, Query: []string{"cursor", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listHubCalendars":                  {UseCase: "ListHubCalendars", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -874,6 +876,13 @@ func (c *RestController) AddAgentCase(w http.ResponseWriter, r *http.Request, ag
 func (c *RestController) AddComment(w http.ResponseWriter, r *http.Request, itemId openapi.ItemId, params openapi.AddCommentParams) {
 	var body openapi.AddCommentJSONRequestBody
 	c.door(w, r, restDoors["addComment"], usecase.Input{"item_id": itemId.String()}, params, &body, answerBy(commentResponse))
+}
+
+// AddGoalSet answers POST /goal-sets by the generated mapping.
+func (c *RestController) AddGoalSet(w http.ResponseWriter, r *http.Request) {
+	var body openapi.AddGoalSetJSONRequestBody
+	var answer openapi.GoalSet
+	c.door(w, r, restDoors["addGoalSet"], usecase.Input{}, nil, &body, &answer)
 }
 
 // AddHubTemplatePage answers POST /hubs/{hubId}/template-pages by the generated mapping.
@@ -3258,6 +3267,12 @@ func (c *RestController) ListGoalCheckIns(w http.ResponseWriter, r *http.Request
 func (c *RestController) ListGoalPeriods(w http.ResponseWriter, r *http.Request) {
 	var answer openapi.GoalPeriodList
 	c.door(w, r, restDoors["listGoalPeriods"], usecase.Input{}, nil, nil, &answer)
+}
+
+// ListGoalSets answers GET /goal-sets by the generated mapping.
+func (c *RestController) ListGoalSets(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.GoalSetList
+	c.door(w, r, restDoors["listGoalSets"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListGoals answers GET /goals by the generated mapping.

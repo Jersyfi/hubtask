@@ -1215,6 +1215,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"config_goal_set": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportConfigGoalSets(ctx, sqlc.ExportConfigGoalSetsParams{
+				AfterID: cursorText(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportConfigGoalSetsRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"template_page": {
 		delta: false,
 		keys:  1,

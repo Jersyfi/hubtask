@@ -997,6 +997,17 @@ var importers = map[string]importer{
 			return queries.ClearConfigDraft(ctx)
 		},
 	},
+	"config_goal_set": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportConfigGoalSet(ctx, sqlc.ImportConfigGoalSetParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsConfigGoalSet(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearConfigGoalSet(ctx)
+		},
+	},
 	"template_page": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportTemplatePage(ctx, sqlc.ImportTemplatePageParams{Payload: payload, Overwrite: overwrite})

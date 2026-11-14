@@ -6077,6 +6077,21 @@ class HubTemplatePage(TypedDict, total=False):
 class HubTemplatePageList(TypedDict, total=False):
     pages: Required[list["HubTemplatePage"]]
 
+class GoalSet(TypedDict, total=False):
+    key: Required[str]
+    period_id: Required[str]
+    name: Required[str]
+    start_on: Required[str]
+    end_on: Required[str]
+
+class GoalSetList(TypedDict, total=False):
+    data: Required[list["GoalSet"]]
+
+class GoalSetGoal(TypedDict, total=False):
+    title: Required[str]
+    description: str
+    key_results: list["KeyResultWrite"]
+
 class PageSpaceDrafts(TypedDict, total=False):
     drafts: Required[bool]
     source: Required[str]

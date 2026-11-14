@@ -3335,6 +3335,14 @@ class Client:
         """Add a template's page"""
         return self._call("POST", "/hubs/{hubId}/template-pages", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_goal_sets(self) -> "GoalSetList":
+        """The goal periods a template brought"""
+        return self._call("GET", "/goal-sets", {}, None, {}, None, "none", None, "json")
+
+    def add_goal_set(self, body: dict[str, Any]) -> "GoalSet":
+        """Add a template's goal set"""
+        return self._call("POST", "/goal-sets", {}, None, {}, body, "json", "application/json", "json")
+
     def remove_sample_entries(self, hub_id: str) -> dict[str, Any]:
         """Remove the hub's sample entries"""
         return self._call("POST", "/hubs/{hubId}/sample-entries:remove", {"hubId": hub_id}, None, {}, None, "none", None, "json")

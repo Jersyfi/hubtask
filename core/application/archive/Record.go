@@ -1162,6 +1162,11 @@ var entities = []Entity{
 			{Field: "updated_by", Table: "account", Clearable: true},
 		},
 	},
+	// A template's goal sets (migration 0440): the mark only, after the periods it names.
+	{
+		Name: "config_goal_sets", Table: "config_goal_set", Whole: true, Later: true, Keys: []string{"key"},
+		References: []Reference{{Field: "period_id", Table: "goal_period"}},
+	},
 	{
 		Name: "goal_entries", Table: "goal_entry", Whole: true, Later: true,
 		Keys: []string{"goal_id", "entry_id"}, Duplicable: true,

@@ -19142,6 +19142,27 @@ type GoalPeriodWrite struct {
 	StartOn openapi_types.Date `json:"start_on"`
 }
 
+// GoalSet defines model for GoalSet.
+type GoalSet struct {
+	EndOn    openapi_types.Date `json:"end_on"`
+	Key      string             `json:"key"`
+	Name     string             `json:"name"`
+	PeriodId openapi_types.UUID `json:"period_id"`
+	StartOn  openapi_types.Date `json:"start_on"`
+}
+
+// GoalSetGoal defines model for GoalSetGoal.
+type GoalSetGoal struct {
+	Description *string           `json:"description,omitempty"`
+	KeyResults  *[]KeyResultWrite `json:"key_results,omitempty"`
+	Title       string            `json:"title"`
+}
+
+// GoalSetList defines model for GoalSetList.
+type GoalSetList struct {
+	Data []GoalSet `json:"data"`
+}
+
 // GoalWrite defines model for GoalWrite.
 type GoalWrite struct {
 	Description *string             `json:"description,omitempty"`
@@ -30156,6 +30177,17 @@ type CloseGoalPeriodParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// AddGoalSetJSONBody defines parameters for AddGoalSet.
+type AddGoalSetJSONBody struct {
+	EndOn openapi_types.Date `json:"end_on"`
+
+	// Goals The workspace's goals of the period, each written as creating a goal writes it.
+	Goals   *[]GoalSetGoal     `json:"goals,omitempty"`
+	Key     string             `json:"key"`
+	Name    string             `json:"name"`
+	StartOn openapi_types.Date `json:"start_on"`
+}
+
 // ListGoalsParams defines parameters for ListGoals.
 type ListGoalsParams struct {
 	// PeriodId Only this period's goals.
@@ -32610,6 +32642,9 @@ type ChangeGoalPeriodJSONRequestBody = GoalPeriodWrite
 
 // CloseGoalPeriodJSONRequestBody defines body for CloseGoalPeriod for application/json ContentType.
 type CloseGoalPeriodJSONRequestBody CloseGoalPeriodJSONBody
+
+// AddGoalSetJSONRequestBody defines body for AddGoalSet for application/json ContentType.
+type AddGoalSetJSONRequestBody AddGoalSetJSONBody
 
 // CreateGoalJSONRequestBody defines body for CreateGoal for application/json ContentType.
 type CreateGoalJSONRequestBody = GoalCreate
@@ -39079,6 +39114,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
 	CloseGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListGoalSets The goal periods a template brought
+	//
+	// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+	//
+	// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+	ListGoalSets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddGoalSetWithBody Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AddGoalSet Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSet(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListGoals The goals the caller may read
 	//
@@ -56497,6 +56557,61 @@ func (c *Client) CloseGoalPeriodWithBody(ctx context.Context, periodId openapi_t
 // Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
 func (c *Client) CloseGoalPeriod(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCloseGoalPeriodRequest(c.Server, periodId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListGoalSets The goal periods a template brought
+//
+// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+//
+// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+func (c *Client) ListGoalSets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListGoalSetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddGoalSetWithBody Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *Client) AddGoalSetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddGoalSetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AddGoalSet Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *Client) AddGoalSet(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAddGoalSetRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -87775,6 +87890,73 @@ func NewCloseGoalPeriodRequestWithBody(server string, periodId openapi_types.UUI
 	return req, nil
 }
 
+// NewListGoalSetsRequest constructs an http.Request for the ListGoalSets method
+func NewListGoalSetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-sets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAddGoalSetRequest calls the generic AddGoalSet builder with application/json body
+func NewAddGoalSetRequest(server string, body AddGoalSetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAddGoalSetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAddGoalSetRequestWithBody constructs an http.Request for the AddGoalSet method, with any body, and a specified content type
+func NewAddGoalSetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/goal-sets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListGoalsRequest constructs an http.Request for the ListGoals method
 func NewListGoalsRequest(server string, params *ListGoalsParams) (*http.Request, error) {
 	var err error
@@ -118344,6 +118526,33 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /goal-periods/{periodId}:close (the `CloseGoalPeriod` operationId).
 	CloseGoalPeriodWithResponse(ctx context.Context, periodId openapi_types.UUID, params *CloseGoalPeriodParams, body CloseGoalPeriodJSONRequestBody, reqEditors ...RequestEditorFn) (*CloseGoalPeriodResult, error)
 
+	// ListGoalSetsWithResponse The goal periods a template brought
+	//
+	// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+	ListGoalSetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListGoalSetsResult, error)
+
+	// AddGoalSetWithBodyWithResponse Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error)
+
+	// AddGoalSetWithResponse Add a template's goal set
+	//
+	// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+	AddGoalSetWithResponse(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error)
+
 	// ListGoalsWithResponse The goals the caller may read
 	//
 	// The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
@@ -143454,6 +143663,102 @@ func (r CloseGoalPeriodResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CloseGoalPeriodResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListGoalSetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *GoalSetList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListGoalSetsResult) GetJSON200() *GoalSetList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListGoalSetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListGoalSetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListGoalSetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListGoalSetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListGoalSetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AddGoalSetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *GoalSet
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r AddGoalSetResult) GetJSON201() *GoalSet {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AddGoalSetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AddGoalSetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AddGoalSetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AddGoalSetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AddGoalSetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -177917,6 +178222,51 @@ func (c *ClientWithResponses) CloseGoalPeriodWithResponse(ctx context.Context, p
 	return ParseCloseGoalPeriodResult(rsp)
 }
 
+// ListGoalSetsWithResponse The goal periods a template brought
+//
+// The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /goal-sets (the `ListGoalSets` operationId).
+func (c *ClientWithResponses) ListGoalSetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListGoalSetsResult, error) {
+	rsp, err := c.ListGoalSets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListGoalSetsResult(rsp)
+}
+
+// AddGoalSetWithBodyWithResponse Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *ClientWithResponses) AddGoalSetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error) {
+	rsp, err := c.AddGoalSetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddGoalSetResult(rsp)
+}
+
+// AddGoalSetWithResponse Add a template's goal set
+//
+// Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /goal-sets (the `AddGoalSet` operationId).
+func (c *ClientWithResponses) AddGoalSetWithResponse(ctx context.Context, body AddGoalSetJSONRequestBody, reqEditors ...RequestEditorFn) (*AddGoalSetResult, error) {
+	rsp, err := c.AddGoalSet(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAddGoalSetResult(rsp)
+}
+
 // ListGoalsWithResponse The goals the caller may read
 //
 // The workspace's goals and those of the hubs the caller reads, narrowed by period, hub, owner or parent; each with its key results and its progress as the caller sees it - the mean of its key results, its goals below and the share of its linked entries completed. The alignment tree is drawn from `parent_id`.
@@ -202335,6 +202685,72 @@ func ParseCloseGoalPeriodResult(rsp *http.Response) (*CloseGoalPeriodResult, err
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListGoalSetsResult parses an HTTP response from a ListGoalSetsWithResponse call
+func ParseListGoalSetsResult(rsp *http.Response) (*ListGoalSetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListGoalSetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GoalSetList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAddGoalSetResult parses an HTTP response from a AddGoalSetWithResponse call
+func ParseAddGoalSetResult(rsp *http.Response) (*AddGoalSetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AddGoalSetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest GoalSet
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

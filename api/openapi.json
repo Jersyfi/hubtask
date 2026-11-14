@@ -34003,6 +34003,101 @@
         }
       }
     },
+    "/goal-sets": {
+      "get": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "listGoalSets",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config goal-sets",
+        "summary": "The goal periods a template brought",
+        "description": "The goal periods a template brought to the workspace - a quarter's objectives with their key results, or a period alone - marked under their key. Needs STRUCTURE or READ_CONFIGURATION at the workspace.\n",
+        "responses": {
+          "200": {
+            "description": "The goal sets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalSetList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "addGoalSet",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "config goal-set-add",
+        "summary": "Add a template's goal set",
+        "description": "Opens a goal period with the workspace's goals and their key results in one write, marked under its key, as the workspace's configuration document does for a template's goal sets. A key the workspace already marks is refused (`config.goal_set_taken`). Needs STRUCTURE at the workspace and what opening the period and writing each goal needs.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "key",
+                  "name",
+                  "start_on",
+                  "end_on"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]{0,49}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "start_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "end_on": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "goals": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "description": "The workspace's goals of the period, each written as creating a goal writes it.",
+                    "items": {
+                      "$ref": "#/components/schemas/GoalSetGoal"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalSet"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/hubs/{hubId}/sample-entries:remove": {
       "parameters": [
         {
@@ -70925,6 +71020,74 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/HubTemplatePage"
+            }
+          }
+        }
+      },
+      "GoalSet": {
+        "type": "object",
+        "required": [
+          "key",
+          "period_id",
+          "name",
+          "start_on",
+          "end_on"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "period_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "start_on": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_on": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "GoalSetList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GoalSet"
+            }
+          }
+        }
+      },
+      "GoalSetGoal": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 10000
+          },
+          "key_results": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/KeyResultWrite"
             }
           }
         }

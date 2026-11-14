@@ -2097,6 +2097,51 @@ func (q *Queries) ExportConfigDrafts(ctx context.Context, arg ExportConfigDrafts
 	return items, nil
 }
 
+const exportConfigGoalSets = `-- name: ExportConfigGoalSets :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (e.key)::text AS record_id,
+         e.created_at AS changed_at,
+         (to_jsonb(e) - 'tenant_id')::jsonb AS payload,
+         e.key AS key_1
+  FROM config_goal_set e
+) s
+  WHERE s.key_1 > $1::text
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportConfigGoalSetsParams struct {
+	AfterID string
+	Batch   int32
+}
+
+type ExportConfigGoalSetsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportConfigGoalSets(ctx context.Context, arg ExportConfigGoalSetsParams) ([]ExportConfigGoalSetsRow, error) {
+	rows, err := q.db.Query(ctx, exportConfigGoalSets, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportConfigGoalSetsRow{}
+	for rows.Next() {
+		var i ExportConfigGoalSetsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportConfigHubTemplateUses = `-- name: ExportConfigHubTemplateUses :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

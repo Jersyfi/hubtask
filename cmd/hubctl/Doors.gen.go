@@ -1183,6 +1183,17 @@ var generatedCommands = []door{
 			{Name: "hub_id", Kind: "uuid", Help: "A hub, for the hub's own document (its modules, structure and workflow scheme); omitted is the …", Required: false},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{}},
+	{Group: "config", Verb: "goal-set-add", OperationID: "addGoalSet", Method: "POST", Path: "/goal-sets", Summary: "Add a template's goal set",
+		Body: []doorParam{
+			{Name: "end_on", Kind: "string", Help: "", Required: true},
+			{Name: "goals", Kind: "json", Help: "The workspace's goals of the period, each written as creating a goal writes it", Required: false},
+			{Name: "key", Kind: "string", Help: "", Required: true},
+			{Name: "name", Kind: "string", Help: "", Required: true},
+			{Name: "start_on", Kind: "string", Help: "", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"key", "name"}},
+	{Group: "config", Verb: "goal-sets", OperationID: "listGoalSets", Method: "GET", Path: "/goal-sets", Summary: "The goal periods a template brought",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "name"}},
 	{Group: "config", Verb: "propose", OperationID: "proposeConfig", Method: "POST", Path: "/config:propose", Summary: "Propose a planned change for a person to decide",
 		Body: []doorParam{
 			{Name: "acknowledge", Kind: "boolean", Help: "", Required: false},
