@@ -360,6 +360,10 @@
   }
   /* Outside a kind and a space read as a row: the mark beside its words, two to a line. */
   .tiles[data-rows], .spaces[data-rows] { gap: var(--sp-150); grid-template-columns: minmax(0, 1fr); }
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size >= 600px) {
+    .tiles[data-rows], .spaces[data-rows] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
   .tiles[data-rows] .tile { flex-direction: row; align-items: flex-start; gap: var(--sp-150); padding: var(--sp-200); }
   .spaces[data-rows] .space { padding: var(--sp-200); gap: var(--sp-150); align-items: flex-start; }
   .tile-name { font-weight: var(--fw-semibold); }
@@ -377,12 +381,14 @@
     .pair { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
     .split { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--sp-400); align-items: start; padding-inline: var(--sp-200); }
     .main, .side { display: flex; flex-direction: column; gap: var(--sp-300); min-inline-size: 0; }
-    .tiles[data-rows], .spaces[data-rows] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .side { gap: var(--sp-200); }
   }
   .card { padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
   .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-100); margin-block-end: var(--sp-100); }
   .spaces { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-100); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-field-sm)), 1fr)); }
   .space-icon { font-size: var(--fs-200); }
+  /* Inside, the card lists the spaces as rows, as scene `portal` lists what is often read. */
+  .spaces:not([data-rows]) { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .spaces:not([data-rows]) .space { border: 0; border-radius: var(--r-md); padding: var(--sp-100); }
   .words { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
 </style>
