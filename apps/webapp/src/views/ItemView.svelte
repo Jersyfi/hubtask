@@ -1449,7 +1449,7 @@
             <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} rowLimit={8} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} isAddedInPlace />
             {#if mayCreateHere && !isCollectionArchived && item.collection_id}
               <div class="parts-capture" data-parts-capture>
-                <CaptureDialog inPlace={{ collectionId: item.collection_id, parentId: item.id, parentTitle: item.title, types: heldTypes, keepsOpen: true }} inPlaceLabel={t('app.entry.parts_capture')} />
+                <CaptureDialog inPlace={{ collectionId: item.collection_id, parentId: item.id, parentTitle: item.title, types: heldTypes, keepsOpen: true }} inPlaceLabel={heldTypes.length === 1 ? t('app.entries.add_named_in', { name: typeName(heldTypes[0] ?? ''), group: item.title }) : t('app.entries.add_in', { group: item.title })} />
               </div>
             {/if}
           </FoldingSection>

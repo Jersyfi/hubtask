@@ -432,7 +432,7 @@
       {/if}
       {#if mayWrite}
         <div class="capture" data-backlog-capture>
-          <CaptureDialog inPlace={{ collectionId, keepsOpen: true }} inPlaceLabel={t('app.sprints.capture_line')} oncreated={() => void rereadBacklog()} />
+          <CaptureDialog inPlace={{ collectionId, keepsOpen: true }} inPlaceLabel={t('app.entries.add_in', { group: t('app.sprints.backlog_column') })} oncreated={() => void rereadBacklog()} />
         </div>
       {/if}
     </section>
