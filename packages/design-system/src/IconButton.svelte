@@ -76,6 +76,8 @@
 <style>
   .icon-button {
     display: inline-flex;
+    /* Never squeezed by a crowded row: its size is its target (§7). */
+    flex: none;
     align-items: center;
     justify-content: center;
     border: var(--bw-hairline) solid transparent;
