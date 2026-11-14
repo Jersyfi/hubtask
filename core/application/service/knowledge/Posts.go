@@ -26,6 +26,7 @@ import (
 // a post, and who reacted, is personal data and never reaches the trail (rule 10).
 const (
 	ListHubPostsName          = "ListHubPosts"
+	ListUnreadPostsName       = "ListUnreadPosts"
 	CreatePostName            = "CreatePost"
 	ReadPostName              = "ReadPost"
 	SetPostSettingsName       = "SetPostSettings"
@@ -484,6 +485,68 @@ func (h ListHubPosts) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return h.Execute(ctx, actor, hubID, in.String("filter"))
+		}),
+	})
+}
+
+// ListUnreadPosts reads the published posts the caller has not seen yet, across every hub they read
+// - *New for you* on Today (UC-DOC-18 check 5). Each post is judged at its own hub as on the hub's
+// list, so a post never reaches anybody it is not for.
+type ListUnreadPosts struct{ Space Space }
+
+// maxUnread bounds the rows read before judging, and the posts answered.
+const maxUnread, shownUnread = 200, 20
+
+// Execute lists.
+func (h ListUnreadPosts) Execute(ctx context.Context, actor appshared.ActorContext) (usecase.Output, error) {
+	posts, err := h.Space.posts()
+	if err != nil {
+		return nil, err
+	}
+	if err := actor.RequireScope(pagesRead); err != nil {
+		return nil, err
+	}
+	now := h.Space.Clock.Now()
+	var rows []repository.PostRow
+	err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		rows, err = posts.List(ctx, "", person(actor), repository.PostFilter{Unread: true, Published: true}, now, maxUnread)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	readers := map[shared.ID]domain.Reader{}
+	data := []any{}
+	for _, row := range rows {
+		reader, judged := readers[row.Post.HubID]
+		if !judged {
+			if reader, err = h.Space.postReader(ctx, actor, row.Post.HubID); err != nil {
+				return nil, err
+			}
+			readers[row.Post.HubID] = reader
+		}
+		if !row.Post.Sees(reader, now) {
+			continue
+		}
+		data = append(data, PostOutput(row, false, false, nil, now))
+		if len(data) == shownUnread {
+			break
+		}
+	}
+	return usecase.Output{"data": data}, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h ListUnreadPosts) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: ListUnreadPostsName, Permission: service.PermissionRead,
+		Summary: "Reads the published posts the caller has not seen yet, across every hub they read, " +
+			"featured ones first, then newest first.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  pagesRead, ReadOnly: true,
+		Audit: usecase.AuditDeclaration{Action: PostReadAction, TargetType: postTarget, Severity: audit.SeverityInfo},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, _ usecase.Input) (usecase.Output, error) {
+			return h.Execute(ctx, actor)
 		}),
 	})
 }

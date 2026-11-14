@@ -2511,6 +2511,8 @@ var generatedCommands = []door{
 			{Name: "reaction", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"id"}},
+	{Group: "post", Verb: "unread", OperationID: "listUnreadPosts", Method: "GET", Path: "/posts", Summary: "The posts new for the caller",
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"title", "state"}},
 	{Group: "query", Verb: "ask", OperationID: "askQuery", Method: "POST", Path: "/query:ask", Summary: "Write a Hubtask query from a question in words",
 		Body: []doorParam{
 			{Name: "question", Kind: "string", Help: "What the person wants to find, as they would say it", Required: true},

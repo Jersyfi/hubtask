@@ -4242,6 +4242,11 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/posts", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The posts new for the caller */
+  listUnreadPosts(options: CallOptions = {}): Promise<operations["listUnreadPosts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/posts", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Read a post */
   readPost(pageId: string, options: CallOptions = {}): Promise<operations["readPost"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/posts/{pageId}", { "pageId": pageId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

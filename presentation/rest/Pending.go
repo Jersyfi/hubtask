@@ -3374,6 +3374,7 @@ func (pending) ListHubPosts(w http.ResponseWriter, r *http.Request, _ openapi_ty
 func (pending) CreatePost(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
+func (pending) ListUnreadPosts(w http.ResponseWriter, r *http.Request)            { notAvailable(w, r) }
 func (pending) ReadPost(w http.ResponseWriter, r *http.Request, _ openapi.PageId) { notAvailable(w, r) }
 func (pending) SetPostSettings(w http.ResponseWriter, r *http.Request, _ openapi.PageId) {
 	notAvailable(w, r)

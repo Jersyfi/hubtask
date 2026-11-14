@@ -295,3 +295,51 @@ func TestAPersonsPostTracesAreErased(t *testing.T) {
 		t.Error("the answered reply was not blanked, or the answer went with it")
 	}
 }
+
+// New for you reads every hub's published posts the account has not seen (UC-DOC-18 check 5): a
+// scheduled one waits for its moment, a seen one drops out, and the workspace next door lists none.
+func TestTheUnreadPostsAreReadAcrossHubs(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, page, _, at := seedPost(ctx, t)
+	reader := seedAccount(ctx, t, tenantA)
+	posts := postgres.NewPostRepository()
+	unread := func(tenant shared.ID, now time.Time) []shared.ID {
+		var ids []shared.ID
+		if err := write(ctx, t, tenant, func(ctx context.Context) error {
+			rows, err := posts.List(ctx, "", reader, repository.PostFilter{Unread: true, Published: true}, now, 50)
+			for _, row := range rows {
+				ids = append(ids, row.Post.PageID)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return ids
+	}
+	if slices.Contains(unread(tenantA, at), page) {
+		t.Error("a scheduled post was listed before its moment")
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		post, err := posts.FindForUpdate(ctx, page)
+		if err != nil {
+			return err
+		}
+		return posts.Update(ctx, post.Published(at.Add(time.Hour)))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	later := at.Add(2 * time.Hour)
+	if !slices.Contains(unread(tenantA, later), page) {
+		t.Error("a published post the account has not seen is missing")
+	}
+	if slices.Contains(unread(tenantB, later), page) {
+		t.Error("the workspace next door listed the post")
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error { return posts.MarkSeen(ctx, page, reader, later) }); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(unread(tenantA, later), page) {
+		t.Error("a seen post is still new")
+	}
+}

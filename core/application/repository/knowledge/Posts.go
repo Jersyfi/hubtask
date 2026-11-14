@@ -28,7 +28,9 @@ type PostRow struct {
 type PostFilter struct {
 	Mine   bool
 	Unread bool
-	PageID shared.ID
+	// Published leaves out drafts and scheduled posts.
+	Published bool
+	PageID    shared.ID
 }
 
 // Reply is one reply in a post's discussion; a taken-back one keeps its place without its words.
@@ -61,7 +63,8 @@ type Posts interface {
 	Update(ctx context.Context, post knowledge.Post) error
 	// PostPages answers which of the pages named are posts.
 	PostPages(ctx context.Context, ids []shared.ID) (map[shared.ID]bool, error)
-	// List answers a hub's posts that are not trashed, featured first, then newest first.
+	// List answers a hub's posts that are not trashed - every hub's for a zero hubID - featured
+	// first, then newest first.
 	List(ctx context.Context, hubID, account shared.ID, filter PostFilter, now time.Time, limit int) ([]PostRow, error)
 	MarkSeen(ctx context.Context, pageID, account shared.ID, at time.Time) error
 	Confirm(ctx context.Context, pageID, account shared.ID, at time.Time) error

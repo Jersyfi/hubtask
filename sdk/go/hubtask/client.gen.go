@@ -27219,6 +27219,11 @@ type TriggerEventPage struct {
 	Page PageInfo       `json:"page"`
 }
 
+// UnreadPostList defines model for UnreadPostList.
+type UnreadPostList struct {
+	Data []Post `json:"data"`
+}
+
 // UsageDay defines model for UsageDay.
 type UsageDay struct {
 	Day   openapi_types.Date `json:"day"`
@@ -42410,6 +42415,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 	SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListUnreadPosts The posts new for the caller
+	//
+	// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+	//
+	// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+	ListUnreadPosts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadPost Read a post
 	//
@@ -63994,6 +64006,23 @@ func (c *Client) SetPublicRoadmapsPolicyWithBody(ctx context.Context, contentTyp
 // Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 func (c *Client) SetPublicRoadmapsPolicy(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetPublicRoadmapsPolicyRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListUnreadPosts The posts new for the caller
+//
+// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+//
+// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+func (c *Client) ListUnreadPosts(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListUnreadPostsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -101663,6 +101692,33 @@ func NewSetPublicRoadmapsPolicyRequestWithBody(server string, contentType string
 	return req, nil
 }
 
+// NewListUnreadPostsRequest constructs an http.Request for the ListUnreadPosts method
+func NewListUnreadPostsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/posts")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadPostRequest constructs an http.Request for the ReadPost method
 func NewReadPostRequest(server string, pageId PageId) (*http.Request, error) {
 	var err error
@@ -121140,6 +121196,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with PUT /portfolios:public-links (the `SetPublicRoadmapsPolicy` operationId).
 	SetPublicRoadmapsPolicyWithResponse(ctx context.Context, body SetPublicRoadmapsPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetPublicRoadmapsPolicyResult, error)
+
+	// ListUnreadPostsWithResponse The posts new for the caller
+	//
+	// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+	ListUnreadPostsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListUnreadPostsResult, error)
 
 	// ReadPostWithResponse Read a post
 	//
@@ -156866,6 +156931,54 @@ func (r SetPublicRoadmapsPolicyResult) ContentType() string {
 	return ""
 }
 
+type ListUnreadPostsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *UnreadPostList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListUnreadPostsResult) GetJSON200() *UnreadPostList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListUnreadPostsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListUnreadPostsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListUnreadPostsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListUnreadPostsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListUnreadPostsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadPostResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -182622,6 +182735,21 @@ func (c *ClientWithResponses) SetPublicRoadmapsPolicyWithResponse(ctx context.Co
 		return nil, err
 	}
 	return ParseSetPublicRoadmapsPolicyResult(rsp)
+}
+
+// ListUnreadPostsWithResponse The posts new for the caller
+//
+// The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /posts (the `ListUnreadPosts` operationId).
+func (c *ClientWithResponses) ListUnreadPostsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListUnreadPostsResult, error) {
+	rsp, err := c.ListUnreadPosts(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListUnreadPostsResult(rsp)
 }
 
 // ReadPostWithResponse Read a post
@@ -210718,6 +210846,39 @@ func ParseSetPublicRoadmapsPolicyResult(rsp *http.Response) (*SetPublicRoadmapsP
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest PublicLinksPolicy
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListUnreadPostsResult parses an HTTP response from a ListUnreadPostsWithResponse call
+func ParseListUnreadPostsResult(rsp *http.Response) (*ListUnreadPostsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListUnreadPostsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest UnreadPostList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

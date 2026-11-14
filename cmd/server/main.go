@@ -2506,6 +2506,7 @@ func run() error {
 		knowledgeservice.SearchCoverImages{Space: pageSpace}.Descriptor(),
 		knowledgeservice.FetchCoverImage{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListHubPosts{Space: pageSpace}.Descriptor(),
+		knowledgeservice.ListUnreadPosts{Space: pageSpace}.Descriptor(),
 		knowledgeservice.CreatePost{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPost{Space: pageSpace}.Descriptor(),
 		knowledgeservice.SetPostSettings{Space: pageSpace}.Descriptor(),

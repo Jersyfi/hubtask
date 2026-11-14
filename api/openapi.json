@@ -34435,6 +34435,33 @@
         }
       }
     },
+    "/posts": {
+      "get": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "listUnreadPosts",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "post unread",
+        "summary": "The posts new for the caller",
+        "description": "The published posts the caller has not seen yet, across every hub they read, featured ones first, then newest first, at most 20. Each post is judged at its own hub as on the hub's list: a post never reaches anybody who may not read its hub or is outside its audience.\n",
+        "responses": {
+          "200": {
+            "description": "The posts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadPostList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/posts/{pageId}": {
       "parameters": [
         {
@@ -71425,6 +71452,20 @@
                 "type": "null"
               }
             ]
+          }
+        }
+      },
+      "UnreadPostList": {
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Post"
+            }
           }
         }
       },

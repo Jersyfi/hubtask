@@ -119,7 +119,8 @@ func (s *postStore) List(_ context.Context, hubID, account shared.ID, f reposito
 	var out []repository.PostRow
 	for id, post := range s.posts {
 		seen := slices.Contains(s.seen[id], account)
-		if post.HubID != hubID || (f.Unread && seen) || (!f.PageID.IsZero() && f.PageID != id) {
+		if (!hubID.IsZero() && post.HubID != hubID) || (f.Unread && seen) || (!f.PageID.IsZero() && f.PageID != id) ||
+			(f.Published && post.PublishedAt == nil) {
 			continue
 		}
 		out = append(out, repository.PostRow{
@@ -302,6 +303,45 @@ func TestAPostReachesItsAudienceAloneThroughEveryDoor(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// New for you (UC-DOC-18 check 5): the published posts a person has not seen, across hubs, each
+// judged at its hub - never a scheduled one or a draft for a reader, never one outside the audience,
+// and gone once seen.
+func TestNewForYouListsTheUnreadPostsTheReaderIsFor(t *testing.T) {
+	f := newPostFixture()
+	published := f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339)})
+	narrowed := f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339), "audience": "GROUPS", "group_ids": []any{team.String()}})
+	f.post(t, usecase.Input{"publish_at": start.Add(time.Hour).Format(time.RFC3339)})
+	f.post(t, usecase.Input{})
+	unread := func(account shared.ID) []string {
+		out, err := call(t, ListUnreadPosts{Space: f.space}.Descriptor(), actorOf(account), usecase.Input{})
+		if err != nil {
+			t.Fatalf("account %s: %v", account, err)
+		}
+		var ids []string
+		for _, row := range out["data"].([]any) {
+			ids = append(ids, row.(usecase.Output)["page_id"].(string))
+		}
+		slices.Sort(ids)
+		return ids
+	}
+	both := []string{published.String(), narrowed.String()}
+	slices.Sort(both)
+	for _, row := range []struct {
+		account shared.ID
+		wants   []string
+	}{
+		{member, both}, {agent, both}, {guest, []string{published.String()}}, {requester, nil},
+	} {
+		if got := unread(row.account); !slices.Equal(got, row.wants) {
+			t.Errorf("account %s: new for you %v, wants %v", row.account, got, row.wants)
+		}
+	}
+	_ = f.posts.MarkSeen(context.Background(), published, member, start)
+	if got := unread(member); !slices.Equal(got, []string{narrowed.String()}) {
+		t.Errorf("after seeing one: %v", got)
 	}
 }
 

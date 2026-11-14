@@ -444,6 +444,7 @@ var restDoors = map[string]restDoor{
 	"listTimesheets":                    {UseCase: "ListTimesheets", Status: 200, Query: []string{"from", "mine", "state", "to"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listTrash":                         {UseCase: "ListTrash", Status: 200, Query: []string{"cursor", "kind", "size"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listTrashedPages":                  {UseCase: "ListTrashedPages", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
+	"listUnreadPosts":                   {UseCase: "ListUnreadPosts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listValueProvenance":               {UseCase: "ListValueProvenance", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"listWebhookDeliveries":             {UseCase: "ListWebhookDeliveries", Status: 200, Query: []string{"cursor", "size", "status"}, IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string{"size"}},
 	"listWebhookSubscriptions":          {UseCase: "ListWebhookSubscriptions", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -3674,6 +3675,12 @@ func (c *RestController) ListTrash(w http.ResponseWriter, r *http.Request, param
 func (c *RestController) ListTrashedPages(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
 	var answer openapi.PageList
 	c.door(w, r, restDoors["listTrashedPages"], usecase.Input{"hub_id": hubId.String()}, nil, nil, &answer)
+}
+
+// ListUnreadPosts answers GET /posts by the generated mapping.
+func (c *RestController) ListUnreadPosts(w http.ResponseWriter, r *http.Request) {
+	var answer openapi.UnreadPostList
+	c.door(w, r, restDoors["listUnreadPosts"], usecase.Input{}, nil, nil, &answer)
 }
 
 // ListValueProvenance answers GET /items/{itemId}/provenance by the generated mapping.

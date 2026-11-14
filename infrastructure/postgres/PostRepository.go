@@ -197,17 +197,14 @@ func (PostRepository) List(
 	if err != nil {
 		return nil, err
 	}
-	ids, err := pageUUIDs(hubID, account)
-	if err != nil {
-		return nil, err
-	}
-	page, err := optionalUUID(filter.PageID)
+	ids, err := optionalUUIDs(hubID, account, filter.PageID)
 	if err != nil {
 		return nil, err
 	}
 	rows, err := queries.ListHubPosts(ctx, sqlc.ListHubPostsParams{
-		HubID: ids[0], AccountID: ids[1], Mine: filter.Mine, Unread: filter.Unread, PageID: page,
-		Now: timestampOf(now), Batch: boundedInt32(min(limit, 1000)),
+		HubID: ids[0], AccountID: ids[1], Mine: filter.Mine, Unread: filter.Unread, PageID: ids[2],
+		PublishedOnly: filter.Published,
+		Now:           timestampOf(now), Batch: boundedInt32(min(limit, 1000)),
 	})
 	if err != nil {
 		return nil, pageFailed("reading the hub's posts", err)

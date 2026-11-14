@@ -40,9 +40,10 @@ SELECT page_id FROM post
 WHERE tenant_id = current_tenant_id() AND page_id = ANY(sqlc.arg('ids')::uuid[]);
 
 -- name: ListHubPosts :many
--- A hub's posts that are not trashed, with how many have seen each and whether the account has seen
--- and confirmed it, featured ones first, then newest first. Who sees which is the application's
--- to judge (rule 2); `mine` and `unread` narrow here.
+-- A hub's posts that are not trashed - or, without a hub, every hub's - with how many have seen each
+-- and whether the account has seen and confirmed it, featured ones first, then newest first. Who
+-- sees which is the application's to judge (rule 2); `mine`, `unread` and `published_only` narrow
+-- here.
 SELECT po.page_id, po.hub_id, po.template, po.publish_at, po.published_at, po.featured_until,
        po.audience, po.group_ids, po.discussion, po.notify, po.confirm_by,
        p.title, p.icon, p.created_by, p.created_at,
@@ -53,7 +54,10 @@ SELECT po.page_id, po.hub_id, po.template, po.publish_at, po.published_at, po.fe
                  AND c.account_id = sqlc.arg('account_id')) AS confirmed
 FROM post po
 JOIN page p ON p.tenant_id = po.tenant_id AND p.id = po.page_id
-WHERE po.tenant_id = current_tenant_id() AND po.hub_id = sqlc.arg('hub_id') AND p.deleted_at IS NULL
+WHERE po.tenant_id = current_tenant_id() AND p.deleted_at IS NULL
+  AND (sqlc.narg('hub_id')::uuid IS NULL OR po.hub_id = sqlc.narg('hub_id')::uuid)
+  AND (NOT sqlc.arg('published_only')::boolean
+       OR (po.published_at IS NOT NULL AND po.published_at <= sqlc.arg('now')::timestamptz))
   AND (NOT sqlc.arg('mine')::boolean OR p.created_by = sqlc.arg('account_id'))
   AND (NOT sqlc.arg('unread')::boolean OR NOT EXISTS (
          SELECT 1 FROM post_read r WHERE r.tenant_id = po.tenant_id AND r.page_id = po.page_id

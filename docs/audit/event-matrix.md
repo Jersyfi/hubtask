@@ -956,6 +956,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `post.published` | PublishPost | `post` | INFO | Every time |
 | `post.read` | ListHubPosts | `post` | INFO | When refused |
 | `post.read` | ListPostReplies | `post` | INFO | When refused |
+| `post.read` | ListUnreadPosts | `post` | INFO | When refused |
 | `post.read` | ReadPost | `post` | INFO | When refused |
 | `post.read` | ReadPostConfirmations | `post` | INFO | When refused |
 | `post.reminded` | RemindPost | `post` | INFO | Every time |

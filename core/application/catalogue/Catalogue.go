@@ -151,6 +151,7 @@ func Descriptors() []usecase.Descriptor {
 		knowledgeservice.SearchCoverImages{}.Descriptor(),
 		knowledgeservice.FetchCoverImage{}.Descriptor(),
 		knowledgeservice.ListHubPosts{}.Descriptor(),
+		knowledgeservice.ListUnreadPosts{}.Descriptor(),
 		knowledgeservice.CreatePost{}.Descriptor(),
 		knowledgeservice.ReadPost{}.Descriptor(),
 		knowledgeservice.SetPostSettings{}.Descriptor(),

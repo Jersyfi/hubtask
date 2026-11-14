@@ -6267,6 +6267,9 @@ class Post(TypedDict, total=False):
     may_write: Required[bool]
     confirmations: "PostConfirmations" | Any
 
+class UnreadPostList(TypedDict, total=False):
+    data: Required[list["Post"]]
+
 class PostList(TypedDict, total=False):
     data: Required[list["Post"]]
     may_write: Required[bool]

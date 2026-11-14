@@ -27213,6 +27213,11 @@ type TriggerEventPage struct {
 	Page PageInfo       `json:"page"`
 }
 
+// UnreadPostList defines model for UnreadPostList.
+type UnreadPostList struct {
+	Data []Post `json:"data"`
+}
+
 // UsageDay defines model for UsageDay.
 type UsageDay struct {
 	Day   openapi_types.Date `json:"day"`
@@ -35485,6 +35490,9 @@ type ServerInterface interface {
 	// SetPublicRoadmapsPolicy Allow public links to roadmaps, or not
 	// (PUT /portfolios:public-links)
 	SetPublicRoadmapsPolicy(w http.ResponseWriter, r *http.Request)
+	// ListUnreadPosts The posts new for the caller
+	// (GET /posts)
+	ListUnreadPosts(w http.ResponseWriter, r *http.Request)
 	// ReadPost Read a post
 	// (GET /posts/{pageId})
 	ReadPost(w http.ResponseWriter, r *http.Request, pageId PageId)
@@ -58733,6 +58741,20 @@ func (siw *ServerInterfaceWrapper) SetPublicRoadmapsPolicy(w http.ResponseWriter
 	handler.ServeHTTP(w, r)
 }
 
+// ListUnreadPosts operation middleware
+func (siw *ServerInterfaceWrapper) ListUnreadPosts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUnreadPosts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadPost operation middleware
 func (siw *ServerInterfaceWrapper) ReadPost(w http.ResponseWriter, r *http.Request) {
 
@@ -66254,6 +66276,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.ChangePageComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.ListHubPosts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.CreatePost)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts", wrapper.ListUnreadPosts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}", wrapper.ReadPost)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/posts/{pageId}", wrapper.SetPostSettings)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/posts/{pageId}:publish", wrapper.PublishPost)

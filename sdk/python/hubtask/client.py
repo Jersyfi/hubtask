@@ -3371,6 +3371,10 @@ class Client:
         """Write a new post"""
         return self._call("POST", "/hubs/{hubId}/posts", {"hubId": hub_id}, None, {}, body, "json", "application/json", "json")
 
+    def list_unread_posts(self) -> "UnreadPostList":
+        """The posts new for the caller"""
+        return self._call("GET", "/posts", {}, None, {}, None, "none", None, "json")
+
     def read_post(self, page_id: str) -> "Post":
         """Read a post"""
         return self._call("GET", "/posts/{pageId}", {"pageId": page_id}, None, {}, None, "none", None, "json")

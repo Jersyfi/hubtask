@@ -294,25 +294,29 @@ SELECT po.page_id, po.hub_id, po.template, po.publish_at, po.published_at, po.fe
                  AND c.account_id = $1) AS confirmed
 FROM post po
 JOIN page p ON p.tenant_id = po.tenant_id AND p.id = po.page_id
-WHERE po.tenant_id = current_tenant_id() AND po.hub_id = $2 AND p.deleted_at IS NULL
-  AND (NOT $3::boolean OR p.created_by = $1)
-  AND (NOT $4::boolean OR NOT EXISTS (
+WHERE po.tenant_id = current_tenant_id() AND p.deleted_at IS NULL
+  AND ($2::uuid IS NULL OR po.hub_id = $2::uuid)
+  AND (NOT $3::boolean
+       OR (po.published_at IS NOT NULL AND po.published_at <= $4::timestamptz))
+  AND (NOT $5::boolean OR p.created_by = $1)
+  AND (NOT $6::boolean OR NOT EXISTS (
          SELECT 1 FROM post_read r WHERE r.tenant_id = po.tenant_id AND r.page_id = po.page_id
            AND r.account_id = $1))
-  AND ($5::uuid IS NULL OR po.page_id = $5::uuid)
-ORDER BY (po.published_at IS NOT NULL AND po.featured_until > $6::timestamptz) DESC,
+  AND ($7::uuid IS NULL OR po.page_id = $7::uuid)
+ORDER BY (po.published_at IS NOT NULL AND po.featured_until > $4::timestamptz) DESC,
          coalesce(po.publish_at, p.created_at) DESC, po.page_id
-LIMIT $7
+LIMIT $8
 `
 
 type ListHubPostsParams struct {
-	AccountID pgtype.UUID
-	HubID     pgtype.UUID
-	Mine      bool
-	Unread    bool
-	PageID    pgtype.UUID
-	Now       pgtype.Timestamptz
-	Batch     int32
+	AccountID     pgtype.UUID
+	HubID         pgtype.UUID
+	PublishedOnly bool
+	Now           pgtype.Timestamptz
+	Mine          bool
+	Unread        bool
+	PageID        pgtype.UUID
+	Batch         int32
 }
 
 type ListHubPostsRow struct {
@@ -336,17 +340,19 @@ type ListHubPostsRow struct {
 	Confirmed     bool
 }
 
-// A hub's posts that are not trashed, with how many have seen each and whether the account has seen
-// and confirmed it, featured ones first, then newest first. Who sees which is the application's
-// to judge (rule 2); `mine` and `unread` narrow here.
+// A hub's posts that are not trashed - or, without a hub, every hub's - with how many have seen each
+// and whether the account has seen and confirmed it, featured ones first, then newest first. Who
+// sees which is the application's to judge (rule 2); `mine`, `unread` and `published_only` narrow
+// here.
 func (q *Queries) ListHubPosts(ctx context.Context, arg ListHubPostsParams) ([]ListHubPostsRow, error) {
 	rows, err := q.db.Query(ctx, listHubPosts,
 		arg.AccountID,
 		arg.HubID,
+		arg.PublishedOnly,
+		arg.Now,
 		arg.Mine,
 		arg.Unread,
 		arg.PageID,
-		arg.Now,
 		arg.Batch,
 	)
 	if err != nil {
