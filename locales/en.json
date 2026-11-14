@@ -4555,6 +4555,8 @@
   "app.instance.setting.quotas.accounts": "People in a workspace",
   "app.instance.setting.quotas.mailboxes": "Mailboxes per workspace",
   "app.instance.choice.sign_in.mfa_required_for.NONE": "Nobody",
+  "app.instance.choice.knowledge.cover_images.OFF": "None",
+  "app.instance.choice.knowledge.cover_images.OPENVERSE": "Openverse",
   "app.instance.choice.sign_in.mfa_required_for.ADMINS": "Owners and administrators",
   "app.instance.choice.sign_in.mfa_required_for.EVERYONE": "Everyone signing in with a password",
   "app.instance.choice.sign_in.methods.PASSWORD": "Password",
