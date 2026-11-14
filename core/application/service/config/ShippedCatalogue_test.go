@@ -27,9 +27,9 @@ import (
 // *Tasks* are the presets of the same names, offered as templates by presetTemplates.
 var catalogueKeys = map[string][]string{
 	"personal":   {"household", "shopping", "habits", "travel"},
-	"teams":      {"kanban_team", "scrum_team", "bug_tracking", "content_calendar", "event_planning", "team_wiki"},
+	"teams":      {"kanban_team", "scrum_team", "bug_tracking", "content_calendar", "event_planning", "team_wiki", "time_standard", "time_consulting"},
 	"projects":   {"classic_project", "hybrid_project", "client_project"},
-	"programmes": {"portfolio", "okr", "scaled_agile"},
+	"programmes": {"portfolio", "okr", "scaled_agile", "goals_customer_okr", "goals_team_health", "goals_period"},
 	"service":    {"itil_service_desk", "internal_it", "facility_requests", "hr_requests", "customer_support"},
 	"processes":  {"approvals", "onboarding", "procurement", "capa", "risk_controls", "records_of_processing"},
 	"registers":  {"it_asset_register", "risk_register", "contact_register", "vendor_contracts", "configuration_items"},

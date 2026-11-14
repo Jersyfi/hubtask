@@ -1,0 +1,54 @@
+{
+  "key": "goals_team_health",
+  "version": 1,
+  "document": {
+    "modules": {
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "goal_sets": {
+      "team_health": {
+        "span": "QUARTER",
+        "name": "{{year}} Q{{quarter}}",
+        "goals": [
+          {
+            "title": "Work at a sustainable pace",
+            "key_results": [
+              {
+                "title": "Overtime per person and week",
+                "kind": "NUMBER",
+                "start": 6,
+                "target": 2,
+                "unit": "h"
+              },
+              {
+                "title": "Entries carried over into the next sprint",
+                "kind": "PERCENT",
+                "start": 30,
+                "target": 10
+              }
+            ]
+          },
+          {
+            "title": "Grow as a team",
+            "key_results": [
+              {
+                "title": "Team pulse: how good we feel",
+                "kind": "PERCENT",
+                "start": 60,
+                "target": 80
+              },
+              {
+                "title": "People who learned a new area",
+                "kind": "NUMBER",
+                "start": 0,
+                "target": 4
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

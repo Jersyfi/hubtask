@@ -220,6 +220,27 @@ deleting it, since CIs may hold it, and an archived class is no block. A shipped
 block: it is not changed. `configuration_items@1` switches Assets on and brings *Printer* (beneath
 *Network device*) and *Mobile device* (beneath *Hardware*, identified by its IMEI).
 
+**Kinds of work** are the workspace part's `time_work_types` section (with Time on): a block per
+kind of work by its key, its `name`, `position` and `billable` where its time starts billable.
+Applying defines each whole through `DefineWorkType`; removing a block archives its kind, which its
+records keep, and an archived kind is no block.
+
+**Goal sets** are the workspace part's `goal_sets` section (with Goals on): a block per set, its
+period's `name`, `start_on` and `end_on`, and the workspace's `goals` written into it, each
+`{title, key_results}` as `CreateGoal` takes them. A template names the period by its `span`
+(`QUARTER`, `HALF_YEAR`, `YEAR`) and a name with `{{year}}`, `{{quarter}}` or `{{half}}`, which
+`PlanConfigTemplate` turns into the period around today (UTC). Applying writes each through
+`AddGoalSet`: the goals land in the open period of exactly those days - a second set of the quarter,
+or a quarter somebody started by hand, shares it - else in a period opened for the set, marked
+under its key (`config_goal_set`, migration 0440). The document reads a set back by its period's
+name and days alone, since goals are the workspace's to change; every attribute is fixed, a block is
+never removed (a period is closed, not deleted), and the sets come with the workspace's first take
+of a template only, as its pages do. A template of the workspace alone - no hub part - is taken by
+the workspace (*Templates* in its settings, or a product's empty state, user-experience.md §4), never
+by making a hub. `goals_customer_okr@1`, `goals_team_health@1` and `goals_period@1` bring a quarter
+with its objectives and key results, with a team's health, or empty; `time_standard@1` and
+`time_consulting@1` bring the kinds of work of a team and of a consultancy.
+
 Scopes: a **hub template** (most templates), a **collection template**, and a **workspace starter**
 (several hubs, asked once at the first start — UC-WRK-30 check 5's starter set, grown).
 A hub made from a hub template (`CreateHubFromTemplate`, `POST /containers:from-template`) takes,
@@ -273,9 +294,9 @@ Grouped by what people come for; each names the standard it follows (`docs/backl
 | Family | Templates |
 |---|---|
 | Personal and household | List, Tasks, Household, Shopping, Habits, Travel |
-| Teams | Tasks, Kanban team, Scrum team, Bug tracking, Content calendar, Event planning, Team wiki (switches Knowledge on; its hub part brings a space with the guide pages *Start here* and *Team handbook*) |
+| Teams | Tasks, Kanban team, Scrum team, Bug tracking, Content calendar, Event planning, Team wiki (switches Knowledge on; its hub part brings a space with the guide pages *Start here* and *Team handbook*), Kinds of work and Consulting (switch Time on; the workspace's kinds of work, no hub part) |
 | Projects | Classic project (PRINCE2 / PMBOK-aligned: stages, tolerances, RAID, change control, baselines), Hybrid project, Client project (agency) |
-| Programmes and portfolio | Portfolio, OKR, Scaled agile (PI planning, ART board, ROAM risks) |
+| Programmes and portfolio | Portfolio, OKR, Scaled agile (PI planning, ART board, ROAM risks), Quarterly OKR, Team health and Goal period (switch Goals on; a goal set of this quarter, no hub part) |
 | Service | ITIL service desk, Internal IT, Facility requests, HR requests, Customer support |
 | Business processes | Approvals (purchase, leave, travel), Onboarding / offboarding, Procurement, CAPA (ISO 9001), Risk and controls register (ISO 27001), Records of processing (GDPR) |
 | Registers | IT asset register, Risk register (likelihood × impact as a calculated score), Contacts and organisations, Vendors and contracts (an internal comment 30 days before a live contract's notice date, a rule measured from the date field) - record types (kept, never done, never scheduled) with their fields and forms, for the workspace; no hub part, since a record runs no workflow. Configuration items (switches Assets on, with its CI classes, §6) has a hub part, since a hub holds the CIs |

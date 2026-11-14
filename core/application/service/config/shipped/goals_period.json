@@ -1,0 +1,17 @@
+{
+  "key": "goals_period",
+  "version": 1,
+  "document": {
+    "modules": {
+      "goals": {
+        "switch": "ON"
+      }
+    },
+    "goal_sets": {
+      "quarter": {
+        "span": "QUARTER",
+        "name": "{{year}} Q{{quarter}}"
+      }
+    }
+  }
+}

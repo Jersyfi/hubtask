@@ -1,0 +1,36 @@
+{
+  "key": "time_consulting",
+  "version": 1,
+  "document": {
+    "modules": {
+      "time": {
+        "switch": "ON"
+      }
+    },
+    "time_work_types": {
+      "consulting": {
+        "name": "Consulting",
+        "billable": true,
+        "position": 1
+      },
+      "implementation": {
+        "name": "Implementation",
+        "billable": true,
+        "position": 2
+      },
+      "travel": {
+        "name": "Travel",
+        "billable": true,
+        "position": 3
+      },
+      "internal": {
+        "name": "Internal work",
+        "position": 4
+      },
+      "sales": {
+        "name": "Sales and offers",
+        "position": 5
+      }
+    }
+  }
+}
