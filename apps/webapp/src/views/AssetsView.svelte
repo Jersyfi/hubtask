@@ -132,6 +132,12 @@
     ...(mayWrite ? [{ id: 'campaign', label: t('app.campaigns.start'), icon: 'check' as const }] : []),
   ]);
 
+  const headCreate = $derived(mayWrite && !viewport.isCompact ? { label: t('app.assets.new'), icon: 'plus' as const, onclick: () => ask('ci') } : undefined);
+  const headImport = $derived({ label: t('app.inventory.import'), icon: 'cloud-upload' as const, onclick: () => onnavigate(inventoryPath(hubId, 'import')) });
+  // One primary per screen: while the empty alerts offer to set an intake up, that act is the
+  // primary and the head's create steps back to a secondary, its other ways into the page menu.
+  const isAlertsEmptyOffered = $derived(place.tab === 'alerts' && mayShape && alerts?.length === 0);
+
   $effect(() => frame.entitle(t('app.assets.title')));
 </script>
 
@@ -149,15 +155,11 @@
   {#snippet top()}
   {#if hubId}
     <ToolHead {hubId} tool="inventory" {onnavigate} figure={inventoryFigure}
-      primary={mayWrite && !viewport.isCompact
-        ? {
-            label: t('app.assets.new'),
-            icon: 'plus',
-            onclick: () => ask('ci'),
-            ...(creates.length > 0 ? { menu: { label: t('app.assets.create_more'), items: creates, onselect: (id: string) => ask(id as Ask) } } : {}),
-          }
+      primary={headCreate && !isAlertsEmptyOffered
+        ? { ...headCreate, ...(creates.length > 0 ? { menu: { label: t('app.assets.create_more'), items: creates, onselect: (id: string) => ask(id as Ask) } } : {}) }
         : undefined}
-      secondary={mayWrite && !viewport.isCompact ? [{ label: t('app.inventory.import'), icon: 'cloud-upload', onclick: () => onnavigate(inventoryPath(hubId, 'import')) }] : []}
+      secondary={!headCreate ? [] : isAlertsEmptyOffered ? [headCreate, headImport] : [headImport]}
+      menu={headCreate && isAlertsEmptyOffered && creates.length > 0 ? { label: t('app.assets.create_more'), items: creates, onselect: (id: string) => ask(id as Ask) } : undefined}
     >
       {#snippet bar()}
         {#if !classesRefusal && classesRead.state.status === 'ready'}

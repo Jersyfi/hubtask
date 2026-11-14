@@ -220,6 +220,10 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
     t.after(() => context.close());
 
     await page.getByText('alert intake', { exact: false }).first().waitFor({ timeout: 20_000 });
+    // One primary on the screen: while the empty state offers its act, the head's create steps back.
+    const primaries = page.locator('main .button[data-tone=primary]:visible');
+    assert.deepEqual((await primaries.allTextContents()).map((each) => each.trim()), ['Set up an alert intake']);
+    if (width >= 600) assert.equal(await page.locator('header').getByRole('button', { name: 'New object' }).getAttribute('data-tone'), 'secondary');
     await page.getByRole('button', { name: 'Set up an alert intake' }).click();
     await page.getByRole('dialog').getByLabel('Program').waitFor({ timeout: 5_000 });
     assert.ok(page.url().endsWith('/inventory/connectors'));
