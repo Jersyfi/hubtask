@@ -51,6 +51,9 @@ type Assurance interface {
 	PutGroup(ctx context.Context, g cmdb.Group, expected int) error
 	Groups(ctx context.Context, hubID shared.ID) ([]cmdb.Group, error)
 	FindGroup(ctx context.Context, id shared.ID) (cmdb.Group, error)
+	// RemoveGroup deletes a group at the version expected: not found when it is gone, a version
+	// conflict when it changed.
+	RemoveGroup(ctx context.Context, id shared.ID, expected int) error
 
 	// PutAsset writes a CI's asset record at the version expected; zero expects none.
 	PutAsset(ctx context.Context, a cmdb.Asset, expected int) error

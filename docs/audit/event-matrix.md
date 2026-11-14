@@ -334,6 +334,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `cmdb.connector_read` | ListCiConnectors | `cmdb_connector` | INFO | When refused |
 | `cmdb.duplicate_resolved` | ResolveCiDuplicate | `cmdb_ci` | INFO | Every time |
 | `cmdb.group_defined` | DefineCiGroup | `cmdb_ci_group` | INFO | Every time |
+| `cmdb.group_deleted` | DeleteCiGroup | `cmdb_ci_group` | INFO | Every time |
 | `cmdb.hold_dismissed` | DismissCiHold | `cmdb_run` | INFO | Every time |
 | `cmdb.reconciled` | ImportCiFile | `cmdb_run` | INFO | Every time |
 | `cmdb.reconciled` | ReconcileCis | `cmdb_run` | INFO | Every time |

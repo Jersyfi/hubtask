@@ -159,6 +159,25 @@ func (q *Queries) DeleteCmdbAffected(ctx context.Context, arg DeleteCmdbAffected
 	return i, err
 }
 
+const deleteCmdbGroup = `-- name: DeleteCmdbGroup :execrows
+DELETE FROM cmdb_ci_group
+WHERE tenant_id = current_tenant_id() AND id = $1 AND version = $2
+`
+
+type DeleteCmdbGroupParams struct {
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Optimistic: zero rows is a group gone or changed meanwhile; the caller tells them apart.
+func (q *Queries) DeleteCmdbGroup(ctx context.Context, arg DeleteCmdbGroupParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteCmdbGroup, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteCmdbSoftwareAlias = `-- name: DeleteCmdbSoftwareAlias :execrows
 DELETE FROM cmdb_software_alias WHERE tenant_id = current_tenant_id() AND id = $1
 `

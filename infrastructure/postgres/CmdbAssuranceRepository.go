@@ -662,6 +662,29 @@ func (CmdbAssuranceRepository) Aliases(ctx context.Context) ([]cmdb.SoftwareAlia
 	return out, k.err
 }
 
+// RemoveGroup deletes a group at the version expected.
+func (CmdbAssuranceRepository) RemoveGroup(ctx context.Context, id shared.ID, expected int) error {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return shared.ErrNotFound.WithDetail("cmdb.group_not_found")
+	}
+	n, err := q.DeleteCmdbGroup(ctx, sqlc.DeleteCmdbGroupParams{ID: key, ExpectedVersion: assuranceVersion(expected)})
+	if err != nil {
+		return cmdbFailed("removing a group", err)
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := (CmdbAssuranceRepository{}).FindGroup(ctx, id); err != nil {
+		return err
+	}
+	return shared.ErrVersionConflict.WithDetail("cmdb.version_conflict")
+}
+
 func (CmdbAssuranceRepository) RemoveAlias(ctx context.Context, id shared.ID) error {
 	q, err := queriesFrom(ctx)
 	if err != nil {

@@ -105,6 +105,11 @@ ORDER BY key;
 SELECT id, hub_id, key, name, filter, service_id, updated_by, updated_at, version
 FROM cmdb_ci_group WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id');
 
+-- name: DeleteCmdbGroup :execrows
+-- Optimistic: zero rows is a group gone or changed meanwhile; the caller tells them apart.
+DELETE FROM cmdb_ci_group
+WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
+
 -- name: UpsertCmdbAsset :execrows
 -- Optimistic on a change: zero rows is an asset changed meanwhile.
 INSERT INTO cmdb_asset (ci_id, tenant_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier,

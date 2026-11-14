@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -170,5 +171,40 @@ func TestAnAssetsStepsStayInItsWorkspace(t *testing.T) {
 	var left int
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM cmdb_asset_move WHERE ci_id = $1`, vm.String()).Scan(&left); err != nil || left != 0 {
 		t.Errorf("the steps outlived their asset: %d %v", left, err)
+	}
+}
+
+// A group is deleted at the version read (UC-AST-11): a stale version is a conflict and leaves it,
+// the workspace next door finds nothing to delete, and once gone it is not found.
+func TestAGroupIsDeletedAtItsVersionInItsWorkspaceOnly(t *testing.T) {
+	ctx := context.Background()
+	hub, _, _ := seedCIs(ctx, t)
+	repo := postgres.NewCmdbAssuranceRepository()
+	group := freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.PutGroup(ctx, cmdb.Group{ID: group, HubID: hub, Key: "gone", Name: "Gone", Filter: cmdb.Filter{NameHas: "x"}, UpdatedBy: authorA, UpdatedAt: time.Now()}, 0)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.RemoveGroup(ctx, group, 1)
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the workspace next door deleted the group: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.RemoveGroup(ctx, group, 2)
+	}); !errors.Is(err, shared.ErrVersionConflict) {
+		t.Errorf("a stale version: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.RemoveGroup(ctx, group, 1)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := repo.FindGroup(ctx, group)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("the group is still there: %v", err)
 	}
 }

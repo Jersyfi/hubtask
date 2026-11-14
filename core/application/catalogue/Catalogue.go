@@ -412,6 +412,7 @@ func Descriptors() []usecase.Descriptor {
 		cmdbservice.ReadCiCampaign{}.Descriptor(),
 		cmdbservice.AttestCi{}.Descriptor(),
 		cmdbservice.ConfirmCi{}.Descriptor(),
+		cmdbservice.DeleteCiGroup{}.Descriptor(),
 		cmdbservice.CloseCiCampaign{}.Descriptor(),
 		cmdbservice.ListCiGroups{}.Descriptor(),
 		cmdbservice.DefineCiGroup{}.Descriptor(),

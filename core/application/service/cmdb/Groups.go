@@ -23,10 +23,14 @@ const (
 	DefineCiGroupName      = "DefineCiGroup"
 	ListCiGroupMembersName = "ListCiGroupMembers"
 	ReadServiceMapName     = "ReadServiceMap"
+	DeleteCiGroupName      = "DeleteCiGroup"
 )
 
-// GroupDefinedAction is the audit code of a group defined or changed.
-const GroupDefinedAction audit.Action = "cmdb.group_defined"
+// The audit codes of a group defined or changed, and deleted.
+const (
+	GroupDefinedAction audit.Action = "cmdb.group_defined"
+	GroupDeletedAction audit.Action = "cmdb.group_deleted"
+)
 
 const groupTarget = "cmdb_ci_group"
 
@@ -268,6 +272,66 @@ func (h DefineCiGroup) Descriptor() usecase.Descriptor {
 					audit.Change{Field: "name", Classification: audit.Sensitive, To: g.Name})
 			})
 			return out, err
+		}),
+	})
+}
+
+// DeleteCiGroup deletes a hub's CI group by its key; the CIs it held are untouched.
+type DeleteCiGroup struct{ Inventory Inventory }
+
+// Descriptor is the catalogue entry.
+func (h DeleteCiGroup) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: DeleteCiGroupName, Permission: service.PermissionWriteItems,
+		Summary:     "Deletes an object group of a hub by its key. The objects it held are unchanged.",
+		SideEffects: "Deletes the group and writes an audit entry and the change log.", TokenScope: cisWrite,
+		Input: []usecase.Field{
+			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
+			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The group's key."},
+			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read."},
+		},
+		Audit: usecase.AuditDeclaration{Action: GroupDeletedAction, TargetType: groupTarget, Severity: audit.SeverityInfo, Required: true},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			hub, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
+			s := h.Inventory
+			if err := s.authorizeHub(ctx, actor, hub, true, GroupDeletedAction, groupTarget, hub); err != nil {
+				return nil, err
+			}
+			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+				if err := s.hub(ctx, hub); err != nil {
+					return err
+				}
+				groups, err := s.Assurance.Groups(ctx, hub)
+				if err != nil {
+					return err
+				}
+				i := slices.IndexFunc(groups, func(g domain.Group) bool { return g.Key == in.String("key") })
+				if i < 0 {
+					return shared.ErrNotFound.WithDetail("cmdb.group_not_found")
+				}
+				g := groups[i]
+				expected := g.Version
+				if in.Present("expected_version") {
+					expected = in.Int("expected_version")
+				}
+				if err := s.Assurance.RemoveGroup(ctx, g.ID, expected); err != nil {
+					return err
+				}
+				if s.Changes != nil {
+					if err := s.Changes.Record(ctx, changelog.Change{
+						TenantID: actor.TenantID, Entity: GroupEntity, EntityID: g.ID, Op: changelog.Delete,
+						ContainerID: hub, ActorID: actor.AccountID, HLC: s.HLC.Next(),
+					}); err != nil {
+						return err
+					}
+				}
+				return s.record(ctx, actor, GroupDeletedAction, groupTarget, g.ID,
+					audit.Change{Field: "key", Classification: audit.Open, From: g.Key})
+			})
+			return nil, err
 		}),
 	})
 }
