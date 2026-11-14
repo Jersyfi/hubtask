@@ -12783,6 +12783,8 @@
   "app.campaigns.closed": "Closed",
   "app.campaigns.score": "{answered} of {total} answered ({share} %)",
   "app.campaigns.close": "Close the campaign",
+  "app.campaigns.remind": "Remind",
+  "app.campaigns.reminded": "{count, plural, one {# person reminded.} other {# people reminded.}}",
   "app.campaigns.closed_done": "The campaign is closed; its score stays.",
   "app.campaigns.total": "Asked",
   "app.campaigns.confirmed": "Confirmed",

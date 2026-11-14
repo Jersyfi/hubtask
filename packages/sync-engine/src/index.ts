@@ -369,6 +369,7 @@ export type {
   CiCampaignStart,
   CiAttest,
   CiAttestation,
+  CiCampaignReminded,
   CiGroup,
   CiGroupList,
   CiGroupDefine,

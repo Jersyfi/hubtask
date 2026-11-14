@@ -469,6 +469,7 @@ export type CiCampaignDetail = components['schemas']['CiCampaignDetail'];
 export type CiCampaignStart = components['schemas']['CiCampaignStart'];
 export type CiAttest = components['schemas']['CiAttest'];
 export type CiAttestation = components['schemas']['CiAttestation'];
+export type CiCampaignReminded = components['schemas']['CiCampaignReminded'];
 export type CiGroup = components['schemas']['CiGroup'];
 export type CiGroupList = components['schemas']['CiGroupList'];
 export type CiGroupDefine = components['schemas']['CiGroupDefine'];

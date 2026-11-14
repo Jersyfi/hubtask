@@ -197,6 +197,19 @@
 
   // (3) The round.
   const openRound = $derived(campaigns?.find((each) => !each.closed_at));
+  // *Remind* (scene `invcare`): the owners the round still waits for, each told once.
+  let isReminding = $state(false);
+  async function remind(round: CiCampaign) {
+    isReminding = true;
+    try {
+      const answer = await cmdb.remindCampaign(round);
+      toast.show({ text: t('app.campaigns.reminded', { count: answer.reminded }), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isReminding = false;
+    }
+  }
   const pastRounds = $derived((campaigns ?? []).filter((each) => each.closed_at).length);
 
   // (5) Sources and runs.
@@ -303,7 +316,12 @@
           {:else if openRound}
             <p class="line">{t('app.care.round_due', { day: formatPlainDay(openRound.due_on, messages.locale) })}</p>
             <p class="line" data-care-round-score>{t('app.care.round_score', { confirmed: openRound.score.confirmed, total: openRound.score.total, disputed: openRound.score.disputed })}</p>
-            <div class="acts"><a class="act" href={inventoryPath(hubId, 'campaigns')}>{t('app.care.round_open')}</a></div>
+            <div class="acts">
+              <a class="act" href={inventoryPath(hubId, 'campaigns')}>{t('app.care.round_open')}</a>
+              {#if mayChange && openRound.score.pending > 0}
+                <Button size="sm" tone="subtle" data-remind-round isBusy={isReminding} onclick={() => void remind(openRound)}>{t('app.campaigns.remind')}</Button>
+              {/if}
+            </div>
           {:else}
             <p class="meta">{t('app.care.round_none')}</p>
             {#if mayChange}<div class="acts"><Button size="sm" tone="secondary" icon="check" onclick={() => onask('campaign')}>{t('app.care.round_start')}</Button></div>{/if}

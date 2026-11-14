@@ -4,7 +4,7 @@
 // *Upkeep* of a hub's inventory as the work surface draws it (§6.10, IN-4, scene invcare,
 // UC-AST-06 check 6, UC-AST-07 check 7, UC-AST-10 check 5): (1) six figures, each opening what it
 // counts; (2) *To do*, one row per problem with one act - a deviation compared beside its run and
-// settled, a duplicate pair decided side by side; (3) the attestation round; (4) the duplicates;
+// settled, a duplicate pair decided side by side; (3) the attestation round with *Remind*; (4) the duplicates;
 // (5) the sources with their runs and *By hand*, a run's decisions behind its row, connecting a
 // source and importing. The former sub-pages' addresses draw their part alone; a reader is shown
 // no *Upkeep*; on a phone it reads. `SHOTS=<dir>` writes the screenshots the mockup is compared with.
@@ -20,7 +20,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
-import { CIS, HOLD, PAIR, bar, noSidewaysScroll, openInventory } from './inventoryseed.mjs';
+import { CIS, HOLD, PAIR, ROUND, bar, noSidewaysScroll, openInventory } from './inventoryseed.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -81,10 +81,13 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
   await page.locator('[data-care-back]').click();
   await page.locator('[data-care-part=campaigns]').waitFor({ timeout: 5_000 });
 
-  // (3) The open round with its score and the earlier one; no reminder, which the server has no act for.
+  // (3) The open round with its score, *Remind* as its quiet act while objects wait, and the earlier one.
   const round = page.locator('[data-care-part=campaigns]');
-  assert.match(flat(await round.innerText()), /Bestätigungsrunde Q4 Owners confirm their objects by Nov(ember)? 30, 2026 7 of 12 confirmed · 2 replies “not right” Open the round 1 earlier round/);
-  assert.equal(await round.getByRole('button').count(), 0);
+  assert.match(flat(await round.innerText()), /Bestätigungsrunde Q4 Owners confirm their objects by Nov(ember)? 30, 2026 7 of 12 confirmed · 2 replies “not right” Open the round Remind 1 earlier round/);
+  assert.deepEqual(await round.getByRole('button').allInnerTexts(), ['Remind']);
+  await round.getByRole('button', { name: 'Remind' }).click();
+  await page.getByRole('status').filter({ hasText: '2 people reminded.' }).waitFor({ state: 'attached', timeout: 5_000 });
+  assert.ok(written.some((each) => each.method === 'POST' && each.at === `/ci-campaigns/${ROUND.id}:remind`), 'the round reminded nobody');
 
   // (4) The duplicates.
   const pairs = page.locator('[data-care-part=duplicates]');
@@ -133,6 +136,25 @@ test('chromium: the former sub-pages draw their part alone under Back to upkeep'
   assert.deepEqual(failures, []);
 });
 
+test('chromium: the round\'s part page reminds the owners it waits for', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures, written } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/campaigns` });
+  t.after(() => context.close());
+
+  const row = page.locator(`[data-campaign="${ROUND.id}"]`);
+  await row.waitFor({ timeout: 20_000 });
+  await row.getByRole('button').first().click();
+  const detail = page.locator('[data-campaign-detail]');
+  await detail.locator('[data-attestation]').first().waitFor({ timeout: 5_000 });
+  const remind = detail.locator('[data-remind-round]');
+  assert.equal(await remind.innerText(), 'Remind');
+  await remind.click();
+  await page.getByRole('status').filter({ hasText: '2 people reminded.' }).waitFor({ state: 'attached', timeout: 5_000 });
+  assert.equal(written.filter((each) => each.at === `/ci-campaigns/${ROUND.id}:remind`).length, 1);
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a reader is shown no Upkeep, and its address shows Stock', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -155,7 +177,7 @@ test('chromium 390 px: scene invcare on a phone reads - figures, to-dos and sour
   await page.locator('[data-care-figure]').first().waitFor({ timeout: 20_000 });
   await page.locator('[data-care-source="by-hand"]').waitFor({ timeout: 5_000 });
   await noSidewaysScroll(page, 'upkeep on a phone', assert);
-  for (const name of ['Start a round', 'Connect a source']) assert.equal(await page.getByRole('button', { name }).count(), 0, `${name} on a phone`);
+  for (const name of ['Start a round', 'Remind', 'Connect a source']) assert.equal(await page.getByRole('button', { name }).count(), 0, `${name} on a phone`);
   assert.equal(await page.locator('[data-care]').getByRole('link', { name: 'Import' }).count(), 0, 'Import on a phone');
   await page.getByRole('button', { name: /^Compare:/ }).click();
   const compare = page.getByRole('dialog', { name: 'Deviation reported by glpi' });

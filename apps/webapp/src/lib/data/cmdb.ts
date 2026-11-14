@@ -715,6 +715,11 @@ export function attestationsInOrder(detail: Pick<CiCampaignDetail, 'attestations
 export const mayAttest = (campaign: Pick<CiCampaign, 'closed_at'>, each: Attestation, me: string | undefined, mayWrite: boolean) =>
   !campaign.closed_at && (mayWrite || (!!me && each.owner_id === me));
 
+/** How many owning people an open round still waits for, the reader aside: *Remind* is drawn only then. */
+export function waitingOwners(detail: Pick<CiCampaignDetail, 'attestations'>, me: string | undefined): number {
+  return new Set(detail.attestations.filter((each) => each.verdict === 'PENDING' && each.owner_id && each.owner_id !== me).map((each) => each.owner_id)).size;
+}
+
 export function verdictTone(verdict: Attestation['verdict']): 'success' | 'warning' | 'neutral' {
   if (verdict === 'CONFIRMED') return 'success';
   if (verdict === 'DISPUTED') return 'warning';

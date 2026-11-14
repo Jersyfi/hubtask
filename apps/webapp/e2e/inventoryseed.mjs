@@ -133,6 +133,14 @@ export const ROUND = {
   id: id(500), hub_id: HUB.id, name: 'Bestätigungsrunde Q4', classes: [], due_by: null, due_on: '2026-11-30', review_months: 12, started_by: ACCOUNT.id,
   started_at: '2026-11-01T08:00:00Z', closed_at: null, version: 1, score: { total: 12, confirmed: 7, disputed: 2, pending: 3, overdue: 0, rate: 0.75 },
 };
+// The round opened: one object waits for its owner, one for nobody, one is answered.
+const ROUND_DETAIL = {
+  ...ROUND, attestations: [
+    { ci_id: CIS.db.id, name: CIS.db.name, class: CIS.db.class, owner_id: OTHER.id, verdict: 'PENDING', attested_by: null, attested_at: null },
+    { ci_id: CIS.app.id, name: CIS.app.name, class: CIS.app.class, owner_id: null, verdict: 'PENDING', attested_by: null, attested_at: null },
+    { ci_id: CIS.portal.id, name: CIS.portal.name, class: CIS.portal.class, owner_id: ACCOUNT.id, verdict: 'CONFIRMED', attested_by: ACCOUNT.id, attested_at: '2026-11-10T08:00:00Z' },
+  ],
+};
 const PAST_ROUND = { ...ROUND, id: id(501), name: 'Bestätigungsrunde Q3', closed_at: '2026-09-30T08:00:00Z', started_at: '2026-09-01T08:00:00Z' };
 export const PAIR = { id: id(600), hub_id: HUB.id, ci_ids: [CIS.app.id, CIS.app2.id], rule: 'name', created_at: '2026-11-14T06:00:00Z' };
 
@@ -194,6 +202,7 @@ export async function openInventory(browser, origin, { width = 1280, height = 90
         return route.fulfill({ json: { ...moved, moves: moves(moved) } });
       }
       if (/\/ci-holds\/[^/]+:dismiss$/.test(at) || /\/ci-holds\/[^/]+$/.test(at)) return route.fulfill({ json: { id: HOLD.id, dismissed: true } });
+      if (at === `/ci-campaigns/${ROUND.id}:remind`) return route.fulfill({ json: { reminded: 2 } });
       return stub(route);
     }
     if (at === '/cmdb/classes') return route.fulfill({ json: { data: CLASSES } });
@@ -224,6 +233,7 @@ export async function openInventory(browser, origin, { width = 1280, height = 90
     if (at === `/ci-runs/${id(300)}`) return route.fulfill({ json: RUN_DETAIL });
     if (at === `/hubs/${HUB.id}/ci-duplicates`) return route.fulfill({ json: { data: [PAIR] } });
     if (at === `/hubs/${HUB.id}/ci-campaigns`) return route.fulfill({ json: { data: [ROUND, PAST_ROUND] } });
+    if (at === `/ci-campaigns/${ROUND.id}`) return route.fulfill({ json: ROUND_DETAIL });
     if (at === `/hubs/${HUB.id}/cmdb-connectors`) return route.fulfill({ json: { data: CONNECTORS } });
     if (at === `/hubs/${HUB.id}/assets`) {
       const state = url.searchParams.get('state');

@@ -13,7 +13,7 @@
 
 import type {
   CiConnector, CiConnectorDefine, CiConnectorRun, CiBacklinkList, CiClass, CiClassDefine, CiRelationType, CiRelationTypeDefine, CiSource, CiSourceDefine, CiCompliance, CiDuplicateResolved, CiFileImport, CiImpact, CiRelation, CiRun, ConfigurationItem, ConfigurationItemCreate,
-  ConfigurationItemList, ConfigurationItemUpdate, CiAsset, CiAssetRegister, CiAttestation, CiCampaign, CiCampaignStart, CiGroup, CiGroupDefine,
+  ConfigurationItemList, ConfigurationItemUpdate, CiAsset, CiAssetRegister, CiAttestation, CiCampaign, CiCampaignReminded, CiCampaignStart, CiGroup, CiGroupDefine,
   EntryCis, SoftwareAlias, SoftwareAliasDefine,
 } from '@hubtask/sync-engine';
 
@@ -194,6 +194,11 @@ class Cmdb {
     return engine.mutate<CiCampaign>('POST', campaignClosePath(campaign.id), undefined, {
       invalidates: [campaignPath(campaign.id), campaignsPath(campaign.hub_id)],
     });
+  }
+
+  /** The owners an open round still waits for, each told once; the answer says how many. */
+  remindCampaign(campaign: Pick<CiCampaign, 'id'>): Promise<CiCampaignReminded> {
+    return engine.mutate<CiCampaignReminded>('POST', `${campaignPath(campaign.id)}:remind`, undefined, {});
   }
 
   /** A group added under its key, or changed with the version last read. */

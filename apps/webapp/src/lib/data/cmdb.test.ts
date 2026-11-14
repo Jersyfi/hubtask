@@ -18,7 +18,7 @@ import {
   aliasDefine, assetDraft, assetMissing, assetMoves, assetRegister, assetsPath, assetTone, attestationsInOrder, attestPath, campaignClosePath,
   campaignDraft, campaignMissing, campaignStart, ciAssetMovePath, ciAssetPath, collisionsInOrder, costField, costText, entryCiPath, entryCisPath,
   entryKey, groupConditions, groupDefine, groupDraft, groupMembersPath, groupMissing, groupPath, isGroupEdge, mapInWords, mapLayers, matchingProducts, mayAttest,
-  minorDigits, moveNeedsHolder, parseCost, reachedServices, serviceMapPath, softwareAliasPath, softwarePath, verdictTone, ASSET_SECTIONS,
+  minorDigits, moveNeedsHolder, parseCost, reachedServices, serviceMapPath, softwareAliasPath, softwarePath, verdictTone, waitingOwners, ASSET_SECTIONS,
 } from './cmdb.ts';
 
 const cls = (key: string, lineage: string[], extra: Partial<CiClass> = {}): CiClass => ({
@@ -332,6 +332,9 @@ test('the person asked sees their own questions first and answers them; anybody 
   assert.equal(verdictTone('CONFIRMED'), 'success');
   assert.equal(verdictTone('DISPUTED'), 'warning');
   assert.equal(verdictTone('PENDING'), 'neutral');
+  // *Remind* waits for owners other than the reader: dana's pending one, not bert's own nor the ownerless.
+  assert.equal(waitingOwners(detail, 'bert'), 1);
+  assert.equal(waitingOwners({ attestations: [ask('a', null), ask('b', 'bert'), ask('c', 'dana', 'CONFIRMED')] }, 'bert'), 0);
 });
 
 test('a group is defined by its filter, its conditions one per line, and its service cleared (UC-AST-11 check 5)', () => {
