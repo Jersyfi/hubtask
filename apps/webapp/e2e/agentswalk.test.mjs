@@ -111,7 +111,8 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
 
   await page.getByRole('main').getByRole('link', { name: 'Agents', exact: true }).click();
   await page.waitForURL(/\/agents$/);
-  await page.getByText('0 live · 1 draft · 1 waiting for a person').waitFor({ timeout: 5_000 });
+  // The band's figures, one span each (H-3).
+  for (const figure of ['0 live', '1 draft', '1 waiting for a person']) await page.locator('.figure').getByText(figure, { exact: true }).waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: 'Start from a role' }).click();
   await page.getByRole('menuitem', { name: 'Knowledge draft' }).click();
   const agentDialog = page.getByRole('dialog');
@@ -186,7 +187,9 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
   await page.getByRole('button', { name: 'Ticket triage' }).click();
   const dialog = page.getByRole('dialog');
   assert.equal(await dialog.getByLabel('Name').inputValue(), 'Ticket triage');
-  await dialog.getByRole('button', { name: 'Cancel' }).last().click();
+  // On a phone the dialog is a sheet whose X is named Close (D-5); either dismisses it.
+  await dialog.getByRole('button', { name: /^(Cancel|Close)$/u }).first().click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
   // On a phone the home's views are a chip that opens them as a sheet (the navigation concept, §6).
   await page.getByRole('main').getByRole('button', { name: 'Agents', exact: true }).click();
   await page.getByRole('link', { name: 'Runs' }).click();
@@ -220,12 +223,12 @@ test('chromium: an approved agent\'s head draws its standing as the status butto
   await page.locator('[data-agent-card]').filter({ hasText: 'Triage helper' }).waitFor({ timeout: 10_000 });
   await page.goto(`${served.origin}/agents/${shown.id}`);
   const head = page.locator('header.object-head');
-  const standing = head.locator('.action-bar .lozenge').first();
+  // The standing is the status button with its ⌄ (H-2): its lifecycle steps out of it.
+  const standing = head.locator('[data-agent-status] button.status');
   await standing.waitFor({ timeout: 10_000 });
   assert.equal((await standing.innerText()).trim(), 'Approved');
   assert.equal(await standing.getAttribute('data-tone'), 'success', 'approved is drawn as a warning');
-  assert.equal(await standing.getAttribute('data-size'), 'md', 'the standing is the small lozenge, not the status button\'s shape');
-  assert.equal(await standing.locator('.icon').count(), 1, 'the standing carries no glyph');
+  assert.equal(await standing.locator('.icon').count(), 2, 'the standing carries no glyph beside its ⌄');
   const next = head.locator('.action-bar .step').first();
   const [own, step] = [await standing.boundingBox(), await next.boundingBox()];
   assert.ok(own.height >= step.height - 1, `the standing is ${own.height} px high beside a ${step.height} px step`);
