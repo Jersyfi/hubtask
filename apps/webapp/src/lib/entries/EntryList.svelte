@@ -16,7 +16,7 @@
 
   import { untrack } from 'svelte';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { entryTypes, iconOf, rowMarkOf, typeNameOf, typeOf, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
+  import { entryTypes, iconOf, typeNameOf, typeOf, typeOrder, typesShown } from '../data/entrytypes.svelte.ts';
 
   import {
     Badge,
@@ -322,14 +322,19 @@
    * its state and title, and the title's head names the request.
    */
   const isKeyFirst = $derived(withSla && fields.includes('key'));
-  const cellFields = $derived(isKeyFirst ? fields.filter((field) => field !== 'key') : fields);
-  /** A desk's queue on a phone (scene queue 4): title, one meta line, one SLA bar, the person at the end. */
-  const isDeskPhone = $derived(withSla && viewport.isCompact && !root);
+  /**
+   * Every list's row on a phone (§7, scene queue 4): title, one meta line - key, state, priority and
+   * the fields - the SLA bar where the desk runs one, the person at the end; no grip, no tools, the
+   * menu by a swipe or a long press.
+   */
+  const isPhoneRow = $derived(viewport.isCompact && !root);
   const statusNameOf = (key: string) => {
     const status = workflow?.statuses.find((each) => each.key === key);
     return status ? statusLabel(status, t) : key;
   };
-  const columnName = (field: ListField) => (field.startsWith('cf.') ? (customNames?.[field.slice(3)] ?? field.slice(3)) : t(`app.list.col_${field}`));
+  /** One column set per collection kind (§6.2): a desk's list names its columns as its queue does. */
+  const DESK_WORDS: Partial<Record<ListField, string>> = { key: 'app.desk_queues.col_key', requester: 'app.desk_queues.col_requester', people: 'app.desk_queues.col_assignee', type: 'app.desk_queues.col_type', priority: 'app.desk_queues.col_priority', sla: 'app.desk_queues.col_sla' };
+  const columnName = (field: ListField) => (field.startsWith('cf.') ? (customNames?.[field.slice(3)] ?? field.slice(3)) : t((isKeyFirst ? DESK_WORDS[field] : undefined) ?? `app.list.col_${field}`));
   /** The sort key a field's column head orders by, where the installation can order by it. */
   const SORT_OF: Partial<Record<ListField | 'title', string>> = { title: 'title', due: 'due_at', amount: 'amount', people: 'assignee_id', column: 'bucket_id', sla: 'sla_due' };
   const sortOf = (field: ListField | 'title') => {
@@ -438,6 +443,14 @@
   // The workspace's entry types, read where the workflows module is on: a row marks a type of
   // the workspace's own (UC-FLW-01 checks 6, 8).
   const showsTypes = $derived(typesShown(manifest.value));
+  /**
+   * The fields beside the title, each under its head: where entry types are on, the type is one of
+   * them - a mark beside the title outside every column pushed the columns out of line (WB-4).
+   */
+  const cellFields = $derived<readonly ListField[]>([
+    ...(showsTypes && !root && !fields.includes('type') ? ['type' as const] : []),
+    ...(isKeyFirst ? fields.filter((field) => field !== 'key') : fields),
+  ]);
   $effect(() => {
     if (!showsTypes) return;
     return untrack(() => entryTypes.open());
@@ -879,6 +892,13 @@
    * one per type the entry may hold - "Add a work package" and "Add an activity" under a task - so
    * that the reader names the level by the control rather than by a chooser in the form.
    */
+  /** The foot's add in a collection: the level's own name where a person gave it one (UC-WRK-23 check 6). */
+  const footAddLabel = $derived.by(() => {
+    const group = keyedCollection?.name ?? '';
+    const name = topTypes().length === 1 ? offer.level(topTypes()[0] ?? '').name : undefined;
+    return name !== undefined ? t('app.entries.add_named_in', { name, group }) : t('app.entries.add_in', { group });
+  });
+
   const addControls = $derived(
     root && topTypes().length > 1
       ? topTypes().map((type) => ({ type, label: offer.level(type).add }))
@@ -950,10 +970,35 @@
    */
   let fieldsHead = $state<HTMLElement | null>(null);
   let hasColumns = $state(false);
+  /**
+   * How many fields stand as columns: those that fit beside the title's least room, in the
+   * arrangement's order; the rest go to the row's meta line under the title (§7, the tablet's
+   * rule, at every width with a head) - so a list always has its head (WB-4). Every head cell is
+   * laid out, a column that does not fit out of sight, so its width is known to grow back.
+   */
+  let fitCount = $state(Number.POSITIVE_INFINITY);
+  /** The fields standing in columns, and those the meta line under the title carries. */
+  const columnFields = $derived(hasColumns ? cellFields.slice(0, fitCount) : cellFields);
+  const metaFields = $derived(hasColumns ? cellFields.slice(fitCount) : []);
   $effect(() => {
     const head = fieldsHead;
     if (!head) return;
-    const measure = () => { hasColumns = head.scrollWidth <= head.clientWidth + 1; };
+    const measure = () => {
+      const style = getComputedStyle(head);
+      const title = head.querySelector<HTMLElement>('.title-head');
+      const lead = head.querySelector<HTMLElement>('.key-head');
+      const gap = Number.parseFloat(style.columnGap) || 0;
+      let room = head.clientWidth - (Number.parseFloat(style.paddingInlineStart) || 0) - (Number.parseFloat(style.paddingInlineEnd) || 0)
+        - (title ? Number.parseFloat(getComputedStyle(title).flexBasis) || 0 : 0) - (lead ? lead.offsetWidth + gap : 0);
+      let count = 0;
+      for (const cell of head.querySelectorAll<HTMLElement>('.cells > .col-head')) {
+        room -= cell.offsetWidth + gap;
+        if (room < 0) break;
+        count += 1;
+      }
+      fitCount = count;
+      hasColumns = style.display !== 'none';
+    };
     const observer = new ResizeObserver(measure);
     observer.observe(head);
     measure();
@@ -1471,12 +1516,13 @@
             <span class="col-head title-head">{isKeyFirst ? t('app.desk_queues.col_request') : t('app.list.col_title')}</span>
           {/if}
           <span class="cells">
-            {#each cellFields as field (field)}
+            {#each cellFields as field, index (field)}
               {@const key = sortOf(field)}
-              {#if key && onsort}
+              {@const isOver = index >= fitCount}
+              {#if key && onsort && !isOver}
                 <button type="button" class="col-head cell" data-field={field} onclick={() => onsort(key)}>{columnName(field)}{#if sortField === key}<Icon name={sortDir === 'DESC' ? 'chevron-down' : 'chevron-up'} size="sm" />{/if}</button>
               {:else}
-                <span class="col-head cell" data-field={field}>{columnName(field)}</span>
+                <span class="col-head cell" data-field={field} data-overflow={isOver ? '' : undefined} aria-hidden={isOver ? 'true' : undefined}>{columnName(field)}</span>
               {/if}
             {/each}
           </span>
@@ -1619,7 +1665,8 @@
                bar's ＋ is that door. -->
           <Inline gap="100">
             {#each addControls as control (control.label)}
-              <AddRow label={control.label} onclick={() => startAdding('root', control.type)} />
+              <!-- "+ <kind> in „<group>“" as every group's add says it (§8): the collection is the group. -->
+              <AddRow label={root ? control.label : footAddLabel} onclick={() => startAdding('root', control.type)} />
             {/each}
           </Inline>
         {/if}
@@ -1634,6 +1681,58 @@
   <h2 class="group-head" data-fold={fold}><span class="group-name"><button type="button" class="twist" aria-expanded={!isFolded(fold)} aria-label={t(isFolded(fold) ? 'app.list.unfold_group' : 'app.list.fold_group', { group: name })} onclick={() => toggleFold(fold)}><Icon name={isFolded(fold) ? 'chevron-right' : 'chevron-down'} size="sm" /></button>{name}</span><span class="group-count">{count}</span></h2>
 {/snippet}
 
+{#snippet fieldValue(row: Row, field: ListField)}
+  {#if field === 'key'}
+    <EntryKey collection={keyedCollection} number={row.item.number} />
+  {:else if field === 'type'}
+    <!-- The type as a column (S-03): every row's, the level's own included, so the
+         column reads as a value rather than as a mark only some rows carry. -->
+    {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
+    {#if type}
+      <!-- A mark and a word, as the queue names its kinds (§6.2): one look in every list. -->
+      <span class="type-word" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" />{typeName(type.key)}</span>
+    {/if}
+  {:else if field === 'requester'}
+    <span class="who">{accounts.nameOf(row.item.created_by) ?? ''}</span>
+  {:else if field === 'priority'}
+    {@const priority = priorityOf(row.item, [])}
+    {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
+  {:else if field === 'sla'}
+    {#if withSla}{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}{/if}
+  {:else if field.startsWith('cf.')}
+    {@const value = row.item.custom_fields?.[field.slice(3)]}
+    {#if value !== undefined && value !== null && value !== ''}<span class="custom">{String(value)}</span>{/if}
+  {:else if field === 'amount' && row.item.amount}
+    <span class="amount">{row.item.amount}</span>
+  {:else if field === 'column' && row.item.bucket_id}
+    {@const column = buckets.of(collectionId).find((bucket) => bucket.id === row.item.bucket_id)}
+    {#if column}<span class="column-chip">{column.name}</span>{/if}
+  {:else if field === 'due' && supports(row.item.type, 'DUE_DATE').status === 'permitted'}
+    <DueMark item={row.item} />
+  {:else if field === 'people' && (supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted')}
+    <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+  {:else if field === 'labels' && supports(row.item.type, 'LABELS').status === 'permitted'}
+    {@const carried = (row.item.label_ids ?? []).flatMap((labelId) => available.filter((each) => each.id === labelId && !(isSimple && categories.includes(each.id))))}
+    {#each carried.slice(0, 2) as entry (entry.id)}
+      <LabelChip
+        name={entry.name}
+        colorToken={entry.colorToken}
+        description={entry.description}
+      />
+    {/each}
+    {#if carried.length > 2}<span class="more-labels" title={carried.slice(2).map((entry) => entry.name).join(', ')}>+{carried.length - 2}</span>{/if}
+  {:else if field === 'progress' && row.takesChildren}
+    <!-- What a row that takes children holds, done of total (ADR-0061 decision 4); the
+         server's count where the read carried one, else the level once it is read. -->
+    {@const progress = row.item.counts ? { done: row.item.counts.parts_done, total: row.item.counts.parts } : progressOf(row.item.id)}
+    {#if progress && progress.total > 0}
+      <!-- In a subtree a bar beside the count, as the `task` scene's parts draw it. -->
+      {#if root}<span class="progress-bar" aria-hidden="true"><ProgressBar size="sm" label="" value={Math.round((progress.done / progress.total) * 100)} /></span>{/if}
+      <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
+    {/if}
+  {/if}
+{/snippet}
+
 {#snippet entryRow(row: Row)}
     <!-- Two ways into the mode from a row, and they are the two a pointer has. A modifier
          press is the fine pointer's — and it is caught in the capture phase, because the
@@ -1644,7 +1743,7 @@
     <div
       class="row"
       data-row={row.item.id}
-      data-desk-phone={isDeskPhone ? '' : undefined}
+      data-phone={isPhoneRow ? '' : undefined}
       data-celebrating={moment && moment.tier !== 3 && slotRowId === row.item.id ? '' : undefined}
       data-archived={row.archival !== 'active' ? '' : undefined}
       data-dragging={drag.id === row.item.id ? '' : undefined}
@@ -1681,7 +1780,7 @@
            menu at the end of the row, and it is a real one — so a second focusable element
            that does nothing for the keyboard would be noise in the tab order rather than
            access. -->
-      {#if !isRoleRefused(row) && !isReadOnly && !isArranged && (!isSimple || row.section === 'open')}
+      {#if !isRoleRefused(row) && !isReadOnly && !isArranged && !isPhoneRow && (!isSimple || row.section === 'open')}
         <span class="grip" data-grip aria-hidden="true">
           <Icon name="grip-vertical" size="sm" />
         </span>
@@ -1697,65 +1796,8 @@
                where the entry's type carries it here (UC-WRK-23 check 4) - an empty cell keeps the
                column's width so the columns stand straight. -->
           <span class="cells">
-            {#if showsTypes && !fields.includes('type')}
-              {@const mark = rowMarkOf(entryTypes.all, row.item.type, row.item.entry_type)}
-              {#if mark}
-                <span class="type-mark" data-entry-type={row.item.entry_type}><Icon name={mark.icon} size="sm" /><LabelChip name={mark.name} colorToken={mark.colorToken} /></span>
-              {/if}
-            {/if}
-            {#each cellFields as field (field)}
-              <span class="cell" data-field={field}>
-                {#if field === 'key'}
-                  <EntryKey collection={keyedCollection} number={row.item.number} />
-                {:else if field === 'type'}
-                  <!-- The type as a column (S-03): every row's, the level's own included, so the
-                       column reads as a value rather than as a mark only some rows carry. -->
-                  {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
-                  {#if type}
-                    <span class="type-mark" data-entry-type={type.key}><Icon name={iconOf(type)} size="sm" /><LabelChip name={typeName(type.key)} colorToken={type.color_token} /></span>
-                  {/if}
-                {:else if field === 'requester'}
-                  <span class="who">{accounts.nameOf(row.item.created_by) ?? ''}</span>
-                {:else if field === 'priority'}
-                  {@const priority = priorityOf(row.item, [])}
-                  {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
-                {:else if field === 'sla'}
-                  {#if withSla}{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}{/if}
-                {:else if field.startsWith('cf.')}
-                  {@const value = row.item.custom_fields?.[field.slice(3)]}
-                  {#if value !== undefined && value !== null && value !== ''}<span class="custom">{String(value)}</span>{/if}
-                {:else if field === 'amount' && row.item.amount}
-                  <span class="amount">{row.item.amount}</span>
-                {:else if field === 'column' && row.item.bucket_id}
-                  {@const column = buckets.of(collectionId).find((bucket) => bucket.id === row.item.bucket_id)}
-                  {#if column}<span class="column-chip">{column.name}</span>{/if}
-                {:else if field === 'due' && supports(row.item.type, 'DUE_DATE').status === 'permitted'}
-                  <DueMark item={row.item} />
-                {:else if field === 'people' && (supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted')}
-                  <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
-                {:else if field === 'labels' && supports(row.item.type, 'LABELS').status === 'permitted'}
-                  {@const carried = (row.item.label_ids ?? []).flatMap((labelId) => available.filter((each) => each.id === labelId && !(isSimple && categories.includes(each.id))))}
-                  {#each carried.slice(0, 2) as entry (entry.id)}
-                    <LabelChip
-                      name={entry.name}
-                      colorToken={entry.colorToken}
-                      description={entry.description}
-                      removeLabel={isFrozen(row) ? undefined : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
-                      onRemove={() => toggleLabel(row.item, entry.id)}
-                    />
-                  {/each}
-                  {#if carried.length > 2}<span class="more-labels" title={carried.slice(2).map((entry) => entry.name).join(', ')}>+{carried.length - 2}</span>{/if}
-                {:else if field === 'progress' && row.takesChildren}
-                  <!-- What a row that takes children holds, done of total (ADR-0061 decision 4); the
-                       server's count where the read carried one, else the level once it is read. -->
-                  {@const progress = row.item.counts ? { done: row.item.counts.parts_done, total: row.item.counts.parts } : progressOf(row.item.id)}
-                  {#if progress && progress.total > 0}
-                    <!-- In a subtree a bar beside the count, as the `task` scene's parts draw it. -->
-                    {#if root}<span class="progress-bar" aria-hidden="true"><ProgressBar size="sm" label="" value={Math.round((progress.done / progress.total) * 100)} /></span>{/if}
-                    <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
-                  {/if}
-                {/if}
-              </span>
+            {#each columnFields as field (field)}
+              <span class="cell" data-field={field}>{@render fieldValue(row, field)}</span>
             {/each}
           </span>
           <!-- UC-WRK-24 check 4: what the collection's levels hide under this entry, so nobody
@@ -1823,21 +1865,27 @@
             </span>
           </span>
         </span>
+        {#if metaFields.length > 0}
+          <!-- The fields that found no column, one line under the title (§7). -->
+          <span class="meta-line">{#each metaFields as field (field)}<span class="meta-field" data-field={field}>{@render fieldValue(row, field)}</span>{/each}</span>
+        {/if}
       {/snippet}
-      {#snippet deskPhoneEnd()}
+      {#snippet phoneEnd()}
         {@const rowChip = chipFor(row.item)}
         {@const type = typeOf(entryTypes.all, row.item.type, row.item.entry_type)}
         {@const priority = priorityOf(row.item, [])}
-        <span class="desk-person"><PeopleMarks assigneeId={row.item.assignee_id} memberIds={[]} /></span>
-        <span class="desk-meta">
-          <span class="desk-key">{#if type}<span class="type-mark" data-entry-type={type.key} title={typeName(type.key)}><Icon name={iconOf(type)} size="sm" /></span>{/if}<EntryKey collection={keyedCollection} number={row.item.number} /></span>
+        {@const rest = cellFields.filter((field) => !['key', 'type', 'priority', 'sla', 'people', 'requester'].includes(field))}
+        <span class="phone-person">{#if fields.includes('people')}<PeopleMarks assigneeId={row.item.assignee_id} memberIds={[]} />{/if}</span>
+        <span class="phone-meta">
+          <span class="phone-key">{#if type && (isKeyFirst || showsTypes || fields.includes('type'))}<span class="type-mark" data-entry-type={type.key} title={typeName(type.key)}><Icon name={iconOf(type)} size="sm" /></span>{/if}<EntryKey collection={keyedCollection} number={row.item.number} /></span>
           {#if rowChip}<StateChip item={row.item} chip={rowChip} disabledReason={frozenReason(row)} onfailure={(message) => (writeFailure = { message } as never)} />{/if}
           {#if priority}<PriorityMark level={priorityLevel(priority)} label={priority} />{/if}
+          {#each rest as field (field)}<span class="meta-field" data-field={field}>{@render fieldValue(row, field)}</span>{/each}
         </span>
-        <span class="desk-sla">{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}</span>
+        {#if withSla}<span class="phone-sla">{#key row.item.id}<SlaRemaining itemId={row.item.id} now={new Date(now)} />{/key}</span>{/if}
         <!-- No ⋯ of its own on the row: a swipe to the start or a long press opens this menu, and
              it stays reachable for a keyboard and a screen reader. -->
-        <span class="desk-menu">
+        <span class="phone-menu">
           <EntryMenu bind:this={menus[row.item.id]} title={row.item.title} items={menuItems(row)} onselect={(id) => chose(row, id)} />
         </span>
       {/snippet}
@@ -1877,8 +1925,8 @@
           (expanded = expanded.includes(row.item.id)
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
-        trailing={isDeskPhone ? deskPhoneEnd : rowEnd}
-        state={!isDeskPhone && (chipFor(row.item) || isKeyFirst) ? chipCell : undefined}
+        trailing={isPhoneRow ? phoneEnd : rowEnd}
+        state={!isPhoneRow && (chipFor(row.item) || isKeyFirst) ? chipCell : undefined}
         isOneLine={root !== undefined}
         isRuled={root === undefined}
       />
@@ -2102,6 +2150,7 @@
   .cell { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); min-width: 0; }
   .cell:empty { display: none; }
   .type-mark { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); }
+  .type-word { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
 
   /* The column heads and the rows' fields under them: the head is always laid out from
      `expanded` up - its overflow says whether the columns fit (`hasColumns`) - and drawn only where
@@ -2111,8 +2160,8 @@
 
   .fields-head { display: none; }
 
-  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
-  @media (width >= 905px) {
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
     .fields-head .cells,
     .level[data-columns] .cells { flex-wrap: nowrap; }
     .fields-head .cell,
@@ -2123,8 +2172,10 @@
     :is(.fields-head, .level[data-columns]) .cell[data-field='priority'] { inline-size: var(--sp-1000); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='sla'] { inline-size: calc(var(--sp-1000) * 1.75); }
     /* A desk's queue keeps its six columns beside the request at a desktop's width (scene queue). */
-    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell:is([data-field='type'], [data-field='sla']) { inline-size: calc(var(--sp-1000) * 1.5); }
-    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-600); }
+    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 1.5); }
+    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='people'] { inline-size: var(--sp-1000); }
+    /* The SLA's bar and its words whole, never cut (*Seit 21 St…*). */
+    .columns[data-desk] :is(.fields-head, .level[data-columns]) .cell[data-field='sla'] { inline-size: calc(var(--sp-1000) * 2.25); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='type'] { inline-size: calc(var(--sp-1000) * 2); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     :is(.fields-head, .level[data-columns]) .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
@@ -2156,6 +2207,9 @@
     .fields-head[data-simple] { padding-inline-start: calc(var(--sp-600) + var(--sp-150)); }
     /* A desk's key stands where the box would: past the twist alone. */
     .columns[data-desk] .fields-head { padding-inline-start: calc(var(--sp-800) + var(--sp-100) - var(--sp-300)); }
+
+    /* A head cell whose field went to the meta line: laid out, so its width is known, not seen. */
+    .fields-head .cell[data-overflow] { position: absolute; visibility: hidden; }
 
     .fields-head:not([data-columns]) {
       position: absolute;
@@ -2318,27 +2372,44 @@
     .act { display: none; }
   }
 
-  /* The desk's phone row (scene queue 4): the check and the title, the person at the end of the
-     title's line; under the title the meta line and the SLA bar, each one line. */
-  .row[data-desk-phone] { position: relative; }
-  .row[data-desk-phone] :global(.task-row > .row) {
+  /* Every list's phone row (§7, scene queue 4): the check and the title, the person at the end of
+     the title's line; under the title the meta line and, on a desk, the SLA bar, each one line. */
+  .row[data-phone] { position: relative; }
+  .row[data-phone] :global(.task-row > .row) {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: start;
     column-gap: var(--sp-150);
     row-gap: var(--sp-100);
   }
-  .row[data-desk-phone] :global(.task-row > .row > .leading) { grid-column: 1; grid-row: 1; }
-  .row[data-desk-phone] :global(.task-row > .row > .content) { grid-column: 2; grid-row: 1; font-weight: var(--fw-semibold); }
-  .row[data-desk-phone] :global(.task-row > .row > .trailing) { display: contents; }
+  .row[data-phone] :global(.task-row > .row > .leading) { grid-column: 1; grid-row: 1 / 3; }
+  .row[data-phone] :global(.task-row > .row > .content) { grid-column: 2; grid-row: 1; font-weight: var(--fw-semibold); }
+  .row[data-phone] :global(.task-row > .row > .trailing) { display: contents; }
   /* A twist only where the entry holds parts: a leaf's empty slot would push the check in. */
-  .row[data-desk-phone] :global(.task-row .twist:empty) { display: none; }
-  .desk-person { grid-column: 3; grid-row: 1; display: inline-flex; }
-  .desk-meta { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; font-size: var(--fs-075); }
-  .desk-key { display: inline-flex; align-items: center; gap: var(--sp-050); }
-  .desk-sla { grid-column: 2 / 4; grid-row: 3; display: flex; min-inline-size: 0; }
-  .desk-sla :global(.sla), .desk-sla :global(.deadline) { flex: 1; }
-  .desk-menu { position: absolute; inset-block-start: 0; inset-inline-end: 0; inline-size: var(--bw-hairline); block-size: var(--bw-hairline); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .row[data-phone] :global(.task-row .twist:empty) { display: none; }
+  .phone-person { grid-column: 3; grid-row: 1; display: inline-flex; }
+  .phone-meta { grid-column: 2 / 4; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-inline-size: 0; font-size: var(--fs-075); }
+  .phone-key { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .phone-key:empty { display: none; }
+  .phone-sla { grid-column: 2 / 4; grid-row: 3; display: flex; min-inline-size: 0; }
+  .phone-sla :global(.sla), .phone-sla :global(.deadline) { flex: 1; }
+  .phone-menu { position: absolute; inset-block-start: 0; inset-inline-end: 0; inline-size: var(--bw-hairline); block-size: var(--bw-hairline); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .meta-field { display: inline-flex; align-items: center; gap: var(--sp-050); }
+  .meta-field:empty { display: none; }
+
+  /* A field without a column (§7): one line under the title, beside the title's start. */
+  .row:has(.meta-line .meta-field > :global(*)) :global(.task-row > .row) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--sp-100);
+  }
+  .row:has(.meta-line .meta-field > :global(*)) :global(.task-row > .row > .leading) { grid-column: 1; grid-row: 1 / 3; }
+  .row:has(.meta-line .meta-field > :global(*)) :global(.task-row > .row > .content) { grid-column: 2; grid-row: 1; }
+  .row:has(.meta-line .meta-field > :global(*)) :global(.task-row > .row > .trailing) { display: contents; }
+  .row:has(.meta-line .meta-field > :global(*)) .row-end { grid-column: 3; grid-row: 1 / 3; }
+  .meta-line { grid-column: 2; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-150); min-inline-size: 0; font-size: var(--fs-075); color: var(--text-secondary); }
+  .meta-line:not(:has(.meta-field > :global(*))) { display: none; }
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */

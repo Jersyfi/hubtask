@@ -109,7 +109,9 @@ test('the board’s start is the ladder’s dialog, not a panel of its own (D-4)
 
 test('a row’s and a card’s state chip follow its entry type’s own level, as the server answers it per type (L-5)', () => {
   const view = sources.find(({ path }) => path === 'views/ContainerView.svelte')?.text ?? '';
-  assert.match(view, /const mode = container\?\.state_modes\?\.\[entryType\];/u);
+  // From the collection's own read: the replica's record carries no level (it drew Keine Spalte).
+  assert.match(view, /const mode = stateModes\?\.\[entryType\];/u);
+  assert.match(view, /containers\.levelOf\(wanted, \(level, byType\) => \{/u);
   assert.equal((view.match(/\{levelOfType\}/gu) ?? []).length, 2, 'the list and the board both receive it');
   const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
   assert.match(list, /const mode = own\?\.mode \?\? stateMode;/u);
@@ -132,4 +134,35 @@ test('the products are named as the navigation names them, and the app says du (
   const formal = /\b(Wählen|Geben|Nennen|Bitten|Prüfen|Versuchen|Kopieren|Planen|Verschieben|Halten|Legen|Fügen|Haken|Übernehmen|Erfassen|Holen) Sie\b|\b(mit|als) Ihnen\b|\bSie (haben|dürfen)\b/u;
   const offenders = Object.entries(de).filter(([key, text]) => key.startsWith('app.') && !key.startsWith('app.assets.') && !key.startsWith('app.cmdb_admin.') && formal.test(text));
   assert.deepEqual(offenders.map(([key]) => key), []);
+});
+
+test('every list keeps its column head; a field without a column goes to the meta line under the title (L-1, §7)', () => {
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  assert.match(list, /const columnFields = \$derived\(hasColumns \? cellFields\.slice\(0, fitCount\) : cellFields\);/u);
+  assert.match(list, /<span class="meta-line">\{#each metaFields as field \(field\)\}/u);
+  assert.match(list, /\.fields-head \.cell\[data-overflow\] \{ position: absolute; visibility: hidden; \}/u);
+  // The type is a column under its head, not a mark beside the title outside every column.
+  assert.match(list, /showsTypes && !root && !fields\.includes\('type'\) \? \['type' as const\]/u);
+});
+
+test('a list row\'s labels carry no ✕ and its type one look: a mark and a word (L-1, L-2)', () => {
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  const values = list.slice(list.indexOf('{#snippet fieldValue'), list.indexOf('{/snippet}', list.indexOf('{#snippet fieldValue')));
+  assert.doesNotMatch(values, /onRemove=/u);
+  assert.match(values, /<span class="type-word" data-entry-type=\{type\.key\}><Icon name=\{iconOf\(type\)\} size="sm" \/>\{typeName\(type\.key\)\}<\/span>/u);
+  // A desk's list names its columns as its queue does (§6.2).
+  assert.match(list, /requester: 'app\.desk_queues\.col_requester', people: 'app\.desk_queues\.col_assignee'/u);
+});
+
+test('every list\'s row on a phone is the stacked row: title, meta line, no grip (L-3, §7)', () => {
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  assert.match(list, /const isPhoneRow = \$derived\(viewport\.isCompact && !root\);/u);
+  assert.match(list, /trailing=\{isPhoneRow \? phoneEnd : rowEnd\}/u);
+  assert.match(list, /!isArranged && !isPhoneRow && \(!isSimple/u, 'no grip on a phone row');
+});
+
+test('a collection\'s foot add says where it adds, as every group\'s does (L-6, §8)', () => {
+  const list = sources.find(({ path }) => path === 'lib/entries/EntryList.svelte')?.text ?? '';
+  assert.match(list, /<AddRow label=\{root \? control\.label : footAddLabel\}/u);
+  assert.match(list, /t\('app\.entries\.add_named_in', \{ name, group \}\) : t\('app\.entries\.add_in', \{ group \}\)/u);
 });

@@ -3481,6 +3481,7 @@
   "app.entries.show_all": "Show all entries",
   "app.entries.add": "Add an entry",
   "app.entries.add_in": "Entry in “{group}”",
+  "app.entries.add_named_in": "{name} in “{group}”",
   "app.entries.advance": "Move on: {name}",
   "app.entries.region": "Entries in {name}",
   "app.entries.add_ways": "More ways to add an entry",

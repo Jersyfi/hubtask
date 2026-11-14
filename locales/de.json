@@ -3464,6 +3464,7 @@
   "app.entries.show_all": "Alle Einträge zeigen",
   "app.entries.add": "Eintrag hinzufügen",
   "app.entries.add_in": "Eintrag in „{group}“",
+  "app.entries.add_named_in": "{name} in „{group}“",
   "app.entries.advance": "Weiter: {name}",
   "app.entries.region": "Einträge in {name}",
   "app.entries.add_ways": "Weitere Wege, einen Eintrag anzulegen",
