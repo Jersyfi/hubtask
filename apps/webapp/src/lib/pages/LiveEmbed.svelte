@@ -97,7 +97,7 @@
 </LiveBlock>
 
 <style>
-  .rows { margin: 0; padding: 0; list-style: none; display: grid; }
+  .rows { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, 1fr); }
   .rows li + li { border-block-start: var(--bw-hairline) solid var(--border-subtle); }
   .row {
     display: flex;

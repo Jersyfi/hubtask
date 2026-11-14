@@ -976,7 +976,8 @@
 <MentionDialog bind:isOpen={isMentioning} selfId="" oninsert={insertAddressText} />
 
 <style>
-  .writing { display: grid; gap: var(--sp-100); }
+  /* One track no wider than the column: a long unbroken line in a block never widens a phone's page. */
+  .writing { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-100); }
   .chooser { display: none; }
   /* The bar stays at hand above the text while writing; on a phone it sits above the keyboard (§7). */
   .tools {

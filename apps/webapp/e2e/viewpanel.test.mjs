@@ -23,12 +23,13 @@ test.after(() => served.close());
 /** A custom field that groups: the room an entry is in, on three of the collection's entries. */
 const ROOM = { id: '01a0e2e0-0000-7000-8000-0000000017b1', collection_id: COLLECTION.id, key: 'room', name: 'Room', kind: 'SELECT', options: ['Kitchen', 'Bath'], is_required: false, applies_to: ['TASK'], version: 1 };
 const ROOMS = { [ITEMS[0].id]: 'Kitchen', [ITEMS[1].id]: 'Bath', [ITEMS[2].id]: 'Kitchen' };
-const roomed = ITEMS.map((item) => (ROOMS[item.id] ? { ...item, custom_fields: { ...(item.custom_fields ?? {}), room: ROOMS[item.id] } } : item));
+const roomedItems = ITEMS.map((item) => (ROOMS[item.id] ? { ...item, custom_fields: { ...(item.custom_fields ?? {}), room: ROOMS[item.id] } } : item));
 const PAGE = { next_cursor: null, has_more: false };
 
 /** The collection with its room field, recording what is asked and what is saved. */
-async function open(browser, width, height) {
-  const { context, page, failures } = await signedIn(browser, width, height, { hasTouch: width < 600 });
+async function open(browser, width, height, { isMobile = false, longTitle } = {}) {
+  const { context, page, failures } = await signedIn(browser, width, height, { hasTouch: width < 600, isMobile });
+  const roomed = longTitle ? roomedItems.map((item, n) => (n === 0 ? { ...item, title: longTitle } : item)) : roomedItems;
   const queried = [];
   const saved = [];
   await page.route('**/api/v1/custom-fields?*', (route) => route.fulfill({ json: [ROOM] }));
@@ -225,7 +226,7 @@ test('chromium 1280: a board in lanes by a custom field, each lane a row of the 
   await board.waitFor({ timeout: 10_000 });
 
   const heads = (await board.locator('.lane-head').allInnerTexts()).map((each) => each.replace(/\s+/gu, ' ').trim());
-  const count = (value) => roomed.filter((item) => (item.custom_fields?.room ?? '') === value).length;
+  const count = (value) => roomedItems.filter((item) => (item.custom_fields?.room ?? '') === value).length;
   assert.deepEqual(heads.slice(0, -1).sort(), [`Bath ${count('Bath')}`, `Kitchen ${count('Kitchen')}`].sort(), `the lanes: ${heads}`);
   assert.ok(heads.at(-1).endsWith(` ${count('')}`), `the lane without a value is not last: ${heads}`);
   assert.equal(await board.locator('.lane-row[data-lane=""]').count(), 1);
@@ -278,6 +279,29 @@ test('chromium 390: the panel is a sheet whose sections are pages of their own (
   await sheet.getByRole('button', { name: 'Back' }).click();
   assert.equal(await sheet.locator('[data-view-page="board"]').count(), 1, 'the board\'s page is not offered on a board');
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sheet scrolls sideways');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium 390 phone: a board in lanes keeps the phone\'s width, one column a lane', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const longTitle = 'Offline mode: orders placed without a connection are queued and sent once the phone is back online';
+  const { context, page, failures } = await open(browser, 390, 844, { isMobile: true, longTitle });
+  t.after(() => context.close());
+
+  await page.locator('[data-opener="filter"]').click();
+  await viewButton(page).click();
+  const sheet = page.locator('dialog[open]').filter({ has: page.locator('[data-view-panel]') });
+  await sheet.locator('[data-view-page="layout"]').click();
+  await sheet.locator('[data-layout="KANBAN"]').click();
+  await sheet.getByRole('button', { name: 'Back' }).click();
+  await sheet.locator('[data-view-page="board"]').click();
+  await sheet.getByLabel('Lanes by').selectOption('custom_fields.room');
+  await page.keyboard.press('Escape');
+  await page.locator('.board[data-lanes] .lane-row').first().waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(300);
+  // A phone's browser widens its layout viewport to content that does not fit.
+  assert.equal(await page.evaluate(() => window.innerWidth), 390, 'the lanes widened the phone\'s page');
   assert.deepEqual(failures, []);
 });
 

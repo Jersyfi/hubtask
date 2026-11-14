@@ -73,10 +73,11 @@ test('a formula, a diagram and coloured code are drawn under the policy', async 
   }
 });
 
-test('a view embedded in a page lives under its head: tile, Live in words, its rows read as the reader (S-4)', async () => {
+/** A page holding one embedded view at `width`, its rows titled `titles`. */
+async function openLive(width, titles) {
   const browser = await chromium.launch();
-  try {
-    const { page, failures, context } = await signedIn(browser, 1280, 900);
+  {
+    const { page, failures, context } = await signedIn(browser, width, 900, { isMobile: width < 600 });
     const view = '01a0e2e0-0000-7000-8000-000000000952';
     const collection = '01a0e2e0-0000-7000-8000-000000000953';
     const asked = [];
@@ -99,21 +100,42 @@ test('a view embedded in a page lives under its head: tile, Live in words, its r
       if (path === '/items:query') {
         asked.push(route.request().postDataJSON());
         // The server answers only what the reader may see: two of the view's seven.
-        return route.fulfill({ json: { data: [row(1, 'Sign in with a passkey'), row(2, 'Offline orders')], total: 7, page: { next_cursor: null, has_more: false } } });
+        return route.fulfill({ json: { data: titles.map((title, n) => row(n + 1, title)), total: 7, page: { next_cursor: null, has_more: false } } });
       }
       return stub(route);
     });
     await page.goto(`${served.origin}/pages/${PAGE_ID}`);
     const live = page.locator('[data-live-block]');
     await live.waitFor({ timeout: 20_000 });
-    assert.match(await live.innerText(), /Live/u, 'Live is said in words, not by a colour alone');
     const rows = live.locator('[data-live-rows] li');
     await rows.first().waitFor({ timeout: 10_000 });
+    return { browser, page, failures, context, live, rows, asked, collection };
+  }
+}
+
+test('a view embedded in a page lives under its head: tile, Live in words, its rows read as the reader (S-4)', async () => {
+  const { browser, failures, context, live, rows, asked, collection } = await openLive(1280, ['Sign in with a passkey', 'Offline orders']);
+  try {
+    assert.match(await live.innerText(), /Live/u, 'Live is said in words, not by a colour alone');
     assert.deepEqual(await rows.locator('.title').allInnerTexts(), ['Sign in with a passkey', 'Offline orders']);
     assert.match(await live.innerText(), /5 more in the view/u);
     const read = asked.find((body) => body.scope);
     assert.deepEqual(read.scope, { container_id: collection, include_descendants: false }, 'the view is read at its own scope');
     assert.deepEqual(read.filter, { field: 'status', op: 'eq', value: 'todo' }, 'with its own question');
+    assert.deepEqual(failures, []);
+    await context.close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('a view embedded in a page keeps a phone\'s width: a long title ends in an ellipsis', async () => {
+  const long = 'Checkout button hidden behind the keyboard on small screens when the order holds more than ten lines';
+  const { browser, page, failures, context, rows } = await openLive(390, [long, 'Offline orders']);
+  try {
+    assert.equal(await page.evaluate(() => window.innerWidth), 390, 'the layout viewport widened past the phone');
+    const title = rows.first().locator('.title');
+    assert.ok(await title.evaluate((node) => node.scrollWidth > node.clientWidth), 'the long title is not cut with an ellipsis');
     assert.deepEqual(failures, []);
     await context.close();
   } finally {

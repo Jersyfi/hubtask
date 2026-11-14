@@ -737,7 +737,7 @@
         create={mayEdit && !isEditing ? { label: t('app.dashboards.add_widget'), onclick: () => { startEditing(); openWidget(-1); } } : undefined} />
       {#if isWidgetOpen}{@render editorPanel()}{/if}
     {:else}
-      <div class="board" class:with-side={isEditing && (isLibraryOpen || isWidgetOpen)}>
+      <div class="board" class:with-side={isEditing && (isLibraryOpen || isWidgetOpen) && !viewport.isCompact} class:stacked={viewport.isCompact}>
       <div class="stage">
       {#if isWidgetOpen && draftWidget}
         {@const live = draftWidget}
@@ -930,6 +930,8 @@
   .widget.preview { min-block-size: calc(var(--sp-1000) * 3); outline: var(--bw-thick) dashed var(--accent-primary); outline-offset: var(--sp-050); }
   .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-200); align-items: start; }
   .board.with-side { grid-template-columns: minmax(0, 1fr) var(--layout-pane-width); }
+  /* A phone has no room beside the grid: the editor or the library stands above it, the phone's width. */
+  .board.stacked > .side { order: -1; min-inline-size: 0; }
   .grid.editing { padding: var(--sp-100); border: var(--bw-hairline) dashed var(--border-strong); border-radius: var(--r-lg); }
   .grid.editing .widget { position: relative; }
   .widget.dimmed { opacity: 0.45; }

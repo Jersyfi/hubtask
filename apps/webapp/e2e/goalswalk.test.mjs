@@ -762,6 +762,34 @@ test('chromium: the widget editor releases an inherited filter and names its fie
   assert.deepEqual(walk.errors(), []);
 });
 
+test('chromium 390 phone: the widget editor stands above the grid, the phone\'s width', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const widget = {
+    id: '01a0e2e0-0000-7000-8000-00000000a661', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null,
+    query: { scope: { workspace: true }, aggregate: { function: 'COUNT', group_by: 'status' } },
+    goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x: 0, y: 0, w: 6, h: 2,
+  };
+  const board = { id: '01a0e2e0-0000-7000-8000-00000000a662', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: '', version: 1, widgets: [widget] };
+  const walk = await productWalk(browser, { modules: ['GOALS'], width: 390, height: 844, isMobile: true, answer: goalsBackend({ seed: { dashboards: [board], puts: [], figures: { [widget.id]: [{ group: 'todo', period: null, count: 3, value: null }] } } }) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/dashboards/${board.id}`);
+  await page.locator('main').getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  await page.getByRole('button', { name: 'Change By status' }).click();
+  const editor = page.locator('[data-widget-editor]');
+  await editor.waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(300);
+  // A phone's browser widens its layout viewport to content that does not fit.
+  assert.equal(await page.evaluate(() => window.innerWidth), 390, 'the editor widened the phone\'s page');
+  const grid = await page.locator('.grid').boundingBox();
+  const box = await editor.boundingBox();
+  assert.ok(box && grid && box.y < grid.y, 'the editor stands above the grid');
+  assert.deepEqual(walk.errors(), []);
+});
+
 // UC-GOL-04 check 23: the widget being edited stands large and live over the dimmed grid - its
 // chart and line computed by the server as they are typed - and nothing is saved before Apply.
 test('chromium: the widget editor draws the edited widget live, and its line is the chips of every list', async (t) => {

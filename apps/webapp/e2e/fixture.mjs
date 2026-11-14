@@ -1485,13 +1485,16 @@ export function unstubbedSoFar() {
 /**
  * A signed-in tab at a width, with the failures the bundle throws collected. A walk about days
  * passes `timezoneId`, so it reads the same on every machine; a walk about fingers passes
- * `hasTouch`, so the page meets a touch screen. Nothing else is taken from `options`.
+ * `hasTouch`, so the page meets a touch screen; a walk about a phone's width passes `isMobile`,
+ * so the layout viewport widens as a phone's does. Nothing else is taken from `options`.
  */
-export async function signedIn(browser, width, height = 800, { timezoneId, hasTouch } = {}) {
+export async function signedIn(browser, width, height = 800, { timezoneId, hasTouch, isMobile } = {}) {
   const context = await browser.newContext({
     viewport: { width, height },
     ...(timezoneId ? { timezoneId } : {}),
-    ...(hasTouch ? { hasTouch: true } : {}),
+    ...(hasTouch || isMobile ? { hasTouch: true } : {}),
+    // A phone's browser widens its layout viewport to content that does not fit; a desktop's does not.
+    ...(isMobile ? { isMobile: true } : {}),
   });
   await context.route('**/api/v1/**', stub);
   await context.addInitScript(() => { sessionStorage.setItem('hubtask.bearer', 'e2e-bearer'); sessionStorage.setItem('hubtask.refresh', 'e2e-refresh'); });

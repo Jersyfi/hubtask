@@ -1414,6 +1414,10 @@
 
   .board[data-one-column] .zone,
   .board[data-one-column] .zone > :global(*) { box-sizing: border-box; inline-size: 100%; }
+  /* In lanes too: a lane is as wide as the phone, never as wide as its longest card's line. */
+  .board[data-one-column][data-lanes] { align-items: stretch; }
+  .board[data-one-column][data-lanes] .lane-row { inline-size: auto; min-inline-size: 0; }
+  .board[data-one-column][data-lanes] .lane-columns { flex-direction: column; min-inline-size: 0; }
 
   .strip { overflow-x: auto; padding-block-end: var(--sp-050); }
   /* One row that scrolls sideways, as scene board 4 draws it: never wrapped onto a second line. */
