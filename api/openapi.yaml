@@ -31711,13 +31711,23 @@ components:
           description: Only on a goal read alone.
           items:
             type: object
-            required: [id, title, key, completed, collection_id]
+            required: [id, title, key, completed, collection_id, status_name, status_category]
             properties:
               id: { type: string, format: uuid }
               title: { type: string }
               key: { type: [string, "null"] }
               completed: { type: boolean }
               collection_id: { type: string, format: uuid }
+              status_name:
+                type: [string, "null"]
+                description: >
+                  The entry's status as the workflow in force names it; null where no workflow
+                  runs or the status has no name of its own, which a client words by
+                  `status_category`.
+              status_category:
+                type: [string, "null"]
+                enum: [BACKLOG, TODO, IN_PROGRESS, DONE, null]
+                description: The status's category; null where no workflow runs, where `completed` says done or open.
         check_ins: { type: array, description: "The latest 20, only on a goal read alone.", items: { $ref: "#/components/schemas/GoalCheckIn" } }
 
     AgentModel:

@@ -8,6 +8,7 @@ import (
 
 	goalrepo "github.com/Jersyfi/hubtask/core/application/repository/goal"
 	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/goal"
@@ -132,8 +133,10 @@ func (s Steward) readableEntries(ctx context.Context, actor appshared.ActorConte
 	var summaries []workrepo.EntrySummary
 	if err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		summaries, err = s.References.Entries(ctx, ids)
-		return err
+		if summaries, err = s.References.Entries(ctx, ids); err != nil {
+			return err
+		}
+		return work.WorkflowGate{Workflows: s.Workflows}.NameStatuses(ctx, summaries)
 	}); err != nil {
 		return nil, err
 	}

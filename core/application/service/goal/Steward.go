@@ -105,6 +105,8 @@ type Steward struct {
 	Store      goalrepo.Store
 	References workrepo.References
 	Containers workrepo.Containers
+	// Workflows names a linked entry's status as the workflow in force does; nil names none.
+	Workflows workrepo.Workflows
 	// Summaries is POST /items:aggregate's use case and ViewSummaries a saved view's: every number
 	// of the module is one of theirs, run as the reader.
 	Summaries     usecase.Handler

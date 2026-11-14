@@ -403,10 +403,17 @@ func (h ReadGoal) Descriptor() usecase.Descriptor {
 				if k := e.Key(); k != "" {
 					key = k
 				}
-				entries = append(entries, usecase.Output{
+				entry := usecase.Output{
 					"id": e.ID.String(), "title": e.Title, "key": key, "completed": e.Completed,
-					"collection_id": e.CollectionID.String(),
-				})
+					"collection_id": e.CollectionID.String(), "status_name": nil, "status_category": nil,
+				}
+				if e.StatusCategory != "" {
+					entry["status_category"] = e.StatusCategory
+					if e.StatusName != "" {
+						entry["status_name"] = e.StatusName
+					}
+				}
+				entries = append(entries, entry)
 			}
 			out["linked_entries"] = entries
 			out["check_ins"] = checkInsOutput(checkIns)

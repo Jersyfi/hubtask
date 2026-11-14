@@ -2213,7 +2213,7 @@ func run() error {
 		Pages: knowledgeservice.PageReach{Space: pageSpace, Modules: modules},
 	}
 	steward := goalservice.Steward{
-		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers,
+		Store: postgres.NewGoalRepository(), References: entryLinks, Containers: containers, Workflows: workflows,
 		Summaries: goalSummaries.Descriptor().Handler,
 		Items:     goalSummaries.Query.Descriptor().Handler,
 		ViewSummaries: work.AggregateView{

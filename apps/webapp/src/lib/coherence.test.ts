@@ -205,6 +205,12 @@ test('an agent\'s empty parts are one line each; a goal\'s and a portfolio\'s he
   }
 });
 
+// N15: an entry linked to a goal shows its real status - *In Arbeit*, not *Offen* - as a release does.
+test('a goal\'s linked entries show their status as the workflow names it (N15)', () => {
+  const goal = sources.find(({ path }) => path === 'views/GoalView.svelte')?.text ?? '';
+  assert.match(goal, /\{@const state = referenceState\(\{ completed: entry\.completed, status_name: entry\.status_name, status_category: entry\.status_category \}, t\)\}<StateLozenge size="sm" vocabulary="category" state=\{state\.state\} label=\{state\.label\} \/>/u);
+});
+
 test('a page says nothing before its first sentence: no published hint, the live line under the text (M-2, §2.1)', () => {
   const view = sources.find(({ path }) => path === 'views/PagesView.svelte')?.text ?? '';
   assert.doesNotMatch(view, /app\.pages\.published_hint/u);

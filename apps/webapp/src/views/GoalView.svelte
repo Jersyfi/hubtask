@@ -12,6 +12,7 @@
   // **The server computes the numbers**: a view's total and a milestone's entry are counted for
   // this reader, and an entry they may not read is not listed (UC-GOL-01 check 5).
 
+  import { referenceState } from '../lib/data/links.ts';
   import { untrack } from 'svelte';
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
@@ -338,7 +339,7 @@
         {#snippet empty()}<p class="quiet">{t('app.goals.no_entries')}</p>{/snippet}
         {#snippet cell(entry: Linked, column: DataColumn)}
           {#if column.id === 'entry'}<a href={`/items/${entry.id}`}>{entry.title}</a>{#if entry.key}<span class="note">{entry.key}</span>{/if}
-          {:else}{entry.completed ? t('app.goals.entry_done') : t('app.goals.entry_open')}{/if}
+          {:else}{@const state = referenceState({ completed: entry.completed, status_name: entry.status_name, status_category: entry.status_category }, t)}<StateLozenge size="sm" vocabulary="category" state={state.state} label={state.label} />{/if}
         {/snippet}
       </DataTable>
     </section>

@@ -13969,8 +13969,6 @@
   "app.goals.no_entries": "No entry is linked yet.",
   "app.goals.entry": "Entry",
   "app.goals.entry_state": "State",
-  "app.goals.entry_done": "Done",
-  "app.goals.entry_open": "Open",
   "app.goals.actions": "Actions",
   "app.goals.link_entry": "Link an entry",
   "app.goals.link": "Link",

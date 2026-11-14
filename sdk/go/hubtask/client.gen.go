@@ -5584,6 +5584,33 @@ func (e GlanceLineKind) Valid() bool {
 	}
 }
 
+// Defines values for GoalLinkedEntriesStatusCategory.
+const (
+	GoalLinkedEntriesStatusCategoryBACKLOG     GoalLinkedEntriesStatusCategory = "BACKLOG"
+	GoalLinkedEntriesStatusCategoryDONE        GoalLinkedEntriesStatusCategory = "DONE"
+	GoalLinkedEntriesStatusCategoryINPROGRESS  GoalLinkedEntriesStatusCategory = "IN_PROGRESS"
+	GoalLinkedEntriesStatusCategoryLessThannil GoalLinkedEntriesStatusCategory = "<nil>"
+	GoalLinkedEntriesStatusCategoryTODO        GoalLinkedEntriesStatusCategory = "TODO"
+)
+
+// Valid indicates whether the value is a known member of the GoalLinkedEntriesStatusCategory enum.
+func (e GoalLinkedEntriesStatusCategory) Valid() bool {
+	switch e {
+	case GoalLinkedEntriesStatusCategoryBACKLOG:
+		return true
+	case GoalLinkedEntriesStatusCategoryDONE:
+		return true
+	case GoalLinkedEntriesStatusCategoryINPROGRESS:
+		return true
+	case GoalLinkedEntriesStatusCategoryLessThannil:
+		return true
+	case GoalLinkedEntriesStatusCategoryTODO:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for GoalStatus.
 const (
 	GoalStatusATRISK   GoalStatus = "AT_RISK"
@@ -19271,7 +19298,13 @@ type Goal struct {
 		Completed    bool               `json:"completed"`
 		Id           openapi_types.UUID `json:"id"`
 		Key          *string            `json:"key"`
-		Title        string             `json:"title"`
+
+		// StatusCategory The status's category; null where no workflow runs, where `completed` says done or open.
+		StatusCategory *GoalLinkedEntriesStatusCategory `json:"status_category"`
+
+		// StatusName The entry's status as the workflow in force names it; null where no workflow runs or the status has no name of its own, which a client words by `status_category`.
+		StatusName *string `json:"status_name"`
+		Title      string  `json:"title"`
 	} `json:"linked_entries,omitempty"`
 	OwnerId  *openapi_types.UUID `json:"owner_id"`
 	ParentId *openapi_types.UUID `json:"parent_id"`
@@ -19283,6 +19316,9 @@ type Goal struct {
 	Title    string     `json:"title"`
 	Version  int        `json:"version"`
 }
+
+// GoalLinkedEntriesStatusCategory The status's category; null where no workflow runs, where `completed` says done or open.
+type GoalLinkedEntriesStatusCategory string
 
 // GoalStatus defines model for Goal.Status.
 type GoalStatus string
