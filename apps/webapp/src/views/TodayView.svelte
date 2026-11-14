@@ -27,7 +27,7 @@
   import { untrack } from 'svelte';
 
   import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, UnreadPostList, WorkItem } from '@hubtask/sync-engine';
-  import { Button, Checkbox, Dialog, Disclosure, EmptyState, Icon, IconButton, Kbd, PageHeader, Skeleton, Stack, Tabs, TaskRow, Widget, WidgetStrip, WorkPage } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Disclosure, EmptyState, Icon, IconButton, Kbd, PageHeader, Skeleton, Stack, Tabs, TaskRow, UnreadDot, Widget, WidgetStrip, WorkPage } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -901,7 +901,7 @@
         <ul class="news">
           {#each unreadPosts.slice(0, 3) as post (post.page_id)}
             <li data-news={post.page_id}>
-              <a class="news-title" href={`/posts/${post.page_id}`}><span class="news-dot" aria-hidden="true"></span><span class="name">{post.title}</span></a>
+              <a class="news-title" href={`/posts/${post.page_id}`}><UnreadDot /><span class="name">{post.title}</span></a>
               <span class="from">{[
                 t('app.today.news_by', { name: (post.created_by ? accounts.nameOf(post.created_by) : undefined) ?? t('app.people.unnamed') }),
                 containers.find(post.hub_id)?.name,
@@ -1116,7 +1116,6 @@
   .news-title { display: flex; align-items: center; gap: var(--sp-100); color: var(--text-primary); text-decoration: none; font-weight: var(--fw-semibold); min-inline-size: 0; }
   .news-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .news-title:hover .name { text-decoration: underline; }
-  .news-dot { inline-size: var(--sp-100); block-size: var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); flex: none; }
   .news .from { color: var(--text-subtle); font-size: var(--fs-075); }
   /* The scene `today` (work-surface concept §6.1): the cards' row, two columns that end level, the
      tiles over the full width. One column below `expanded`; on a phone the cards swipe and the
