@@ -536,20 +536,29 @@ func (h RemindCiCampaign) Descriptor() usecase.Descriptor {
 			if c.Closed() {
 				return nil, shared.ErrConflict.WithDetail("cmdb.campaign_closed")
 			}
-			var owners []shared.ID
-			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var waiting []shared.ID
+			err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				as, err := s.Assurance.Attestations(ctx, id)
 				if err != nil {
 					return err
 				}
-				waiting := domain.Waiting(as, actor.AccountID)
-				if len(waiting) == 0 {
-					return shared.ErrConflict.WithDetail("cmdb.nobody_to_remind")
+				for owner := range domain.Waiting(as, actor.AccountID) {
+					waiting = append(waiting, owner)
 				}
-				for owner := range waiting {
-					owners = append(owners, owner)
-				}
-				slices.SortFunc(owners, compareIDs)
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+			owners, err := s.stillReading(ctx, actor.TenantID, c.HubID, waiting)
+			if err != nil {
+				return nil, err
+			}
+			if len(owners) == 0 {
+				return nil, shared.ErrConflict.WithDetail("cmdb.nobody_to_remind")
+			}
+			slices.SortFunc(owners, compareIDs)
+			err = s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				if s.Notify != nil {
 					if err := s.Notify.AttestationReminder(ctx, actor.TenantID, actor.AccountID, id, owners); err != nil {
 						return err

@@ -208,6 +208,27 @@ func (s Inventory) authorizeConfig(ctx context.Context, actor appshared.ActorCon
 	})
 }
 
+// stillReading keeps the owners who read the hub now (rule 2): an attestation names whoever owned
+// the object when the round began, and a person who has since lost the hub is told nothing of it.
+// Without a Reader nobody can be judged, so nobody is told.
+func (s Inventory) stillReading(ctx context.Context, tenant, hubID shared.ID, owners []shared.ID) ([]shared.ID, error) {
+	if s.Reader == nil {
+		return nil, nil
+	}
+	var kept []shared.ID
+	for _, owner := range owners {
+		allowed, err := s.Reader.Permitted(ctx, appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenant, AccountID: owner},
+			access.Request{Permission: service.PermissionRead, Action: CampaignRemindedAction, TargetType: campaignTarget}, [][]identity.Scope{hubPath(hubID)})
+		if err != nil {
+			return nil, err
+		}
+		if len(allowed) == 1 && allowed[0] {
+			kept = append(kept, owner)
+		}
+	}
+	return kept, nil
+}
+
 // hub refuses anything that is not a living hub.
 func (s Inventory) hub(ctx context.Context, hubID shared.ID) error {
 	container, err := s.Containers.Find(ctx, hubID)
