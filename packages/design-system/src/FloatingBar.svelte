@@ -38,4 +38,11 @@
     color: var(--text-primary);
     box-shadow: var(--shadow-overlay);
   }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .floating-bar > :global(*) { min-inline-size: var(--layout-target); }
+  }
 </style>

@@ -284,11 +284,12 @@
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
   }
 
-  /* A thumb's target (§7): the bar's and the format's icons grow to layout.target. */
+  /* A thumb's target (§7): the bar's and the format's icons and the tabs grow to layout.target. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
     .bar :global(.icon-button[data-size]),
     .format :global(.icon-button[data-size]) { width: var(--layout-target); height: var(--layout-target); }
+    .tab { min-block-size: var(--layout-target); }
   }
 
   .field::placeholder { color: var(--text-subtle); }
