@@ -30,7 +30,9 @@
     campaignsPath, cisPath, classWord, cmdb, connectorsPath, duplicatesPath, healthPath, holdsPath, inventoryPath, runsPath, type CarePart, type Words,
   } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
+  import { live } from '../data/live.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
   import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -63,6 +65,10 @@
   }
 
   const { hubId, classes, words, mayWrite, mayShape, parts, part, asked, onasked, onask, onimported }: Props = $props();
+  // The overview's own acts write online and off the phone only (UC-AST-01 check 10); there it reads.
+  const isWriting = $derived(!viewport.isCompact && live.state !== 'offline');
+  const mayChange = $derived(mayWrite && isWriting);
+  const mayConnect = $derived(mayShape && isWriting);
 
   $effect(() => {
     const at = part;
@@ -275,10 +281,10 @@
                 <span class="said">{said}</span>
                 {#if todo.act === 'compare' && todo.hold}
                   {@const hold = todo.hold}
-                  <Button size="sm" tone="subtle" aria-label={t('app.care.act_on', { act, what: said })} onclick={() => compare(hold)}>{act}</Button>
+                  <button type="button" class="act" aria-label={t('app.care.act_on', { act, what: said })} onclick={() => compare(hold)}>{act}</button>
                 {:else if todo.act === 'decide' && todo.duplicate}
                   {@const pair = todo.duplicate}
-                  <Button size="sm" tone="subtle" aria-label={t('app.care.act_on', { act, what: said })} onclick={() => decide(pair)}>{act}</Button>
+                  <button type="button" class="act" aria-label={t('app.care.act_on', { act, what: said })} onclick={() => decide(pair)}>{act}</button>
                 {:else}
                   <a class="act" href={objectHref(todo)} aria-label={t('app.care.act_on', { act, what: said })}>{act}</a>
                 {/if}
@@ -303,7 +309,7 @@
             <div class="acts"><a class="act" href={inventoryPath(hubId, 'campaigns')}>{t('app.care.round_open')}</a></div>
           {:else}
             <p class="meta">{t('app.care.round_none')}</p>
-            {#if mayWrite}<div class="acts"><Button size="sm" tone="secondary" icon="check" onclick={() => onask('campaign')}>{t('app.care.round_start')}</Button></div>{/if}
+            {#if mayChange}<div class="acts"><Button size="sm" tone="secondary" icon="check" onclick={() => onask('campaign')}>{t('app.care.round_start')}</Button></div>{/if}
           {/if}
           {#if pastRounds > 0}<a class="more" href={inventoryPath(hubId, 'campaigns')}>{t('app.care.rounds_past', { count: pastRounds })}</a>{/if}
         </section>
@@ -319,7 +325,7 @@
                 {@const said = pair.ci_ids.map(nameOf).join(' · ')}
                 <li class="todo-row" data-care-pair={pair.id}>
                   <span class="said">{said}</span>
-                  <Button size="sm" tone="subtle" aria-label={t('app.care.act_on', { act: t('app.care.act.decide'), what: said })} onclick={() => decide(pair)}>{t('app.care.act.decide')}</Button>
+                  <button type="button" class="act" aria-label={t('app.care.act_on', { act: t('app.care.act.decide'), what: said })} onclick={() => decide(pair)}>{t('app.care.act.decide')}</button>
                 </li>
               {/each}
             </ul>
@@ -350,8 +356,8 @@
         </DataTable>
       </div>
       <div class="acts" id={mayImport ? 'care-import' : undefined} data-care-part={mayImport ? 'import' : undefined}>
-        {#if mayShape}<Button size="sm" tone="subtle" icon="plus" onclick={() => onask('connector')}>{t('app.care.connect')}</Button>{/if}
-        {#if mayImport}<a class="act" href={inventoryPath(hubId, 'import')}><Icon name="cloud-upload" size="sm" /> {t('app.inventory.import')}</a>{/if}
+        {#if mayConnect}<Button size="sm" tone="subtle" icon="plus" onclick={() => onask('connector')}>{t('app.care.connect')}</Button>{/if}
+        {#if mayImport && mayChange}<a class="act" href={inventoryPath(hubId, 'import')}><Icon name="cloud-upload" size="sm" /> {t('app.inventory.import')}</a>{/if}
         <span class="links">
           <a class="more" href={inventoryPath(hubId, 'runs')}>{t('app.care.runs_all')}</a>
           {#if parts.includes('connectors')}<a class="more" href={inventoryPath(hubId, 'connectors')}>{t('app.care.connectors_all')}</a>{/if}
@@ -364,7 +370,7 @@
 
 {#if isComparing && comparing}
   <Dialog size="l" bind:isOpen={isComparing} title={t('app.care.compare_title', { source: comparing.source })} dismissLabel={t('app.assets.cancel')}
-    primary={mayWrite ? { label: t('app.care.compare_settled'), isBusy: isClosing, onclick: () => void settle() } : undefined}>
+    primary={mayChange ? { label: t('app.care.compare_settled'), isBusy: isClosing, onclick: () => void settle() } : undefined}>
     <Stack gap="150">
       <p class="meta">{t('app.care.compare_hint')}</p>
       <dl class="pairs">
@@ -384,7 +390,7 @@
 
 {#if isDeciding && deciding}
   <Dialog size="l" bind:isOpen={isDeciding} title={t('app.care.decide_title')} dismissLabel={t('app.sheet_close')}>
-    <Duplicates {hubId} {classes} {words} {mayWrite} only={deciding} />
+    <Duplicates {hubId} {classes} {words} mayWrite={mayChange} only={deciding} />
   </Dialog>
 {/if}
 
@@ -440,7 +446,12 @@
   .todo-row { display: flex; align-items: center; gap: var(--sp-100); padding-block: var(--sp-050); min-block-size: var(--layout-target); }
   .glyph { display: inline-flex; color: var(--text-subtle); }
   .said { flex: 1 1 auto; min-inline-size: 0; overflow-wrap: anywhere; }
-  .act { color: var(--text-primary); font-weight: var(--fw-semibold); text-decoration: none; display: inline-flex; align-items: center; gap: var(--sp-050); }
+  /* Every to-do's one act looks the same, whether it opens the object or a dialog. */
+  .act {
+    display: inline-flex; align-items: center; gap: var(--sp-050); padding: 0; border: 0; background: none; cursor: pointer;
+    font: inherit; color: var(--text-primary); font-weight: var(--fw-semibold); text-decoration: none;
+  }
+  .act:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-xs); }
   .act:hover, .more:hover { text-decoration: underline; }
   .more { color: var(--text-secondary); font-size: var(--fs-090); text-decoration: none; }
   .acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100) var(--sp-200); scroll-margin-block-start: var(--sp-400); }
