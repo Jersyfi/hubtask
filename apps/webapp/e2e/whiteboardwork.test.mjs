@@ -215,6 +215,8 @@ test('chromium: a timer started from Moderate is one bar at the top centre, leve
   await side.getByRole('button', { name: 'Start the timer' }).click();
   const bar = page.locator('[data-board-session]');
   await bar.waitFor({ timeout: 5_000 });
+  await page.locator('[data-board-sheet=session]').click();
+  await side.waitFor({ state: 'detached', timeout: 5_000 });
   const stage = await box(page.locator('.stage'));
   const at = await box(bar);
   assert.ok(Math.abs(at.x + at.width / 2 - (stage.x + stage.width / 2)) < 4, 'the session bar is not at the centre');
@@ -225,7 +227,9 @@ test('chromium: a timer started from Moderate is one bar at the top centre, leve
     const at = bar.getBoundingClientRect();
     const [title, people] = ['title', 'people'].map((name) => document.querySelector(`[data-board-island=${name}]`).getBoundingClientRect());
     const level = !bar.classList.contains('below');
-    return level ? Math.abs(at.top - title.top) < 2 && at.left >= title.right && at.right <= people.left : at.top >= title.bottom && at.top >= people.bottom;
+    const side = document.querySelector('[data-board-side]')?.getBoundingClientRect();
+    const clearOfSheet = !side || at.right <= side.left || at.top >= side.bottom || at.bottom <= side.top;
+    return clearOfSheet && (level ? Math.abs(at.top - title.top) < 2 && at.left >= title.right && at.right <= people.left : at.top >= title.bottom && at.top >= people.bottom);
   });
   assert.ok(await clear(), 'the session bar touches a top island');
   const clock = bar.getByRole('timer');
@@ -235,9 +239,11 @@ test('chromium: a timer started from Moderate is one bar at the top centre, leve
   const [m1] = was.split(':').map(Number);
   const [m2] = (await clock.textContent()).split(':').map(Number);
   assert.ok(m2 >= m1 + 1 || m2 === m1 + 1, `a minute more read ${was} → ${await clock.textContent()}`);
+  await page.locator('[data-board-sheet=session]').click();
+  await side.waitFor({ timeout: 5_000 });
   await page.setViewportSize({ width: 1100, height: 860 });
   await page.waitForFunction(() => document.querySelector('[data-board-session]').classList.contains('below'), null, { timeout: 5_000 });
-  assert.ok(await clear(), 'the session bar touches a top island where there is no room beside them');
+  assert.ok(await clear(), 'the session bar touches a top island or the open sheet where there is no room beside them');
   assert.deepEqual(failures, []);
 });
 

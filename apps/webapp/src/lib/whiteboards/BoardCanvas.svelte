@@ -1891,7 +1891,7 @@
 
     {#if remaining || voting}
       <!-- The session bar: the running timer and vote, the same for everyone (W-5). -->
-      <div class="island session-bar" class:below={!isSessionLevel} role="group" aria-label={t('app.whiteboards.session')} data-board-session bind:offsetWidth={sessionWidth}>
+      <div class="island session-bar" class:below={!isSessionLevel} class:beside={!isSessionLevel && !!sheet && sheet !== 'frames' && !viewport.isCompact} role="group" aria-label={t('app.whiteboards.session')} data-board-session bind:offsetWidth={sessionWidth}>
         {#if remaining}
           <Icon name="timer" size="sm" />
           <span class="clock" class:over={!remaining.running && remaining.left === 0} role="timer" aria-label={t('app.whiteboards.timer_left', { time: clockOf(remaining.left) })}>{clockOf(remaining.left)}</span>
@@ -2293,6 +2293,11 @@
     padding-inline: var(--sp-150);
   }
   .session-bar.below { inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200)); }
+  /* Below the islands an open sheet stands at the same height: the bar centres in the room beside it. */
+  .session-bar.beside {
+    inset-inline-end: calc(var(--sp-200) + min(var(--layout-pane-width), calc(100% - 2 * var(--sp-200))) + var(--sp-200));
+    max-inline-size: calc(100% - min(var(--layout-pane-width), calc(100% - 2 * var(--sp-200))) - 4 * var(--sp-200));
+  }
   .vote-words { display: grid; line-height: var(--lh-tight); }
   .pager { inset-block-start: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-200)); inset-inline: 0; margin-inline: auto; inline-size: fit-content; }
   .pager-name { font-size: var(--fs-075); padding-inline: var(--sp-050); }
