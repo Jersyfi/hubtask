@@ -157,3 +157,21 @@ test('a connector attached, offline or at the same moment, to an object someone 
     assert.equal(board.get('l'), undefined);
   }
 });
+
+test('an object knows who put it on the board on every device, outside the saved scene, and keeps it across a version brought back', () => {
+  const [a, b] = pair();
+  a.add(sticky('mine'), 'account-a');
+  b.addAll([sticky('theirs', 300), sticky('also', 600)], 'account-b');
+  a.add(sticky('nobody', 900));
+  assert.equal(b.makerOf('mine'), 'account-a');
+  assert.equal(a.makerOf('theirs'), 'account-b');
+  assert.equal(a.makerOf('also'), 'account-b');
+  assert.equal(a.makerOf('nobody'), undefined);
+  assert.equal(a.scene().some((e) => 'by' in e), false);
+  a.replace([sticky('mine'), sticky('old', 1200)]);
+  assert.equal(b.makerOf('mine'), 'account-a');
+  assert.equal(b.makerOf('old'), undefined);
+  const seeded = new Board(new Y.Doc());
+  seeded.seed([sticky('s')]);
+  assert.equal(seeded.makerOf('s'), undefined);
+});

@@ -78,6 +78,13 @@ type Stored = Y.Map<unknown>;
 /** The origin of a seed's change: not the person's, so not theirs to undo. */
 const SEEDED = Symbol('seeded');
 
+/**
+ * Who put an object on the board: the account's identifier, beside `z` in the object's own map and
+ * never in the saved scene - the contract has no author per object, so the board says it from the
+ * live document alone. An object seeded from a saved scene has none.
+ */
+const MAKER = 'by';
+
 /** Changes this close together are one step to undo: a drag or a typed word, not every frame of it. */
 const CAPTURE_MS = 500;
 
@@ -149,6 +156,12 @@ export class Board {
     return rows.map((row) => row.element);
   }
 
+  /** The account that put the object on the board, when the live document knows it. */
+  makerOf(id: string): string | undefined {
+    const by = this.#map.get(id)?.get(MAKER);
+    return typeof by === 'string' && by !== '' ? by : undefined;
+  }
+
   get(id: string): Element | undefined {
     const stored = this.#map.get(id);
     return stored && this.#attached(stored) ? read(id, stored) : undefined;
@@ -174,13 +187,14 @@ export class Board {
     return this.elements();
   }
 
-  /** Puts an object on top of the others. Refused past the board's limit. */
-  add(element: Element): boolean {
+  /** Puts an object on top of the others, made by `by` when named. Refused past the board's limit. */
+  add(element: Element, by?: string): boolean {
     if (this.#map.size >= MAX_ELEMENTS || this.#map.has(element.id)) return false;
     this.doc.transact(() => {
       const stored = new Y.Map<unknown>();
       write(stored, element);
       stored.set('z', this.#top() + 1);
+      if (by) stored.set(MAKER, by);
       this.#map.set(element.id, stored);
     });
     return true;
@@ -193,8 +207,8 @@ export class Board {
     this.doc.transact(() => write(stored, patch));
   }
 
-  /** Puts several objects on top of the others in one change, in their order. */
-  addAll(elements: readonly Element[]): boolean {
+  /** Puts several objects on top of the others in one change, in their order, made by `by` when named. */
+  addAll(elements: readonly Element[], by?: string): boolean {
     if (this.#map.size + elements.length > MAX_ELEMENTS || elements.some((e) => this.#map.has(e.id))) return false;
     this.doc.transact(() => {
       let z = this.#top();
@@ -202,6 +216,7 @@ export class Board {
         const stored = new Y.Map<unknown>();
         write(stored, element);
         stored.set('z', (z += 1));
+        if (by) stored.set(MAKER, by);
         this.#map.set(element.id, stored);
       }
     });
@@ -280,16 +295,24 @@ export class Board {
 
   /**
    * Puts a whole scene in place of what stands, in one change everyone sees at once: an older
-   * version brought back (UC-CNV-06). Past the board's limit nothing changes.
+   * version brought back (UC-CNV-06). An object still standing keeps who made it. Past the board's
+   * limit nothing changes.
    */
   replace(elements: readonly Element[]): boolean {
     if (elements.length > MAX_ELEMENTS) return false;
     this.doc.transact(() => {
+      const makers = new Map<string, string>();
+      for (const id of this.#map.keys()) {
+        const by = this.makerOf(id);
+        if (by) makers.set(id, by);
+      }
       for (const id of [...this.#map.keys()]) this.#map.delete(id);
       elements.forEach((element, index) => {
         const stored = new Y.Map<unknown>();
         write(stored, element);
         stored.set('z', index);
+        const by = makers.get(element.id);
+        if (by) stored.set(MAKER, by);
         this.#map.set(element.id, stored);
       });
     });
