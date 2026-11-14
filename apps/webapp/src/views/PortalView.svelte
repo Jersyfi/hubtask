@@ -323,12 +323,13 @@
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), the main region's own padding step; a media query cannot read a custom property. */
   @media (width < 600px) {
     .hero[data-band] { margin: calc(-1 * var(--sp-200)) calc(-1 * var(--sp-200)) 0; padding: var(--sp-400) var(--sp-200) var(--sp-300); }
-    .hero[data-band] .greeting { font-size: var(--fs-400); }
+    .hero[data-band] .greeting { font-size: var(--fs-450); }
   }
   .eyebrow { margin: 0; display: inline-flex; align-items: center; gap: var(--sp-100); color: var(--product-desk-ink); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
   .mark { display: inline-flex; }
   .logo { inline-size: var(--sp-300); block-size: var(--sp-300); border-radius: var(--r-md); object-fit: contain; }
-  .greeting { margin: 0; font-size: var(--fs-400); font-weight: var(--fw-bold); }
+  /* A page head's size, the band's where it is one (H-5): two title sizes, no third. */
+  .greeting { margin: 0; font-size: var(--fs-450); font-weight: var(--fw-bold); }
   .search { inline-size: min(100%, var(--layout-dialog-m)); position: relative; text-align: start; }
   .found {
     margin-block-start: var(--sp-100); padding: var(--sp-150); display: flex; flex-direction: column; gap: var(--sp-050);

@@ -113,7 +113,8 @@
 
 <style>
   .column { display: flex; flex-direction: column; gap: var(--sp-200); min-inline-size: 0; max-inline-size: 72ch; }
-  .title { margin: 0; font-size: var(--fs-500); font-weight: var(--fw-bold); }
+  /* A document's title, as a page in Knowledge draws it: the band's size (H-5). */
+  .title { margin: 0; font-size: var(--fs-600); font-weight: var(--fw-bold); }
   .helped { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); margin-block-start: var(--sp-200); }
   .ask { margin: 0; flex: 1; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
   .answers { display: flex; flex-wrap: wrap; gap: var(--sp-100); }

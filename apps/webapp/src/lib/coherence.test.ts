@@ -187,3 +187,11 @@ test('every tab of the goals\' home starts with its figures, the dashboards\' an
   assert.match(view, /current === 'portfolios' \? \(portfolioList \? \[t\('app\.goals\.figure_portfolios'/u);
   assert.match(view, /current === 'dashboards' \? \(dashboardList \? \[t\('app\.goals\.figure_dashboards'/u);
 });
+
+test('the portal\'s titles take the two sizes every head has: a page head\'s and a band\'s (H-5)', () => {
+  const article = sources.find(({ path }) => path === 'views/PortalArticleView.svelte')?.text ?? '';
+  assert.match(article, /\.title \{ margin: 0; font-size: var\(--fs-600\);/u);
+  const home = sources.find(({ path }) => path === 'views/PortalView.svelte')?.text ?? '';
+  assert.match(home, /\.greeting \{ margin: 0; font-size: var\(--fs-450\);/u);
+  assert.doesNotMatch(home + article, /font-size: var\(--fs-(400|500)\); font-weight: var\(--fw-bold\)/u);
+});
