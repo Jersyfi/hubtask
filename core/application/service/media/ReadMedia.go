@@ -120,7 +120,7 @@ func (h GetMedia) Execute(
 
 	// After the permission question, deliberately: minting is signing, and a capability minted for
 	// somebody who turns out not to be allowed to read the object is one that was handed out.
-	download, err := h.Transfers.IssueDownload(object, h.Clock.Now().Add(DownloadWindow))
+	download, err := h.Transfers.IssueDownload(ctx, object, h.Clock.Now().Add(DownloadWindow))
 	if err != nil {
 		return ViewedMedia{}, err
 	}

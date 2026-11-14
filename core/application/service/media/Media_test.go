@@ -251,7 +251,7 @@ type transfers struct {
 	err       error
 }
 
-func (t *transfers) IssueUpload(object domain.Object, expiresAt time.Time) (storage.Transfer, error) {
+func (t *transfers) IssueUpload(_ context.Context, object domain.Object, expiresAt time.Time) (storage.Transfer, error) {
 	t.uploads = append(t.uploads, object)
 	if t.err != nil {
 		return storage.Transfer{}, t.err
@@ -261,7 +261,7 @@ func (t *transfers) IssueUpload(object domain.Object, expiresAt time.Time) (stor
 	}, nil
 }
 
-func (t *transfers) IssueDownload(object domain.Object, expiresAt time.Time) (storage.Transfer, error) {
+func (t *transfers) IssueDownload(_ context.Context, object domain.Object, expiresAt time.Time) (storage.Transfer, error) {
 	t.downloads = append(t.downloads, object)
 	return storage.Transfer{
 		URL: "https://storage.example/" + object.StorageKey, Method: "GET", ExpiresAt: expiresAt,

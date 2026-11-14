@@ -276,7 +276,7 @@ func TestAPresignedURLWorksUntilItExpires(t *testing.T) {
 	// staging mints is fifteen minutes (media.UploadWindow); what is under test is that the window
 	// is enforced at all, and by whom.
 	const window = 2 * time.Second
-	target, err := store.IssueUpload(object, time.Now().Add(window))
+	target, err := store.IssueUpload(context.Background(), object, time.Now().Add(window))
 	if err != nil {
 		t.Fatalf("minting the target: %v", err)
 	}

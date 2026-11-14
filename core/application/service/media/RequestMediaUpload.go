@@ -156,7 +156,7 @@ func (h RequestMediaUpload) Execute(
 	// After the commit, deliberately. Minting the target is signing rather than I/O, but it is the
 	// answer to a record that now exists - and issuing it first would hand out a capability for an
 	// object the transaction might still roll back.
-	transfer, err := h.Transfers.IssueUpload(object, now.Add(UploadWindow))
+	transfer, err := h.Transfers.IssueUpload(ctx, object, now.Add(UploadWindow))
 	if err != nil {
 		return StagedUpload{}, err
 	}

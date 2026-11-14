@@ -18,6 +18,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/shared/concurrency"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
@@ -109,6 +110,8 @@ func (o Observed) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// of them and needs to know whether this was a request or a loop (§3.1).
 	ctx = correlation.ContextWithComponent(ctx, componentREST)
 	ctx = correlation.ContextWithFailureLog(ctx)
+	// The host the page asking is on, where a media target is minted (security.md §9).
+	ctx = storage.ContextWithRequestHost(ctx, r.Host)
 
 	ctx, span := o.Tracer.Start(ctx, r.Method+" "+route,
 		trace.WithSpanKind(trace.SpanKindServer),

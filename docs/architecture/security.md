@@ -271,7 +271,10 @@ by store and outcome, as `encryption.resealed` in the workspace's trail when any
 | The web interface (everything else, when enabled) | `default-src 'none'`, then `'self'` for script, style, font, connect, manifest and worker; `img-src 'self' data: blob:`, `media-src 'self'` (the file viewer plays audio and video by URL, only types on the media allowlist); no `'unsafe-inline'` or `'unsafe-eval'` — a **constraint on the frontend framework**, which is why the viewer's pdf.js runs with `isEvalSupported: false` (CVE-2024-4367). Under `HUBTASK_STORAGE_KIND=s3` the media origin is added to `connect-src`, `img-src` and `media-src` only ([ADR-0047](../adr/ADR-0047-media-origin-in-the-interface-policy.md)). `frame-ancestors 'none'` unless `HUBTASK_UI_FRAME_ANCESTORS` names the complete origins that may embed the interface (a portal such as openDesk's); a wildcard is refused at start, and the API's policy never takes them. `frame-src` only where `HUBTASK_UI_FRAME_SOURCES` names complete https origins a page's embed may frame; the editor frames only those (`sandbox="allow-scripts allow-popups allow-presentation"`, never `allow-same-origin`, no referrer), every other embed is a link card | Bundle and API share one origin ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)); the upload flow needs the media origin |
 | The media origin | `sandbox` | T-11 |
 
-`presentation/webui` sets its policy on every answer, 404 and 405 included. **The upload's middle
+`presentation/webui` sets its policy on every answer, 404 and 405 included. **A local-storage
+target is minted at the host the request came on** - a workspace's own host - with the
+installation's scheme, so the page fetching it needs neither a wider policy nor CORS; a call from no
+request (a job) keeps `HUBTASK_BASE_URL`. No mail carries a media target. **The upload's middle
 step carries no credential**: the presigned URL is its own, and a bearer sent to a bucket is leaked.
 
 ---
