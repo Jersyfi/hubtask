@@ -266,7 +266,31 @@
     (remembered(COLUMNS_KEY) ?? '').split(',').filter((each) => (HIDEABLE as readonly string[]).includes(each)),
   );
   let layout = $state<'list' | 'types'>(remembered(LAYOUT_KEY) === 'types' ? 'types' : 'list');
+  // Seven columns need more than the stock's box beside the tree on a laptop: until the reader
+  // chooses columns, the two the object's page also shows - location and protection - step aside
+  // while the row would run past the box, and come back once it is wide enough again.
+  let isChosen = $state(remembered(COLUMNS_KEY) !== undefined);
+  let box = $state<HTMLElement | undefined>(undefined);
+  let boxWidth = $state(0);
+  let isCrowded = $state(false);
+  let neededWidth = 0;
+  $effect(() => {
+    const width = boxWidth;
+    void rows.length;
+    const table = box?.querySelector('table');
+    if (isChosen || !table || width === 0) return;
+    if (!isCrowded && table.getBoundingClientRect().width > width + 1) {
+      neededWidth = table.getBoundingClientRect().width;
+      isCrowded = true;
+    } else if (isCrowded && width >= neededWidth) isCrowded = false;
+  });
+  const CROWDED = ['location', 'protection'] as const;
+  const shownHidden = $derived(isCrowded ? [...new Set([...hidden, ...CROWDED])] : hidden);
   function toggleColumn(id: string) {
+    if (!isChosen) {
+      hidden = shownHidden;
+      isChosen = true;
+    }
     hidden = hidden.includes(id) ? hidden.filter((each) => each !== id) : [...hidden, id];
     remember(COLUMNS_KEY, hidden.join(','));
   }
@@ -285,7 +309,7 @@
     { id: 'open', label: t('app.inventory.col.open'), priority: 3, isHideable: true, align: 'end' },
   ]);
   const columnItems = $derived(
-    columns.filter((each) => each.isHideable).map((each) => ({ id: each.id, label: each.label, ...(hidden.includes(each.id) ? {} : { icon: 'check' as const }) })),
+    columns.filter((each) => each.isHideable).map((each) => ({ id: each.id, label: each.label, ...(shownHidden.includes(each.id) ? {} : { icon: 'check' as const }) })),
   );
 
   const STAGE_TONE: Record<ConfigurationItem['stage'], 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = {
@@ -497,9 +521,9 @@
       {:else}
         {@render treeColumn()}
       {/if}
-      <div class="table">
+      <div class="table" bind:this={box} bind:clientWidth={boxWidth}>
         <DataTable label={t('app.inventory.table')} kind="work" {columns} {rows} key={(ci: ConfigurationItem) => ci.id}
-          hiddenColumns={hidden}
+          hiddenColumns={shownHidden}
           group={layout === 'types' ? typeOf : undefined}
           foldGroupLabel={(name) => t('app.list.fold_group', { group: name })} unfoldGroupLabel={(name) => t('app.list.unfold_group', { group: name })}
           rowLabel={(ci) => ci.name} titleText={(ci) => ci.name} href={(ci) => `/cis/${ci.id}`}
@@ -607,9 +631,14 @@
   .name { display: inline-flex; align-items: center; gap: var(--sp-100); min-inline-size: 0; max-inline-size: 100%; }
   .mark { display: inline-flex; color: var(--text-subtle); }
   .mark.warn { color: var(--text-warning); }
-  .title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-medium); color: var(--text-primary); }
-  .quiet { color: var(--text-secondary); white-space: nowrap; }
-  .who { white-space: nowrap; }
+  .title { font-weight: var(--fw-medium); color: var(--text-primary); }
+  /* The title column takes the rest of the row and nothing when the other columns fill it: a
+     field's width keeps the name readable, and the person's name wraps to make room. */
+  @media (width >= 600px) {
+    .table :global(td[data-role='title']) { min-inline-size: var(--layout-field-sm); }
+  }
+  .quiet { color: var(--text-secondary); }
+  .who { white-space: normal; }
   .nobody { color: var(--text-warning); white-space: nowrap; }
   .meta { color: var(--text-secondary); font-size: var(--fs-075); white-space: normal; overflow-wrap: anywhere; }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px), where the tree folds into a choice; a media query cannot read a custom property. */

@@ -156,6 +156,19 @@ test('chromium: the inventory is five tabs, the firing alerts counted, the figur
   const figure = page.locator('[data-assets-figure]');
   await figure.waitFor({ timeout: 5_000 });
   assert.match((await figure.innerText()).replace(/\s+/gu, ' '), /8 objects · 1 needs attention · 1 review overdue · Completeness 90 %/);
+  // A name stands whole, never squeezed by the table's unwrapped columns (it was cut to one letter).
+  await page.locator('[data-ci-row] .title').first().waitFor({ timeout: 5_000 });
+  const narrowest = await page.locator('[data-ci-row] .title').evaluateAll((all) => Math.min(...all.map((each) => each.scrollWidth - each.clientWidth)));
+  assert.equal(narrowest, 0, 'a name is cut');
+  const widths = await page.locator('td[data-role=title]').evaluateAll((all) => all.map((each) => each.getBoundingClientRect().width));
+  assert.ok(Math.min(...widths) >= 191, `the name column is ${widths.join(', ')} px wide`);
+  // …and the row fits its box: no column is pushed out of sight.
+  const past = await page.locator('div.table').evaluate((box) => box.querySelector('table').getBoundingClientRect().width - box.clientWidth);
+  assert.ok(past <= 1, `the table runs ${past} px past its box`);
+  // On a laptop's width location and protection step aside for the name; the column choice still offers them.
+  assert.deepEqual((await page.locator('div.table th').allTextContents()).map((each) => each.trim()).filter(Boolean), ['Name', 'Object type', 'Stage', 'Owner', 'Open']);
+  // Location and protection stepped aside for it, and the column choice still offers them.
+  assert.deepEqual(await page.locator('div.table th').allTextContents(), ['Name', 'Object type', 'Stage', 'Owner', 'Open']);
   // The head's two acts (scene invlist): the import beside the create.
   await page.getByRole('button', { name: 'Import', exact: true }).click();
   await page.waitForFunction(() => location.pathname.endsWith('/inventory/import'), null, { timeout: 5_000 });
@@ -279,7 +292,8 @@ test('chromium: the object-type tree counts the types beneath within the line, a
 test('chromium: the table\'s columns - type, stage, owner, location, protection and the open entries', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
+  const { page, context, failures } = await open(browser, { width: 1600, path: `/hubs/${HUB.id}/inventory` });
+  // Wide enough for all seven (scene invlist is drawn at 1440 without the app's own margins).
   t.after(() => context.close());
 
   const table = page.getByRole('table', { name: 'Objects' });
