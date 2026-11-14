@@ -127,7 +127,7 @@ test('chromium: the inventory comes first under its figure, the operator\'s sect
   const figure = page.locator('[data-assets-figure]');
   await figure.waitFor({ timeout: 20_000 });
   await page.getByText('alert firing').waitFor({ timeout: 5_000 });
-  assert.match(await figure.innerText(), /40 configuration items[\s\S]*6 need attention[\s\S]*1 alert firing/);
+  assert.match(await figure.innerText(), /40 objects[\s\S]*6 need attention[\s\S]*1 alert firing/);
   // The count opens the health, where each one says why, and its title says what counts.
   const attention = figure.getByRole('link', { name: '6 need attention' });
   assert.equal(await attention.getAttribute('href'), `/hubs/${HUB.id}/inventory/health`);
@@ -137,7 +137,7 @@ test('chromium: the inventory comes first under its figure, the operator\'s sect
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 5_000 });
 
   await manage(page).click();
-  assert.deepEqual((await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Runs', 'Duplicates', 'Connectors', 'Campaigns', 'Register', 'Software', 'Import']);
+  assert.deepEqual((await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Runs', 'Duplicates', 'Connectors', 'Campaigns', 'Devices and licences', 'Software', 'Import']);
   await page.getByRole('menuitem', { name: 'Runs', exact: true }).click();
   await page.waitForFunction(() => location.pathname.endsWith('/inventory/runs'), null, { timeout: 5_000 });
   assert.equal(await page.getByRole('tablist').count(), 0, 'Manage opened a second strip');
@@ -151,11 +151,11 @@ test('chromium: a reader is shown neither Manage nor a create, and a managed add
   t.after(() => context.close());
 
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 20_000 });
-  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Map', 'Register', 'Software']);
-  assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0);
+  assert.deepEqual(await partNames(page), ['Inventory', 'Health', 'Alerts', 'Map', 'Devices and licences', 'Software']);
+  assert.equal(await page.getByRole('button', { name: 'New object', exact: true }).count(), 0);
 
   // The register lists for a reader, and offers nothing to write (UC-AST-12 check 5).
-  await bar(page).getByRole('link', { name: 'Register' }).click();
+  await bar(page).getByRole('link', { name: 'Devices and licences' }).click();
   await page.locator(`[data-asset="${ASSET.ci_id}"]`).waitFor({ timeout: 5_000 });
   assert.ok(page.url().endsWith('/inventory/register'));
   assert.equal(await page.locator('[data-register] button').count(), 0);
@@ -291,9 +291,9 @@ test('chromium: the assets settings are a settings page without the home\'s act,
   assert.equal(await page.locator('tr:has([data-class-row="hardware"]) [data-class-toggle]').getAttribute('aria-expanded'), 'true');
   // *Classes* is a tab of the home again (the navigation concept §4): a list page under its view bar.
   assert.equal(await page.locator('[data-page-kind="list"]').count(), 1, 'the classes are no list page');
-  const bar = page.getByRole('navigation', { name: 'Assets', exact: true });
-  assert.equal(await bar.getByRole('link', { name: 'Classes' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its classes');
-  assert.equal(await page.getByRole('button', { name: 'New configuration item' }).count(), 0, 'the home\'s create act is shown on its settings');
+  const bar = page.getByRole('navigation', { name: 'Inventory', exact: true });
+  assert.equal(await bar.getByRole('link', { name: 'Object types' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its classes');
+  assert.equal(await page.getByRole('button', { name: 'New object', exact: true }).count(), 0, 'the home\'s create act is shown on its settings');
   // The way back to the home is the bar's first tab, as on every tab of the home.
   assert.equal(await bar.getByRole('link', { name: 'Inventory' }).getAttribute('href'), '/assets');
   assert.deepEqual(failures, []);
@@ -345,7 +345,7 @@ test('chromium: a class opens its record page, changed from its head and archive
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
 
   // Archiving: the danger zone's act asks once, then writes the class archived.
-  await page.locator('.danger-zone').getByRole('button', { name: 'Archive class…' }).click();
+  await page.locator('.danger-zone').getByRole('button', { name: 'Archive object type…' }).click();
   const ask = page.locator('dialog[open]');
   await ask.waitFor({ timeout: 5_000 });
   assert.equal(await ask.getAttribute('data-size'), 's');

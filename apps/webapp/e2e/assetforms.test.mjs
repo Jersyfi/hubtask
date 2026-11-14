@@ -123,9 +123,9 @@ test('chromium: a new configuration item asks for its class attributes', async (
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/hubs/${HUB.id}/assets`);
-  await page.getByRole('button', { name: 'New configuration item' }).first().click();
+  await page.getByRole('button', { name: 'New object', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Class', { exact: false }).first().selectOption('server');
+  await dialog.getByLabel('Object type', { exact: false }).first().selectOption('server');
   await dialog.getByLabel('serial', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByLabel('rack', { exact: false }).inputValue(), '');
   assert.deepEqual(failures, []);
@@ -161,7 +161,7 @@ test('chromium: a configuration item refined to a narrower class asks for the at
 
   await page.goto(`${served.origin}/cis/${SERVER.id}`);
   await page.getByRole('button', { name: 'Change' }).first().click();
-  await page.getByLabel('More specific class').selectOption('blade');
+  await page.getByLabel('More specific object type').selectOption('blade');
   await page.getByLabel('slot', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByLabel('serial', { exact: false }).inputValue(), 'SN1');
   assert.deepEqual(failures, []);

@@ -330,8 +330,8 @@ for (const scheme of ['dark']) {
     const rows = (await browse.locator('a').allInnerTexts()).map((row) => row.split('\n')[0].trim());
     // What the bottom bar does not carry: the approvals, then the products, the hub, the
     // administration and the keeping (the navigation concept §9).
-    assert.deepEqual(rows, ['Waiting for your yes', 'Service desk', 'Assets', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
-    await browse.getByRole('link', { name: 'Assets' }).click();
+    assert.deepEqual(rows, ['Waiting for your yes', 'Service desk', 'Inventory', HUB.name, 'Administration', 'Archive', 'Trash'], JSON.stringify(rows));
+    await browse.getByRole('link', { name: 'Inventory' }).click();
     await page.waitForFunction(() => location.pathname === '/assets', null, { timeout: 5_000 });
     assert.equal(await bar.getByRole('link', { name: 'Browse' }).getAttribute('aria-current'), 'page', 'Browse is not current on a product home');
     await page.getByRole('main').getByRole('link', { name: HUB.name }).waitFor({ timeout: 5_000 });
@@ -350,7 +350,7 @@ test('chromium 1280 px: Today offers the products that are off, and hides them f
   const more = page.getByRole('region', { name: 'More in Hubtask' });
   await more.waitFor({ timeout: 10_000 });
   const names = (await more.locator('.offer-name').allTextContents()).map((name) => name.trim());
-  assert.deepEqual(names, ['Plans', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Goals', 'Agents'], JSON.stringify(names));
+  assert.deepEqual(names, ['Plans', 'Whiteboards', 'Service desk', 'Inventory', 'Time', 'Goals', 'Agents'], JSON.stringify(names));
   await more.getByRole('listitem').filter({ hasText: 'Whiteboards' }).getByRole('button', { name: 'Try it' }).click();
   await page.waitForFunction(() => location.pathname === '/whiteboards', null, { timeout: 5_000 });
   await page.getByRole('button', { name: 'Switch Whiteboards on' }).waitFor({ timeout: 5_000 });
@@ -462,15 +462,15 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     const inventory = page.getByRole('region', { name: 'Inventory across your hubs' });
     await inventory.waitFor({ timeout: 10_000 });
     const figures = await inventory.locator('dl > div').evaluateAll((rows) => rows.map((row) => `${row.querySelector('dt')?.textContent}=${row.querySelector('dd')?.textContent}`));
-    assert.deepEqual(figures, ['Configuration items=42', 'Need attention=2', 'Review overdue=4']);
+    assert.deepEqual(figures, ['Objects=42', 'Need attention=2', 'Review overdue=4']);
     // The inventory itself across hubs, by class, the most held first, each saying where (§2.2).
-    const byClass = page.getByRole('region', { name: 'By class' });
+    const byClass = page.getByRole('region', { name: 'By object type' });
     await byClass.waitFor({ timeout: 5_000 });
     assert.deepEqual(await byClass.locator('.name').allTextContents(), ['Server · 30', 'Laptop · 12']);
     assert.equal(await byClass.locator('.purpose').first().innerText(), `30 in ${HUB.name}`);
     assert.equal(await byClass.getByRole('link').first().getAttribute('href'), `/hubs/${HUB.id}/assets`);
     // What makes one need attention is said beside the figure, not left to guess.
-    await inventory.getByText('A configuration item needs attention when it is incomplete').waitFor({ timeout: 5_000 });
+    await inventory.getByText('An object needs attention when it is incomplete').waitFor({ timeout: 5_000 });
     await noSidewaysScroll(page, `assets ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
@@ -747,7 +747,7 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
   // Every page and board of the fixture changed before this week began, the template included.
   assert.match(await lines.locator('[data-product-line="contents"]').innerText(), /^All contents\s+0\s+changed this week\s+No page and no whiteboard changed this week$/);
   assert.equal(await lines.locator('[data-product-line="contents"] a').getAttribute('href'), `/hubs/${HUB.id}/contents`);
-  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /^Inventory\s+42\s+items\s+2 need attention$/);
+  assert.match(await lines.locator('[data-product-line="assets"]').innerText(), /^Inventory\s+42\s+objects\s+2 need attention$/);
   assert.equal(await lines.locator('[data-product-line="assets"] a').getAttribute('href'), `/hubs/${HUB.id}/inventory`);
   await noSidewaysScroll(page, 'hub overview');
   assert.deepEqual(failures, []);
@@ -971,7 +971,7 @@ test('chromium 1280 px: the plans\' and the assets\' hub rows say each hub\'s st
   await page.goto(`${served.origin}/assets`);
   const assets = page.getByRole('region', { name: 'In your hubs' }).locator('li').filter({ hasText: HUB.name });
   await assets.locator('[data-hub-line]').waitFor({ timeout: 10_000 });
-  assert.match(await assets.locator('[data-hub-line]').innerText(), /42 configuration items · 2 need attention/u);
+  assert.match(await assets.locator('[data-hub-line]').innerText(), /42 objects · 2 need attention/u);
   // What needs attention across the hubs, each with its hub (scene homeassets).
   const attention = page.locator('[data-attention] [data-attention-ci]');
   await attention.first().waitFor({ timeout: 10_000 });

@@ -74,9 +74,9 @@ test('chromium: a refused new configuration item says why inside its dialog', as
     return stub(route);
   });
   await page.goto(`${served.origin}/hubs/${HUB.id}/assets`);
-  await page.getByRole('button', { name: 'New configuration item' }).first().click();
+  await page.getByRole('button', { name: 'New object', exact: true }).first().click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Class', { exact: false }).first().selectOption('server');
+  await dialog.getByLabel('Object type', { exact: false }).first().selectOption('server');
   await dialog.getByLabel('Name', { exact: true }).fill('web-02');
   await dialog.getByRole('button', { name: 'Create', exact: true }).click();
 

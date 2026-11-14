@@ -566,8 +566,8 @@ test('chromium 1280: the affected items are named as their jump mark, both with 
   try {
     const section = page.locator('#entry-affected');
     await section.locator('[data-affected-ci]').first().waitFor({ timeout: 10_000 });
-    assert.match(await section.locator('h2.section').innerText(), /^Affected items\s+2$/, 'the section is named otherwise than its mark');
-    assert.match(await page.getByRole('navigation', { name: /Sections of/ }).getByRole('link', { name: /Affected items/ }).innerText(), /Affected items\s*2/);
+    assert.match(await section.locator('h2.section').innerText(), /^Affected objects\s+2$/, 'the section is named otherwise than its mark');
+    assert.match(await page.getByRole('navigation', { name: /Sections of/ }).getByRole('link', { name: /Affected objects/ }).innerText(), /Affected objects\s*2/);
   } finally {
     await close();
   }

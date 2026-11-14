@@ -32,7 +32,7 @@ test('UC-WRK-36 check 1: the workspace level from the top, the foot pinned', asy
   const order = await heads(page);
   assert.deepEqual(order.map((each) => each.toLowerCase()), ['starred', 'products', 'hubs'], JSON.stringify(order));
   const productRows = await texts(side(page).locator('section').nth(1).getByRole('treeitem'));
-  assert.deepEqual(productRows, ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Goals', 'Agents']);
+  assert.deepEqual(productRows, ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Inventory', 'Time', 'Goals', 'Agents']);
   // 14 hubs: 12 shown, then *n more*.
   assert.equal(await side(page).locator('section').nth(2).getByRole('treeitem').count(), 12);
   await side(page).getByText('2 more hubs').waitFor();

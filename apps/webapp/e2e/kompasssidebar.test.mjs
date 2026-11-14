@@ -48,7 +48,7 @@ test('UC-WRK-36 check 19: a product hidden from its ⋯ goes behind More, folded
   await choose(page, tree(page, 'Products').getByRole('treeitem', { name: /^Time/ }), 'Hide from the sidebar');
   await page.waitForFunction(() => !document.querySelector('aside.sidenav [role="tree"][aria-label="Products"]')?.textContent?.includes('Time'));
   assert.deepEqual(written.preferences.at(-1), { nav_products_hidden: ['GOALS', 'TIME'] });
-  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Assets', 'Agents'], 'the others kept their places');
+  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Inventory', 'Agents'], 'the others kept their places');
   // More: folded at first, its count; opened in place, the row with its tile and ⋯ -> Show.
   const hidden = more(page, 'Products');
   const toggle = hidden.getByRole('button', { name: /^More/ });
@@ -61,7 +61,7 @@ test('UC-WRK-36 check 19: a product hidden from its ⋯ goes behind More, folded
   await choose(page, time, 'Show in the sidebar');
   await tree(page, 'Products').getByRole('treeitem', { name: /^Time/ }).waitFor();
   assert.deepEqual(written.preferences.at(-1), { nav_products_hidden: ['GOALS'] });
-  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Assets', 'Time', 'Agents'], 'shown again where it stood');
+  assert.deepEqual(await rowsOf(page, 'Products'), ['Plans', 'Pages', 'Whiteboards', 'Service desk', 'Inventory', 'Time', 'Agents'], 'shown again where it stood');
   // The section's ⋯ list of products is gone: hiding is the row's.
   assert.equal(await side(page).getByRole('button', { name: 'Customise the sidebar' }).count(), 0);
   assert.deepEqual(failures, []);
