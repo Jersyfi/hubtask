@@ -28,6 +28,7 @@ type assured struct {
 	assets    map[shared.ID]domain.Asset
 	aliases   []domain.SoftwareAlias
 	open      []repository.OpenWork
+	moves     []domain.AssetMove
 }
 
 func newAssured() *assured {
@@ -179,6 +180,21 @@ func (a *assured) Assets(_ context.Context, hub, after shared.ID, limit int) ([]
 	}()) {
 		if x := a.assets[id]; x.HubID == hub && id > after && len(out) < limit {
 			out = append(out, x)
+		}
+	}
+	return out, nil
+}
+
+func (a *assured) AddAssetMove(_ context.Context, m domain.AssetMove) error {
+	a.moves = append(a.moves, m)
+	return nil
+}
+
+func (a *assured) AssetMoves(_ context.Context, ci shared.ID, limit int) ([]domain.AssetMove, error) {
+	var out []domain.AssetMove
+	for _, m := range a.moves {
+		if m.CIID == ci && len(out) < limit {
+			out = append(out, m)
 		}
 	}
 	return out, nil

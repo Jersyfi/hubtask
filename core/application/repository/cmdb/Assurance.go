@@ -55,6 +55,10 @@ type Assurance interface {
 	// PutAsset writes a CI's asset record at the version expected; zero expects none.
 	PutAsset(ctx context.Context, a cmdb.Asset, expected int) error
 	FindAsset(ctx context.Context, ciID shared.ID) (cmdb.Asset, error)
+	// AddAssetMove keeps a step of an asset's life; AssetMoves answers them oldest first, up to
+	// limit.
+	AddAssetMove(ctx context.Context, m cmdb.AssetMove) error
+	AssetMoves(ctx context.Context, ciID shared.ID, limit int) ([]cmdb.AssetMove, error)
 	Assets(ctx context.Context, hubID, after shared.ID, limit int) ([]cmdb.Asset, error)
 
 	// PutAlias writes an alias at the version expected; zero expects a new match.

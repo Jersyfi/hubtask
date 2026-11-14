@@ -3822,6 +3822,29 @@ SELECT EXISTS (SELECT 1 FROM cmdb_asset WHERE ci_id = (sqlc.arg('payload')::json
 -- name: ClearCmdbAsset :execrows
 DELETE FROM cmdb_asset;
 
+-- name: ImportCmdbAssetMove :execrows
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+SELECT r.id, r.tenant_id, r.hub_id, r.ci_id, r.state, r.moved_at, r.moved_by, r.assigned_to, r.stockroom_id
+FROM jsonb_populate_record(
+  NULL::cmdb_asset_move,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id,
+  ci_id = EXCLUDED.ci_id,
+  state = EXCLUDED.state,
+  moved_at = EXCLUDED.moved_at,
+  moved_by = EXCLUDED.moved_by,
+  assigned_to = EXCLUDED.assigned_to,
+  stockroom_id = EXCLUDED.stockroom_id
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsCmdbAssetMove :one
+SELECT EXISTS (SELECT 1 FROM cmdb_asset_move WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearCmdbAssetMove :execrows
+DELETE FROM cmdb_asset_move;
+
 -- name: ImportCmdbSoftwareAlias :execrows
 INSERT INTO cmdb_software_alias (id, tenant_id, match_publisher, match_product, publisher, product, updated_by, updated_at, version)
 SELECT r.id, r.tenant_id, r.match_publisher, r.match_product, r.publisher, r.product, r.updated_by, r.updated_at, r.version

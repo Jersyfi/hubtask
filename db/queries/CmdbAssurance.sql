@@ -158,3 +158,16 @@ SELECT source_ci_id AS ci_id, count(*)::int AS n
 FROM cmdb_relation
 WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND type_key = 'installed_on'
 GROUP BY source_ci_id;
+
+-- name: InsertCmdbAssetMove :exec
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+VALUES (sqlc.arg('id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('ci_id'), sqlc.arg('state'), sqlc.arg('moved_at'),
+  sqlc.arg('moved_by'), sqlc.narg('assigned_to'), sqlc.narg('stockroom_id'));
+
+-- name: ListCmdbAssetMoves :many
+-- An asset's life, oldest first.
+SELECT id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id
+FROM cmdb_asset_move
+WHERE tenant_id = current_tenant_id() AND ci_id = sqlc.arg('ci_id')
+ORDER BY moved_at, id
+LIMIT sqlc.arg('batch');

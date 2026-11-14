@@ -8372,4 +8372,36 @@ CREATE POLICY tenant_isolation ON post_follow
   USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, DELETE ON post_follow TO hubtask_app;
 
+-- Each step of an asset's life with its moment (migration 0430, UC-AST-12).
+CREATE TABLE cmdb_asset_move (
+  id           uuid PRIMARY KEY,
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  hub_id       uuid NOT NULL,
+  ci_id        uuid NOT NULL,
+  state        text NOT NULL CHECK (state IN ('REQUESTED', 'ORDERED', 'IN_STOCK', 'DEPLOYED', 'RETIRED', 'DISPOSED')),
+  moved_at     timestamptz NOT NULL,
+  moved_by     uuid NOT NULL,
+  assigned_to  uuid,
+  stockroom_id uuid,
+  UNIQUE (tenant_id, id),
+  CONSTRAINT cmdb_asset_move_asset_fkey FOREIGN KEY (tenant_id, ci_id)
+    REFERENCES cmdb_asset (tenant_id, ci_id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_asset_move_hub_fkey FOREIGN KEY (tenant_id, hub_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT cmdb_asset_move_assigned_fkey FOREIGN KEY (tenant_id, assigned_to)
+    REFERENCES account (tenant_id, id) ON DELETE SET NULL (assigned_to),
+  CONSTRAINT cmdb_asset_move_stockroom_fkey FOREIGN KEY (tenant_id, stockroom_id)
+    REFERENCES cmdb_ci (tenant_id, id) ON DELETE SET NULL (stockroom_id)
+);
+CREATE INDEX cmdb_asset_move_ci_idx ON cmdb_asset_move (tenant_id, ci_id, moved_at, id);
+CREATE INDEX cmdb_asset_move_hub_idx ON cmdb_asset_move (tenant_id, hub_id);
+CREATE INDEX cmdb_asset_move_assigned_to_ref_idx ON cmdb_asset_move (tenant_id, assigned_to) WHERE assigned_to IS NOT NULL;
+CREATE INDEX cmdb_asset_move_stockroom_idx ON cmdb_asset_move (tenant_id, stockroom_id) WHERE stockroom_id IS NOT NULL;
+
+ALTER TABLE cmdb_asset_move ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cmdb_asset_move FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON cmdb_asset_move
+  USING (tenant_id = current_tenant_id()) WITH CHECK (tenant_id = current_tenant_id());
+GRANT SELECT, INSERT, UPDATE, DELETE ON cmdb_asset_move TO hubtask_app;
+
 COMMIT;

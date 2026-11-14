@@ -152,6 +152,7 @@ var subjectColumns = map[string][]string{
 	"cmdb_attestation":    {"owner_id", "attested_by"},
 	"cmdb_ci_group":       {"updated_by"},
 	"cmdb_asset":          {"assigned_to", "updated_by"},
+	"cmdb_asset_move":     {"assigned_to", "moved_by"},
 	"cmdb_software_alias": {"updated_by"},
 	// The connectors that run with their rights (M6).
 	"cmdb_connector": {"run_as"},

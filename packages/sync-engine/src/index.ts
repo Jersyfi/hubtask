@@ -379,6 +379,7 @@ export type {
   CiAssetList,
   CiAssetRegister,
   CiAssetMove,
+  CiAssetStep,
   SoftwareAlias,
   SoftwareAliasList,
   SoftwareAliasDefine,

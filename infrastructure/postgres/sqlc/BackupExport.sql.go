@@ -1228,6 +1228,51 @@ func (q *Queries) ExportCmdbAlerts(ctx context.Context, arg ExportCmdbAlertsPara
 	return items, nil
 }
 
+const exportCmdbAssetMoves = `-- name: ExportCmdbAssetMoves :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.id AS key_1
+  FROM cmdb_asset_move x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportCmdbAssetMovesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportCmdbAssetMovesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportCmdbAssetMoves(ctx context.Context, arg ExportCmdbAssetMovesParams) ([]ExportCmdbAssetMovesRow, error) {
+	rows, err := q.db.Query(ctx, exportCmdbAssetMoves, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportCmdbAssetMovesRow{}
+	for rows.Next() {
+		var i ExportCmdbAssetMovesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportCmdbAssets = `-- name: ExportCmdbAssets :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

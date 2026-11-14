@@ -361,6 +361,37 @@ func (q *Queries) InsertCmdbAffected(ctx context.Context, arg InsertCmdbAffected
 	return result.RowsAffected(), nil
 }
 
+const insertCmdbAssetMove = `-- name: InsertCmdbAssetMove :exec
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+VALUES ($1, current_tenant_id(), $2, $3, $4, $5,
+  $6, $7, $8)
+`
+
+type InsertCmdbAssetMoveParams struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	CiID        pgtype.UUID
+	State       string
+	MovedAt     pgtype.Timestamptz
+	MovedBy     pgtype.UUID
+	AssignedTo  pgtype.UUID
+	StockroomID pgtype.UUID
+}
+
+func (q *Queries) InsertCmdbAssetMove(ctx context.Context, arg InsertCmdbAssetMoveParams) error {
+	_, err := q.db.Exec(ctx, insertCmdbAssetMove,
+		arg.ID,
+		arg.HubID,
+		arg.CiID,
+		arg.State,
+		arg.MovedAt,
+		arg.MovedBy,
+		arg.AssignedTo,
+		arg.StockroomID,
+	)
+	return err
+}
+
 const insertCmdbAttestations = `-- name: InsertCmdbAttestations :exec
 INSERT INTO cmdb_attestation (tenant_id, campaign_id, ci_id, owner_id)
 SELECT current_tenant_id(), $1, c.ci_id, c.owner_id
@@ -488,6 +519,60 @@ func (q *Queries) ListCmdbAffectedOfItem(ctx context.Context, itemID pgtype.UUID
 			&i.CiID,
 			&i.AddedBy,
 			&i.AddedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCmdbAssetMoves = `-- name: ListCmdbAssetMoves :many
+SELECT id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id
+FROM cmdb_asset_move
+WHERE tenant_id = current_tenant_id() AND ci_id = $1
+ORDER BY moved_at, id
+LIMIT $2
+`
+
+type ListCmdbAssetMovesParams struct {
+	CiID  pgtype.UUID
+	Batch int32
+}
+
+type ListCmdbAssetMovesRow struct {
+	ID          pgtype.UUID
+	HubID       pgtype.UUID
+	CiID        pgtype.UUID
+	State       string
+	MovedAt     pgtype.Timestamptz
+	MovedBy     pgtype.UUID
+	AssignedTo  pgtype.UUID
+	StockroomID pgtype.UUID
+}
+
+// An asset's life, oldest first.
+func (q *Queries) ListCmdbAssetMoves(ctx context.Context, arg ListCmdbAssetMovesParams) ([]ListCmdbAssetMovesRow, error) {
+	rows, err := q.db.Query(ctx, listCmdbAssetMoves, arg.CiID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCmdbAssetMovesRow{}
+	for rows.Next() {
+		var i ListCmdbAssetMovesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.HubID,
+			&i.CiID,
+			&i.State,
+			&i.MovedAt,
+			&i.MovedBy,
+			&i.AssignedTo,
+			&i.StockroomID,
 		); err != nil {
 			return nil, err
 		}

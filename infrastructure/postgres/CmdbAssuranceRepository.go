@@ -545,6 +545,50 @@ func (CmdbAssuranceRepository) FindAsset(ctx context.Context, ciID shared.ID) (c
 	return assetFrom(r)
 }
 
+func (CmdbAssuranceRepository) AddAssetMove(ctx context.Context, m cmdb.AssetMove) error {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	var k cmdbKeys
+	params := sqlc.InsertCmdbAssetMoveParams{
+		ID: k.of(m.ID), HubID: k.of(m.HubID), CiID: k.of(m.CIID), State: string(m.State), MovedAt: timestampOf(m.At),
+		MovedBy: k.of(m.By), AssignedTo: k.opt(m.AssignedTo), StockroomID: k.opt(m.StockroomID),
+	}
+	if k.err != nil {
+		return k.err
+	}
+	if err := q.InsertCmdbAssetMove(ctx, params); err != nil {
+		return cmdbFailed("keeping an asset's move", err)
+	}
+	return nil
+}
+
+func (CmdbAssuranceRepository) AssetMoves(ctx context.Context, ciID shared.ID, limit int) ([]cmdb.AssetMove, error) {
+	q, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var k cmdbKeys
+	ci := k.of(ciID)
+	if k.err != nil {
+		return nil, k.err
+	}
+	rows, err := q.ListCmdbAssetMoves(ctx, sqlc.ListCmdbAssetMovesParams{CiID: ci, Batch: int32(limit)}) //nolint:gosec // bounded by the caller
+	if err != nil {
+		return nil, cmdbFailed("reading an asset's moves", err)
+	}
+	out := make([]cmdb.AssetMove, 0, len(rows))
+	var ids cmdbIDs
+	for _, r := range rows {
+		out = append(out, cmdb.AssetMove{
+			ID: ids.of(r.ID), HubID: ids.of(r.HubID), CIID: ids.of(r.CiID), State: cmdb.AssetState(r.State), At: timeFrom(r.MovedAt),
+			By: ids.of(r.MovedBy), AssignedTo: ids.of(r.AssignedTo), StockroomID: ids.of(r.StockroomID),
+		})
+	}
+	return out, ids.err
+}
+
 func (CmdbAssuranceRepository) Assets(ctx context.Context, hubID, after shared.ID, limit int) ([]cmdb.Asset, error) {
 	q, err := queriesFrom(ctx)
 	if err != nil {

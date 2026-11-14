@@ -1411,6 +1411,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"cmdb_asset_move": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportCmdbAssetMoves(ctx, sqlc.ExportCmdbAssetMovesParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportCmdbAssetMovesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"cmdb_software_alias": {
 		delta: false,
 		keys:  1,

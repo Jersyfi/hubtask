@@ -1138,6 +1138,18 @@ type CmdbAsset struct {
 	Version       int32
 }
 
+type CmdbAssetMove struct {
+	ID          pgtype.UUID
+	TenantID    pgtype.UUID
+	HubID       pgtype.UUID
+	CiID        pgtype.UUID
+	State       string
+	MovedAt     pgtype.Timestamptz
+	MovedBy     pgtype.UUID
+	AssignedTo  pgtype.UUID
+	StockroomID pgtype.UUID
+}
+
 type CmdbAttestation struct {
 	TenantID   pgtype.UUID
 	CampaignID pgtype.UUID

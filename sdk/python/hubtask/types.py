@@ -7243,7 +7243,15 @@ CiAsset = TypedDict("CiAsset", {
     "disposal": Required[dict[str, Any] | None],
     "updated_at": Required[str],
     "version": Required[int],
+    "moves": list["CiAssetStep"],
 }, total=False)
+
+class CiAssetStep(TypedDict, total=False):
+    state: Required[Literal["REQUESTED", "ORDERED", "IN_STOCK", "DEPLOYED", "RETIRED", "DISPOSED"]]
+    at: Required[str]
+    by: Required[str | None]
+    assigned_to: Required[str | None]
+    stockroom_id: Required[str | None]
 
 class CiAssetList(TypedDict, total=False):
     data: Required[list["CiAsset"]]

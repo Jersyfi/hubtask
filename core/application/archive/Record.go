@@ -960,6 +960,17 @@ var entities = []Entity{
 		},
 	},
 	{
+		// Each step of an asset's life (migration 0430). Whole: a step is never changed, so no
+		// column says when it was.
+		Name: "cmdb_asset_moves", Table: "cmdb_asset_move", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{
+			{Field: "ci_id", Table: "cmdb_asset"},
+			{Field: "hub_id", Table: "container"},
+			{Field: "assigned_to", Table: "account", Clearable: true},
+			{Field: "stockroom_id", Table: "cmdb_ci", Clearable: true},
+		},
+	},
+	{
 		Name: "cmdb_software_aliases", Table: "cmdb_software_alias", Whole: true, Unmarked: true, Later: true, Keys: []string{"id"},
 	},
 	// The service desk's business calendars, SLA policies and what became of each goal on an entry

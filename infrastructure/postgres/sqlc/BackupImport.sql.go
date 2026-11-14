@@ -327,6 +327,18 @@ func (q *Queries) ClearCmdbAsset(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearCmdbAssetMove = `-- name: ClearCmdbAssetMove :execrows
+DELETE FROM cmdb_asset_move
+`
+
+func (q *Queries) ClearCmdbAssetMove(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearCmdbAssetMove)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearCmdbAttestation = `-- name: ClearCmdbAttestation :execrows
 DELETE FROM cmdb_attestation
 `
@@ -2102,6 +2114,17 @@ SELECT EXISTS (SELECT 1 FROM cmdb_asset WHERE ci_id = ($1::jsonb->>'ci_id')::uui
 
 func (q *Queries) HoldsCmdbAsset(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCmdbAsset, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsCmdbAssetMove = `-- name: HoldsCmdbAssetMove :one
+SELECT EXISTS (SELECT 1 FROM cmdb_asset_move WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsCmdbAssetMove(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsCmdbAssetMove, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -4634,6 +4657,37 @@ type ImportCmdbAssetParams struct {
 
 func (q *Queries) ImportCmdbAsset(ctx context.Context, arg ImportCmdbAssetParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCmdbAsset, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importCmdbAssetMove = `-- name: ImportCmdbAssetMove :execrows
+INSERT INTO cmdb_asset_move (id, tenant_id, hub_id, ci_id, state, moved_at, moved_by, assigned_to, stockroom_id)
+SELECT r.id, r.tenant_id, r.hub_id, r.ci_id, r.state, r.moved_at, r.moved_by, r.assigned_to, r.stockroom_id
+FROM jsonb_populate_record(
+  NULL::cmdb_asset_move,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  hub_id = EXCLUDED.hub_id,
+  ci_id = EXCLUDED.ci_id,
+  state = EXCLUDED.state,
+  moved_at = EXCLUDED.moved_at,
+  moved_by = EXCLUDED.moved_by,
+  assigned_to = EXCLUDED.assigned_to,
+  stockroom_id = EXCLUDED.stockroom_id
+WHERE $2::boolean
+`
+
+type ImportCmdbAssetMoveParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportCmdbAssetMove(ctx context.Context, arg ImportCmdbAssetMoveParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importCmdbAssetMove, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

@@ -2536,6 +2536,36 @@ func (e CiAssetRegisterState) Valid() bool {
 	}
 }
 
+// Defines values for CiAssetStepState.
+const (
+	CiAssetStepStateDEPLOYED  CiAssetStepState = "DEPLOYED"
+	CiAssetStepStateDISPOSED  CiAssetStepState = "DISPOSED"
+	CiAssetStepStateINSTOCK   CiAssetStepState = "IN_STOCK"
+	CiAssetStepStateORDERED   CiAssetStepState = "ORDERED"
+	CiAssetStepStateREQUESTED CiAssetStepState = "REQUESTED"
+	CiAssetStepStateRETIRED   CiAssetStepState = "RETIRED"
+)
+
+// Valid indicates whether the value is a known member of the CiAssetStepState enum.
+func (e CiAssetStepState) Valid() bool {
+	switch e {
+	case CiAssetStepStateDEPLOYED:
+		return true
+	case CiAssetStepStateDISPOSED:
+		return true
+	case CiAssetStepStateINSTOCK:
+		return true
+	case CiAssetStepStateORDERED:
+		return true
+	case CiAssetStepStateREQUESTED:
+		return true
+	case CiAssetStepStateRETIRED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CiAttestVerdict.
 const (
 	CiAttestVerdictCONFIRMED CiAttestVerdict = "CONFIRMED"
@@ -15419,7 +15449,10 @@ type CiAsset struct {
 		Certificate string              `json:"certificate"`
 		Method      string              `json:"method"`
 	} `json:"disposal"`
-	HubId         openapi_types.UUID  `json:"hub_id"`
+	HubId openapi_types.UUID `json:"hub_id"`
+
+	// Moves The steps of its life, oldest first - the state reached on being registered and at each move, when, by whom and with whom or in which stockroom. Answered by the reads and writes of one asset, not by the register's list; an asset registered before the steps were kept has none, its state alone.
+	Moves         *[]CiAssetStep      `json:"moves,omitempty"`
 	Name          *string             `json:"name,omitempty"`
 	PurchasedOn   *openapi_types.Date `json:"purchased_on"`
 	RequestId     *openapi_types.UUID `json:"request_id"`
@@ -15473,6 +15506,18 @@ type CiAssetRegister struct {
 
 // CiAssetRegisterState defines model for CiAssetRegister.State.
 type CiAssetRegisterState string
+
+// CiAssetStep defines model for CiAssetStep.
+type CiAssetStep struct {
+	AssignedTo  *openapi_types.UUID `json:"assigned_to"`
+	At          time.Time           `json:"at"`
+	By          *openapi_types.UUID `json:"by"`
+	State       CiAssetStepState    `json:"state"`
+	StockroomId *openapi_types.UUID `json:"stockroom_id"`
+}
+
+// CiAssetStepState defines model for CiAssetStep.State.
+type CiAssetStepState string
 
 // CiAttest defines model for CiAttest.
 type CiAttest struct {

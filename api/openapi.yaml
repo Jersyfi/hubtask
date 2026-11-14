@@ -6032,7 +6032,7 @@ paths:
       x-hubtask-rest: generated
       x-hubtask-cli: "ci asset"
       summary: A configuration item's asset record
-      description: Not found when it has none. Needs READ on the hub.
+      description: With the steps of its life, oldest first. Not found when it has none. Needs READ on the hub.
       responses:
         "200":
           description: The asset
@@ -45341,6 +45341,24 @@ components:
             at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         version: { type: integer }
+        moves:
+          type: array
+          description: >
+            The steps of its life, oldest first - the state reached on being registered and at each
+            move, when, by whom and with whom or in which stockroom. Answered by the reads and writes
+            of one asset, not by the register's list; an asset registered before the steps were kept
+            has none, its state alone.
+          items: { $ref: "#/components/schemas/CiAssetStep" }
+
+    CiAssetStep:
+      type: object
+      required: [state, at, by, assigned_to, stockroom_id]
+      properties:
+        state: { type: string, enum: [REQUESTED, ORDERED, IN_STOCK, DEPLOYED, RETIRED, DISPOSED] }
+        at: { type: string, format: date-time }
+        by: { type: [string, "null"], format: uuid }
+        assigned_to: { type: [string, "null"], format: uuid }
+        stockroom_id: { type: [string, "null"], format: uuid }
 
     CiAssetList:
       type: object

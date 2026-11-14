@@ -53,6 +53,27 @@ func AssetOutput(a domain.Asset, now time.Time) usecase.Output {
 	}
 }
 
+// maxAssetMoves bounds the steps of an asset's life a record answers.
+const maxAssetMoves = 200
+
+// withMoves adds an asset's life, oldest first, to its record: an asset registered before the
+// moves were kept answers none, and its state alone.
+func (s Inventory) withMoves(ctx context.Context, out usecase.Output, ciID shared.ID) error {
+	moves, err := s.Assurance.AssetMoves(ctx, ciID, maxAssetMoves)
+	if err != nil {
+		return err
+	}
+	rows := make([]usecase.Output, 0, len(moves))
+	for _, m := range moves {
+		rows = append(rows, usecase.Output{
+			"state": string(m.State), "at": m.At, "by": idOrNil(m.By), "assigned_to": idOrNil(m.AssignedTo),
+			"stockroom_id": idOrNil(m.StockroomID),
+		})
+	}
+	out["moves"] = rows
+	return nil
+}
+
 func assetStateNames() []string {
 	out := make([]string, 0, len(domain.AssetStates))
 	for _, s := range domain.AssetStates {
@@ -146,7 +167,8 @@ type ReadCiAsset struct{ Inventory Inventory }
 func (h ReadCiAsset) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ReadCiAssetName, Permission: service.PermissionRead,
-		Summary:     "Reads a configuration item's asset record with its disposal, if any; not found when it has none.",
+		Summary: "Reads a configuration item's asset record with its disposal, if any, and the steps of its life " +
+			"oldest first - each state reached, when, by whom, with whom or in which stockroom; not found when it has none.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "ci_id", Kind: usecase.KindID, Required: true, Description: "The configuration item."}},
 		Audit: usecase.AuditDeclaration{Action: CIReadAction, TargetType: assetTarget, Severity: audit.SeverityInfo},
@@ -166,10 +188,11 @@ func (h ReadCiAsset) Descriptor() usecase.Descriptor {
 			var out usecase.Output
 			err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 				a, err := s.Assurance.FindAsset(ctx, id)
-				if err == nil {
-					out = AssetOutput(a, s.Clock.Now())
+				if err != nil {
+					return err
 				}
-				return err
+				out = AssetOutput(a, s.Clock.Now())
+				return s.withMoves(ctx, out, id)
 			})
 			return out, err
 		}),
@@ -268,11 +291,17 @@ func (h RegisterCiAsset) Descriptor() usecase.Descriptor {
 				}
 				a.Version = version + 1
 				if version == 0 {
+					if err := s.Assurance.AddAssetMove(ctx, domain.MoveOf(s.IDs.NewID(), a, actor.AccountID, a.UpdatedAt)); err != nil {
+						return err
+					}
 					if err := s.followStage(ctx, actor, a); err != nil {
 						return err
 					}
 				}
 				out = AssetOutput(a, a.UpdatedAt)
+				if err := s.withMoves(ctx, out, id); err != nil {
+					return err
+				}
 				if err := s.announceAsset(ctx, actor, a); err != nil {
 					return err
 				}
@@ -403,6 +432,9 @@ func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 					return err
 				}
 				moved.Version = a.Version + 1
+				if err := s.Assurance.AddAssetMove(ctx, domain.MoveOf(s.IDs.NewID(), moved, actor.AccountID, now)); err != nil {
+					return err
+				}
 				if err := s.followStage(ctx, actor, moved); err != nil {
 					return err
 				}
@@ -410,6 +442,9 @@ func (h MoveCiAsset) Descriptor() usecase.Descriptor {
 					return err
 				}
 				out = AssetOutput(moved, now)
+				if err := s.withMoves(ctx, out, id); err != nil {
+					return err
+				}
 				return s.record(ctx, actor, AssetMovedAction, assetTarget, id,
 					audit.Change{Field: "state", Classification: audit.Open, From: string(from), To: string(moved.State)})
 			})
