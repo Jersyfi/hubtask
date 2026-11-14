@@ -35,6 +35,7 @@
   import { newMarks } from '../product/newmark.svelte.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
+  import FileViewer from '../files/FileViewer.svelte';
   import { capture } from '../capture/capture.svelte.ts';
   import { jumbleWritable, liveCollections, mayCaptureHere, openLevels, openRoles } from '../capture/places.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
@@ -1025,6 +1026,8 @@
   {#if isCaptureOffered}
     <CreateMenu here={captureHere} onnavigate={go} />
   {/if}
+  <!-- The one file viewer (F-1), opened by whatever shows files. -->
+  <FileViewer />
   {#if isCaptureOffered && capture.isOpen}
     <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} onnavigate={go} />
   {/if}

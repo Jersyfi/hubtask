@@ -305,6 +305,9 @@ class ListingTransport implements Transport {
   snapshot(): never {
     throw new Error('not synchronised here');
   }
+  receive(): never {
+    throw new Error('not received here');
+  }
   transfer(): never {
     throw new Error('not transferred here');
   }
