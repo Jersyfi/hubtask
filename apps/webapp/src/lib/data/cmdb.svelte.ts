@@ -19,7 +19,7 @@ import type {
 
 import {
   assetsPath, attestPath, campaignClosePath, campaignPath, campaignsPath, ciAssetMovePath, ciAssetPath, entryCiPath, entryCisPath, groupPath,
-  groupsPath, serviceMapPath, softwareAliasPath, softwareAliasesPath, type AssetState, type DisposalMethod,
+  groupsPath, objectWorkPath, serviceMapPath, softwareAliasPath, softwareAliasesPath, type AssetState, type DisposalMethod,
 } from './cmdb.ts';
 import { backlinksPath, ciPath, connectorCredentialPath, connectorPath, connectorRunPath, connectorsPath, cisPath, classesPath, duplicatesPath, healthPath, holdsPath, impactPath, relationTypesPath, runPath, runsPath, sourcesPath } from './cmdb.ts';
 import { engine, INTENT } from './engine.ts';
@@ -163,11 +163,11 @@ class Cmdb {
   }
 
   affect(itemId: string, ciId: string): Promise<EntryCis> {
-    return engine.mutate<EntryCis>('PUT', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId)] });
+    return engine.mutate<EntryCis>('PUT', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId), objectWorkPath(ciId)] });
   }
 
   unaffect(itemId: string, ciId: string): Promise<EntryCis> {
-    return engine.mutate<EntryCis>('DELETE', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId)] });
+    return engine.mutate<EntryCis>('DELETE', entryCiPath(itemId, ciId), undefined, { invalidates: [entryCisPath(itemId), objectWorkPath(ciId)] });
   }
 
   startCampaign(hubId: string, body: CiCampaignStart): Promise<CiCampaign> {

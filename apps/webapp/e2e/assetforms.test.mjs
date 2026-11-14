@@ -160,7 +160,7 @@ test('chromium: a configuration item refined to a narrower class asks for the at
   page.on('pageerror', (error) => failures.push(String(error)));
 
   await page.goto(`${served.origin}/cis/${SERVER.id}`);
-  await page.getByRole('button', { name: 'Change' }).first().click();
+  await page.locator('[data-edit-attributes]').click();
   await page.getByLabel('More specific object type').selectOption('blade');
   await page.getByLabel('slot', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByLabel('serial', { exact: false }).inputValue(), 'SN1');
@@ -190,7 +190,7 @@ test('chromium: a configuration item without an asset record asks for none', asy
   const page = await context.newPage();
 
   await page.goto(`${served.origin}/cis/${SERVER.id}`);
-  await page.locator('[data-ci-asset] .meta').waitFor({ timeout: 5_000 });
+  await page.locator('[data-ci-asset] [data-register-empty]').waitFor({ timeout: 5_000 });
   await page.waitForLoadState('networkidle');
   assert.deepEqual(asked, [], 'the asset record was asked for although the CI has none');
 });

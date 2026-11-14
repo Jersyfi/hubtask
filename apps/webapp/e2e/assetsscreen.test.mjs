@@ -253,7 +253,7 @@ const RELATED = {
 };
 
 for (const width of [1280, 375]) {
-  test(`chromium ${width} px: a CI's relations are a small graph with the list beside it`, async (t) => {
+  test(`chromium ${width} px: an object's relations are a small picture or the list, one at a time`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { page, context, failures } = await open(browser, { width, height: 900, path: `/cis/${RELATED.id}` });
@@ -262,15 +262,21 @@ for (const width of [1280, 375]) {
     await context.route(`**/api/v1/cis/${RELATED.id}/impact**`, (route) => route.fulfill({ json: { ci_id: RELATED.id, direction: 'DOWNSTREAM', reached: [], services: [] } }));
     await page.reload();
 
+    // A phone opens on the list, a desk on the picture (scene `ci`); either switches to the other.
+    const picture = page.getByRole('radio', { name: 'Picture' });
+    await picture.waitFor({ timeout: 20_000 });
+    await picture.click();
     const graph = page.locator('[data-ci-graph]');
     await graph.waitFor({ timeout: 20_000 });
-    assert.equal(await graph.getAttribute('aria-hidden'), 'true', 'the graph is read a second time');
+    assert.equal(await page.locator('[data-ci-relation-list]').count(), 0, 'the list is drawn beside the picture');
     // Six of the eight it points at, the rest counted; the one pointing at it on the other side.
     assert.equal(await graph.locator('[data-side=out] .node').count(), 6);
     assert.match(await graph.locator('[data-side=out]').innerText(), /and 2 more/);
     assert.equal(await graph.locator('[data-side=in] .node').count(), 1);
     // The list carries every relation with its link.
-    assert.equal(await page.locator('section[aria-labelledby=ci-relations] .rows a').count(), 9);
+    await page.getByRole('radio', { name: 'List' }).click();
+    await page.locator('[data-ci-relation-list]').waitFor({ timeout: 5_000 });
+    assert.equal(await page.locator('[data-ci-relation-list] a').count(), 9);
     await noSidewaysScroll(page, `ci ${width}`);
     assert.deepEqual(failures, []);
   });

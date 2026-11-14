@@ -242,9 +242,9 @@ export function relationRows(ciId: string, relations: readonly CiRelation[]): Re
 export const GRAPH_SIDE = 6;
 
 /**
- * A CI's relations as its small graph's two sides (user-experience.md §7.3): what points at it and
- * what it points at, each at most `GRAPH_SIDE` with the rest counted. The list beside the graph
- * holds every relation; the graph is the picture of it.
+ * An object's relations as its picture's two sides (user-experience.md §7.3): what points at it and
+ * what it points at, each at most `GRAPH_SIDE` with the rest counted. The list, the picture's
+ * alternative, holds every relation.
  */
 export function relationSides(rows: readonly RelationRow[]): {
   readonly incoming: readonly RelationRow[];

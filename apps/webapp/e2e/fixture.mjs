@@ -1404,6 +1404,10 @@ export function fallback(route, request, path) {
   if (map && request.method() === 'GET') return route.fulfill({ json: { hub_id: map[1], nodes: [], edges: [], truncated: false } });
   const impact = /^\/cis\/([^/]+)\/impact$/.exec(read);
   if (impact && request.method() === 'GET') return route.fulfill({ json: { ci_id: impact[1], direction: new URL(request.url()).searchParams.get('direction') ?? 'DOWNSTREAM', reached: [], services: [] } });
+  // An object's work and what mentions it, none: its page reads both beside its relations.
+  const work = /^\/cis\/([^/]+)\/work$/.exec(read);
+  if (work && request.method() === 'GET') return route.fulfill({ json: { ci_id: work[1], data: [] } });
+  if (/^\/cis\/[^/]+\/backlinks$/.test(read) && request.method() === 'GET') return route.fulfill({ json: { data: [] } });
   if (read === '/integrations/file-stores' && request.method() === 'GET') return route.fulfill({ json: { data: [], kinds: [] } });
   // The panel *View*'s count while typing and a key's values (Q-3, Q-4): the collection's entries,
   // counted once, and no grouped value beyond the key's own - a count, not a claim about the query.

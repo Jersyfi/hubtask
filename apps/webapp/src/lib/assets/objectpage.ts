@@ -9,9 +9,10 @@
  * hold the same answers.
  */
 
-import type { CiAsset, CiAttribute, CiReached, CiWorkEntry, ConfigurationItem } from '@hubtask/sync-engine';
+import type { CiAsset, CiAttribute, CiGroup, CiReached, CiWorkEntry, ConfigurationItem } from '@hubtask/sync-engine';
 
 import { ASSET_STATES, type AssetState } from '../data/cmdb.ts';
+import { holdsAttributes, lineOfGroup, passes, readLine, type NarrowContext } from '../data/inventoryquery.ts';
 
 /** The stages in the order an object walks them (the step bar's steps). */
 export const STAGE_PATH = ['PLANNED', 'ORDERED', 'IN_STOCK', 'IN_USE', 'MAINTENANCE', 'RETIRED', 'DISPOSED'] as const;
@@ -128,4 +129,17 @@ export function inheritedFrom(
   if (!level) return undefined;
   const nearest = [...reached].sort((a, b) => a.depth - b.depth);
   return nearest.find((each) => known.get(each.ci_id)?.protection?.[dimension] === level)?.ci_id;
+}
+
+/**
+ * The saved groups that hold an object (the rail's *Groups*): each group's filter read as the
+ * inventory's line reads it, and its attribute values beside it - the device answers what the
+ * server's member count would, so the rail needs no read per group.
+ */
+export function groupsHolding(ci: ConfigurationItem, groups: readonly CiGroup[], context: NarrowContext): CiGroup[] {
+  return groups.filter((group) => {
+    const of = lineOfGroup(group.filter);
+    const read = readLine(of.line);
+    return read.ok && passes(ci, read.filter, context) && holdsAttributes(ci, of.attributes);
+  });
 }

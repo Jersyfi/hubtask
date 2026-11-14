@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { inheritedFrom, keepRelationsView, lifeSteps, missingRecommended, openKeysByObject, readRelationsView, workGroups } from './objectpage.ts';
+import { groupsHolding, inheritedFrom, keepRelationsView, lifeSteps, missingRecommended, openKeysByObject, readRelationsView, workGroups } from './objectpage.ts';
 
 const entry = (key: string, extra: Record<string, unknown> = {}) => ({
   item_id: key, key, title: key, entry_type: 'TASK', collection_id: 'c', hub_id: 'h', status: null, completed: false,
@@ -88,4 +88,19 @@ test('a raised need names the nearest object that suffers with that need of its 
   assert.equal(inheritedFrom('a', 'VERY_HIGH', reached, known), 'shop');
   assert.equal(inheritedFrom('i', 'HIGH', reached, known), undefined);
   assert.equal(inheritedFrom('c', null, reached, known), undefined);
+});
+
+test('the saved groups holding an object are those whose filter it passes', () => {
+  const ci = { id: 'p', hub_id: 'h', class: 'server', name: 'db-01', stage: 'IN_USE', status: 'OK', attributes: { os: 'Linux' }, provenance: {}, protection: {},
+    quantity: 1, owner_account_id: null, created_at: '', updated_at: '', version: 1 } as const;
+  const group = (id: string, filter: Record<string, unknown>) => ({ id, hub_id: 'h', key: id, name: id, filter, service_id: null, updated_at: '', version: 1 });
+  const classes = [{ key: 'server', lineage: ['server', 'hardware', 'ci'] }] as never;
+  const held = groupsHolding(ci as never, [
+    group('servers', { classes: ['hardware'] }),
+    group('laptops', { classes: ['laptop'] }),
+    group('unowned', { no_owner: true }),
+    group('linux', { attributes: { os: 'linux' } }),
+    group('windows', { attributes: { os: 'windows' } }),
+  ] as never, { classes });
+  assert.deepEqual(held.map((each) => each.id), ['servers', 'unowned', 'linux']);
 });
