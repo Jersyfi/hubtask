@@ -171,7 +171,8 @@ test('chromium: 375 px — the hits end in Filter and Show all, the scopes in a 
   await dialog.getByRole('button', { name: 'Filter' }).tap();
   const sheet = page.getByRole('dialog', { name: 'Filter' });
   await sheet.waitFor();
-  await sheet.getByRole('button', { name: /^Entries · \d+$/u }).tap();
+  // A menu shown as a sheet keeps its menu and items (D-1).
+  await sheet.getByRole('menuitem', { name: /^Entries · \d+$/u }).tap();
   await sheet.waitFor({ state: 'hidden' });
   assert.equal(await dialog.getByRole('button', { name: /^Entries/u, pressed: true }).count(), 1, 'the scope picked in the sheet is not the one on');
 
