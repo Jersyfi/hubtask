@@ -631,6 +631,8 @@ export const campaignClosePath = (campaignId: string) => `${campaignPath(campaig
 export const groupsPath = (hubId: string) => `/hubs/${hubId}/ci-groups`;
 /** The open entries per object of a hub, for the inventory's *Open* column. */
 export const ciWorkPath = (hubId: string) => `/hubs/${hubId}/ci-work`;
+/** The entries on one object and on those beneath it (IN-3). */
+export const objectWorkPath = (ciId: string) => `/cis/${ciId}/work`;
 export const groupPath = (hubId: string, key: string) => `${groupsPath(hubId)}/${encodeURIComponent(key)}`;
 export const groupMembersPath = (groupId: string) => `/ci-groups/${groupId}/members`;
 export const serviceMapPath = (hubId: string, serviceId?: string) =>
