@@ -230,6 +230,16 @@ test('chromium: service desk - 390 px, a requester\'s long other request scrolls
   const { page } = walk;
 
   await page.goto(`${served.origin}/items/${REQUEST.id}`);
+  // The `deskentry` phone scene: the conversation first among four marks, none cut off; no copy
+  // icons under the head - the link's and the key's copy are rows of the bar's ⋯.
+  const marks = page.getByRole('navigation', { name: /^Sections of / });
+  await marks.waitFor({ timeout: 10_000 });
+  const labels = await marks.getByRole('link').allInnerTexts();
+  assert.ok(labels.length <= 4 && /^Conversation/u.test(labels[0]), `the marks are ${labels.join(' · ')}`);
+  const cut = await marks.evaluate((nav) => [...nav.querySelectorAll('a')].filter((a) => a.getBoundingClientRect().right > innerWidth + 1).map((a) => a.textContent));
+  assert.deepEqual(cut, [], 'a mark is cut off');
+  const icons = await page.locator('[data-copy-link]').evaluateAll((all) => all.filter((each) => each.getClientRects().length > 0).length);
+  assert.equal(icons, 0, 'a copy icon stands under the head');
   // On a phone the rail is the sheet behind *All properties* (§7).
   await page.getByRole('button', { name: /^All properties/ }).click();
   await page.getByRole('dialog').getByRole('region', { name: 'Requester' }).getByRole('link', { name: long.title }).waitFor({ timeout: 10_000 });

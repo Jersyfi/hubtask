@@ -182,6 +182,8 @@
   let statusSecond = $state<{ label: string; onclick: () => void } | undefined>(undefined);
   /** The ticket's one deadline chip in the action bar (ET-6). */
   let deadlineChip = $state<DeadlineChip | undefined>(undefined);
+  /** The sections a phone draws under the description instead of as a mark of their own. */
+  const PHONE_FOLDED = { task: ['entry-links', 'entry-affected'], ticket: ['entry-links', 'entry-files'] } as const;
   /** The section the jump marks stand at; on a phone the one shown (§7). */
   let mark = $state('entry-description');
 
@@ -606,9 +608,11 @@
             level: actions?.levelOf(item),
           },
           t,
-        )
+        ).flatMap((each) => (each.id === 'copy-link' && phoneKeyCopy ? [each, { id: 'copy-key', label: t('app.entries.ticket_key', { key: phoneKeyCopy }) }] : [each]))
       : [],
   );
+  /** On a phone the key's copy is a row of the bar's ⋯ (the `deskentry` phone scene draws no icons under the head). */
+  const phoneKeyCopy = $derived(viewport.isCompact && !isInPane ? ticketKey : undefined);
   let actions = $state<EntryActions | undefined>(undefined);
   // The moves need the entry's level, which a page does not otherwise hold. It is read when the
   // reader reaches for the menu - its trigger in the head, the pane or the bar - as search reads a
@@ -675,7 +679,8 @@
   const requesterName = $derived(isDeskEntry && item?.created_by ? accounts.nameOf(item.created_by) : undefined);
 
   function chooseFromMenu(chosen: string) {
-    if (item) void actions?.run(item, chosen);
+    if (chosen === 'copy-key' && phoneKeyCopy) void copyTicketKey(phoneKeyCopy);
+    else if (item) void actions?.run(item, chosen);
   }
 
   // What the palette may list for this entry: the head's menu, as the page's own or, in the detail
@@ -1235,8 +1240,12 @@
     { id: 'entry-files', label: t('app.entry.mark_files'), count: attachmentCount ? String(attachmentCount) : undefined },
     { id: 'entry-conversation', label: t('app.entry.mark_conversation'), count: commentCount !== undefined ? String(commentCount) : undefined },
     ];
-    // A ticket on a phone opens on its conversation (the `deskentry` phone scene): replying is the work.
-    return isPhoneTicket ? [...marks.slice(-1), ...marks.slice(0, -1)] : marks;
+    if (!viewport.isCompact || isInPane) return marks;
+    // A phone draws the four marks its scene draws (`task`, `deskentry`); the other sections stand
+    // under the description (PHONE_FOLDED), so every one stays reachable and no mark is cut off. A
+    // ticket opens on its conversation: replying is the work.
+    const shown = marks.filter((each) => !(isDeskEntry ? PHONE_FOLDED.ticket : PHONE_FOLDED.task as readonly string[]).includes(each.id));
+    return isDeskEntry ? [...shown.slice(-1), ...shown.slice(0, -1)] : shown;
   });
   /** The rail's sections (ET-1, ET-6): deadlines and *Einordnung* first on a ticket; a module switched off registers none (P-17). */
   // A folded rail section says how many it holds (the scene's *Code 3*, *Approvals 0*): the
@@ -1353,9 +1362,10 @@
       {#if isPhoneTicket}
         <div class="phone-deadlines" data-phone-deadlines>{#key item.id}<EntryDeadlines itemId={item.id} bind:chip={deadlineChip} />{/key}</div>
       {/if}
-      <!-- On a phone the head's top row stays hidden (WB-8); the ask and the key's copy stay reachable under it. -->
-      {#if viewport.isCompact && (hasAi || ticketKey)}
-        <div class="phone-tools">{@render headTools()}</div>
+      <!-- On a phone the head's top row stays hidden (WB-8): the ask stays under it, the link's and
+           the key's copy are rows of the bar's ⋯. -->
+      {#if viewport.isCompact && hasAi}
+        <div class="phone-tools"><AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} /></div>
       {/if}
       {#if writeFailure && isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
@@ -1395,7 +1405,7 @@
     <!-- The main column (ET-1): what can grow - description, parts, links, affected items, files,
          conversation - under jump marks with counts (ET-2); on a phone the marks are the switch
          and one section shows (§7). -->
-    <div class="entry-main" data-show={mark}>
+    <div class="entry-main" data-show={mark} data-kind={isDeskEntry ? 'ticket' : 'task'}>
       <JumpMarks label={t('app.entry.marks', { key: ticketKey ?? item.title })} marks={jumpMarks} bind:current={mark} />
 
       <!-- An activity carries no notes (`domain-model.md` §2): no description section at all. -->
@@ -1855,7 +1865,10 @@
     .entry-main[data-show='entry-links'] > :global(#entry-links),
     .entry-main[data-show='entry-affected'] > :global(#entry-affected),
     .entry-main[data-show='entry-files'] > :global(#entry-files),
-    .entry-main[data-show='entry-conversation'] > :global(#entry-conversation) { display: flex; }
+    .entry-main[data-show='entry-conversation'] > :global(#entry-conversation),
+    .entry-main[data-show='entry-description'] > :global(#entry-links),
+    .entry-main[data-show='entry-description'][data-kind='task'] > :global(#entry-affected),
+    .entry-main[data-show='entry-description'][data-kind='ticket'] > :global(#entry-files) { display: flex; }
   }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
