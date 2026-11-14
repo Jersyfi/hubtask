@@ -343,7 +343,7 @@ test('chromium: a picture or file from the insert menu opens the platform\'s cho
   assert.deepEqual(failures, []);
 });
 
-test('chromium 820 px: on a tablet the corner stands above the dock and Insert is in reach', async (t) => {
+test('chromium 820 px: on a tablet the board reaches the window\'s foot, the corner stands above the dock and Insert is in reach', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser, { width: 820, height: 1180, hasTouch: true });
@@ -359,8 +359,22 @@ test('chromium 820 px: on a tablet the corner stands above the dock and Insert i
   const dock = await box(page.locator('[data-board-tools]'));
   const corner = await box(page.locator('.corner'));
   assert.ok(corner.y + corner.height <= dock.y, 'the corner does not stand above the dock');
+  // No bottom bar on a tablet, so the board reaches the window's foot.
+  const stage = await box(page.locator('.stage'));
+  assert.ok(Math.abs(stage.y + stage.height - 1180) <= 1, `the board ends ${1180 - (stage.y + stage.height)} px above the window's foot`);
   await insert.click();
   await page.getByRole('menuitem', { name: 'Picture or file' }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium 390 px: on a phone the board reaches the window\'s foot, no bottom bar under it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, { width: 390, height: 844, hasTouch: true });
+  t.after(() => context.close());
+  await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+  const stage = await box(page.locator('.stage'));
+  assert.ok(Math.abs(stage.y + stage.height - 844) <= 1, `the board ends ${844 - (stage.y + stage.height)} px above the window's foot`);
   assert.deepEqual(failures, []);
 });
 

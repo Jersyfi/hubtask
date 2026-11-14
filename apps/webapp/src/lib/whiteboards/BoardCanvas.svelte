@@ -2247,11 +2247,12 @@
 <style>
   /* The board is the screen and belongs to its content (W-1): no head above it; the controls are
      islands in the four corners and a dock at the foot. Below `expanded` the frame gives the page
-     no height of its own, so the board takes the window's less the bars. */
+     no height of its own, so the board takes the window's less the app bar: no bottom bar stands
+     under it, a phone hiding it on a board (`AppFrame`). */
   .board { position: relative; block-size: 100%; min-block-size: 0; }
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width < 905px) {
-    .board { block-size: calc(100dvh - var(--layout-appbar-height) - var(--layout-bottombar-height)); }
+    .board { block-size: calc(100dvh - var(--layout-appbar-height)); }
   }
   .stage { position: relative; block-size: 100%; min-block-size: 0; overflow: hidden; background: var(--bg-surface-sunken); }
   /* Following someone: a frame in their colour round the board (W-5). */
