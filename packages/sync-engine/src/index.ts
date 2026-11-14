@@ -166,6 +166,7 @@ export type {
   CoverImageSearch,
   Post,
   PostList,
+  PostFollowing,
   UnreadPostList,
   PostReply,
   PostReplyList,

@@ -340,6 +340,7 @@ export type CoverImagesPolicy = components['schemas']['CoverImagesPolicy'];
 export type CoverImageSearch = components['schemas']['CoverImageSearch'];
 export type Post = components['schemas']['Post'];
 export type PostList = components['schemas']['PostList'];
+export type PostFollowing = components['schemas']['PostFollowing'];
 export type UnreadPostList = components['schemas']['UnreadPostList'];
 export type PostReply = components['schemas']['PostReply'];
 export type PostReplyList = components['schemas']['PostReplyList'];

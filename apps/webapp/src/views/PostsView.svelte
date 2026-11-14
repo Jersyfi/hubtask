@@ -58,6 +58,22 @@
     ...(mayWrite ? [{ id: 'SCHEDULED', label: t('app.posts.filter_scheduled'), count: scheduled }] : []),
   ]);
 
+  // B-5: a person follows the hub's posts and is told when one for them goes out.
+  const following = $derived(listed?.following ?? false);
+  let isFollowing = $state(false);
+  async function follow() {
+    if (isFollowing) return;
+    isFollowing = true;
+    try {
+      const next = await posts.follow(hubId, !following);
+      toast.show({ text: t(next.following ? 'app.posts.followed' : 'app.posts.unfollowed'), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isFollowing = false;
+    }
+  }
+
   let isCreating = $state(false);
   async function create() {
     if (isCreating) return;
@@ -118,8 +134,10 @@
 <WorkPage
   head={{
     title: t('app.posts.title'),
+    subtitle: figure,
     breadcrumb: hub ? { trail: [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }], label: t('app.pages.breadcrumb'), expandLabel: t('app.pages.breadcrumb_more') } : undefined,
     primary: mayWrite ? { label: t('app.posts.new'), icon: 'plus', onclick: () => void create(), tour: 'post-new' } : undefined,
+    secondary: [{ label: t(following ? 'app.posts.following' : 'app.posts.follow'), icon: following ? 'check' : 'eye', onclick: () => void follow(), tour: 'post-follow' }],
   }}
 >
   {#snippet toolbar()}
@@ -135,7 +153,6 @@
     </div>
   {/snippet}
 
-  <p class="figure" data-posts-figure>{figure}</p>
   {#if all.state.status === 'failed'}
     <p class="refusal">{renderProblem(all.state.error, messages).message}</p>
   {:else if !shown}
@@ -180,7 +197,6 @@
   .bar { display: flex; align-items: center; gap: var(--sp-200); inline-size: 100%; flex-wrap: wrap; }
   .grow { flex: 1; }
   .labels { min-inline-size: var(--sp-1600); }
-  .figure { margin: 0 0 var(--sp-200); color: var(--text-secondary); font-size: var(--fs-090); }
   .refusal { color: var(--text-danger); }
   .caps {
     margin: var(--sp-300) 0 var(--sp-150);

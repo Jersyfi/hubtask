@@ -15797,6 +15797,10 @@
   "app.posts.nav_section": "Posts",
   "app.posts.nav_all": "All posts",
   "app.posts.nav_unread": "unread",
+  "app.posts.follow": "Follow",
+  "app.posts.following": "Following",
+  "app.posts.followed": "You follow this hub's posts and are told when one for you goes out.",
+  "app.posts.unfollowed": "You no longer follow this hub's posts.",
   "app.today.news": "New for you",
   "app.today.news_by": "Post by {name}",
   "app.posts.post": "Post"

@@ -7,7 +7,7 @@
  * every write goes straight to the server.
  */
 
-import type { Post, PostCreate, PostReminded, PostReply, PostReplyCreate, PostSettings } from '@hubtask/sync-engine';
+import type { Post, PostCreate, PostFollowing, PostReminded, PostReply, PostReplyCreate, PostSettings } from '@hubtask/sync-engine';
 
 import { engine, INTENT } from './engine.ts';
 import { hubPostsPath, postPath, postRepliesPath, postConfirmationsPath, unreadPostsPath } from './posts.ts';
@@ -45,6 +45,13 @@ export const posts = {
     return engine.mutate<Post>('POST', hubPostsPath(hubId), create, {
       idempotencyKey: INTENT,
       invalidates: touched({ hub_id: hubId, page_id: '' }),
+    });
+  },
+
+  /** Follows a hub's posts or stops (B-5): a follower is told when a post for them goes out. */
+  follow(hubId: string, following: boolean): Promise<PostFollowing> {
+    return engine.mutate<PostFollowing>('PUT', `${hubPostsPath(hubId)}/following`, { following }, {
+      invalidates: [hubPostsPath(hubId), hubPostsPath(hubId, 'UNREAD'), hubPostsPath(hubId, 'MINE'), hubPostsPath(hubId, 'SCHEDULED')],
     });
   },
 
