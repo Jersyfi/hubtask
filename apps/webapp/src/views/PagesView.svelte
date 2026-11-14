@@ -1017,6 +1017,8 @@
   }
   .start { display: grid; gap: var(--sp-200); }
   .heading { display: grid; gap: calc(var(--sp-050) + var(--sp-025)); }
+  /* A side section's name on the scale, not the browser's h3 step (16.38 px). */
+  h3.heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .here { display: inline-flex; }
   .excerpt, .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
   .quiet { margin: 0; color: var(--text-secondary); }

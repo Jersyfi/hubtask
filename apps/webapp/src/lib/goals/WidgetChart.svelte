@@ -188,12 +188,15 @@
   </ul>
 {:else if chart === 'PIE'}
   <div class="ring" data-chart="PIE">
-    <svg viewBox="0 0 42 42" role="img" aria-label={summary}>
-      {#each ring as part (part.row.key)}
-        <circle cx="21" cy="21" r="15.915" stroke-width="6" data-series={part.series} stroke-dasharray={`${part.share * 100} ${100 - part.share * 100}`} stroke-dashoffset={25 - part.start * 100} />
-      {/each}
-      <text x="21" y="21" font-size="7" dominant-baseline="central" text-anchor="middle">{percentOf(ring[0]?.share)} %</text>
-    </svg>
+    <!-- The share in the ring's middle is page text on the type scale, not the drawing's units. -->
+    <span class="ring-mark">
+      <svg viewBox="0 0 42 42" role="img" aria-label={summary}>
+        {#each ring as part (part.row.key)}
+          <circle cx="21" cy="21" r="15.915" stroke-width="6" data-series={part.series} stroke-dasharray={`${part.share * 100} ${100 - part.share * 100}`} stroke-dashoffset={25 - part.start * 100} />
+        {/each}
+      </svg>
+      <span class="ring-share" aria-hidden="true">{percentOf(ring[0]?.share)} %</span>
+    </span>
     <ul class="legend">
       {#each ring as part (part.row.key)}
         <li><span class="swatch" data-series={part.series} aria-hidden="true"></span>{labelText(part.row.label)} <strong>{part.row.text}</strong></li>
@@ -289,7 +292,9 @@
   .ring { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-200); }
   .ring svg { inline-size: var(--sp-1000); block-size: var(--sp-1000); }
   .ring circle { fill: none; stroke: var(--series); }
-  .ring text { fill: var(--text-primary); font-weight: var(--fw-semibold); }
+  .ring-mark { display: grid; place-items: center; }
+  .ring-mark > * { grid-area: 1 / 1; }
+  .ring-share { color: var(--text-primary); font-size: var(--fs-090); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
   .legend { gap: var(--sp-050); font-size: var(--fs-075); }
 
   .plot { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--sp-050); row-gap: var(--sp-025); }

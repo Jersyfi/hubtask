@@ -288,3 +288,13 @@ test('a split button\'s caret is named one way: more ways to its own act (V-6)',
     assert.match(text, /label: t\('app\.split_more', \{ action: t\(/u, `${path} names its caret its own way`);
   }
 });
+
+test('no text is set at a size off the type scale: a page\'s headings, a side section\'s, a ring\'s share (Y-1)', () => {
+  const css = readFileSync(join(srcDir, 'lib/pages/page-text.css'), 'utf8');
+  assert.match(css, /\.page-text \.page-body h2 \{ font-size: var\(--fs-500\); \}/u);
+  assert.match(css, /\.page-text \.page-body h3 \{ font-size: var\(--fs-400\); \}/u);
+  const pages = sources.find(({ path }) => path === 'views/PagesView.svelte')?.text ?? '';
+  assert.match(pages, /h3\.heading \{ margin: 0; font-size: var\(--fs-100\);/u);
+  const chart = sources.find(({ path }) => path === 'lib/goals/WidgetChart.svelte')?.text ?? '';
+  assert.doesNotMatch(chart, /font-size="\d/u, 'a chart sets text in its drawing\'s units');
+});

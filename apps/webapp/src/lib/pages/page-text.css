@@ -29,6 +29,9 @@
 .page-text .page-body h1,
 .page-text .page-body h2,
 .page-text .page-body h3 { font-family: var(--font-display); line-height: var(--lh-tight); }
+/* The headings on the type scale, never the browser's em steps of the body (25.5 px, 19.9 px). */
+.page-text .page-body h2 { font-size: var(--fs-500); }
+.page-text .page-body h3 { font-size: var(--fs-400); }
 .page-text .page-body pre {
   padding: var(--sp-100);
   border-radius: var(--r-md);
