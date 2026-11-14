@@ -2448,8 +2448,9 @@
      reaches layout.target beyond its drawn box (P-2). */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
-    /* Above the row that follows, which would otherwise paint over the press's lower half. */
-    .group-head .twist { position: relative; z-index: 1; }
+    /* The head is the press's height, so the press stays inside it and off the first row's tick. */
+    .group-head { min-block-size: var(--layout-target); padding-block: 0; }
+    .group-head .twist { position: relative; }
     .group-head .twist::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
 </style>
