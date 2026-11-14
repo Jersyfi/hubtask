@@ -349,13 +349,13 @@
   .name { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .where { white-space: nowrap; opacity: 0.8; }
   .acts { display: flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
-  .body { display: grid; grid-template-columns: 1fr calc(var(--sp-1600) * 5); min-block-size: 0; }
+  .body { display: grid; grid-template-columns: minmax(0, 1fr) calc(var(--sp-1600) * 2.5); min-block-size: 0; }
   .stage { position: relative; display: grid; justify-items: center; align-content: start; gap: var(--sp-200); padding: var(--sp-300); overflow: auto; min-block-size: 0; }
   .stage[data-kind='image'], .stage[data-kind='video'], .stage[data-kind='svg'], .stage[data-kind='audio'] { align-content: center; }
   .body { position: relative; }
   .page { position: absolute; inset-block-start: 50%; translate: 0 -50%; }
   .prev { inset-inline-start: var(--sp-200); }
-  .next { inset-inline-end: calc(var(--sp-1600) * 5 + var(--sp-200)); }
+  .next { inset-inline-end: calc(var(--sp-1600) * 2.5 + var(--sp-200)); }
   .picture { max-inline-size: 100%; max-block-size: 70dvh; object-fit: contain; }
   .stage[data-zoom='1.5'] .picture { max-inline-size: none; max-block-size: none; inline-size: 150%; }
   .stage[data-zoom='2'] .picture { max-inline-size: none; max-block-size: none; inline-size: 200%; }
@@ -379,6 +379,7 @@
     /* design-system-lint-ignore: tracking in em follows the type step it spaces */
     letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
   .details h3:first-child { margin-block-start: 0; }
+  .details p, .details h3, .where, .keys { color: var(--text-inverse); }
   .details p { margin: 0; }
   .key { font-family: var(--font-mono); opacity: 0.75; }
   .foot { display: flex; align-items: center; gap: var(--sp-200); padding: var(--sp-100) var(--sp-300); border-block-start: var(--bw-hairline) solid var(--border-strong); }
