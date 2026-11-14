@@ -92,6 +92,7 @@ export { default as ResizeHandle } from './ResizeHandle.svelte';
 // Wave 5 - the sidebar's pieces (the navigation concept, design-system.md §11.3).
 export { default as ProductTile, type ProductId } from './ProductTile.svelte';
 export { default as NavItem, type RowAction, type RowBadge, type DropState } from './NavItem.svelte';
+export { default as UnreadDot } from './UnreadDot.svelte';
 export { default as NavGroup, type NavTreeNode, type FilterKind } from './NavGroup.svelte';
 export { default as NavLevel, type HubHead } from './NavLevel.svelte';
 export { default as NavFlyout } from './NavFlyout.svelte';

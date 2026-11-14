@@ -391,8 +391,8 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (16)
-AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet
+### Wave 5 — the shell (17)
+AppBar · NavDrawer · BottomBar · ViewBar · PageHeader · DetailPane · Logo · ResizeHandle · NavItem · NavGroup · NavFlyout · NavLevel · ProductTile · MoveCheck · BrowseStack · Sheet · UnreadDot
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
