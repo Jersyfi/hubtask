@@ -611,7 +611,11 @@ test('chromium 1280 px: the desk opens on the first queue that holds a request',
   t.after(() => { QUEUES.mine = mine; });
   const { page, failures, close } = await open(browser, { width: 1280, path: '/desk', modulesOn: ['WORKFLOWS', 'SERVICE_DESK'] });
   t.after(close);
-  await page.getByRole('region', { name: 'Unassigned', exact: true }).getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 10_000 });
+  const unassigned = page.getByRole('region', { name: 'Unassigned', exact: true });
+  await unassigned.getByRole('link', { name: 'VPN drops at noon' }).waitFor({ timeout: 10_000 });
+  // A row names its type as a person reads it, never by its key.
+  await unassigned.getByText('Incident', { exact: true }).first().waitFor({ timeout: 5_000 });
+  assert.equal(await unassigned.getByText('incident', { exact: true }).count(), 0, 'a row shows its type\'s key');
   await page.getByRole('button', { name: 'Queue: Unassigned (2)' }).click();
   const queues = page.locator('[data-desk-queues]');
   await queues.getByRole('radio', { name: 'Unassigned (2)', checked: true }).waitFor({ timeout: 10_000 });

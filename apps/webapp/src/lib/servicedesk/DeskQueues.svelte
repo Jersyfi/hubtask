@@ -148,6 +148,8 @@
   const chips = $derived<Filter[]>([{ id: 'queue', label: t('app.desk_queues.chip', { queue: tabs.find((each) => each.id === selected)?.label ?? '' }), isActive: true, isPinned: true }]);
 
   $effect(() => untrack(() => workflows.open()));
+  // A row names its type as a person reads it, never by its key: the types are read here too.
+  $effect(() => untrack(() => entryTypes.open()));
   // Which field names a priority is the policies' word; a member may read them (UC-SVC-02).
   const policies = untrack(() => resource<SlaPolicyList>(policiesPath));
   const priorityFields = $derived(policies.state.status === 'ready' ? policies.state.data.data.map((policy) => policy.priority_field) : []);
