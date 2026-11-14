@@ -454,7 +454,7 @@
       label: t(createAct.code),
       icon: 'plus' as const,
       onclick: () => go(first.id),
-      menu: createPlaces.length > 1 ? { label: t(createAct.inCode), items: createPlaces, onselect: go } : undefined,
+      menu: createPlaces.length > 1 ? { label: t('app.split_more', { action: t(createAct.code) }), items: createPlaces, onselect: go } : undefined,
     };
   });
   /** The pages' home's *start with a template* (scene phome): a new page from it opens at once where the act leads. */

@@ -107,7 +107,7 @@
       onclick: () => capture.open({ collectionId: first.desk.id }),
       menu: desks.length > 1
         ? {
-            label: t('app.desk_home.new_request_in'),
+            label: t('app.split_more', { action: t('app.desk_home.new_request') }),
             items: desks.map(({ desk }) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })),
             onselect: (id: string) => capture.open({ collectionId: id }),
           }

@@ -233,7 +233,7 @@
           label: t('app.whiteboards.new'),
           icon: 'plus',
           onclick: () => startMaking(),
-          menu: { label: t('app.whiteboards.new_more'), items: [{ id: 'import', label: t('app.whiteboards.import_menu'), icon: 'cloud-upload' as const }], onselect: () => { isImportOpen = true; start = 'BLANK'; titleDraft = ''; isMaking = true; } },
+          menu: { label: t('app.split_more', { action: t('app.whiteboards.new') }), items: [{ id: 'import', label: t('app.whiteboards.import_menu'), icon: 'cloud-upload' as const }], onselect: () => { isImportOpen = true; start = 'BLANK'; titleDraft = ''; isMaking = true; } },
         }
       : undefined,
     breadcrumb: hub

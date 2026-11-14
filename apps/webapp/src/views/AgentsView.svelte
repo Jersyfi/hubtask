@@ -114,7 +114,7 @@
           icon: 'plus' as const,
           onclick: () => (drafting = {}),
           menu: {
-            label: t('app.agents.add_from_role'),
+            label: t('app.split_more', { action: t('app.agents.add_agent') }),
             items: SHIPPED_ROLES.map((kind) => ({ id: kind, label: t(`app.agents.kind.${kind}`) })),
             onselect: (id: string) => (drafting = { role: id as (typeof SHIPPED_ROLES)[number] }),
           },

@@ -118,16 +118,16 @@ export function hubScreenOf(module: string, hubId: string): string | undefined {
  * with *Add an agent* in its head. The plans lead to a collection's sprints, whose head is *Plan a
  * sprint* (§7.5) - a hub's plan holds its entries' dates and has no act of making.
  */
-export function createOf(module: string): { readonly code: string; readonly inCode: string; readonly level: 'HUB' | 'COLLECTION' } | undefined {
+export function createOf(module: string): { readonly code: string; readonly level: 'HUB' | 'COLLECTION' } | undefined {
   switch (module) {
     case 'PLANNING':
-      return { code: 'app.sprints.plan', inCode: 'app.product_home.plan_in', level: 'COLLECTION' };
+      return { code: 'app.sprints.plan', level: 'COLLECTION' };
     case 'KNOWLEDGE':
-      return { code: 'app.pages.new', inCode: 'app.product_home.new_in', level: 'HUB' };
+      return { code: 'app.pages.new', level: 'HUB' };
     case 'WHITEBOARD':
-      return { code: 'app.whiteboards.new', inCode: 'app.product_home.new_in', level: 'HUB' };
+      return { code: 'app.whiteboards.new', level: 'HUB' };
     case 'ASSETS':
-      return { code: 'app.assets.new', inCode: 'app.product_home.new_in', level: 'HUB' };
+      return { code: 'app.assets.new', level: 'HUB' };
     default:
       return undefined;
   }

@@ -219,7 +219,7 @@
       icon: 'plus' as const,
       onclick: () => onnavigate(`/collections/${first.id}`),
       menu: desks.length > 1
-        ? { label: t('app.desk_home.new_request_in'), items: desks.map((desk) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })), onselect: (id: string) => onnavigate(`/collections/${id}`) }
+        ? { label: t('app.split_more', { action: t('app.desk_home.new_request') }), items: desks.map((desk) => ({ id: desk.id, label: t('app.desk_home.in_desk', { desk: desk.name }) })), onselect: (id: string) => onnavigate(`/collections/${id}`) }
         : undefined,
     };
   });

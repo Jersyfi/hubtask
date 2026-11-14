@@ -281,3 +281,10 @@ test('the widget library names its preview\'s statuses, read while it is open an
   assert.match(view, /const previewRows = \$derived<FigureRow\[\]>\(figureRows\(previewCounts, \{ group: \(value\) => groupName\('status', value\)/u, 'the preview is named once, as read');
   assert.match(view, /statuses: [^\n]*\|\| isLibraryOpen \|\| \(draftWidget !== undefined && aggregateOf\(draftWidget\)\?\.group_by === 'status'\)/u, 'the statuses are not read for the library or the editor');
 });
+
+test('a split button\'s caret is named one way: more ways to its own act (V-6)', () => {
+  for (const path of ['views/ProductHomeView.svelte', 'lib/servicedesk/DeskHome.svelte', 'views/HubDeskView.svelte', 'views/AgentsView.svelte', 'views/ContentsView.svelte']) {
+    const text = sources.find((each) => each.path === path)?.text ?? '';
+    assert.match(text, /label: t\('app\.split_more', \{ action: t\(/u, `${path} names its caret its own way`);
+  }
+});

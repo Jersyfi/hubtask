@@ -113,7 +113,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
   await page.waitForURL(/\/agents$/);
   // The band's figures, one span each (H-3).
   for (const figure of ['0 live', '1 draft', '1 waiting for a person']) await page.locator('.figure').getByText(figure, { exact: true }).waitFor({ timeout: 5_000 });
-  await page.getByRole('button', { name: 'Start from a role' }).click();
+  await page.getByRole('button', { name: 'More ways: Add an agent' }).click();
   await page.getByRole('menuitem', { name: 'Knowledge draft' }).click();
   const agentDialog = page.getByRole('dialog');
   assert.equal(await agentDialog.getByLabel('Name').inputValue(), 'Knowledge draft');

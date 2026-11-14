@@ -145,7 +145,7 @@ test('every product home carries its primary create act', () => {
     }
     const create = createOf(row.module);
     assert.ok(create, `${row.module}'s home has no create act`);
-    assert.ok(create.code in SOURCE && create.inCode in SOURCE, `${row.module}: ${create.code}, ${create.inCode}`);
+    assert.ok(create.code in SOURCE, `${row.module}: ${create.code}`);
     const screen = create.level === 'HUB' ? hubScreenOf(row.module, id) : collectionScreenOf(row.module, id);
     assert.ok(screen && resolve(ROUTES, screen).name, `${row.module}'s create leads to no route: ${screen}`);
   }

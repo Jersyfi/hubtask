@@ -805,7 +805,7 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
   await plan.waitFor({ timeout: 10_000 });
   // The plans' band (E-1): its tile and figures - the sprints running, the releases due, the plans late.
   await page.waitForFunction(() => [...document.querySelectorAll('.band .figure')].map((each) => each.textContent?.trim()).join('|') === '1 sprint running|2 releases due|1 plan late', null, { timeout: 10_000 });
-  await page.getByRole('button', { name: 'In another collection' }).click();
+  await page.getByRole('button', { name: 'More ways: Plan a sprint' }).click();
   await page.getByRole('menuitem', { name: `${HUB.name} › ${SCRUM.name}` }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await plan.click();
