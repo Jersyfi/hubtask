@@ -128,12 +128,38 @@ test('chromium: a product\'s home with its module off is drawn as its empty stat
   const { page } = walk;
 
   await page.goto(`${served.origin}/plans`);
-  // Its start page (scenes emptygoals, emptytime): the product's name is the page's one heading.
-  await page.locator('.empty[data-home]').getByRole('heading', { level: 1 }).waitFor({ timeout: 10_000 });
+  // A product without templates of its own: its band, the sentence and the switch (scene empty).
+  await page.locator('.band[data-product="plans"]').getByRole('heading', { level: 1, name: 'Plans' }).waitFor({ timeout: 10_000 });
   assert.equal(await page.locator('.empty[data-kind="unused"] > .tile').count(), 1, 'the product\'s tile');
   await page.locator('[data-module-off-note]').getByText('Nothing kept for it is lost while it is off.').waitFor();
   await page.getByRole('button', { name: /^Switch .+ on$/u }).click();
   await page.waitForTimeout(300);
   assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/PLANNING'), 'the switch was not sent');
+  assert.deepEqual(walk.errors(), []);
+});
+
+// Scene empty (the desk): a product switched off whose templates make a hub starts with its band, a
+// template as the main way, *Start empty* beside it, and the templates as cards; the main way makes
+// the hub from the template, which switches the product on.
+test('chromium: a switched-off desk starts from a template, with start empty beside it and the templates as cards', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['SERVICE_DESK']) });
+  t.after(walk.close);
+  const { page } = walk;
+
+  await page.goto(`${served.origin}/desk`);
+  await page.locator('.band[data-product="desk"]').getByRole('heading', { level: 1, name: 'Service desk' }).waitFor({ timeout: 10_000 });
+  const main = page.getByRole('button', { name: 'Start with ITIL service desk' });
+  await main.waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Start empty' }).waitFor();
+  await page.getByRole('heading', { name: 'Or start with a template' }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'ITIL service desk', exact: true }).count(), 1, 'the template is not a card');
+  await main.click();
+  await page.getByRole('dialog').waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Start empty' }).click();
+  await page.waitForTimeout(300);
+  assert.ok(walk.written.some((each) => each.method === 'PUT' && each.path === '/tenant/modules/SERVICE_DESK'), 'start empty did not switch the desk on');
   assert.deepEqual(walk.errors(), []);
 });

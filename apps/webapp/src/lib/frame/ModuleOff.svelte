@@ -4,16 +4,20 @@
   // The page of a module switched off in the workspace: what it is, that its data is kept, and -
   // for who may shape the workspace - the switch at once; for anybody else whom to ask. Drawn in
   // place of the page, so no read is refused and no form is offered that the server would refuse.
-  import { Button, EmptyState, Icon, PageHeader, Stack } from '@hubtask/design-system/components';
-  import type { ModuleState } from '@hubtask/sync-engine';
+  import { untrack } from 'svelte';
+  import { Button, EmptyState, Icon, PageHeader, ProductBand, Stack } from '@hubtask/design-system/components';
+  import type { ConfigTemplate, ModuleState } from '@hubtask/sync-engine';
 
   import { holdsHere } from '../data/capability.svelte.ts';
+  import { config } from '../data/config.svelte.ts';
   import { modules } from '../data/modules.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { switchedOn } from '../product/switchedon.ts';
   import { PRODUCTS } from '../navigation.ts';
   import { PRODUCT_TILES } from '../product/tiles.ts';
+  import { productTemplates } from '../product/templates.ts';
+  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import TemplateCards from '../product/TemplateCards.svelte';
   import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
   import { timeWays } from '../time/ways.ts';
@@ -52,6 +56,33 @@
    */
   const cards = $derived(module === 'TIME' ? timeWays(starts.cards, t, { timer: () => void switchOn('/'), week: () => void switchOn('/time') }) : starts.cards);
 
+  // A product whose templates make a hub - the desk, plans, inventory, pages, whiteboards - starts as
+  // the `empty` scene draws the desk: its band, a template as the main way, *start empty* beside it
+  // and the templates as cards. Making the hub from one switches the product on (`containers:from-template`).
+  // Goals and time keep their own scenes (emptygoals, emptytime), which start from the workspace's.
+  let catalogue = $state<readonly ConfigTemplate[]>([]);
+  /** Goals and time start as their own scenes draw them. */
+  const hasOwnStart = $derived(module === 'GOALS' || module === 'TIME');
+  const takesHubStarts = $derived(isProduct && mayShape && !hasOwnStart);
+  $effect(() => {
+    if (!takesHubStarts) return;
+    return untrack(() => config.templates((next) => {
+      if (next.status === 'ready') catalogue = next.data.data;
+    }));
+  });
+  const templateName = (template: ConfigTemplate): string =>
+    template.origin === 'HUBTASK' ? t(`app.structure.preset.${template.key.toUpperCase()}`) : template.name;
+  /** The template the new hub takes; the dialog is open while one is chosen. */
+  let startingFrom = $state<string | undefined>(undefined);
+  let isCreatingHub = $state(false);
+  const hubStarts = $derived(takesHubStarts ? productTemplates(catalogue, module).map((template) => ({
+    label: templateName(template),
+    description: template.origin === 'HUBTASK' && messages.has(`app.templates.summary.${template.key.toUpperCase()}`) ? t(`app.templates.summary.${template.key.toUpperCase()}`) : undefined,
+    icon: row?.icon,
+    onclick: () => { startingFrom = template.key; isCreatingHub = true; },
+  })) : []);
+  const emptyTitle = $derived(module === 'SERVICE_DESK' ? t('app.desk_home.no_desk') : t('app.product_home.none', { product: name }));
+
   async function switchOn(then?: string) {
     isSwitching = true;
     refusal = undefined;
@@ -77,6 +108,14 @@
   {#if isProduct && side}<Button tone="secondary" data-empty-side disabledReason={isSwitching ? t('app.workspace.saving') : undefined} onclick={() => void switchOn(side.path)}>{t(side.code)}</Button>{/if}
 {/snippet}
 
+{#snippet startControl()}
+  {#if hubStarts[0]}
+    {@const first = hubStarts[0]}
+    <Button tone="primary" icon="plus" disabledReason={isSwitching ? t('app.workspace.saving') : undefined} onclick={first.onclick}>{t('app.product_empty.start_with', { template: first.label })}</Button>
+  {/if}
+  <Button tone="secondary" data-empty-side isBusy={isSwitching} busyLabel={t('app.workspace.saving')} onclick={() => void switchOn()}>{t('app.product_empty.start_empty')}</Button>
+{/snippet}
+
 {#snippet offNote()}
   <span class="note" data-module-off-note><Icon name="info" size="sm" />{t(mayShape ? 'app.module_off.kept' : 'app.module_off.ask')}</span>
 {/snippet}
@@ -84,6 +123,19 @@
 <Stack gap="300">
   <!-- A product's start page has no head of its own (scenes emptygoals, emptytime): its name is the
        page's one heading below; on a phone the bar still carries it. -->
+  {#if hubStarts.length > 0}
+    <ProductBand product={PRODUCT_TILES[module] ?? 'desk'} icon={row?.icon ?? 'layout-template'} {name}
+      breadcrumb={{ trail: [{ id: 'products', label: t('app.nav.products') }, { id: 'module', label: name }], label: t('app.admin.trail'), expandLabel: t('app.admin.expand_trail') }} />
+    <EmptyState kind="unused" icon={row?.icon ?? 'layout-template'} product={PRODUCT_TILES[module]} title={emptyTitle}
+      description={sentence} action={startControl} footnote={offNote} />
+    <TemplateCards templates={hubStarts} shape="stacked" tile={PRODUCT_TILES[module]} />
+  {:else if isProduct && !hasOwnStart}
+    <!-- A product without templates to start from: its band, the sentence and the switch. -->
+    <ProductBand product={PRODUCT_TILES[module] ?? 'desk'} icon={row?.icon ?? 'layout-template'} {name}
+      breadcrumb={{ trail: [{ id: 'products', label: t('app.nav.products') }, { id: 'module', label: name }], label: t('app.admin.trail'), expandLabel: t('app.admin.expand_trail') }} />
+    <EmptyState kind="unused" icon={row?.icon ?? 'layout-template'} product={PRODUCT_TILES[module]} title={t('app.module_off.title', { module: name })}
+      description={sentence} action={mayShape ? switchControl : undefined} footnote={offNote} />
+  {:else}
   {#if !isProduct || viewport.isCompact}
   <PageHeader title={name} isTitleInBar={viewport.isCompact}
     breadcrumb={{
@@ -109,8 +161,11 @@
       description={t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}
       action={mayShape ? switchControl : undefined} />
   {/if}
+  {/if}
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </Stack>
+
+<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={(_id, landing) => { startingFrom = undefined; onnavigate?.(landing ?? row?.path ?? '/'); }} />
 
 <TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 

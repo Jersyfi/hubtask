@@ -7308,6 +7308,7 @@
   "app.product_empty.sentence_planning": "Schedules with dependencies, sprints and releases for the work in your hubs – as a light timeline or as a Gantt chart with its critical path.",
   "app.product_empty.sentence_agents": "An agent acts for one person and never does what they may not. Nothing runs before somebody else approves it.",
   "app.product_empty.sentence_service_desk": "A desk gathers what arrives through the portal, by mail or on the phone, and measures how fast you answer.",
+  "app.product_empty.start_with": "Start with {template}",
   "app.product_empty.start_empty": "Start empty",
   "app.product_empty.use": "Use",
   "app.product_home.trail": "Where you are among the products",

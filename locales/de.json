@@ -7308,6 +7308,7 @@
   "app.product_empty.sentence_planning": "Zeitpläne mit Abhängigkeiten, Sprints und Releases für die Arbeit in deinen Hubs – als leichte Zeitleiste oder als Gantt mit kritischem Pfad.",
   "app.product_empty.sentence_agents": "Ein Agent handelt für eine Person und tut nie, was sie nicht darf. Nichts läuft, bevor jemand anderes ihn freigibt.",
   "app.product_empty.sentence_service_desk": "Ein Desk sammelt, was über das Portal, per Mail oder am Telefon ankommt, und misst, wie schnell ihr antwortet.",
+  "app.product_empty.start_with": "Mit {template} beginnen",
   "app.product_empty.start_empty": "Leer beginnen",
   "app.product_empty.use": "Verwenden",
   "app.product_home.trail": "Wo du bei den Produkten bist",
