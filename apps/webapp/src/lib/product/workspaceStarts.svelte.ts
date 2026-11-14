@@ -26,13 +26,16 @@ export interface StartCard {
 }
 
 export class WorkspaceStarts {
-  readonly #module: string;
+  readonly #module: () => string;
   #list = $state<ResourceState<ConfigTemplateList>>();
   /** The template whose dialog is open. */
   opened = $state<ConfigTemplate>();
 
-  /** `isOffered` says while the cards are drawn: only then is the catalogue read. */
-  constructor(module: string, isOffered: () => boolean) {
+  /**
+   * `module` reads the product, which a page drawn for one product after another changes;
+   * `isOffered` says while the cards are drawn: only then is the catalogue read.
+   */
+  constructor(module: () => string, isOffered: () => boolean) {
     this.#module = module;
     $effect(() => {
       if (!isOffered()) return;
@@ -47,7 +50,7 @@ export class WorkspaceStarts {
   get cards(): StartCard[] {
     const list = this.#list;
     if (list?.status !== 'ready') return [];
-    const offered = workspaceTemplates(list.data.data, this.#module);
+    const offered = workspaceTemplates(list.data.data, this.#module());
     if (offered.some((each) => each.taken_version != null)) return [];
     return offered.map((each) => ({
       label: nameOf(each),

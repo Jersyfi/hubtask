@@ -34,6 +34,9 @@ export function productTemplates<T extends Offered>(templates: readonly T[], mod
 }
 
 /** The workspace's section each product's workspace-only templates fill (configuration.md §6). */
+/** Hubtask's own in the order the scenes draw them: the fullest start first, the empty one last. */
+const SHIPPED_FIRST = ['goals_customer_okr', 'goals_team_health', 'goals_period', 'time_standard', 'time_consulting'];
+
 const SECTION_OF_PRODUCT: Readonly<Record<string, string>> = { GOALS: 'goal_sets', TIME: 'time_work_types' };
 
 /**
@@ -48,7 +51,7 @@ export function workspaceTemplates<T extends Offered & { readonly document?: Rea
   if (!section) return [];
   return templates
     .filter((each) => each.hub_document == null && each.document?.[section] != null)
-    .map((each, at) => ({ each, at }))
+    .map((each, at) => ({ each, at: SHIPPED_FIRST.includes(each.key) ? SHIPPED_FIRST.indexOf(each.key) - SHIPPED_FIRST.length : at }))
     .sort((a, b) => ORDER.indexOf(a.each.origin) - ORDER.indexOf(b.each.origin) || a.at - b.at)
     .slice(0, limit)
     .map(({ each }) => each);

@@ -118,7 +118,7 @@
   const offeredKinds = $derived(kinds.filter((each) => !each.archived));
   // The sets of kinds of work the workspace may start from (scene emptytime), beside the usual kinds
   // the first visit writes (kinds.ts), for whoever may change the workspace's structure.
-  const starts = new WorkspaceStarts('TIME', () => holdsHere('STRUCTURE') === true);
+  const starts = new WorkspaceStarts(() => 'TIME', () => holdsHere('STRUCTURE') === true);
 
   // --- My week ------------------------------------------------------------------------------------
 

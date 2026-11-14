@@ -71,7 +71,7 @@ function backend() {
   });
   const flags = { hides_data: false, changes_permissions: false };
   const answer = (method, path, query, body) => {
-    if (path === '/config/templates' && method === 'GET') return { json: { data: Object.keys(TEMPLATES).map(template) } };
+    if (path === '/config/templates' && method === 'GET') return { json: { data: Object.keys(TEMPLATES).sort().map(template) } };
     const planned = /^\/config\/templates\/([a-z_]+):plan$/.exec(path);
     if (planned && method === 'POST') {
       const key = planned[1];
@@ -198,6 +198,32 @@ for (const [name, key, shows] of [
 
     await page.goto(`${served.origin}/time/settings/kinds`);
     for (const each of shows) await page.getByRole('cell', { name: each, exact: true }).waitFor({ timeout: 10_000 });
+    assert.deepEqual(walk.errors(), []);
+  });
+}
+
+// A workspace with Goals or Time switched off (the demo's empty workspace) is drawn as the product's
+// first empty state with its switch; whoever may switch it on is offered the same cards, and taking
+// one switches the product on in the same apply (configuration.md §2, a section whose module is off).
+for (const [module, path, name, key] of [['GOALS', '/goals', 'Team health', 'goals_team_health'], ['TIME', '/time', 'Consulting', 'time_consulting']]) {
+  test(`chromium: with ${module} switched off, its first empty state offers the templates beside the switch`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const world = backend();
+    const walk = await productWalk(browser, { modules: [], answer: world.answer });
+    t.after(walk.close);
+    const { page } = walk;
+
+    // Drawn for the other product first and then moved here in the app: the cards follow the page.
+    await page.goto(`${served.origin}${path === '/goals' ? '/time' : '/goals'}`);
+    await page.locator('[data-empty-templates]').waitFor({ timeout: 10_000 });
+    await page.evaluate((to) => { history.pushState({}, '', to); dispatchEvent(new PopStateEvent('popstate')); }, path);
+    await page.locator('[data-module-off-note]').waitFor({ timeout: 10_000 });
+    await page.locator('[data-empty-templates]').getByRole('button', { name, exact: true }).waitFor({ timeout: 10_000 });
+    await take(page, name);
+    assert.deepEqual(world.applied, [{ key, hub_id: null }]);
+    const apply = walk.written.find((each) => each.path === '/config:apply');
+    assert.equal(apply.body.document.modules[module.toLowerCase()].switch, 'ON', 'the product is not switched on with it');
     assert.deepEqual(walk.errors(), []);
   });
 }

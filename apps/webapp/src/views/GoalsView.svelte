@@ -134,7 +134,7 @@
   let periodsRefusal = $state<string | undefined>(undefined);
   follow<GoalPeriodList>(() => PERIODS, (data) => (periods = data ? [...data.data] : undefined), (m) => (periodsRefusal = m));
   // The goal sets a workspace without a period starts from (scene emptygoals), for whoever may take one.
-  const starts = new WorkspaceStarts('GOALS', () => mayStructure && periods?.length === 0);
+  const starts = new WorkspaceStarts(() => 'GOALS', () => mayStructure && periods?.length === 0);
   /** The period asked for, else the open one that started last, else the last of all. */
   const chosen = $derived.by(() => {
     if (!periods || periods.length === 0) return undefined;

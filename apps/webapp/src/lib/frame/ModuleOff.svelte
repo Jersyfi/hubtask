@@ -13,17 +13,24 @@
   import { renderProblem } from '../problem.ts';
   import { switchedOn } from '../product/switchedon.ts';
   import { PRODUCT_TILES } from '../product/tiles.ts';
+  import TemplateCards from '../product/TemplateCards.svelte';
+  import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
+  import TemplateDialog from '../settings/TemplateDialog.svelte';
   import { page } from './page.svelte.ts';
   import { toast } from './toasts.svelte.ts';
   import { viewport } from './viewport.svelte.ts';
 
   // `isProduct`: a product's home, whose trail is *Products* rather than the administration's.
-  const { module, isProduct = false }: { module: string; isProduct?: boolean } = $props();
+  // `onnavigate`: where a template taken from its cards opens the product (user-experience.md §3.2).
+  const { module, isProduct = false, onnavigate }: { module: string; isProduct?: boolean; onnavigate?: (path: string) => void } = $props();
 
   const name = $derived(t(`app.modules.name_${module.toLowerCase()}`));
   $effect(() => page.entitle(name));
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
   let isSwitching = $state(false);
+  // A product whose start is a template of the workspace alone - goals, time - offers those too:
+  // taking one switches the product on with it (scenes emptygoals, emptytime).
+  const starts = new WorkspaceStarts(() => module, () => isProduct && mayShape);
   let refusal = $state<string | undefined>(undefined);
 
   async function switchOn() {
@@ -71,6 +78,7 @@
     <EmptyState kind="unused" icon="layout-template" product={PRODUCT_TILES[module]} title={t('app.module_off.title', { module: name })}
       description={t(`app.modules.hint_${module.toLowerCase()}`)}
       action={mayShape ? switchControl : undefined} footnote={offNote} />
+    {#if starts.cards.length > 0}<TemplateCards templates={starts.cards} shape="row" tile={PRODUCT_TILES[module]} />{/if}
   {:else}
     <EmptyState kind="unused" icon="layout-template" title={t('app.module_off.title', { module: name })}
       description={t(mayShape ? 'app.module_off.body' : 'app.module_off.body_ask')}
@@ -78,6 +86,8 @@
   {/if}
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </Stack>
+
+<TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 
 <style>
   .refusal { margin: 0; color: var(--text-danger); }

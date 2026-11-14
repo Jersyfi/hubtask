@@ -37,14 +37,15 @@ test('goals and time offer the workspace templates that bring their own section'
   const ws = (key: string, document: Record<string, unknown>, origin = 'HUBTASK') => ({ key, origin, document, hub_document: null });
   const list = [
     ws('own_kinds', { time_work_types: { a: {} } }, 'WORKSPACE'),
-    ws('time_standard', { modules: { time: { switch: 'ON' } }, time_work_types: { development: {} } }),
     ws('time_consulting', { time_work_types: { consulting: {} } }),
+    ws('time_standard', { modules: { time: { switch: 'ON' } }, time_work_types: { development: {} } }),
     ws('goals_period', { goal_sets: { quarter: {} } }),
+    ws('goals_team_health', { goal_sets: { team_health: {} } }),
     { ...ws('okr', { modules: { goals: { switch: 'ON' } } }), hub_document: {} },
     { ...ws('hub_goals', { goal_sets: { quarter: {} } }), hub_document: {} },
   ];
   assert.deepEqual(workspaceTemplates(list, 'TIME').map((each) => each.key), ['time_standard', 'time_consulting', 'own_kinds']);
-  assert.deepEqual(workspaceTemplates(list, 'GOALS').map((each) => each.key), ['goals_period']);
+  assert.deepEqual(workspaceTemplates(list, 'GOALS').map((each) => each.key), ['goals_team_health', 'goals_period'], 'the catalogue\'s order is alphabetical, the scenes\' is not');
   assert.deepEqual(workspaceTemplates(list, 'SERVICE_DESK'), []);
 });
 

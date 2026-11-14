@@ -474,7 +474,7 @@
   {:else if reach === false}
     {@render nothingHere()}
   {:else if offModule}
-    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} />
+    <ModuleOff module={offModule} isProduct={route.name !== null && isProductHome(route.name)} onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'home'}
     <LazyView load={views.TodayView} props={{ onnavigate: (path: string) => router.navigate(path) }} />
   {:else if route.name === 'installation'}
