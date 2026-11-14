@@ -283,7 +283,7 @@
     padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg);
     background: var(--bg-surface); color: inherit; font: inherit; text-align: start; text-decoration: none; cursor: pointer;
   }
-  .space { flex-direction: row; align-items: center; padding: var(--sp-150); }
+  .space { flex-direction: row; align-items: center; padding: var(--sp-150); box-sizing: border-box; min-inline-size: 0; }
   .tile:hover, .space:hover { background: var(--bg-surface-hover); }
   .tile:focus-visible, .space:focus-visible { outline: var(--focus-ring); }
   .tile-mark {
