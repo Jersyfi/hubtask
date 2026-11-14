@@ -183,3 +183,35 @@ func detail(err error) string {
 	}
 	return ""
 }
+
+// UC-MED-06 check 2: the editor's address comes from the server's discovery - the edit action for
+// the file's ending, its placeholders dropped - and only from the server's own origin.
+func TestTheEditorsAddressComesFromTheDiscovery(t *testing.T) {
+	var origin string
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/hosting/discovery" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, `<?xml version="1.0"?><wopi-discovery><net-zone name="external-http">`+
+			`<app name="writer"><action name="view" ext="docx" urlsrc="`+origin+`/view/docx?"/>`+
+			`<action name="edit" ext="docx" urlsrc="`+origin+`/browser/abc/cool.html?&lt;ui=UI_LLCC&amp;&gt;"/></app>`+
+			`<app name="calc"><action name="edit" ext="xlsx" urlsrc="https://elsewhere.example/calc?"/></app>`+
+			`</net-zone></wopi-discovery>`)
+	}))
+	defer stub.Close()
+	origin = stub.URL
+	server := Server{Client: plain{client: stub.Client()}}
+	choice := media.DocumentServerChoice{Kind: media.DocumentServerCollabora, URL: stub.URL}
+
+	action, err := server.EditAction(t.Context(), choice, "Angebot.DOCX")
+	if err != nil || action != stub.URL+"/browser/abc/cool.html?" {
+		t.Fatalf("edit action %q, %v", action, err)
+	}
+	if _, err := server.EditAction(t.Context(), choice, "budget.xlsx"); detail(err) != "media.document_server_no_editor" {
+		t.Errorf("an action on another origin: %v", err)
+	}
+	if _, err := server.EditAction(t.Context(), choice, "notes.odt"); detail(err) != "media.document_server_no_editor" {
+		t.Errorf("an ending the server does not edit: %v", err)
+	}
+}

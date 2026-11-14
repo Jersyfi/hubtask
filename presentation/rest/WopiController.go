@@ -69,6 +69,7 @@ func (c *WopiDoor) StartMediaEditing(w http.ResponseWriter, r *http.Request, med
 		AccessToken:    session.Token,
 		AccessTokenTtl: session.ExpiresAt.UnixMilli(),
 		WopiSrc:        session.WopiSrc,
+		ActionUrl:      session.ActionURL,
 		Server:         server,
 	})
 }

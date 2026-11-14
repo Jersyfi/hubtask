@@ -47,6 +47,9 @@ type Server interface {
 	// private network the installation does not call, media.document_server_unreachable when
 	// nothing answers, media.document_server_no_discovery when the answer is no discovery.
 	Reach(ctx context.Context, choice media.DocumentServerChoice) error
+	// EditAction answers the address of the server's editor for a file of this name, from its
+	// discovery, on the server's own origin; media.document_server_no_editor when there is none.
+	EditAction(ctx context.Context, choice media.DocumentServerChoice, fileName string) (string, error)
 }
 
 // Source is the file a conversion reads: its bytes, and where the server may fetch them when its

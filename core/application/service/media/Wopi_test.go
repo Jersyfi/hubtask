@@ -73,7 +73,7 @@ func pageHeldDocument(writes bool) (WopiHost, *pageWriter, *plainTokens, shared.
 	records.pagesHolding = map[shared.ID][]shared.ID{mintedID: {page}}
 	tokens := &plainTokens{}
 	return WopiHost{
-		Read: read, Wopi: chosenServer{}, Tokens: tokens, Pages: pages,
+		Read: read, Wopi: chosenServer{}, Tokens: tokens, Pages: pages, Server: &probe{},
 		UnitOfWork: read.UnitOfWork, Clock: read.Clock, Files: "https://hub.example/api/v1/wopi/files/",
 	}, pages, tokens, page
 }
@@ -87,6 +87,10 @@ func TestAPagesFileIsEditedByWhoeverMayWriteThePage(t *testing.T) {
 		session, err := host.StartEditing(t.Context(), actor(mediaRead, mediaWrite), mintedID)
 		if writes && (err != nil || session.Token == "") {
 			t.Fatalf("a writer of the page was refused: %v", err)
+		}
+		// The browser posts the token to the server's editor, the WOPI source in its query.
+		if want := "https://office.example/browser/abc/cool.html?WOPISrc=https%3A%2F%2Fhub.example%2Fapi%2Fv1%2Fwopi%2Ffiles%2F" + mintedID.String(); writes && session.ActionURL != want {
+			t.Errorf("action %q, want %q", session.ActionURL, want)
 		}
 		if !writes && !errors.Is(err, shared.ErrForbidden) {
 			t.Fatalf("somebody who may not write the page got %v, want forbidden", err)
@@ -147,6 +151,10 @@ type probe struct {
 
 func (p *probe) ConvertToPDF(context.Context, domain.DocumentServerChoice, wopi.Source) (io.ReadCloser, error) {
 	return nil, wopi.ErrUnsupported()
+}
+
+func (p *probe) EditAction(_ context.Context, choice domain.DocumentServerChoice, _ string) (string, error) {
+	return choice.URL + "/browser/abc/cool.html?", p.answer
 }
 
 func (p *probe) Reach(_ context.Context, choice domain.DocumentServerChoice) error {

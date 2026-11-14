@@ -4822,6 +4822,7 @@ class DocumentServerCheck(TypedDict, total=False):
     reached: Required[bool]
 
 class MediaEditingSession(TypedDict, total=False):
+    action_url: Required[str]
     access_token: Required[str]
     access_token_ttl: Required[int]
     wopi_src: Required[str]

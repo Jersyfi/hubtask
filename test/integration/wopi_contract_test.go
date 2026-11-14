@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -26,9 +27,11 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	porthttp "github.com/Jersyfi/hubtask/core/port/httpclient"
 	storageport "github.com/Jersyfi/hubtask/core/port/storage"
 	"github.com/Jersyfi/hubtask/core/port/wopi"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
+	"github.com/Jersyfi/hubtask/infrastructure/documentserver"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 	"github.com/Jersyfi/hubtask/infrastructure/storage"
@@ -94,7 +97,11 @@ func TestADocumentServerEditsAFileThroughTheWopiHost(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	choice, _ := media.NewDocumentServerChoice(media.DocumentServerCollabora, "https://office.example")
+	office := stubDocumentServer(t)
+	choice, err := media.NewDocumentServerChoice(media.DocumentServerCollabora, office.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return postgres.WopiRepository{}.SetDocumentServer(ctx, choice, authorA, created)
 	}); err != nil {
@@ -111,7 +118,7 @@ func TestADocumentServerEditsAFileThroughTheWopiHost(t *testing.T) {
 		},
 		Wopi: postgres.WopiRepository{}, Store: store, Guard: storage.NewUploadGuard(), Tokens: tokens,
 		UnitOfWork: uow, Clock: clock.Fixed(now), IDs: generator{t}, SizeLimit: 1 << 20,
-		Files: "https://hub.example/api/v1/wopi/files/",
+		Files: "https://hub.example/api/v1/wopi/files/", Server: documentserver.Server{Client: stubClient{office.Client()}},
 	}
 	controller := rest.NewRestController()
 	controller.Wopi = &rest.WopiDoor{Host: host}
@@ -125,6 +132,11 @@ func TestADocumentServerEditsAFileThroughTheWopiHost(t *testing.T) {
 	}
 	if session.WopiSrc != "https://hub.example/api/v1/wopi/files/"+object.ID.String() {
 		t.Errorf("WOPI source %q", session.WopiSrc)
+	}
+	// The launch: the browser posts the token to the server's editor from its discovery, on the
+	// server's own origin - the one origin the interface's policy opens (ADR-0104).
+	if want := office.URL + "/browser/e2e/cool.html?WOPISrc=" + url.QueryEscape(session.WopiSrc); session.ActionURL != want {
+		t.Errorf("action %q, want %q", session.ActionURL, want)
 	}
 	// The stub document server addresses the host it was given; here, the test's server.
 	files := server.URL + rest.APIBasePath + "/wopi/files/" + object.ID.String()
@@ -283,7 +295,11 @@ func TestAPagesOfficeFileIsEditedByThePagesWriters(t *testing.T) {
 		t.Fatal(err)
 	}
 	sealed, _ := object.Sealed(object.ContentType, int64(len(docx)))
-	choice, _ := media.NewDocumentServerChoice(media.DocumentServerCollabora, "https://office.example")
+	office := stubDocumentServer(t)
+	choice, err := media.NewDocumentServerChoice(media.DocumentServerCollabora, office.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		if err := mediaRepo().Insert(ctx, object); err != nil {
 			return err
@@ -314,7 +330,7 @@ func TestAPagesOfficeFileIsEditedByThePagesWriters(t *testing.T) {
 		},
 		Wopi: postgres.WopiRepository{}, Store: store, Guard: storage.NewUploadGuard(), Tokens: tokens,
 		UnitOfWork: uow, Clock: clock.Fixed(now), IDs: generator{t}, SizeLimit: 1 << 20,
-		Files: "https://hub.example/api/v1/wopi/files/", Pages: pages,
+		Files: "https://hub.example/api/v1/wopi/files/", Pages: pages, Server: documentserver.Server{Client: stubClient{office.Client()}},
 	}
 	as := func(tenant, account shared.ID) appshared.ActorContext {
 		actor := mediaActor(tenant, account)
@@ -351,4 +367,45 @@ func TestAPagesOfficeFileIsEditedByThePagesWriters(t *testing.T) {
 	if _, err := host.CheckFileInfo(ctx, foreign, object.ID); !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("another workspace's token got %v, want not found", err)
 	}
+}
+
+// stubDocumentServer is a document server over TLS that answers its WOPI discovery, an edit action
+// for .docx and .xlsx on its own origin with an optional placeholder, as Collabora Online does.
+func stubDocumentServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	var office *httptest.Server
+	office = httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/hosting/discovery" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, `<wopi-discovery><net-zone name="external-https"><app name="office">`+
+			`<action name="edit" ext="docx" urlsrc="`+office.URL+`/browser/e2e/cool.html?&lt;ui=UI_LLCC&amp;&gt;"/>`+
+			`<action name="edit" ext="xlsx" urlsrc="`+office.URL+`/browser/e2e/cool.html?"/>`+
+			`</app></net-zone></wopi-discovery>`)
+	}))
+	t.Cleanup(office.Close)
+	return office
+}
+
+// stubClient reaches the stub through its own TLS client; the guard is GuardedClient's own test's.
+type stubClient struct{ client *http.Client }
+
+func (s stubClient) Do(ctx context.Context, req porthttp.Request) (porthttp.Response, error) {
+	return s.Upload(ctx, req, bytes.NewReader(req.Body), int64(len(req.Body)))
+}
+
+func (s stubClient) Upload(ctx context.Context, req porthttp.Request, body io.Reader, length int64) (porthttp.Response, error) {
+	r, err := http.NewRequestWithContext(ctx, req.Method, req.URL, body)
+	if err != nil {
+		return porthttp.Response{}, err
+	}
+	r.ContentLength = length
+	answer, err := s.client.Do(r)
+	if err != nil {
+		return porthttp.Response{}, err
+	}
+	defer func() { _ = answer.Body.Close() }()
+	read, err := io.ReadAll(answer.Body)
+	return porthttp.Response{Status: answer.StatusCode, Header: answer.Header, Body: read}, err
 }

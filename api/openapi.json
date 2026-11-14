@@ -63738,9 +63738,14 @@
           "access_token",
           "access_token_ttl",
           "wopi_src",
+          "action_url",
           "server"
         ],
         "properties": {
+          "action_url": {
+            "type": "string",
+            "description": "Where the browser posts the token, in a frame: the document server's editor for this kind of file, from its discovery, with the WOPI source in its query. Always on the server's own origin, which is the only one the interface's policy lets a form post to and a frame show.\n"
+          },
           "access_token": {
             "type": "string",
             "description": "Shown once, to hand to the document server; never logged."

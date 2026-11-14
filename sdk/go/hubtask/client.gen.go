@@ -21220,8 +21220,11 @@ type MediaEditingSession struct {
 	AccessToken string `json:"access_token"`
 
 	// AccessTokenTtl When the token expires, in milliseconds since the epoch - the protocol's unit.
-	AccessTokenTtl int64          `json:"access_token_ttl"`
-	Server         DocumentServer `json:"server"`
+	AccessTokenTtl int64 `json:"access_token_ttl"`
+
+	// ActionUrl Where the browser posts the token, in a frame: the document server's editor for this kind of file, from its discovery, with the WOPI source in its query. Always on the server's own origin, which is the only one the interface's policy lets a form post to and a frame show.
+	ActionUrl string         `json:"action_url"`
+	Server    DocumentServer `json:"server"`
 
 	// WopiSrc The file's WOPI address the document server reads and saves through.
 	WopiSrc string `json:"wopi_src"`

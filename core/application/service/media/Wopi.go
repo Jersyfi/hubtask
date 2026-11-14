@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/media"
@@ -75,12 +77,14 @@ const (
 )
 
 // EditingSession is what a person needs to open a file in the document server: the token, its
-// expiry and the server. How the browser hands them over is the launch, which is open (ADR-0104).
+// expiry, the server, and the editor's address the browser posts the token to in a frame
+// (ADR-0104).
 type EditingSession struct {
 	Token     string
 	ExpiresAt time.Time
 	Server    media.DocumentServerChoice
 	WopiSrc   string
+	ActionURL string
 }
 
 // FileInfo is CheckFileInfo's answer.
@@ -117,11 +121,22 @@ func (h WopiHost) StartEditing(
 	} else if !may {
 		return EditingSession{}, shared.ErrForbidden.WithDetail("media.edit_forbidden")
 	}
+	if h.Server == nil {
+		return EditingSession{}, wopi.ErrUnsupported()
+	}
+	action, err := h.Server.EditAction(ctx, choice, object.FileName)
+	if err != nil {
+		return EditingSession{}, err
+	}
+	source := h.Files + object.ID.String()
 	expires := h.Clock.Now().Add(WopiTokenWindow)
 	token := h.Tokens.Issue(wopi.Grant{
 		TenantID: actor.TenantID, AccountID: actor.AccountID, MediaID: object.ID, Write: true, ExpiresAt: expires,
 	})
-	return EditingSession{Token: token, ExpiresAt: expires, Server: choice, WopiSrc: h.Files + object.ID.String()}, nil
+	return EditingSession{
+		Token: token, ExpiresAt: expires, Server: choice, WopiSrc: source,
+		ActionURL: withQuery(action, "WOPISrc", source),
+	}, nil
 }
 
 // ConvertToPDF answers an office file as a PDF converted by the workspace's document server, for
@@ -454,4 +469,16 @@ func (h WopiHost) documentServer(ctx context.Context, actor appshared.ActorConte
 func versionOf(object media.Object) string {
 	return object.StorageKey[len(object.StorageKey)-min(len(object.StorageKey), 36):] + "-" +
 		strconv.FormatInt(object.ByteSize, 10)
+}
+
+// withQuery appends one parameter to an address that may already end in `?` or `&`.
+func withQuery(address, name, value string) string {
+	switch {
+	case strings.HasSuffix(address, "?"), strings.HasSuffix(address, "&"):
+	case strings.Contains(address, "?"):
+		address += "&"
+	default:
+		address += "?"
+	}
+	return address + name + "=" + url.QueryEscape(value)
 }

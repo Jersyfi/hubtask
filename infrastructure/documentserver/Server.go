@@ -11,12 +11,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -89,6 +91,57 @@ func (s Server) Reach(ctx context.Context, choice media.DocumentServerChoice) er
 	}
 	return nil
 }
+
+// EditAction reads the discovery and answers the edit action's urlsrc for the file's ending, its
+// placeholders (`<name=VALUE&>`) dropped. An action on another origin is not taken: the
+// interface's policy lets a form post and a frame show only the chosen origin.
+func (s Server) EditAction(ctx context.Context, choice media.DocumentServerChoice, fileName string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, reachDeadline)
+	defer cancel()
+	response, err := s.Client.Do(ctx, port.Request{
+		Method: http.MethodGet, URL: choice.URL + "/hosting/discovery", TargetClass: targetClass,
+		Header: map[string][]string{"Accept": {"application/xml, text/xml"}},
+	})
+	if err != nil {
+		return "", err
+	}
+	if response.Status != http.StatusOK {
+		return "", refused(response.Status)
+	}
+	var discovery struct {
+		Zones []struct {
+			Apps []struct {
+				Actions []struct {
+					Name   string `xml:"name,attr"`
+					Ext    string `xml:"ext,attr"`
+					URLSrc string `xml:"urlsrc,attr"`
+				} `xml:"action"`
+			} `xml:"app"`
+		} `xml:"net-zone"`
+	}
+	if err := xml.Unmarshal(response.Body, &discovery); err != nil {
+		return "", shared.ErrUnavailable.WithDetail("media.document_server_no_discovery").WithCause(err)
+	}
+	ending := strings.TrimPrefix(strings.ToLower(path.Ext(fileName)), ".")
+	for _, zone := range discovery.Zones {
+		for _, app := range zone.Apps {
+			for _, action := range app.Actions {
+				if action.Name != "edit" || action.Ext != ending {
+					continue
+				}
+				address := placeholders.ReplaceAllString(action.URLSrc, "")
+				if strings.HasPrefix(address, choice.URL+"/") {
+					return address, nil
+				}
+			}
+		}
+	}
+	return "", shared.ErrConflict.WithDetail("media.document_server_no_editor")
+}
+
+// placeholders are the discovery's optional query parts, `<ui=UI_LLCC&>`, which a host fills or
+// drops; Hubtask drops them.
+var placeholders = regexp.MustCompile(`<[^>]*>`)
 
 // collabora posts the file as a form to /cool/convert-to/pdf and reads the PDF back.
 func (s Server) collabora(ctx context.Context, origin string, source wopi.Source) (io.ReadCloser, error) {
