@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: built
 tasks: []
-checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/e2e/inventorycare.test.mjs, apps/webapp/src/lib/assets/inventoryscenes.test.ts]
 ---
 
 # See how healthy our inventory is
@@ -27,7 +27,7 @@ Before the yearly review Dana opens the inventory's health: completeness is 82 %
 3. An object is an orphan when it lacks a relation its object type requires - an application service with nothing it runs on or depends on, a virtual machine hosted on nothing, an offering of no service.
 4. The answer counts objects without an owner and reviews overdue, per object type and in all, and names the objects found wanting with the kinds of problem and the required attributes missing.
 5. An administrator defines an object type of the workspace's own beneath a shipped one with its attributes (optional, recommended, required; identifying or not), identifier rules, required relations and staleness period; a shipped object type is not changed.
-6. The *Inventory* screen shows the health with its figures per object type and opens an object found wanting.
+6. The *Inventory* screen's *Health* shows the health with its figures per object type and opens an object found wanting; its *Upkeep* shows six figures - complete, correct, stale, orphaned, duplicates, without responsibility -, each opening what it counts, and *To do* with one row and one act per problem.
 7. Each active service - business, technical, application service, offering - is scored by the share of the active objects it rests on, itself and everything whose failure it suffers, that are found wanting in nothing; the worst comes first, and the *Inventory* screen opens each.
 8. A relation a program reported is unconfirmed when that program has not reported it again within the staleness period of its source object's object type; a relation a person made never is. Health counts them; nothing is removed.
 9. Each source that ran in the hub carries a conflict rate over the hub's latest twenty runs: of the attributes it reported with a value other than the stored one, the share a better source kept.

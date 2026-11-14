@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/e2e/inventorycare.test.mjs]
 ---
 
 # Have owners attest our inventory
@@ -26,7 +26,7 @@ Dana starts the annual review of the servers and virtual machines whose review f
 2. The person asked answers with READ on the hub, anybody else needs WRITE_ITEMS; CONFIRMED moves the object's next review by the campaign's period (twelve months unless it says otherwise), DISPUTED makes it fall due the same day.
 3. A campaign's score counts the objects asked, confirmed, disputed, pending and - after the due day - overdue, and the share answered; every object's verdict names who gave it and when, and each answer is in the audit trail.
 4. A closed campaign takes no answer and keeps its score.
-5. The *Inventory* screen lists a hub's campaigns with their scores, starts one, and lets the person asked confirm or dispute each object.
+5. The *Inventory* screen's *Upkeep* shows the open attestation round with its score - confirmed of asked, replies “not right” - or starts one and counts the earlier rounds; its campaigns part lists a hub's campaigns with their scores, starts one, and lets the person asked confirm or dispute each object.
 
 ## Where it ends
 

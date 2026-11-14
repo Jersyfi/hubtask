@@ -28,7 +28,7 @@ Ole points the team's Alertmanager at the hub's intake with the secret Hubtask d
 4. An alert is bound to the one object of the hub its host names - by host name (with a port or a domain stripped), address or object name - and to none when no lookup names exactly one.
 5. With a collection, a firing alert opens one entry there through the same use case a person creates with, its notes pointing at the object; its resolution completes the entry and a reopening reopens it. An entry that cannot be written leaves the alert kept and is counted in the receipt.
 6. A member who may read the hub lists its alerts, the latest first, narrowed to firing or resolved.
-7. The *Inventory* screen shows a hub's alerts with their object and entry, and an intake's address and secret once.
+7. The *Inventory* screen's *Alerts* tab, counting the firing ones, shows a hub's alerts as a table with their object and entry, since when, how often and their state, and an intake's address and secret once.
 
 ## Where it ends
 

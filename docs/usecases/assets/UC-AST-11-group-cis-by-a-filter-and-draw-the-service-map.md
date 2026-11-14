@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, test/integration/cmdb_work_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/src/lib/data/replica.test.ts]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, test/integration/cmdb_work_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/src/lib/data/replica.test.ts, apps/webapp/e2e/inventorymap.test.mjs, apps/webapp/src/lib/assets/inventoryscenes.test.ts]
 ---
 
 # Group objects by a filter and draw the service map
@@ -26,7 +26,7 @@ The CRM's machines come and go with the load. Dana defines the group "CRM machin
 2. A group may stand for a service object of its hub; its members are then drawn beneath that service in the service map.
 3. The service map of a hub places every active service and offering and everything whose failure they suffer in layers - offerings, services, application services, software and data, virtual and cloud resources, what they stand on - with the relations carrying impact between them, up to 2,000 objects.
 4. A hub's groups travel to a device filed under the hub.
-5. The *Inventory* screen lists the groups with their members, defines one, and draws the service map in its layers.
+5. The *Inventory* screen lists the groups with their members, defines one, and its *Map* draws one service by depth - what it rests on, its open incidents and planned changes with their collisions, only the problems if asked, as a picture or a list - and the whole hub's service map in its layers.
 
 ## Where it ends
 
