@@ -17,7 +17,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Button, Dialog, EmptyState, Inline, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
-    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge, StatusButton, lozengeLook,
   } from '@hubtask/design-system/components';
   import type { Goal, GoalCheckInList, GoalList, WorkItem } from '@hubtask/sync-engine';
 
@@ -34,7 +34,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { goalState, goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone, healthMenu } from '../lib/goals/tone.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { isNoSuchObject, isObjectId, renderProblem } from '../lib/problem.ts';
@@ -210,9 +210,9 @@
   let isCheckingIn = $state(false);
   const checkIn = $state({ status: 'ON_TRACK' as CheckIn['status'], confidence: '7', note: '', values: {} as Record<string, string> });
   const manualResults = $derived((goal?.key_results ?? []).filter((each) => each.source === 'MANUAL' && each.kind !== 'MILESTONE'));
-  function openCheckIn() {
+  function openCheckIn(status?: CheckIn['status']) {
     if (!goal) return;
-    checkIn.status = goal.status === 'NONE' ? 'ON_TRACK' : goal.status;
+    checkIn.status = status ?? (goal.status === 'NONE' ? 'ON_TRACK' : goal.status);
     checkIn.confidence = String(goal.confidence ?? 7);
     checkIn.note = '';
     checkIn.values = Object.fromEntries(manualResults.map((each) => [each.id, String(each.current)]));
@@ -243,13 +243,24 @@
       meta={placeLine}
       title={shown.title}
       titleLabel={t('app.goals.goal')}
-      next={mayWrite ? { label: t('app.goals.check_in'), icon: 'circle-check', onclick: openCheckIn } : undefined}
+      next={mayWrite ? { label: t('app.goals.check_in'), icon: 'circle-check', onclick: () => openCheckIn() } : undefined}
       secondary={mayWrite ? { label: t('app.goals.change'), onclick: openChange } : undefined}
       person={{ name: personName(shown.owner_id), src: shown.owner_id ? accounts.pictureOf(shown.owner_id) : undefined }}
       trail={viewport.isCompact ? undefined : goalTrail}
       menu={mayWrite ? { label: t('app.goals.more'), items: [{ id: 'delete', label: t('app.goals.delete'), icon: 'trash', isDestructive: true }], onselect: () => (isDeleting = true) } : undefined}
     >
-      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
+      {#snippet status()}
+        {#if mayWrite}
+          <!-- The status's ⌄ lists what a check-in gives; choosing one opens the check-in with it. -->
+          {@const menu = healthMenu(shown.status, STATUSES.filter((each) => each !== 'NONE'), (each) => t(`app.goals.status_${each}`))}
+          <span data-goal-status><StatusButton current={menu.current} statuses={menu.statuses} steps={menu.steps}
+            look={lozengeLook('goal', goalState(shown.status))}
+            label={t('app.goals.status_button', { state: menu.current.label })}
+            menuTitle={t('app.goals.status_menu')}
+            onstep={(step) => openCheckIn(step.to.id as CheckIn['status'])}
+            closeLabel={t('app.workflows.close')} grabLabel={t('app.workflows.close')} /></span>
+        {:else if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}
+      {/snippet}
       {#snippet facts()}{#if shown.confidence !== null}<span>{t('app.goals.confidence_of', { value: String(shown.confidence) })}</span>{/if}{/snippet}
     </ObjectHead>
   {:else}

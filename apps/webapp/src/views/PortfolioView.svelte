@@ -15,7 +15,7 @@
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
     Badge, Banner, Button, Dialog, Input, PageHeader, ProgressBar, Select, Skeleton, Stack, Textarea,
-    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge,
+    DataTable, DetailPage, type DataColumn, type DataRowMenu, Breadcrumb, ObjectHead, StateLozenge, StatusButton, lozengeLook,
   } from '@hubtask/design-system/components';
   import type { Portfolio, PortfolioList, PortfolioUpdateList, PortfolioWrite } from '@hubtask/sync-engine';
 
@@ -28,7 +28,7 @@
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import { goalState, goalTone } from '../lib/goals/tone.ts';
+  import { goalState, goalTone, healthMenu } from '../lib/goals/tone.ts';
   import { formatDateTime, formatPlainDay } from '../lib/i18n/datetime.ts';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -188,6 +188,13 @@
 
   let isReporting = $state(false);
   const report = $state({ status: 'ON_TRACK' as 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK', summary: '' });
+  /** The status report, with the health chosen in the head's status button where one was. */
+  function openReport(status?: 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK') {
+    if (!portfolio) return;
+    report.status = status ?? (portfolio.status !== 'NONE' ? portfolio.status : 'ON_TRACK');
+    report.summary = '';
+    isReporting = true;
+  }
   async function saveReport() {
     const ok = await act(() => goals.reportStatus(portfolioId, { status: report.status, summary: report.summary.trim() }), t('app.portfolios.reported'));
     if (ok) isReporting = false;
@@ -215,7 +222,7 @@
       title={shown.name}
       titleLabel={t('app.portfolios.portfolio')}
       next={mayWrite ? { label: t('app.portfolios.add_project'), icon: 'plus', onclick: () => openProject() } : undefined}
-      secondary={mayWrite ? { label: t('app.portfolios.report'), onclick: () => { report.status = shown.status !== 'NONE' ? shown.status : 'ON_TRACK'; report.summary = ''; isReporting = true; } } : undefined}
+      secondary={mayWrite ? { label: t('app.portfolios.report'), onclick: () => openReport() } : undefined}
       person={{ name: personName(shown.owner_id), src: shown.owner_id ? accounts.pictureOf(shown.owner_id) : undefined }}
       trail={viewport.isCompact ? undefined : portfolioTrail}
       menu={{
@@ -238,7 +245,18 @@
         },
       }}
     >
-      {#snippet status()}{#if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}{/snippet}
+      {#snippet status()}
+        {#if mayWrite}
+          <!-- The health's ⌄ lists what a status report gives; choosing one opens the report with it. -->
+          {@const menu = healthMenu(shown.status, HEALTH.filter((each) => each !== 'NONE'), (each) => t(`app.goals.status_${each}`))}
+          <span data-portfolio-status><StatusButton current={menu.current} statuses={menu.statuses} steps={menu.steps}
+            look={lozengeLook('goal', goalState(shown.status))}
+            label={t('app.portfolios.status_button', { state: menu.current.label })}
+            menuTitle={t('app.portfolios.status_menu')}
+            onstep={(step) => openReport(step.to.id as 'ON_TRACK' | 'AT_RISK' | 'OFF_TRACK')}
+            closeLabel={t('app.workflows.close')} grabLabel={t('app.workflows.close')} /></span>
+        {:else if shown.status !== 'NONE'}<StateLozenge vocabulary="goal" state={goalState(shown.status)} size="md" label={t(`app.goals.status_${shown.status}`)} />{/if}
+      {/snippet}
     </ObjectHead>
   {:else}
     <PageHeader title={t('app.portfolios.portfolio')} isTitleInBar={viewport.isCompact} />

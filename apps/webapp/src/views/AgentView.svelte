@@ -9,8 +9,8 @@
   import { untrack } from 'svelte';
 
   import {
-    Badge, Breadcrumb, Button, DataTable, EmptyState, ObjectHead, RecordPage, Select, Skeleton, Stack, StateLozenge,
-    type DataColumn, type RecordList, type DataRowMenu, type SelectOption,
+    Badge, Breadcrumb, Button, DataTable, EmptyState, ObjectHead, RecordPage, Select, Skeleton, Stack, StateLozenge, StatusButton,
+    type DataColumn, type RecordList, type DataRowMenu, type SelectOption, type StatusCategory, type StatusRef, type WorkflowStep,
   } from '@hubtask/design-system/components';
   import type { Agent, AgentActionList, AgentCaseList, AgentJobList, AgentModelList, AgentRequestList, AgentRunList } from '@hubtask/sync-engine';
 
@@ -107,6 +107,15 @@
     if (item === 'held') onnavigate(`${base}?tab=requests&agent=${agent.id}`);
     else void act(() => agents.press(agent.id, item as LifecyclePress), t(`app.agents.pressed.${item}`, { name: agent.name }));
   }
+
+  // The status's ⌄ (H-2): the lifecycle steps the reader may take from here, each to the status it
+  // leads to; retiring stays in the danger zone, where its cost is said.
+  const PRESS_TO = { approve: 'APPROVED', activate: 'ACTIVE', suspend: 'SUSPENDED' } as const;
+  const categoryOf = (status: Agent['status']): StatusCategory => (status === 'ACTIVE' ? 'progress' : status === 'RETIRED' ? 'done' : 'todo');
+  const statusRef = (status: Agent['status'], label = t(`app.agents.status.${status}`)): StatusRef => ({ id: status, label, category: categoryOf(status) });
+  const statusSteps = $derived<WorkflowStep[]>(
+    presses.flatMap((press) => (press === 'retire' ? [] : [{ id: press, label: t(`app.agents.press.${press}`), to: statusRef(PRESS_TO[press]), isNext: press === nextPress }])),
+  );
 
   const meta = $derived(agent ? [t('app.agents.acts_for', { name: nameOf(agent.owner_id) }), modelName(agent.model_id)].join(' · ') : undefined);
   const statusLabel = $derived(
@@ -351,7 +360,18 @@
       trail={viewport.isCompact ? undefined : agentTrail}
       menu={menuItems.length > 0 ? { label: t('app.page.more_for', { name: title }), items: menuItems, onselect: onMenu } : undefined}
     >
-      {#snippet status()}<StateLozenge size="md" tone={isApprovalDue(shown) ? 'warning' : statusTone(shown.status)} icon={isApprovalDue(shown) ? 'triangle-alert' : STATUS_GLYPH[shown.status]} label={statusLabel} />{/snippet}
+      {#snippet status()}
+        {#if statusSteps.length > 0}
+          <span data-agent-status><StatusButton current={statusRef(shown.status, statusLabel)} steps={statusSteps}
+            look={{ tone: isApprovalDue(shown) ? 'warning' : statusTone(shown.status), icon: isApprovalDue(shown) ? 'triangle-alert' : STATUS_GLYPH[shown.status] }}
+            label={t('app.agents.status_button', { state: statusLabel })}
+            menuTitle={t('app.agents.status_from', { state: t(`app.agents.status.${shown.status}`) })}
+            onstep={(step) => onMenu(step.id)}
+            closeLabel={t('app.workflows.close')} grabLabel={t('app.workflows.close')} /></span>
+        {:else}
+          <StateLozenge size="md" tone={isApprovalDue(shown) ? 'warning' : statusTone(shown.status)} icon={isApprovalDue(shown) ? 'triangle-alert' : STATUS_GLYPH[shown.status]} label={statusLabel} />
+        {/if}
+      {/snippet}
       {#snippet facts()}{#if budgetFact}<span data-budget-fact>{budgetFact}</span>{/if}{/snippet}
     </ObjectHead>
   {/if}

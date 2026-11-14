@@ -141,7 +141,7 @@ test('chromium: goals from nothing - a period, a goal, a check-in, a change, a d
   await history.getByRole('cell', { name: 'First release out.' }).waitFor({ timeout: 5_000 });
   assert.equal(await history.getByRole('cell', { name: '8 of 10' }).count(), 1, 'the history shows the confidence given');
 
-  await page.getByRole('button', { name: 'Change' }).first().click();
+  await page.getByRole('button', { name: 'Change', exact: true }).first().click();
   const changeDialog = page.getByRole('dialog', { name: 'Change' });
   await changeDialog.getByLabel('Title').fill('Ship the suite to everyone');
   await changeDialog.getByRole('button', { name: 'Save' }).click();
@@ -547,14 +547,14 @@ test('chromium: in German a goal\'s head names its place in a sentence that read
   assert.deepEqual(walk.errors(), []);
 });
 
-/** The head's status in the status button's shape (§6.9): the head's height and its glyph, read only. */
+/** The head's status is the status button (§6.9, H-2): the head's height, its glyph and its ⌄. */
 async function headStatusIsTheButtonShape(page, word) {
   const head = page.locator('header.object-head');
-  const status = head.locator('.action-bar .lozenge').first();
+  const status = head.locator('.action-bar button.status').first();
   await status.waitFor({ timeout: 10_000 });
   assert.equal((await status.innerText()).trim(), word);
-  assert.equal(await status.getAttribute('data-size'), 'md', `${word} is the small lozenge`);
-  assert.equal(await status.locator('.icon').count(), 1, `${word} carries no glyph`);
+  assert.equal(await status.getAttribute('aria-haspopup'), 'menu', `${word} opens no menu`);
+  assert.equal(await status.locator('.icon').count(), 2, `${word} carries no glyph beside its ⌄`);
   const [own, step] = [await status.boundingBox(), await head.locator('.action-bar .step').first().boundingBox()];
   assert.ok(own.height >= step.height - 1, `${word} is ${own.height} px high beside a ${step.height} px step`);
 }
