@@ -833,7 +833,7 @@
            would eventually disagree about which action is an action and which is an item. -->
       {#if viewport.isCompact && page.menu}
         {@const offered = page.menu}
-        <Menu label={offered.label} items={offered.items} placement={{ side: 'block-end', align: 'end' }} onselect={offered.onselect}>
+        <Menu keepsAnchor label={offered.label} items={offered.items} placement={{ side: 'block-end', align: 'end' }} onselect={offered.onselect}>
           {#snippet trigger(props)}
             <IconButton icon="ellipsis" label={offered.label} data-opener={offered.opener} {...props} />
           {/snippet}

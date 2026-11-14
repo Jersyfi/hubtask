@@ -18,7 +18,7 @@
 
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
-  import { isCompactWidth } from './media.ts';
+  import { isCompactWidth, sheetCloseLabel } from './media.ts';
   import { focusReturn, rovingIndex, typeAheadIndex } from './focus.ts';
   import { openOverlay, type MenuItem } from './overlay.ts';
   import type { Placement } from './anchor.ts';
@@ -42,10 +42,13 @@
      */
     head?: Snippet;
     /**
-     * The name of the sheet's close control. Given, the menu opens as a bottom sheet on a phone's
-     * width (work-surface concept §7): a menu drawn at its trigger there runs off the screen.
+     * The name of the sheet's close control. The menu opens as a bottom sheet on a phone's width
+     * (work-surface concept §7) - a menu drawn at its trigger there runs off the screen - named by
+     * this or by the application's `setSheetCloseLabel`.
      */
     closeLabel?: string;
+    /** Stays at its trigger on every width: the navigation's own menus, which its concept places. */
+    keepsAnchor?: boolean;
   }
 
   let {
@@ -57,6 +60,7 @@
     trigger,
     head,
     closeLabel,
+    keepsAnchor = false,
   }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
@@ -71,6 +75,7 @@
   let active = $state(-1);
   /** Opened as a sheet: decided at the moment it opens, as a status's steps are. */
   let isSheet = $state(false);
+  let sheetName = $state<string | undefined>(undefined);
   let opener: Element | null = null;
 
   const labels = $derived(items.map((item) => item.label));
@@ -109,7 +114,8 @@
    */
   export function open(index = 0) {
     if (!isOpen) opener = document.activeElement;
-    isSheet = closeLabel !== undefined && isCompactWidth();
+    sheetName = keepsAnchor ? undefined : (closeLabel ?? sheetCloseLabel());
+    isSheet = sheetName !== undefined && isCompactWidth();
     active = Math.max(0, Math.min(index, items.length - 1));
     isOpen = true;
   }
@@ -162,11 +168,11 @@
 <span class="anchor" bind:this={anchor}>
   {@render trigger(triggerProps)}
 </span>
-{#if isSheet && closeLabel !== undefined}
+{#if isSheet && sheetName !== undefined}
   <Sheet
     bind:isOpen
     title={label}
-    {closeLabel}
+    closeLabel={sheetName}
     {items}
     onClose={() => { isSheet = false; active = -1; }}
     onselect={(id) => onselect?.(id)}

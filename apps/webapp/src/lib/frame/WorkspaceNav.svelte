@@ -1452,14 +1452,14 @@
         <span class="pill"><Icon name="search" size="sm" />{t('app.nav.filter')}</span>
       </button>
       {#if isOn('KNOWLEDGE') && isOn('WHITEBOARD')}
-        <Menu label={t('app.nav.kind_label')} items={(['all', 'page', 'whiteboard'] as const).map((id) => ({ id, label: t(id === 'all' ? 'app.nav.kind_all' : id === 'page' ? 'app.nav.kind_pages' : 'app.nav.kind_whiteboards'), ...(id === stepKind ? { icon: 'check' as const } : {}) }))}
+        <Menu keepsAnchor label={t('app.nav.kind_label')} items={(['all', 'page', 'whiteboard'] as const).map((id) => ({ id, label: t(id === 'all' ? 'app.nav.kind_all' : id === 'page' ? 'app.nav.kind_pages' : 'app.nav.kind_whiteboards'), ...(id === stepKind ? { icon: 'check' as const } : {}) }))}
           onselect={(id) => (stepKind = id as typeof stepKind)}>
           {#snippet trigger(props)}
             <button type="button" class="chip" {...props}><span class="pill">{t(stepKind === 'all' ? 'app.nav.kind_all' : stepKind === 'page' ? 'app.nav.kind_pages' : 'app.nav.kind_whiteboards')}<Icon name="chevron-down" size="sm" /></span></button>
           {/snippet}
         </Menu>
       {/if}
-      <Menu label={contentsMenu.label} items={contentsMenu.items ?? []} onselect={(id) => contentsMenu.onselect(id)}>
+      <Menu keepsAnchor label={contentsMenu.label} items={contentsMenu.items ?? []} onselect={(id) => contentsMenu.onselect(id)}>
         {#snippet trigger(props)}
           <button type="button" class="chip" {...props}><span class="pill">{t(`app.nav.mode_${contentsMode.toLowerCase()}`)}<Icon name="chevron-down" size="sm" /></span></button>
         {/snippet}

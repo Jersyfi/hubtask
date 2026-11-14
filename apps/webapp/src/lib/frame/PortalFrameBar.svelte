@@ -93,7 +93,7 @@
     </a>
     {#if portals.length > 1}
       <!-- Several portals are chosen at the top (PO-2). -->
-      <Menu label={t('app.portal_frame.choose')} items={portals.map((each) => ({ id: each.collection_id, label: each.name, icon: each.collection_id === currentId ? 'check' : undefined }))}
+      <Menu keepsAnchor label={t('app.portal_frame.choose')} items={portals.map((each) => ({ id: each.collection_id, label: each.name, icon: each.collection_id === currentId ? 'check' : undefined }))}
         onselect={choosePortal}>
         {#snippet trigger(props)}
           <button type="button" class="switch" data-portal-switch {...props}>
@@ -114,7 +114,7 @@
   </div>
   <div class="end">
     {#if locales.length > 1 && !isPhone}
-      <Menu label={t('app.portal_frame.language')} items={locales.map((each) => ({ id: each.locale, label: languageName(each.locale, messages.locale), icon: each.locale === language ? 'check' : undefined }))}
+      <Menu keepsAnchor label={t('app.portal_frame.language')} items={locales.map((each) => ({ id: each.locale, label: languageName(each.locale, messages.locale), icon: each.locale === language ? 'check' : undefined }))}
         onselect={(locale) => void speak(locale)}>
         {#snippet trigger(props)}
           <button type="button" class="switch quiet" data-portal-language {...props}>{languageName(language, messages.locale)}<Icon name="chevron-down" size="sm" /></button>

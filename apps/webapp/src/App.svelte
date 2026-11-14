@@ -11,7 +11,7 @@
   // No sentence is written in this file. `Hubtask` is a name rather than a message, and everything
   // else is a code rendered from `locales/en.json` (ADR-0011).
   import { tick, untrack } from 'svelte';
-  import { Spinner } from '@hubtask/design-system/components';
+  import { Spinner, setSheetCloseLabel } from '@hubtask/design-system/components';
   import type { ConnectorLocated } from '@hubtask/sync-engine';
 
   import LazyFrame from './lib/frame/LazyFrame.svelte';
@@ -148,6 +148,10 @@
 
   const router = new Router(ROUTES, undefined, { fullLoad: loadReleaseAt, admits: (path) => leaveGuard.admits(path) });
   $effect(() => leaveGuard.connect((path) => router.navigate(path)));
+
+  // Every menu opens as a sheet on a phone (work-surface concept §7); the sheet's close is named here
+  // once, in the reader's language, and follows it when the language changes.
+  $effect(() => setSheetCloseLabel(t('app.sheet_close')));
   let route = $state<Resolution>(router.current);
 
   /**

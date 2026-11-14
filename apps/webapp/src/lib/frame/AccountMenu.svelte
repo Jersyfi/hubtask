@@ -124,7 +124,7 @@
     </ul>
   </Sheet>
 {:else}
-  <Menu label={t('app.nav.you')} {items} placement={{ side: 'block-end', align: 'end' }} onselect={choose}>
+  <Menu keepsAnchor label={t('app.nav.you')} {items} placement={{ side: 'block-end', align: 'end' }} onselect={choose}>
     {#snippet head()}
       {@render who()}
     {/snippet}

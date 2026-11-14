@@ -362,7 +362,7 @@
 
 {#snippet headAction(kind: 'menu' | 'add', act: RowAction)}
   {#if act.items}
-    <Menu
+    <Menu keepsAnchor
       label={act.label}
       items={act.items}
       placement={{ side: 'block-end', align: 'end' }}
@@ -417,7 +417,7 @@
         <Icon name="search" size="sm" />
         <input class="field" type="search" aria-label={filterLabel} placeholder={filterLabel} bind:value={filter} />
         {#if kinds && kinds.length > 0}
-          <Menu
+          <Menu keepsAnchor
             label={kindLabel ?? ''}
             items={kinds.map((k) => ({ id: k.id, label: k.label }))}
             placement={{ side: 'block-end', align: 'end' }}
