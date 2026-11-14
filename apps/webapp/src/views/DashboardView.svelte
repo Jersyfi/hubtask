@@ -965,4 +965,10 @@
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .refused { margin: 0; color: var(--text-warning); font-size: var(--fs-075); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+
+  /* A thumb's target (§7, P-2): the corner's press reaches layout.target beyond its drawn mark. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .corner::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

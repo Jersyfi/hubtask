@@ -1069,4 +1069,12 @@
   .hit[data-compact] { align-items: start; }
 
   .hit[data-compact] .pick { min-block-size: calc(var(--density-control-md-min) + 2 * var(--density-row-block)); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target beyond its drawn box (P-2). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .chip { position: relative; }
+    .chip::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

@@ -223,3 +223,19 @@ test('a new page has one primary, its Veröffentlichen: a template\'s preview of
   const preview = sources.find(({ path }) => path === 'lib/pages/PageStartPreview.svelte')?.text ?? '';
   assert.match(preview, /<Button size="sm" tone="secondary" \{isBusy\} data-page-start-use/u);
 });
+
+test('every small control listed reaches a thumb\'s target on a phone (P-2, §7)', () => {
+  const grows = (path: string, selector: string) => {
+    const text = sources.find((each) => each.path === path)?.text ?? '';
+    const media = text.slice(text.lastIndexOf('@media (pointer: coarse), (width < '));
+    assert.ok(media.includes(`${selector}::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2))`), `${path} ${selector}`);
+  };
+  grows('lib/entries/StateChip.svelte', 'button.chip');
+  grows('lib/planning/PointsChip.svelte', 'button.chip');
+  grows('lib/workspace/PlacePeople.svelte', '.members');
+  grows('views/SearchView.svelte', '.chip');
+  grows('lib/entries/EntryList.svelte', '.group-head .twist');
+  grows('views/DashboardView.svelte', '.corner');
+  const calendar = sources.find((each) => each.path === 'lib/entries/CalendarView.svelte')?.text ?? '';
+  assert.match(calendar, /\.entry \{ display: flex; align-items: center; min-block-size: var\(--layout-target\); \}/u);
+});

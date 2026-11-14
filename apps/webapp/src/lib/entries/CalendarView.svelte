@@ -106,4 +106,12 @@
   .day[data-today] .number { color: var(--text-brand); font-weight: var(--fw-semibold); }
   .entry { display: block; inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; font-size: var(--fs-065); color: var(--text-primary); background: var(--accent-primary-subtle); border: none; border-radius: var(--r-xs); padding-inline: var(--sp-050); cursor: pointer; }
   .more { font-size: var(--fs-065); color: var(--text-secondary); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target beyond its drawn box (P-2). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    /* The entry clips its words, so its press grows as itself, not by an overhang. */
+    .entry { display: flex; align-items: center; min-block-size: var(--layout-target); }
+  }
 </style>

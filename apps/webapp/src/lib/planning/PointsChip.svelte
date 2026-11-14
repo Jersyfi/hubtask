@@ -92,4 +92,12 @@
   button.chip:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
   .chip[data-estimate='none'] { border-color: var(--border-strong); border-style: dashed; background: transparent; }
   .field :global(input) { inline-size: var(--sp-1000); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target beyond its drawn box (P-2). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    button.chip { position: relative; }
+    button.chip::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>
