@@ -11,13 +11,14 @@
   import { Checkbox, Dialog, Input, Property, PropertyRail, Select, Stack, Textarea, type RailSection, type SelectOption } from '@hubtask/design-system/components';
   import type { CiClass, CiCompliance, CiGroup, CiImpact, ConfigurationItem } from '@hubtask/sync-engine';
 
+  import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { cmdb, DIMENSIONS, PROTECTION_LEVELS, protectionRows, type Dimension, type Level } from '../data/cmdb.svelte.ts';
   import { groups as peopleGroups } from '../data/groups.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import FailureNote from '../frame/FailureNote.svelte';
   import { toast } from '../frame/toasts.svelte.ts';
-  import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
+  import { formatDueShort, formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { inheritedFrom } from './objectpage.ts';
@@ -183,7 +184,7 @@
   {:else if item.id === 'origin'}
     <div class="rows" data-rail-origin>
       <Property label={t('app.object.sources')} value={sources.length > 0 ? sources.map(sourceWord).join(', ') : undefined} emptyLabel="–" />
-      <Property label={t('app.object.last_seen')} value={ci.last_seen_at ? formatDateTime(ci.last_seen_at, messages.locale) : undefined} emptyLabel={t('app.object.never')} />
+      <Property label={t('app.object.last_seen')} value={ci.last_seen_at ? formatDueShort(ci.last_seen_at, messages.locale, actor.zone) : undefined} emptyLabel={t('app.object.never')} />
       <Property label={t('app.assets.quantity')} value={String(ci.quantity)} />
     </div>
   {:else if item.id === 'groups'}

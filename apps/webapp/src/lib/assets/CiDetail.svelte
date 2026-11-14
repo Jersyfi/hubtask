@@ -36,7 +36,7 @@
   import { resource, resourceWhen } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
-  import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
+  import { formatDueShort, formatPlainDay } from '../i18n/datetime.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -160,7 +160,7 @@
   const sources = $derived([...new Set(Object.values(ci.provenance).map((each) => each.source))].filter((each) => each !== 'manual'));
   const meta = $derived(
     [
-      confirmedWhen ? t('app.object.confirmed', { when: formatDateTime(confirmedWhen, messages.locale) }) : t('app.object.never_confirmed'),
+      confirmedWhen ? t('app.object.confirmed', { when: formatDueShort(confirmedWhen, messages.locale, actor.zone) }) : t('app.object.never_confirmed'),
       sources.length > 0 ? t('app.object.kept_from', { sources: sources.join(', ') }) : t('app.object.kept_by_hand'),
     ].join(' · '),
   );

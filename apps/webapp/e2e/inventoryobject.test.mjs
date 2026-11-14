@@ -251,7 +251,8 @@ test('chromium: the head\'s primary act confirms the object beside its review da
 test('chromium: the owning person confirms their object without write; the meta line reads the confirmation', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const confirmedAt = '2026-11-02T09:30:00Z';
+  // Just now: the line names the day as the reader says it, as the scene's "bestätigt heute 09:25".
+  const confirmedAt = new Date(Date.now() - 1_000).toISOString();
   LAPTOP.confirmed_at = confirmedAt;
   t.after(() => delete LAPTOP.confirmed_at);
   const { page, context, failures } = await open(browser, { role: 'VIEWER', path: `/cis/${LAPTOP.id}` });
@@ -260,7 +261,7 @@ test('chromium: the owning person confirms their object without write; the meta 
   await page.getByRole('list', { name: 'Stage of NB-0417' }).waitFor({ timeout: 20_000 });
   assert.equal(await head(page).getByRole('button', { name: 'Confirm', exact: true }).count(), 1, 'the owner is offered Confirm');
   assert.equal(await page.getByRole('button', { name: 'Change stage', exact: true }).count(), 0, 'a reader changes no stage');
-  assert.match((await head(page).innerText()).replace(/\s+/gu, ' '), /confirmed Nov 2, 2026/u);
+  assert.match((await head(page).innerText()).replace(/\s+/gu, ' '), /confirmed today \d{1,2}:\d{2}/u);
   assert.deepEqual(failures, []);
 });
 
