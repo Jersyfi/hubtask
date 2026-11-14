@@ -51,7 +51,7 @@
       <div data-portal-approvals>
         <Stack gap="150">
           {#each waiting as approval (approval.id)}
-            <ApprovalCard {approval} />
+            <ApprovalCard {approval} isPortal />
           {/each}
         </Stack>
       </div>

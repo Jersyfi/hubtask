@@ -14423,6 +14423,7 @@
   "app.approvals.level": "Stufe {n}",
   "app.approvals.yes_of": "{yes} von {needed} Ja",
   "app.approvals.asked_by": "{name} hat am {at} gebeten, „{step}“ zu gehen",
+  "app.approvals.asked_by_portal": "{name} hat am {at} um deine Freigabe gebeten",
   "app.approvals.due": "fällig {at}",
   "app.approvals.for_person": "für {name}, abwesend",
   "app.approvals.decided": "{name} am {at}",

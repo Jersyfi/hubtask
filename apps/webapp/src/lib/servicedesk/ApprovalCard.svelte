@@ -29,9 +29,11 @@
      * answers - its levels and trail stay on the approvals tab.
      */
     isBrief?: boolean;
+    /** Read in the portal, by a requester: asked for their yes, without the team's step. */
+    isPortal?: boolean;
   }
 
-  const { approval, onnavigate, isBrief = false }: Props = $props();
+  const { approval, onnavigate, isBrief = false, isPortal = false }: Props = $props();
 
   $effect(() => accounts.resolve([approval.requested_by, approval.on_behalf_of, ...approval.decisions.flatMap((d) => [d.approver_id, d.on_behalf_of])]));
 
@@ -113,7 +115,9 @@
       {#if approval.on_behalf_of}<span class="quiet">{t('app.approvals.for_person', { name: name(approval.on_behalf_of) })}</span>{/if}
     </Inline>
     <p class="quiet">
-      {t('app.approvals.asked_by', { name: name(approval.requested_by), at: at(approval.requested_at), step: approval.step })}
+      <!-- The portal's reader reads no step key (P-12): the team's step is the team's word. -->
+      {!isPortal ? t('app.approvals.asked_by', { name: name(approval.requested_by), at: at(approval.requested_at), step: approval.step })
+        : t('app.approvals.asked_by_portal', { name: name(approval.requested_by), at: at(approval.requested_at) })}
       {#if approval.state === 'PENDING' && approval.due_at} · {t('app.approvals.due', { at: at(approval.due_at) })}{/if}
     </p>
     <ol class="levels">
