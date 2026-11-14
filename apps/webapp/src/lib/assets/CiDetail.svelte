@@ -25,7 +25,7 @@
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import {
-    attributeText, changedAttributes, ciAssetPath, ciReferenceText, cisPath, classWord, cmdb, groupsPath, objectWorkPath, refinements, type Words,
+    attributeText, changedAttributes, ciAssetPath, ciReferenceText, cisPath, classWord, classesWord, cmdb, groupsPath, objectWorkPath, refinements, type Words,
   } from '../data/cmdb.svelte.ts';
   import { engine } from '../data/engine.ts';
   import { groups } from '../data/groups.svelte.ts';
@@ -392,7 +392,7 @@
       trail={[
         { id: at.id, label: at.name, href: `/hubs/${at.id}` },
         { id: 'inventory', label: t('app.assets.title'), href: `/hubs/${at.id}/inventory` },
-        { id: 'type', label: typeWord, href: stockOf(withKey('', 'asset.class', ci.class)) },
+        { id: 'type', label: classesWord(ci.class, classes, words), href: stockOf(withKey('', 'asset.class', ci.class)) },
         { id: 'ci', label: ci.name },
       ]}
       mark={placeMark}

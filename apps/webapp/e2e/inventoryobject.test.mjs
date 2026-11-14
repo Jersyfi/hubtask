@@ -34,7 +34,8 @@ const cls = (key, name, lineage, extra = {}) => ({
 });
 const CLASSES = [
   cls('ci', 'Object', ['ci'], { abstract: true }),
-  cls('application_service', 'Application service', ['application_service', 'ci'], {
+  // Shipped, as the contract serves it: no name, the client's own word for the key.
+  cls('application_service', undefined, ['application_service', 'ci'], { system: true,
     all_attributes: [attribute('url', 'RECOMMENDED'), attribute('version', 'RECOMMENDED'), attribute('runtime'), attribute('hours'),
       attribute('runbook', 'RECOMMENDED'), attribute('sla', 'RECOMMENDED'), attribute('contact', 'RECOMMENDED')],
   }),
@@ -179,8 +180,8 @@ test('chromium: the head says the stage as a step bar, and a writer changes it t
   assert.equal((await head(page).getByRole('heading', { level: 1 }).textContent()).trim(), 'Portal-API');
   // The trail: hub › Inventory › the object type, which opens the stock with its line, › the object.
   const trail = head(page).getByRole('navigation', { name: 'Where it sits in the inventory' });
-  assert.match((await trail.innerText()).replace(/\s+/gu, ' '), /House.*Application service.*Portal-API/u);
-  assert.match(await trail.getByRole('link', { name: 'Application service' }).getAttribute('href'), /\/inventory\?line=asset\.class%3A/u);
+  assert.match((await trail.innerText()).replace(/\s+/gu, ' '), /House.*Application services.*Portal-API/u);
+  assert.match(await trail.getByRole('link', { name: 'Application services' }).getAttribute('href'), /\/inventory\?line=asset\.class%3A/u);
   // The meta line: type, stage, when confirmed and who keeps it.
   assert.match((await head(page).innerText()).replace(/\s+/gu, ' '), /Application service In use confirmed .* · from glpi/u);
   assert.equal(await head(page).getByRole('button', { name: 'Copy the reference' }).count(), 1);

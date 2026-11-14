@@ -127,6 +127,15 @@ export function classWord(key: string, classes: readonly CiClass[], words: Words
   return own || words(`app.assets.class.${key}`) || key;
 }
 
+/**
+ * Many of an object type, as a trail names the stock of one. The model keeps no plural: a shipped
+ * type has the catalogue's, an own type's name stands as written.
+ */
+export function classesWord(key: string, classes: readonly CiClass[], words: Words): string {
+  const own = classes.find((each) => each.key === key)?.name;
+  return own || words(`app.assets.classes.${key}`) || classWord(key, classes, words);
+}
+
 /** A relation type's word read from one end: from its source the name, from its target the reverse. */
 export function relationWord(type: CiRelationType | undefined, key: string, outgoing: boolean, words: Words): string {
   const own = outgoing ? type?.name : type?.reverse_name;

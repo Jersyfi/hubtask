@@ -10,7 +10,7 @@ import type {
 
 import {
   alertTone, alertsPath, connectorDefine, connectorDraft, connectorMissing, connectorPath, connectorsPath, connectorTone, intakeAddress,
-  changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, fileColumns, fileFormat, fileText, guessMapping, impactByDepth, instantiable, inventoryByClass,
+  changedAttributes, ciReferenceText, cisPath, classDefine, matchingCis, classDraft, keyIsWellFormed, classWord, classesWord, fileColumns, fileFormat, fileText, guessMapping, impactByDepth, instantiable, inventoryByClass,
   missingRequired, outcomeTone, parseAttribute, percent, protectionRows, refinements, relationRows, relationWord, sectionOf,
   sideBySide, typeAllows, inventoryPlace, inventoryPath, assetsFigure, relationSides, GRAPH_SIDE,
 } from './cmdb.ts';
@@ -64,6 +64,12 @@ test('a shipped class is named by the catalogue, an own class by its name, an un
   assert.equal(classWord('server', classes, t), 'Server');
   assert.equal(classWord('rack_server', classes, t), 'Rack server');
   assert.equal(classWord('mystery', classes, t), 'mystery');
+  // Many of a type: the catalogue's plural for a shipped one, an own type's name as written, else the singular.
+  const many = words({ 'app.assets.class.server': 'Server', 'app.assets.classes.server': 'Servers', 'app.assets.class.laptop': 'Laptop' });
+  assert.equal(classesWord('server', classes, many), 'Servers');
+  assert.equal(classesWord('rack_server', classes, many), 'Rack server');
+  assert.equal(classesWord('laptop', classes, many), 'Laptop');
+  assert.equal(classesWord('mystery', classes, many), 'mystery');
   assert.equal(relationWord(undefined, 'runs_on', true, t), 'runs on');
   assert.equal(relationWord(undefined, 'runs_on', false, t), 'runs');
   const own: CiRelationType = { key: 'feeds', name: 'feeds', reverse_name: 'is fed by', impact: 'TARGET', pairs: [], system: false, version: 1 };
