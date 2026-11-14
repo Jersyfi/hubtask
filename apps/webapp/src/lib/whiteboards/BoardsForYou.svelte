@@ -141,7 +141,8 @@
 
 <style>
   .heading { margin: 0; color: var(--text-subtle); font-size: var(--fs-065); font-weight: var(--fw-semibold); text-transform: uppercase; }
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); gap: var(--sp-200); margin: 0; padding: 0; list-style: none; }
+  /* Three to a row where they fit, as wide as the row allows; one opened board keeps a third. */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--layout-gallery-card), calc((100% - 2 * var(--sp-200)) / 3))), 1fr)); gap: var(--sp-200); margin: 0; padding: 0; list-style: none; }
   .head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
   .more { display: inline-flex; align-items: center; gap: var(--sp-025); color: var(--text-brand); font-size: var(--fs-075); font-weight: var(--fw-semibold); text-decoration: none; }
   .more:hover { text-decoration: underline; }
