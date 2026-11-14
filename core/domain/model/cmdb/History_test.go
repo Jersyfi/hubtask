@@ -48,7 +48,7 @@ func TestAStepIsCheckedBeforeItIsWritten(t *testing.T) {
 func TestEveryVerbRendersAsAnActivityCode(t *testing.T) {
 	for verb, want := range map[Verb]string{
 		VerbCreated: "activity.ci_created", VerbStageChanged: "activity.ci_stage_changed",
-		VerbAssetMoved: "activity.ci_asset_moved", VerbFileRemoved: "activity.ci_file_removed",
+		VerbAssetMoved: "activity.ci_asset_moved", VerbMergedIn: "activity.ci_merged_in", VerbFileRemoved: "activity.ci_file_removed",
 	} {
 		if got := verb.Code(); got != want {
 			t.Errorf("%s renders as %q, want %q", verb, got, want)

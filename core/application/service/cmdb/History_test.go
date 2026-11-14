@@ -163,3 +163,66 @@ func TestAnAssetsMovesAndARoundsAnswerWriteTheirSteps(t *testing.T) {
 		t.Errorf("the answer: %v", verdict)
 	}
 }
+
+// UC-AST-01 check 13: an object a source brings in says so in its first step, and a merge is told
+// on both sides - the object merged away names the one it went into, the one that stays names the
+// object it took in.
+func TestASourcesObjectAndAMergeWriteTheirSteps(t *testing.T) {
+	f := newFixture()
+	history := &chronicle{}
+	f.inv.History = history
+	brought, err := call(t, ReconcileCis{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "source": "netbox", "items": items(
+		map[string]any{"class": "server", "name": "sw1", "attributes": map[string]any{"mac_address": "cc:dd"}})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(outcomes(brought), []string{"CREATE"}) {
+		t.Fatalf("the source's object: %v", outcomes(brought))
+	}
+	var created *domain.Step
+	for i := range history.steps {
+		if history.steps[i].Verb == domain.VerbCreated {
+			created = &history.steps[i]
+		}
+	}
+	if created == nil || created.Changes["source"] != (domain.Moved{To: "netbox"}) {
+		t.Fatalf("the first step does not name the source: %+v", created)
+	}
+
+	for _, name := range []string{"one", "two"} {
+		if _, err := call(t, CreateCi{f.inv}.Descriptor(), as(anna), usecase.Input{
+			"hub_id": hub.String(), "class": "server", "name": name, "attributes": map[string]any{"asset_tag": "T-" + name},
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for id, ci := range f.m.cis {
+		if ci.Name == "one" || ci.Name == "two" {
+			f.m.ids[id]["mac_address"] = "aa:bb"
+		}
+	}
+	if _, err := call(t, ReconcileCis{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "source": "netbox", "items": items(
+		map[string]any{"class": "server", "name": "x", "attributes": map[string]any{"mac_address": "aa:bb"}})}); err != nil || len(f.m.dups) != 1 {
+		t.Fatalf("no duplicate: %v", err)
+	}
+	dup := f.m.dups[0]
+	survivor, other := dup.CIs[0], dup.CIs[1]
+	if _, err := call(t, ResolveCiDuplicate{f.inv}.Descriptor(), as(anna), usecase.Input{"duplicate_id": dup.ID.String(), "survivor_id": survivor.String()}); err != nil {
+		t.Fatal(err)
+	}
+	kept, err := call(t, ListCiHistory{f.inv}.Descriptor(), as(anna), usecase.Input{"ci_id": survivor.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := kept["data"].([]usecase.Output)
+	if codesOf(t, kept)[0] != "activity.ci_merged_in" || steps[0]["change_set"].(usecase.Output)["merged_from"].(usecase.Output)["to"] != other.String() {
+		t.Errorf("the survivor's history: %v", steps[0])
+	}
+	gone, err := call(t, ListCiHistory{f.inv}.Descriptor(), as(anna), usecase.Input{"ci_id": other.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codes := codesOf(t, gone); codes[0] != "activity.ci_merged" {
+		t.Errorf("the merged object's history: %v", codes)
+	}
+}

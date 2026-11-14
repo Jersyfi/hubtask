@@ -24,6 +24,8 @@ const (
 	VerbConfirmed    Verb = "ci.confirmed"
 	VerbAttested     Verb = "ci.attested"
 	VerbMerged       Verb = "ci.merged"
+	// VerbMergedIn is the surviving object's side of a merge: another was merged into it.
+	VerbMergedIn     Verb = "ci.merged_in"
 	VerbAssetMoved   Verb = "ci.asset_moved"
 	VerbFileAttached Verb = "ci.file_attached"
 	VerbFileRemoved  Verb = "ci.file_removed"
@@ -31,7 +33,7 @@ const (
 
 var verbs = []Verb{
 	VerbCreated, VerbChanged, VerbStageChanged, VerbRelated, VerbUnrelated, VerbConfirmed, VerbAttested,
-	VerbMerged, VerbAssetMoved, VerbFileAttached, VerbFileRemoved,
+	VerbMerged, VerbMergedIn, VerbAssetMoved, VerbFileAttached, VerbFileRemoved,
 }
 
 // Code is the message code a client renders for the verb.
