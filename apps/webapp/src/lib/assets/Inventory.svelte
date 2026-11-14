@@ -308,7 +308,7 @@
   const columns = $derived<DataColumn[]>([
     { id: 'name', label: t('app.inventory.col.name'), priority: 1 },
     { id: 'class', label: t('app.inventory.col.class'), priority: 2, isHideable: true },
-    { id: 'stage', label: t('app.inventory.col.stage'), priority: 2, isHideable: true, isStatus: true },
+    { id: 'stage', label: t('app.inventory.col.stage'), priority: 2, isHideable: true },
     { id: 'owner', label: t('app.inventory.col.owner'), priority: 3, isHideable: true },
     { id: 'location', label: t('app.inventory.col.location'), priority: 3, isHideable: true },
     { id: 'protection', label: t('app.inventory.col.protection'), priority: 3, isHideable: true },
