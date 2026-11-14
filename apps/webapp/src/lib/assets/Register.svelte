@@ -60,7 +60,7 @@
     ...ASSET_STATES.map((each) => ({ value: each, label: t(`app.register.state.${each}`) })),
   ]);
   const columns = $derived<DataColumn[]>([
-    { id: 'tag', label: t('app.register.col.number'), priority: 1 },
+    { id: 'tag', label: t('app.register.col.number'), priority: 2 },
     { id: 'device', label: t('app.register.col.device'), priority: 1 },
     { id: 'holder', label: t('app.register.col.holder'), priority: 2 },
     { id: 'state', label: t('app.register.col.state'), priority: 1, isStatus: true },
@@ -87,8 +87,8 @@
         <p class="meta">{t('app.register.none')}</p>
       {:else}
         <div data-register>
-          <DataTable label={t('app.assets.section.register')} {columns} rows={assets} key={(asset: Row) => asset.ci_id} href={rowHref}
-            rowLabel={(asset: Row) => asset.asset_tag || asset.name || ''}>
+          <DataTable label={t('app.assets.section.register')} kind="work" {columns} rows={assets} key={(asset: Row) => asset.ci_id} href={rowHref}
+            rowLabel={(asset: Row) => asset.asset_tag || asset.name || ''} titleText={(asset: Row) => asset.name ?? ''}>
             {#snippet cell(asset: Row, column: DataColumn)}
               {#if column.id === 'tag'}<span class="tag" data-register-row={asset.ci_id} data-selected={asset.ci_id === selected ? '' : undefined}>{asset.asset_tag || '—'}</span>
               {:else if column.id === 'device'}

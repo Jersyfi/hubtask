@@ -72,7 +72,7 @@
         <p class="meta" role="status">{t('app.software.no_match')}</p>
       {/if}
       <div data-software-table>
-        <DataTable label={t('app.assets.section.software')} {columns} {rows} key={(row: Row) => row.key} group={(row: Row) => row.group}
+        <DataTable label={t('app.assets.section.software')} kind="work" {columns} {rows} key={(row: Row) => row.key} group={(row: Row) => row.group}
           bind:foldedGroups={folded} foldGroupLabel={(group) => t('app.software.versions_of', { product: byGroup.get(group)?.product ?? group })}
           unfoldGroupLabel={(group) => t('app.software.versions_of', { product: byGroup.get(group)?.product ?? group })}>
           {#snippet groupHead(group: string)}

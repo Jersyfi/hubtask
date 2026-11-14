@@ -113,7 +113,7 @@
     {:else if alerts.length === 0}
       <ProductEmpty kind="filtered" icon="funnel" title={t('app.assets.alerts_none_resolved')} clear={{ label: t('app.assets.alerts_all'), onclick: () => (narrowed = '') }} />
     {:else}
-      <DataTable label={t('app.assets.section.alerts')} {columns} rows={alerts} key={(alert: CiAlert) => alert.id}>
+      <DataTable label={t('app.assets.section.alerts')} kind="work" {columns} rows={alerts} key={(alert: CiAlert) => alert.id} titleText={titleOf}>
         {#snippet cell(alert: CiAlert, column: DataColumn)}
           {#if column.id === 'alert'}
             <span class="what" data-alert={alert.key} data-status={alert.status}>
@@ -138,8 +138,9 @@
 
 <style>
   .alerts { display: grid; gap: var(--sp-150); }
-  .what { display: grid; gap: var(--sp-025); min-inline-size: 0; }
-  .title { overflow-wrap: break-word; }
+  /* One line, as a work row is (WB-4): the title, then what it says and its facts, quieter. */
+  .what { display: inline; }
+  .what > :global(* + *) { margin-inline-start: var(--sp-100); }
   a { color: var(--text-primary); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
 </style>

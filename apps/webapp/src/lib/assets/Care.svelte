@@ -359,7 +359,7 @@
     <section id="care-connectors" class="card" aria-labelledby="care-sources" data-care-part="connectors">
       <h2 id="care-sources" class="card-title">{t('app.care.sources_title')}</h2>
       <div id="care-runs" data-care-part="runs">
-        <DataTable label={t('app.care.sources_title')} columns={sourceColumns} rows={sourceTable} key={(row: Source) => row.key}
+        <DataTable label={t('app.care.sources_title')} kind="work" columns={sourceColumns} rows={sourceTable} key={(row: Source) => row.key}
           onopen={(row: Source) => openRun(row)}>
           {#snippet cell(row: Source, column: DataColumn)}
             {#if row.key === 'by-hand'}
