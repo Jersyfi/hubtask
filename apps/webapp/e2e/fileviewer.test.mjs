@@ -377,7 +377,7 @@ test('chromium: the workspace\'s Files section tests a document server, says a p
 
   refuse = true;
   await reach.getByRole('button', { name: 'Test the connection' }).click();
-  await reach.getByText('This address lies inside a private network.', { exact: false }).waitFor({ timeout: 5_000 });
+  await reach.getByText('This address lies inside a private network, and this installation does not allow a document server there.', { exact: false }).waitFor({ timeout: 5_000 });
   assert.equal(await reach.getByText('The server answered.').count(), 0);
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();
