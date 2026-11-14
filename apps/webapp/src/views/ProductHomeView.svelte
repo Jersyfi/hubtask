@@ -40,6 +40,7 @@
   import BoardTemplates, { type BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
   import BoardsForYou from '../lib/whiteboards/BoardsForYou.svelte';
   import { makeBoard } from '../lib/whiteboards/make.ts';
+  import { boardsOpened, boardsToContinue } from '../lib/whiteboards/opened.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { config } from '../lib/data/config.svelte.ts';
@@ -125,6 +126,7 @@
 
   /** The whiteboards' home lists the boards themselves (§2.2), recent first across the hubs. */
   const BOARDS_SHOWN = 12;
+  const BOARDS_DRAWN = 3;
   let boardsAt = $state<Record<string, WhiteboardList['data']>>({});
   eachHub<WhiteboardList>('WHITEBOARD', boardsPath, (hubId, data) => (boardsAt = { ...boardsAt, [hubId]: data.data }));
 
@@ -311,6 +313,12 @@
   }
 
   const boards = $derived(module === 'WHITEBOARD' ? recentBoards(boardsAt, hubsWith.map((hub) => hub.id), isWhole ? Infinity : BOARDS_SHOWN) : []);
+  /** *Recently opened* (scene whome 2): the boards opened on this device, else the last changed. */
+  const continued = $derived(
+    module === 'WHITEBOARD'
+      ? boardsToContinue(boardsOpened(actor.account?.id), recentBoards(boardsAt, hubsWith.map((hub) => hub.id), Infinity), boards, BOARDS_DRAWN)
+      : { boards: [], opened: false },
+  );
 
   /** The plans' *Roadmaps*: every portfolio's roadmap, read once its tab is open. */
   let portfolios = $state<PortfolioList['data'] | undefined>(undefined);
@@ -766,7 +774,7 @@
       </section>
     {/if}
     {#if module === 'WHITEBOARD' && currentTab === 'foryou' && !isUnusedHere}
-      <BoardsForYou {boards} {hubName} {onnavigate} onstart={createPlaces.length > 0 ? startBoard : undefined} oncomments={(count) => (boardComments = count)} />
+      <BoardsForYou {boards} drawn={continued.boards} opened={continued.opened} {hubName} {onnavigate} onstart={createPlaces.length > 0 ? startBoard : undefined} oncomments={(count) => (boardComments = count)} />
     {/if}
     {#if boards.length > 0 && currentTab === 'all'}
       <section aria-labelledby="product-boards">

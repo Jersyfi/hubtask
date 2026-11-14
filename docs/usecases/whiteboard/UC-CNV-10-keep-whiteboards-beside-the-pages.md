@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-19]
 state: partial
 tasks: []
-checked_by: [apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/moving.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/kompassscreens.test.mjs, core/domain/model/whiteboard/Board_test.go, core/application/service/whiteboard/Place_test.go, core/application/service/knowledge/Boards_test.go, test/integration/whiteboard_place_test.go, apps/webapp/e2e/whiteboardwork.test.mjs]
+checked_by: [apps/webapp/e2e/kompassmove.test.mjs, apps/webapp/src/lib/moving.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/kompassscreens.test.mjs, core/domain/model/whiteboard/Board_test.go, core/application/service/whiteboard/Place_test.go, core/application/service/knowledge/Boards_test.go, test/integration/whiteboard_place_test.go, apps/webapp/e2e/whiteboardwork.test.mjs, apps/webapp/src/lib/whiteboards/opened.test.ts]
 ---
 
 # Keep whiteboards beside the pages
@@ -40,7 +40,7 @@ After the sprint the team creates *Retro Sprint 41* from ＋ on the page *Team*.
    after or under a page like a page, never into another board.
 7. A board under a restricted page is still read by the hub's readers; whoever may not read the page
    sees the board under its nearest page they may read, or at the top.
-8. The whiteboards' home shows the boards last changed as drawings of their objects, with who made and last changed them, and a row of templates each starting a board in one press.
+8. The whiteboards' home shows the boards last opened on this device — the last changed where none was — as drawings of their objects, with who made and last changed them, and a row of templates each starting a board in one press.
 
 ## Where it ends
 

@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The whiteboards' *For you* (scene whome): the last changed boards as drawings of their objects
-  // with who made and last changed them (W-7), a row of templates that each start a board in one
+  // The whiteboards' *For you* (scene whome): the boards last opened on this device (`opened.ts`),
+  // else the last changed, as drawings of their objects with who made and last changed them (W-7), a row of templates that each start a board in one
   // press, and the open comments that name the reader, each opening its board at the thread.
   //
   // The comments are read on the boards listed only: a thread on a board nobody has touched for a
@@ -25,8 +25,11 @@
   type Comment = WhiteboardCommentList['data'][number];
 
   interface Props {
-    /** The boards to read comments on, the last changed first; the first three are drawn. */
+    /** The boards to read comments on, the last changed first. */
     boards: readonly Whiteboard[];
+    /** The boards drawn first: those opened here last (`opened`), else the last changed. */
+    drawn: readonly Whiteboard[];
+    opened: boolean;
     hubName: (id: string) => string;
     /** Starts a board from a template card; absent where the reader may make none. */
     onstart?: (choice: BoardStart) => void;
@@ -35,9 +38,8 @@
     onnavigate: (path: string) => void;
   }
 
-  const { boards, hubName, onstart, oncomments, onnavigate }: Props = $props();
+  const { boards, drawn, opened, hubName, onstart, oncomments, onnavigate }: Props = $props();
 
-  const SHOWN = 3;
   const ROW: readonly BoardStart[] = ['RETRO_START_STOP_CONTINUE', 'RETRO_FOUR_LS', 'RETRO_MAD_SAD_GLAD', 'BRAINSTORM', 'FLOWCHART'];
 
   let commentsAt = $state<Record<string, readonly Comment[]>>({});
@@ -60,7 +62,7 @@
   );
   $effect(() => oncomments?.(toYou.length));
   $effect(() => {
-    const ids = [...boards.slice(0, SHOWN).flatMap((board) => [board.created_by, board.updated_by]), ...toYou.map((each) => each.said.author_id)];
+    const ids = [...drawn.flatMap((board) => [board.created_by, board.updated_by]), ...toYou.map((each) => each.said.author_id)];
     untrack(() => accounts.resolve(ids));
   });
 
@@ -90,12 +92,12 @@
   const at = (each: { board: Whiteboard; thread: Comment }) => `/whiteboards/${each.board.id}?comment=${each.thread.id}`;
 </script>
 
-{#if boards.length > 0}
+{#if drawn.length > 0}
   <section aria-labelledby="boards-recent" data-boards-recent>
     <Stack gap="100">
-      <h2 class="heading" id="boards-recent">{t('app.product_home.boards_recent')}</h2>
+      <h2 class="heading" id="boards-recent">{t(opened ? 'app.product_home.boards_opened' : 'app.product_home.boards_recent')}</h2>
       <ul class="cards">
-        {#each boards.slice(0, SHOWN) as board (board.id)}
+        {#each drawn as board (board.id)}
           <li>
             <BoardCard {board} people={peopleOf(board)} meta={[hubName(board.hub_id), t('app.whiteboards.objects', { count: String(board.element_count) }), formatRelative(board.updated_at, messages.locale)].filter(Boolean).join(' · ')} onopen={onnavigate} />
           </li>

@@ -14,6 +14,7 @@
   import { Button, Dialog, Input, ProductTile, Spinner } from '@hubtask/design-system/components';
   import type { Whiteboard, WhiteboardRead } from '@hubtask/sync-engine';
 
+  import { actor } from '../lib/data/account.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { boardPath, whiteboards } from '../lib/data/whiteboards.svelte.ts';
@@ -23,6 +24,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import BoardCanvas from '../lib/whiteboards/BoardCanvas.svelte';
   import type { BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
+  import { noteBoardOpened } from '../lib/whiteboards/opened.ts';
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   interface Props {
@@ -40,6 +42,11 @@
   const current = $derived(opened.state.status === 'ready' ? opened.state.data : undefined);
   const openRefusal = $derived(opened.state.status === 'failed' ? renderProblem(opened.state.error, messages).message : undefined);
   const hubId = $derived(current?.hub_id ?? '');
+  // The whiteboards' home continues what was opened here last (scene whome).
+  $effect(() => {
+    const seen = current?.id;
+    if (seen) untrack(() => noteBoardOpened(actor.account?.id, seen, Date.now()));
+  });
   // The sidebar shows this hub's level; the route names only the board (`levelOf`).
   $effect(() => frame.locate(hubId || undefined));
   const hub = $derived(hubId ? containers.find(hubId) : undefined);

@@ -275,6 +275,26 @@ test('chromium: the home lists the boards with their people, the templates row a
   assert.deepEqual(failures, []);
 });
 
+test('chromium: the home draws the boards opened on this device first, else the last changed (UC-CNV-10 check 8)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const newer = board([], { id: '01a0e2e0-0000-7000-8000-00000000b0f2', title: 'Plan', updated_at: '2026-11-12T09:00:00Z' });
+  const { page, context, failures } = await open(browser, { path: '/whiteboards', boards: [newer, board(ELEMENTS)] });
+  t.after(() => context.close());
+  const titles = (region) => region.locator('[data-board-card] .title').allTextContents();
+  const changed = page.getByRole('region', { name: 'Recently changed boards' });
+  await changed.locator('[data-board-card]').first().waitFor({ timeout: 20_000 });
+  assert.deepEqual(await titles(changed), ['Plan', 'Retro'], 'nothing opened here yet: the last changed first');
+
+  await changed.getByRole('link', { name: /Retro/ }).click();
+  await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
+  await page.goto(`${served.origin}/whiteboards`);
+  const opened = page.getByRole('region', { name: 'Recently opened' });
+  await opened.locator('[data-board-card]').first().waitFor({ timeout: 20_000 });
+  assert.deepEqual(await titles(opened), ['Retro'], 'the board opened here leads');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: on a tablet a finger moves the board and a pen draws (UC-CNV-04 check 7, as far as touch emulation reaches)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

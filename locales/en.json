@@ -7271,6 +7271,7 @@
   "app.hub_overview.did_board_changed": "{actor} changed the whiteboard {object}",
   "app.workspace.card_done_share": "{share} % done",
   "app.product_home.hubs": "In your hubs",
+  "app.product_home.boards_opened": "Recently opened",
   "app.product_home.boards_recent": "Recently changed boards",
   "app.product_home.unused": "Nothing in {product} yet",
   "app.product_home.unused_body": "Make the first one in one of your hubs.",
