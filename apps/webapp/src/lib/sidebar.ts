@@ -137,9 +137,9 @@ export function withHidden(list: readonly string[] | null | undefined, id: strin
  * The sidebar's sections that fold, each remembered per device (`device.isSectionOpen`); a
  * section's *More* folds by its own key and starts folded.
  */
-export type NavSection = 'starred' | 'products' | 'products-more' | 'hubs' | 'hubs-more' | 'collections' | 'contents';
+export type NavSection = 'starred' | 'products' | 'products-more' | 'hubs' | 'hubs-more' | 'collections' | 'contents' | 'posts';
 export const SECTION_OPEN_AT_FIRST: Readonly<Record<NavSection, boolean>> = {
-  starred: true, products: true, 'products-more': false, hubs: true, 'hubs-more': false, collections: true, contents: true,
+  starred: true, products: true, 'products-more': false, hubs: true, 'hubs-more': false, collections: true, contents: true, posts: true,
 };
 
 /**

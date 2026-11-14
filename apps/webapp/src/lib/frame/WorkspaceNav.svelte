@@ -33,7 +33,7 @@
     type RowAction,
     type TreePlacement,
   } from '@hubtask/design-system/components';
-  import type { AgentRequestList, ApprovalList, Container, GoalList, HubQueueList, CmdbHealth, ItemQueryResult, PageList, ReleaseList, SprintList, Star, WhiteboardList } from '@hubtask/sync-engine';
+  import type { AgentRequestList, ApprovalList, Container, GoalList, HubQueueList, CmdbHealth, ItemQueryResult, PageList, Post, PostList, ReleaseList, SprintList, Star, WhiteboardList } from '@hubtask/sync-engine';
 
   import PlacePicker, { type PickedPlace } from './PlacePicker.svelte';
   import { toast } from './toasts.svelte.ts';
@@ -67,6 +67,7 @@
   import { live } from '../data/live.svelte.ts';
   import { modules, modulesHere } from '../data/modules.svelte.ts';
   import { pagesPath } from '../data/pages.svelte.ts';
+  import { hubPostsPath, postMoment, sectionPosts } from '../data/posts.ts';
   import { people } from '../data/people.svelte.ts';
   import { preferences } from '../data/preferences.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -77,7 +78,7 @@
   import { jumble } from '../data/jumble.svelte.ts';
   import { releasesPath } from '../data/releases.svelte.ts';
   import { today as todayStore } from '../data/today.svelte.ts';
-  import { formatPlainDay } from '../i18n/datetime.ts';
+  import { formatPlainDay, formatShortDay } from '../i18n/datetime.ts';
   import { todayIn } from '../i18n/zone.ts';
   import { goalsStanding, nextReleaseOf, sprintsRunning } from '../product/home.ts';
   import { queueQuery } from '../servicedesk/queues.ts';
@@ -375,6 +376,21 @@
       if (next.status === 'ready') boardRows = next.data.data;
     }));
   });
+  // *Posts* at the foot of the hub column (B-2): the newest published ones, unread with a mark, then
+  // *All posts*. Who sees which post is the server's to judge; the list only takes the first few.
+  let postList = $state<PostList | undefined>(undefined);
+  $effect(() => {
+    const at = isOn('KNOWLEDGE') ? hubId : undefined;
+    postList = undefined;
+    if (!at) return;
+    return untrack(() => engine.subscribe<PostList>({ path: hubPostsPath(at) }, (next) => {
+      if (next.status === 'ready') postList = next.data;
+    }));
+  });
+  const postRows = $derived(sectionPosts(postList?.data ?? []));
+  const hasPosts = $derived(!!postList && (postList.data.some((each) => each.state === 'PUBLISHED') || postList.may_write));
+  const currentPost = $derived(route.name === 'post' || route.name === 'post-write' ? route.params['id'] : undefined);
+  const postDay = (post: Post) => formatShortDay(postMoment(post).slice(0, 10), messages.locale);
   const contentsMode = $derived<ContentsMode>((actor.account?.nav_contents_mode as ContentsMode | null | undefined) ?? 'TREE');
   const contentNodes = $derived(contentsTree(pageRows, boardRows, contentsMode, messages.locale));
   const toTree = (node: ContentNode): NavTreeNode => ({
@@ -637,6 +653,7 @@
     hubsMore: sectionOpen('hubs-more'),
     collections: sectionOpen('collections'),
     contents: sectionOpen('contents'),
+    posts: sectionOpen('posts'),
   };
 
   const productSets = $derived(navProducts({ modulesOn: workspaceOn, order: actor.account?.nav_products, hidden: actor.account?.nav_products_hidden }));
@@ -1274,6 +1291,17 @@
   const refusalLabel = (refusal: 'self' | 'no-children' | 'other-part' | 'too-deep') => t(`app.nav.refused_${refusal.replace('-', '_')}`);
 </script>
 
+{#snippet postItems(size: 'md' | 'touch')}
+  {#each postRows as post (post.page_id)}
+    <NavItem id={post.page_id} label={post.title} href={`/posts/${post.page_id}`} {size} figure={postDay(post)} isCurrent={currentPost === post.page_id}
+      badge={post.seen ? undefined : { icon: 'sparkles', label: t('app.posts.nav_unread') }} onnavigate={() => onnavigate(`/posts/${post.page_id}`)} />
+  {/each}
+  {#if hubId}
+    <NavItem label={t('app.posts.nav_all')} icon="chevron-right" tone="link" href={`/hubs/${hubId}/posts`} {size} isCurrent={route.name === 'hub-posts'}
+      onnavigate={() => hubId && onnavigate(`/hubs/${hubId}/posts`)} />
+  {/if}
+{/snippet}
+
 {#if step}
 <div class="phone" data-browse-step={step.kind} bind:this={phoneElement}>
   <!-- The bar shows the step's title; the screen's one heading is read here (as `PageHeader`'s). -->
@@ -1403,6 +1431,11 @@
     {:else if hasContents && contentsAdd && !reordering}
       <NavGroup label={t('app.nav.contents')} size="touch">
         <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" size="touch" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
+      </NavGroup>
+    {/if}
+    {#if hasPosts && !reordering}
+      <NavGroup label={t('app.posts.nav_section')} size="touch">
+        {@render postItems('touch')}
       </NavGroup>
     {/if}
   {:else if hub && step.kind === 'queues'}
@@ -1691,6 +1724,12 @@
       {:else if hasContents && contentsAdd}
         <NavGroup label={t('app.nav.contents')} add={contentsAdd}>
           <NavItem label={t(isOn('KNOWLEDGE') ? 'app.nav.create_first_page' : 'app.nav.create_first_whiteboard')} icon="plus" tone="link" onnavigate={() => hubId && onnavigate(createPath(hubId, isOn('KNOWLEDGE') ? 'page' : 'whiteboard'))} />
+        </NavGroup>
+      {/if}
+      {#if hasPosts}
+        <NavGroup label={t('app.posts.nav_section')} count={String(postList?.data.filter((each) => each.state === 'PUBLISHED').length ?? 0)}
+          collapseLabel={t('app.nav.fold', { name: t('app.posts.nav_section') })} bind:isOpen={sections.posts.isOpen}>
+          {@render postItems('md')}
         </NavGroup>
       {/if}
     </NavLevel>
