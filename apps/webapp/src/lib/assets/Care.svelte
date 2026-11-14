@@ -33,7 +33,8 @@
   import { live } from '../data/live.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
-  import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
+  import { formatDateTime, formatDueShort, formatPlainDay } from '../i18n/datetime.ts';
+  import { actor } from '../data/account.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import Campaigns from './Campaigns.svelte';
@@ -224,6 +225,8 @@
     { id: 'next', label: t('app.care.col.next'), priority: 3 },
   ]);
   const when = (at: string) => formatDateTime(at, messages.locale);
+  // In the table a run is said as the reader says the day - "today 06:00", "tomorrow 06:00".
+  const whenShort = (at: string) => formatDueShort(at, messages.locale, actor.zone);
   let detail = $state<CiRun | undefined>(undefined);
   let isDetailOpen = $state(false);
   function openRun(row: Source) {
@@ -365,9 +368,9 @@
               {:else}—{/if}
             {:else if 'run' in row || 'connector' in row}
               {#if column.id === 'source'}<span data-care-source={row.name} data-connector={row.connector?.key}>{row.name}</span>
-              {:else if column.id === 'last'}{row.lastAt ? when(row.lastAt) : '—'}
+              {:else if column.id === 'last'}{row.lastAt ? whenShort(row.lastAt) : '—'}
               {:else if column.id === 'result'}{row.read !== undefined ? t('app.care.result', { read: row.read, changed: row.changed ?? 0 }) : '—'}
-              {:else}{row.nextAt ? when(row.nextAt) : row.connector && !row.connector.enabled ? t('app.care.paused') : '—'}{/if}
+              {:else}{row.nextAt ? whenShort(row.nextAt) : row.connector && !row.connector.enabled ? t('app.care.paused') : '—'}{/if}
             {/if}
           {/snippet}
         </DataTable>

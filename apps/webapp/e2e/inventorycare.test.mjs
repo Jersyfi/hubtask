@@ -31,7 +31,8 @@ const flat = (text) => text.replace(/\s+/gu, ' ').trim();
 test('chromium: scene invcare - six figures, the to-dos with one act each, the round, the duplicates, the sources', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, context, failures, written } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/care` });
+  // The day of the seed's runs: the last and the next said as the reader says them.
+  const { page, context, failures, written } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/care`, now: '2026-11-14T12:00:00Z' });
   t.after(() => context.close());
 
   // (1) Six figures in their order, wanting in the warning tone, each a link to what it counts.
@@ -100,7 +101,7 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
   const rows = sources.getByRole('row');
   await sources.locator('[data-care-source="by-hand"]').waitFor({ timeout: 5_000 });
   assert.deepEqual(await sources.locator('[data-care-source]').evaluateAll((all) => all.map((each) => each.dataset.careSource)), ['GLPI', 'Intune', 'by-hand']);
-  assert.match(flat(await rows.filter({ hasText: 'GLPI' }).innerText()), /GLPI .*12 read · 1 changed .*Nov 15/);
+  assert.match(flat(await rows.filter({ hasText: 'GLPI' }).innerText()), /GLPI today \d{1,2}:00\s?[AP]M 12 read · 1 changed tomorrow \d{1,2}:00\s?[AP]M/u);
   assert.match(flat(await rows.filter({ hasText: 'Intune' }).innerText()), /2 read · unchanged/);
   assert.match(flat(await rows.filter({ hasText: 'By hand' }).innerText()), /By hand — 4 objects —/);
   // A run's decisions behind its row.
