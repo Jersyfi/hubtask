@@ -208,6 +208,9 @@ func mediaResponse(out usecase.Output) openapi.MediaObject {
 	if checksum := out.String("checksum"); checksum != "" {
 		object.Checksum = &checksum
 	}
+	if inline, ok := out["inline"].(bool); ok {
+		object.Inline = &inline
+	}
 	object.Upload = transferResponse(out["upload"])
 	object.Download = transferResponse(out["download"])
 	return object

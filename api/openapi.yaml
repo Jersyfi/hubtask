@@ -38902,6 +38902,13 @@ components:
             possible at zero.
         created_by: { type: string, format: uuid }
         created_at: { type: string, format: date-time }
+        inline:
+          type: boolean
+          description: >
+            Whether a browser may decode the bytes itself from the download URL: a READY image,
+            audio or video in a format whose decoding executes nothing. Every other file is
+            fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or
+            downloaded; none is ever opened as a document.
         upload:
           oneOf:
             - $ref: "#/components/schemas/MediaTransfer"

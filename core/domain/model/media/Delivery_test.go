@@ -11,9 +11,9 @@ import (
 )
 
 // The delivery half of T-11: inline is earned by an allowlist, everything else is a download.
-func TestOnlyTheImageAllowlistRendersInline(t *testing.T) {
+func TestOnlyTheImageAndMediaAllowlistRendersInline(t *testing.T) {
 	inline := []string{"image/png", "image/jpeg", "image/gif", "image/webp", "IMAGE/PNG",
-		"image/png; some=param"}
+		"image/png; some=param", "video/mp4", "video/webm", "audio/mpeg", "audio/wave", "audio/ogg"}
 	for _, contentType := range inline {
 		if got := media.DeliveryFor(contentType); got != media.DispositionInline {
 			t.Errorf("%s delivers as %s, want inline", contentType, got)
@@ -22,7 +22,8 @@ func TestOnlyTheImageAllowlistRendersInline(t *testing.T) {
 
 	attachment := []string{
 		"image/svg+xml", "text/html", "text/html; charset=utf-8", "application/pdf",
-		"application/octet-stream", "text/xml", "video/mp4", "", "not a type at all",
+		"application/octet-stream", "text/xml", "video/quicktime", "text/markdown", "text/csv", "application/zip",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document", "", "not a type at all",
 	}
 	for _, contentType := range attachment {
 		if got := media.DeliveryFor(contentType); got != media.DispositionAttachment {

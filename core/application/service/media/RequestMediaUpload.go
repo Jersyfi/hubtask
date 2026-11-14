@@ -277,6 +277,8 @@ func mediaOutput(object media.Object) usecase.Output {
 		"ref_count":    object.RefCount,
 		"created_by":   object.CreatedBy.String(),
 		"created_at":   object.CreatedAt,
+		// What the file viewer may hand the browser by URL; only a sealed object's type is judged.
+		"inline": object.Status == media.StatusReady && media.DeliveryFor(object.ContentType) == media.DispositionInline,
 	}
 }
 

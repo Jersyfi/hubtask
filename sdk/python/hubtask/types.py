@@ -4825,6 +4825,7 @@ class MediaObject(TypedDict, total=False):
     ref_count: Required[int]
     created_by: Required[str]
     created_at: Required[str]
+    inline: bool
     upload: "MediaTransfer" | Any
     download: "MediaTransfer" | Any
 

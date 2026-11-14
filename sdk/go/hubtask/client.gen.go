@@ -21186,6 +21186,9 @@ type MediaObject struct {
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 
+	// Inline Whether a browser may decode the bytes itself from the download URL: a READY image, audio or video in a format whose decoding executes nothing. Every other file is fetched and drawn by the client - a PDF page, text, a table, an archive's listing - or downloaded; none is ever opened as a document.
+	Inline *bool `json:"inline,omitempty"`
+
 	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
 

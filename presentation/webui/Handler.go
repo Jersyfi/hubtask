@@ -34,6 +34,9 @@ const ContentSecurityPolicy = "default-src 'none'; " +
 	// data: and blob: are for images the application makes itself - a pasted screenshot, a
 	// generated avatar. A browser treats them as images, never as script.
 	"img-src 'self' data: blob:; " +
+	// The file viewer plays audio and video by their download URL - 'self' on a local
+	// installation - and nothing else; the media allowlist decides which types get that far.
+	"media-src 'self'; " +
 	"font-src 'self'; " +
 	// The API is the same origin, so this permits exactly the calls the application has to make
 	// and nothing else. It is also what stops a compromised dependency from exfiltrating.
@@ -48,10 +51,11 @@ const ContentSecurityPolicy = "default-src 'none'; " +
 
 // PolicyFor is the interface's policy for an installation whose media lives at mediaOrigin
 // (ADR-0047): the ADR-0028 policy with that one origin added to `connect-src` - the browser has
-// to PUT the bytes of an upload to a presigned URL there - and to `img-src` - a cover is drawn from
-// a presigned URL there - and to nothing else. An empty origin is the `local` installation, whose
-// media URLs are already 'self', and answers ContentSecurityPolicy byte for byte; a test holds it
-// there, which is what keeps this from quietly widening the default installation.
+// to PUT the bytes of an upload to a presigned URL there -, to `img-src` - a cover is drawn from
+// a presigned URL there - and to `media-src` - the file viewer plays from one - and to nothing
+// else. An empty origin is the `local` installation, whose media URLs are already 'self', and
+// answers ContentSecurityPolicy byte for byte; a test holds it there, which is what keeps this
+// from quietly widening the default installation.
 //
 // The origin is trusted as given: scheme, host and port, derived by the composition root from the
 // storage configuration it parsed for the adapter, and never from anything a request carries.
@@ -62,6 +66,7 @@ func PolicyFor(mediaOrigin string) string {
 	}
 	policy := ContentSecurityPolicy
 	policy = strings.Replace(policy, "img-src 'self' data: blob:; ", "img-src 'self' data: blob: "+mediaOrigin+"; ", 1)
+	policy = strings.Replace(policy, "media-src 'self'; ", "media-src 'self' "+mediaOrigin+"; ", 1)
 	policy = strings.Replace(policy, "connect-src 'self'; ", "connect-src 'self' "+mediaOrigin+"; ", 1)
 	return policy
 }

@@ -32,12 +32,22 @@ const (
 )
 
 // inlineTypes is the allowlist. Short on purpose: a type is added here when somebody shows its
-// rendering path executes nothing, not removed when somebody shows it does.
+// rendering path executes nothing, not removed when somebody shows it does. The audio and video
+// formats are decoded by the browser's media pipeline, which runs no script and builds no
+// document; the file viewer plays them by their URL. PDF, SVG, text and office files stay off it:
+// the viewer draws those itself from the fetched bytes, never by handing a URL to the browser.
 var inlineTypes = map[string]bool{
 	"image/png":  true,
 	"image/jpeg": true,
 	"image/gif":  true,
 	"image/webp": true,
+	"video/mp4":  true,
+	"video/webm": true,
+	"audio/mpeg": true,
+	"audio/wave": true,
+	"audio/wav":  true,
+	"audio/ogg":  true,
+	"audio/webm": true,
 }
 
 // DeliveryFor answers how an object of this content type may be served. Called with the stored
