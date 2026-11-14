@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-08, P-12, P-13, P-14]
 state: built
 tasks: [C-08, J-09, J-10, M-09, F3-18, F10-05, F10-18]
-checked_by: [core/application/service/search/Doors_test.go, core/application/service/servicedesk/Queues_test.go, core/domain/model/view/SavedView_test.go, test/integration/search_test.go, test/integration/search_names_test.go, core/application/service/search/Search_test.go, core/application/service/whiteboard/Found_test.go, core/application/service/goal/Found_test.go, core/application/service/cmdb/Found_test.go, core/application/service/identity/FoundPeople_test.go, core/application/service/work/FoundOnEntries_test.go, test/integration/page_repository_test.go, test/integration/hybrid_search_test.go, test/integration/search_model_test.go, core/application/service/work/SearchItems_test.go, apps/webapp/e2e/search.test.mjs, test/security/search_test.go]
+checked_by: [core/application/service/search/Doors_test.go, core/application/service/servicedesk/Queues_test.go, core/domain/model/view/SavedView_test.go, test/integration/search_test.go, test/integration/search_names_test.go, core/application/service/search/Search_test.go, core/application/service/whiteboard/Found_test.go, core/application/service/goal/Found_test.go, core/application/service/cmdb/Found_test.go, core/application/service/identity/FoundPeople_test.go, core/application/service/work/FoundOnEntries_test.go, test/integration/page_repository_test.go, core/application/service/knowledge/FoundPosts_test.go, test/integration/hybrid_search_test.go, test/integration/search_model_test.go, core/application/service/work/SearchItems_test.go, apps/webapp/e2e/search.test.mjs, test/security/search_test.go]
 ---
 
 # Find an entry again by searching
@@ -44,10 +44,11 @@ lets the search also match by meaning ("heating" finds "boiler"); the words stil
 8. Results are one continuous list without page numbers; when there are more matches than the
    page reads (500), the page says the list is not complete.
 9. One search answers every kind beside entries - tickets (the entries of a desk), pages,
-   whiteboards, goals, portfolios, dashboards, releases, sprints, inventory items, people, file names and comments - each hit with its kind, title, place, tile, the passage
+   posts, whiteboards, goals, portfolios, dashboards, releases, sprints, inventory items, people, file names and comments - each hit with its kind, title, place, tile, the passage
    that matched where there is one and its state, and a count per kind; every hit and every count
    holds only what the person may read, people are found by their name alone and a file by its
-   name alone (`POST /search:all`, work surface E-11).
+   name alone, and a post only once it is out and only by those in its audience (`POST /search:all`,
+   work surface E-11, E-15).
 10. Among equally good pages a page verified now comes first, and a page due for review says so;
     the order changes, not what is found (work surface E-8).
 11. A ticket key typed whole, `SA-12`, finds that entry first - by the collection's key prefix or
