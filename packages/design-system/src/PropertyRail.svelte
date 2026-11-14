@@ -176,6 +176,13 @@
   .in-sheet .head,
   .in-sheet .add { min-block-size: var(--sp-600); }
 
+  /* A thumb's target (§7): a section's head and add are layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .head,
+    .add { min-block-size: var(--layout-target); }
+  }
+
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width < 600px) {
     .inline { display: none; }

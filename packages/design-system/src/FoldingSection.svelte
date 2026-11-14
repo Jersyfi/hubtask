@@ -129,6 +129,12 @@
   .body[data-lines='8'] { -webkit-line-clamp: 8; line-clamp: 8; }
   .body[data-lines='12'] { -webkit-line-clamp: 12; line-clamp: 12; }
 
+  /* A thumb's target (§7): *Show more* is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .more { min-block-size: var(--layout-target); }
+  }
+
   .more {
     display: inline-flex;
     align-items: center;

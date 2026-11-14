@@ -89,4 +89,12 @@
   }
 
   .labels { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
+
+  /* A thumb's target (§7): where the pointer is coarse the chip's press reaches layout.target
+     beyond its drawn box, so the line keeps its height. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .verify { position: relative; }
+    .verify::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

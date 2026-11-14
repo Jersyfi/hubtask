@@ -237,6 +237,11 @@
   }
 
   .twist { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
+  /* A thumb's target (§7): the twist is layout.target wide where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .twist { width: var(--layout-target); }
+  }
   .mark { display: inline-flex; flex: none; width: var(--sp-300); justify-content: center; }
 
   .mark { color: var(--text-subtle); }

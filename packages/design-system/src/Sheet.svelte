@@ -252,6 +252,12 @@
     touch-action: none;
   }
 
+  /* A thumb's target (§7): the grabber that closes is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    button.grabber { min-block-size: var(--layout-target); padding-block: 0; }
+  }
+
   .grabber .grip {
     display: block;
     inline-size: var(--layout-sheet-grabber);

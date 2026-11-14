@@ -76,6 +76,12 @@
 
   [data-tone='quiet'] .toggle { color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-regular); }
 
+  /* A thumb's target (§7): the toggle is layout.target tall where the pointer is coarse. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .toggle { min-block-size: var(--layout-target); align-items: center; }
+  }
+
   .content { display: flex; flex-direction: column; gap: var(--sp-150); }
 
   @media (prefers-reduced-motion: reduce) {
