@@ -345,7 +345,7 @@
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .label { margin: 0 0 var(--sp-100); font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-secondary); text-transform: uppercase; }
   .heading { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
-  .tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-200); grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--layout-gallery-card)), 1fr)); }
+  .tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-200); grid-template-columns: repeat(auto-fill, minmax(min(calc(50% - var(--sp-100)), var(--layout-gallery-card)), 1fr)); }
   .tile, .space {
     inline-size: 100%; block-size: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-050);
     padding: var(--sp-200); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg);
