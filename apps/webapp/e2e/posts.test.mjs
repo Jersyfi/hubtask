@@ -505,12 +505,14 @@ test('a reader replies, answers one level deep, reacts and takes a reply back (U
     await discussion.getByRole('button', { name: 'Send' }).first().click();
     const [first] = await sent(page, written, 'POST', `/posts/${id(1)}/replies`);
     assert.deepEqual(first.body, { body: 'Thanks for the heads-up', parent_id: null });
-    // The empty field folds once it loses the focus and the replies under it move up: the person
-    // leaves it first, or the press on a reply below lands where the reply no longer is.
-    await discussion.getByRole('heading').click();
-
+    // Straight from the send to the answer below, pressed as a hand does: the empty field folds
+    // only once that press has clicked, so the replies stay under the pointer until it is released.
+    await discussion.locator('[data-post-reply]').filter({ hasText: 'Thanks for the heads-up' }).waitFor({ timeout: 5_000 });
     const asked = discussion.locator(`[data-post-reply="${id(70)}"]`);
-    await asked.locator(`[data-post-answer="${id(70)}"]`).click();
+    const aimed = await asked.locator(`[data-post-answer="${id(70)}"]`).boundingBox();
+    await page.mouse.move(aimed.x + aimed.width / 2, aimed.y + aimed.height / 2);
+    await page.mouse.down();
+    await page.mouse.up();
     await asked.getByLabel(`Reply to ${OTHER.display_name}`).fill('Same as the day shift.');
     await asked.getByRole('button', { name: 'Send' }).click();
     const answers = await sent(page, written, 'POST', `/posts/${id(1)}/replies`, 2);

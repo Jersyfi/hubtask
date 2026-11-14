@@ -15,6 +15,7 @@
   import type { Snippet } from 'svelte';
 
   import Button from './Button.svelte';
+  import { FoldGate } from './foldgate.ts';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
   import type { IconName } from './icons/index.ts';
@@ -91,6 +92,16 @@
   let isSnippetsOpen = $state(false);
   let isMacrosOpen = $state(false);
 
+  // Folding waits for the press that took the focus away to click: folding at the blur would move
+  // what stands below under the pointer, and the press would be lost.
+  const gate = new FoldGate();
+  let isOpen = $state(false);
+  let root = $state<HTMLElement | undefined>();
+  function folding(change: () => void) {
+    change();
+    isOpen = gate.isOpen;
+  }
+
   /** Opens the insert menu at its first item, as `/` does in the plain field: the caller's editor asks for it. */
   export function openSnippets(): void {
     snippetMenu?.open(0);
@@ -110,7 +121,20 @@
   }
 </script>
 
-<div class="composer" data-mode={isNote ? 'note' : 'reply'} data-readonly={disabledReason !== undefined ? '' : undefined} data-empty={isEmpty ? '' : undefined} data-held={isSnippetsOpen || isMacrosOpen ? '' : undefined}>
+<svelte:window
+  onpointerdowncapture={() => folding(() => gate.press())}
+  onclickcapture={() => setTimeout(() => folding(() => gate.settle()))}
+  onpointercancelcapture={() => folding(() => gate.settle())}
+  onkeydowncapture={() => folding(() => gate.settle())}
+/>
+
+<div
+  bind:this={root}
+  class="composer"
+  onfocusin={() => folding(() => gate.focusIn())}
+  onfocusout={(event) => { if (!root?.contains(event.relatedTarget as Node | null)) folding(() => gate.focusOut()); }}
+  data-open={isOpen ? '' : undefined}
+  data-mode={isNote ? 'note' : 'reply'} data-readonly={disabledReason !== undefined ? '' : undefined} data-empty={isEmpty ? '' : undefined} data-held={isSnippetsOpen || isMacrosOpen ? '' : undefined}>
   {#if modes}
     <div class="modes">
       <div class="tabs" role="tablist" aria-label={modes.label}>
@@ -276,14 +300,14 @@
 
   /* The caller's editor sits where the field would: inset as the field is, three lines once in use. */
   .editor { min-inline-size: 0; padding: var(--sp-150) var(--sp-200); }
-  .composer:is(:focus-within, [data-held]) .editor,
+  .composer:is([data-open], [data-held]) .editor,
   .composer:not([data-empty]) .editor { min-block-size: var(--sp-1000); }
 
   /* Empty and not in use, it is one line to start writing in (§6.9): the formatting and the send
      come forward with the focus, so a quiet conversation does not open on an empty form. */
-  .composer[data-empty]:not(:focus-within, [data-held]) .format,
-  .composer[data-empty]:not(:focus-within, [data-held]) .bar { display: none; }
-  .composer[data-empty]:not(:focus-within, [data-held]) .field { min-block-size: 0; }
+  .composer[data-empty]:not([data-open], [data-held]) .format,
+  .composer[data-empty]:not([data-open], [data-held]) .bar { display: none; }
+  .composer[data-empty]:not([data-open], [data-held]) .field { min-block-size: 0; }
 
   .bar {
     display: flex;
