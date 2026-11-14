@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,6 +18,7 @@ import (
 
 	mediarepo "github.com/Jersyfi/hubtask/core/application/repository/media"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
+	"github.com/Jersyfi/hubtask/core/application/service/knowledge"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
@@ -243,5 +245,110 @@ func TestADocumentServerEditsAFileThroughTheWopiHost(t *testing.T) {
 	}.Execute(ctx, writer, mediaservice.MediaQuery{MediaID: object.ID})
 	if err != nil || !viewed.Editable {
 		t.Errorf("the writer cannot edit: %+v %v", viewed.Editable, err)
+	}
+}
+
+// writesOnlyAuthorizer is writesOnly as the knowledge module asks it, one place at a time.
+type writesOnlyAuthorizer struct{ writesOnly }
+
+func (w writesOnlyAuthorizer) Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error) {
+	allowed, err := w.Permitted(ctx, actor, request, [][]identity.Scope{request.Path})
+	return err == nil && allowed[0], err
+}
+
+func (w writesOnlyAuthorizer) Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error {
+	if may, err := w.Permits(ctx, actor, request); err != nil || !may {
+		return shared.ErrForbidden
+	}
+	return nil
+}
+
+// UC-MED-06: an office file a page holds is edited by whoever may write the page - the knowledge
+// module's answer, read from the page's own tables - and by nobody else: a reader of the space
+// opens it read-only, and the workspace next door finds neither the page nor the file.
+func TestAPagesOfficeFileIsEditedByThePagesWriters(t *testing.T) {
+	ctx := context.Background()
+	_, page, _ := seedSpace(ctx, t)
+	store := storage.NewLocalStorage(t.TempDir())
+	object, err := media.NewPendingObject(media.NewObjectInput{
+		ID: freshID(t), TenantID: tenantA, FileName: "budget.xlsx",
+		ClaimedType:  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		DeclaredSize: int64(len(docx)), SizeLimit: 1 << 20, Usage: media.UsageAttachment,
+		CreatedBy: authorA, Now: created,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(ctx, storageport.Upload{Key: object.StorageKey, Content: bytes.NewReader(docx), Size: int64(len(docx)), ContentType: "application/zip"}); err != nil {
+		t.Fatal(err)
+	}
+	sealed, _ := object.Sealed(object.ContentType, int64(len(docx)))
+	choice, _ := media.NewDocumentServerChoice(media.DocumentServerCollabora, "https://office.example")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := mediaRepo().Insert(ctx, object); err != nil {
+			return err
+		}
+		if err := mediaRepo().Seal(ctx, sealed); err != nil {
+			return err
+		}
+		if err := postgres.NewPageRepository().AttachMedia(ctx, page, object.ID); err != nil {
+			return err
+		}
+		return postgres.WopiRepository{}.SetDocumentServer(ctx, choice, authorA, created)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Now().UTC()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	gate := writesOnlyAuthorizer{writesOnly{writer: authorA}}
+	pages := knowledge.PageMediaReach{Space: knowledge.Space{
+		Pages: postgres.NewPageRepository(), Containers: containerRepo(), Authorizer: gate, Reader: gate,
+		UnitOfWork: uow, Clock: clock.Fixed(now),
+	}}
+	tokens := security.NewWopiTokenIssuer(secret.New("an installation secret of decent length"))
+	host := mediaservice.WopiHost{
+		Read: mediaservice.GetMedia{
+			Objects: mediaRepo(), Containers: containerRepo(), Reader: gate, Pages: pages,
+			UnitOfWork: uow, Clock: clock.Fixed(now),
+		},
+		Wopi: postgres.WopiRepository{}, Store: store, Guard: storage.NewUploadGuard(), Tokens: tokens,
+		UnitOfWork: uow, Clock: clock.Fixed(now), IDs: generator{t}, SizeLimit: 1 << 20,
+		Files: "https://hub.example/api/v1/wopi/files/", Pages: pages,
+	}
+	as := func(tenant, account shared.ID) appshared.ActorContext {
+		actor := mediaActor(tenant, account)
+		actor.Scopes = append(actor.Scopes, "items:read", "items:write")
+		return actor
+	}
+
+	session, err := host.StartEditing(ctx, as(tenantA, authorA), object.ID)
+	if err != nil {
+		t.Fatalf("the page's writer was refused: %v", err)
+	}
+	info, err := host.CheckFileInfo(ctx, session.Token, object.ID)
+	if err != nil || !info.Write {
+		t.Fatalf("CheckFileInfo for the page's writer: %+v, %v", info.Write, err)
+	}
+
+	reader := freshID(t)
+	if _, err := host.StartEditing(ctx, as(tenantA, reader), object.ID); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("a reader of the space got %v, want forbidden", err)
+	}
+	readerToken := tokens.Issue(wopi.Grant{TenantID: tenantA, AccountID: reader, MediaID: object.ID, Write: true, ExpiresAt: now.Add(time.Hour)})
+	if info, err := host.CheckFileInfo(ctx, readerToken, object.ID); err != nil || info.Write {
+		t.Fatalf("a reader's CheckFileInfo: %+v, %v", info.Write, err)
+	}
+
+	// The workspace next door: the same person's rights there reach neither the page nor the file.
+	if _, err := host.StartEditing(ctx, as(tenantB, authorA), object.ID); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("another workspace got %v, want not found", err)
+	}
+	if writes, err := pages.WritesAny(ctx, as(tenantB, authorA), []shared.ID{page}); err != nil || writes {
+		t.Fatalf("another workspace writes the page: %v, %v", writes, err)
+	}
+	foreign := tokens.Issue(wopi.Grant{TenantID: tenantB, AccountID: authorA, MediaID: object.ID, Write: true, ExpiresAt: now.Add(time.Hour)})
+	if _, err := host.CheckFileInfo(ctx, foreign, object.ID); !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("another workspace's token got %v, want not found", err)
 	}
 }

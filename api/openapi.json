@@ -33165,7 +33165,7 @@
         "operationId": "startMediaEditing",
         "x-hubtask-rest": "delegated",
         "x-hubtask-rest-to": "Wopi",
-        "description": "Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.\n",
+        "description": "Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.\n",
         "responses": {
           "200": {
             "description": "The editing session",

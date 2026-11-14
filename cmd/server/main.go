@@ -2447,6 +2447,7 @@ func run() error {
 		Clock: clockadapter.System{}, IDs: ids, SizeLimit: cfg.Request.MaxUploadBytes,
 		Files:  strings.TrimSuffix(cfg.BaseURL, "/") + rest.APIBasePath + "/wopi/files/",
 		Server: documentserver.Server{Client: outboundClient},
+		Pages:  knowledgeservice.PageMediaReach{Space: pageSpace},
 	}
 	mediaRead.Editing = wopiHost
 	documentServers := mediaservice.DocumentServers{

@@ -182,9 +182,52 @@ func (s Space) readsAnyPage(ctx context.Context, actor appshared.ActorContext, i
 	return len(readable) > 0, err
 }
 
+// writesAnyPage answers, without a record, whether the actor may write one of the pages: not in
+// the trash, admitted by its restrictions, in a hub they write in. A share only reads.
+func (s Space) writesAnyPage(ctx context.Context, actor appshared.ActorContext, ids []shared.ID) (bool, error) {
+	if len(ids) == 0 || actor.RequireScope(pagesWrite) != nil {
+		return false, nil
+	}
+	var hubs []shared.ID
+	err := s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		readers, err := s.Pages.Readers(ctx, ids)
+		if err != nil {
+			return err
+		}
+		for _, id := range ids {
+			page, err := s.find(ctx, id, false)
+			if errors.Is(err, shared.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if readers[id].Admits(actor.AccountID) && !slices.Contains(hubs, page.HubID) {
+				hubs = append(hubs, page.HubID)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	for _, hubID := range hubs {
+		if may, err := s.mayWrite(ctx, actor, hubID); err != nil || may {
+			return may, err
+		}
+	}
+	return false, nil
+}
+
 // PageMediaReach answers the media module whether a reader may read an object some pages hold
-// (GetMedia, UC-DOC-14): whoever reads one of the pages reads its pictures and files.
+// (GetMedia, UC-DOC-14): whoever reads one of the pages reads its pictures and files; and whether
+// they may edit it in the document server (UC-MED-06): whoever may write one of the pages.
 type PageMediaReach struct{ Space Space }
+
+// WritesAny answers whether the actor may write one of the pages.
+func (r PageMediaReach) WritesAny(ctx context.Context, actor appshared.ActorContext, pageIDs []shared.ID) (bool, error) {
+	return r.Space.writesAnyPage(ctx, actor, pageIDs)
+}
 
 // ReadsAny answers whether the actor reads one of the pages.
 func (r PageMediaReach) ReadsAny(ctx context.Context, actor appshared.ActorContext, pageIDs []shared.ID) (bool, error) {

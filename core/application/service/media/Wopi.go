@@ -37,8 +37,8 @@ const (
 // person, and answers a document server's CheckFileInfo, GetFile, PutFile and lock calls.
 //
 // Every call is the person's: the access token names them, and each call asks again whether they
-// may still read the file - and, to write, whether they may still change an entry or a board that
-// holds it (rule 2). The token's write flag only narrows; it never stands in for that question.
+// may still read the file - and, to write, whether they may still change an entry, a board or a
+// page that holds it (rule 2). The token's write flag only narrows; it never stands in for that question.
 type WopiHost struct {
 	Read       GetMedia
 	Wopi       repository.Wopi
@@ -56,7 +56,23 @@ type WopiHost struct {
 	Files string
 	// Server converts; nil converts nothing.
 	Server wopi.Server
+	// Pages answers whether a person may write one of the pages holding a file; nil edits no
+	// page's file.
+	Pages PageWriter
 }
+
+// PageWriter is the knowledge module's answer to whether a person may write one of some pages -
+// a page's writers are decided by its hub and its restrictions, which only that module knows.
+type PageWriter interface {
+	WritesAny(ctx context.Context, actor appshared.ActorContext, pageIDs []shared.ID) (bool, error)
+}
+
+// The knowledge module's scopes, which a document server's call carries for the questions it
+// asks of a page: the token stands for its person on that one file, and the page decides.
+const (
+	pagesRead  = "items:read"
+	pagesWrite = "items:write"
+)
 
 // EditingSession is what a person needs to open a file in the document server: the token, its
 // expiry and the server. How the browser hands them over is the launch, which is open (ADR-0104).
@@ -338,9 +354,9 @@ func (h WopiHost) caller(token string, mediaID shared.ID) (appshared.ActorContex
 	if err != nil {
 		return appshared.ActorContext{}, wopi.Grant{}, err
 	}
-	scopes := []string{mediaRead}
+	scopes := []string{mediaRead, pagesRead}
 	if grant.Write {
-		scopes = append(scopes, mediaWrite)
+		scopes = append(scopes, mediaWrite, pagesWrite)
 	}
 	return appshared.ActorContext{
 		Kind: appshared.ActorUser, TenantID: grant.TenantID, AccountID: grant.AccountID, Scopes: scopes,
@@ -380,14 +396,13 @@ func (h WopiHost) requireWrite(
 	return nil
 }
 
-// mayWrite answers whether the person may change an entry or a board that holds the file. A
-// page's file is not edited in the document server: a page has its own writers, which this
-// module does not know (UC-MED-06 *Where it ends*).
+// mayWrite answers whether the person may change an entry, a board or a page that holds the
+// file; the page's answer is the knowledge module's.
 func (h WopiHost) mayWrite(
 	ctx context.Context, actor appshared.ActorContext, object media.Object, served reach,
 ) (bool, error) {
 	if len(served.paths) == 0 {
-		return false, nil
+		return h.writesPage(ctx, actor, served)
 	}
 	allowed, err := h.Read.Reader.Permitted(ctx, actor, access.Request{
 		Permission: service.PermissionWriteItems,
@@ -404,7 +419,14 @@ func (h WopiHost) mayWrite(
 			return true, nil
 		}
 	}
-	return false, nil
+	return h.writesPage(ctx, actor, served)
+}
+
+func (h WopiHost) writesPage(ctx context.Context, actor appshared.ActorContext, served reach) (bool, error) {
+	if h.Pages == nil || len(served.pages) == 0 {
+		return false, nil
+	}
+	return h.Pages.WritesAny(ctx, actor, served.pages)
 }
 
 func (h WopiHost) underLock(ctx context.Context, actor appshared.ActorContext, mediaID shared.ID, lock string, size int64) error {

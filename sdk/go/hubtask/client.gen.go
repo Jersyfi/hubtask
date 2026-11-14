@@ -41502,7 +41502,7 @@ type ClientInterface interface {
 
 	// StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 	//
-	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 	StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConvertMediaToPdf performs a GET /media/{mediaId}:pdf (the `ConvertMediaToPdf` operationId) request.
@@ -61956,7 +61956,7 @@ func (c *Client) UploadMediaContentWithBody(ctx context.Context, mediaId MediaId
 
 // StartMediaEditing performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 //
-// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 func (c *Client) StartMediaEditing(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewStartMediaEditingRequest(c.Server, mediaId)
 	if err != nil {
@@ -120839,7 +120839,7 @@ type ClientWithResponsesInterface interface {
 
 	// StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 	//
-	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+	// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error)
@@ -182111,7 +182111,7 @@ func (c *ClientWithResponses) UploadMediaContentWithBodyWithResponse(ctx context
 
 // StartMediaEditingWithResponse performs a POST /media/{mediaId}:edit (the `StartMediaEditing` operationId) request.
 //
-// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry or a board holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
+// Opens an office file for editing in the workspace's document server: a short-lived access token for this person and this file, and the WOPI source the server reads and saves it through. Needs a right to change an entry, a board or a page holding the file; refused with `media.document_server_none` where the workspace has chosen none. Saving in the server makes a new version of the file.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) StartMediaEditingWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*StartMediaEditingResult, error) {

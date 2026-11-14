@@ -253,8 +253,9 @@ credential kind of its own: an HMAC under the purpose label `hubtask/wopi/v1`, c
 the person, the file, a write flag and an expiry two hours out; never stored, never logged (the
 query string is not a log field), refused alike when forged, expired or presented for another
 file. The document server presents it on every call; each call is asked again in the application
-layer whether its person reads the file, and to write, whether they may change an entry or a board
-holding it. The token's write flag only narrows.
+layer whether its person reads the file, and to write, whether they may change an entry, a board or a
+page holding it - a page's writers answered by the knowledge module through a port, never read
+from its tables. The token's write flag only narrows.
 
 ---
 

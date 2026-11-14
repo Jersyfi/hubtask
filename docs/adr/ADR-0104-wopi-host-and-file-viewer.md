@@ -26,7 +26,8 @@ again. Hubtask edits no file itself, and must not become a renderer of what some
   ONLYOFFICE, Euro-Office, optionally the largest vendor's browser office): CheckFileInfo,
   GetFile, PutFile and the locks. The access token is signed for one person, one file, read or
   write, two hours, never stored or logged. Every call asks again, in the application layer,
-  whether the person reads the file and may change an entry or a board holding it.
+  whether the person reads the file and may change an entry, a board or a page holding it (the
+  page's writers are the knowledge module's answer, asked through a port).
 * **A save is a new version**: the file keeps its identity, and the bytes it had become an
   object of their own, named by `media_version` and kept while the file lives.
 * **Without a document server** an office file is a card; with one it is converted to PDF by the
