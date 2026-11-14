@@ -848,44 +848,49 @@
         </Stack>
       </section>
     {/if}
-    {#if startAt && currentTab === 'foryou'}
-      <section class="panel" aria-labelledby="product-start" data-pages-start>
-        <h2 class="eyebrow" id="product-start">{t('app.product_home.pages_start')}</h2>
-        <ul class="start-rows">
-          {#each CHIP_ORDER as key (key)}
-            <li>
-              <ListRow href={`${startAt}&template=${key}`} onactivate={() => onnavigate(`${startAt}&template=${key}`)} label={t(`app.pages.template.${key}.title`)}>
-                {#snippet leading()}<span aria-hidden="true">{START_ICONS[key]}</span>{/snippet}
-                <span class="name">{t(`app.pages.template.${key}.title`)}</span>
-                {#snippet trailing()}<Icon name="chevron-right" size="sm" />{/snippet}
-              </ListRow>
-            </li>
-          {/each}
-        </ul>
-        <a class="start-all" href={startAt} onclick={(event) => { event.preventDefault(); onnavigate(startAt); }}>{t('app.product_home.pages_start_all')}</a>
-      </section>
-    {/if}
-    {#if recent.length > 0 && currentTab === 'foryou'}
-      <section aria-labelledby="product-pages">
-        <Stack gap="100">
-          <h2 class="heading" id="product-pages">{t('app.product_home.pages_recent')}</h2>
-          <ul class="hubs">
-            {#each recent as each (each.id)}
+    <!-- Recently changed and the templates side by side, as the scene draws them (phome). -->
+    {#if currentTab === 'foryou' && (startAt || recent.length > 0)}
+      <div class="pages-pair" data-pages-recent-pair>
+      {#if recent.length > 0 && currentTab === 'foryou'}
+        <section aria-labelledby="product-pages">
+          <Stack gap="100">
+            <h2 class="heading" id="product-pages">{t('app.product_home.pages_recent')}</h2>
+            <ul class="hubs">
+              {#each recent as each (each.id)}
+                <li>
+                  <ListRow href={`/pages/${each.id}`} onactivate={() => onnavigate(`/pages/${each.id}`)} label={each.title}>
+                    {#snippet leading()}<Icon name="book-open" size="sm" />{/snippet}
+                    <span class="name" title={each.title}>{each.title}</span>
+                    <span class="purpose">{[hubName(each.hub_id), formatRelative(each.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
+                    {#snippet trailing()}
+                      {#if each.due_for_review}<StateLozenge size="sm" tone="warning" icon="clock" label={t('app.pages.due_for_review')} />
+                      {:else if isVerified(each, now)}<StateLozenge size="sm" tone="success" icon="shield" label={t('app.product_home.verified')} />{/if}
+                    {/snippet}
+                  </ListRow>
+                </li>
+              {/each}
+            </ul>
+          </Stack>
+        </section>
+      {/if}
+      {#if startAt && currentTab === 'foryou'}
+        <section class="panel" aria-labelledby="product-start" data-pages-start>
+          <h2 class="eyebrow" id="product-start">{t('app.product_home.pages_start')}</h2>
+          <ul class="start-rows">
+            {#each CHIP_ORDER as key (key)}
               <li>
-                <ListRow href={`/pages/${each.id}`} onactivate={() => onnavigate(`/pages/${each.id}`)} label={each.title}>
-                  {#snippet leading()}<Icon name="book-open" size="sm" />{/snippet}
-                  <span class="name" title={each.title}>{each.title}</span>
-                  <span class="purpose">{[hubName(each.hub_id), formatRelative(each.updated_at, messages.locale)].filter(Boolean).join(' · ')}</span>
-                  {#snippet trailing()}
-                    {#if each.due_for_review}<StateLozenge size="sm" tone="warning" icon="clock" label={t('app.pages.due_for_review')} />
-                    {:else if isVerified(each, now)}<StateLozenge size="sm" tone="success" icon="shield" label={t('app.product_home.verified')} />{/if}
-                  {/snippet}
+                <ListRow href={`${startAt}&template=${key}`} onactivate={() => onnavigate(`${startAt}&template=${key}`)} label={t(`app.pages.template.${key}.title`)}>
+                  {#snippet leading()}<span aria-hidden="true">{START_ICONS[key]}</span>{/snippet}
+                  <span class="name">{t(`app.pages.template.${key}.title`)}</span>
+                  {#snippet trailing()}<Icon name="chevron-right" size="sm" />{/snippet}
                 </ListRow>
               </li>
             {/each}
           </ul>
-        </Stack>
-      </section>
+          <a class="start-all" href={startAt} onclick={(event) => { event.preventDefault(); onnavigate(startAt); }}>{t('app.product_home.pages_start_all')}</a>
+        </section>
+      {/if}
+      </div>
     {/if}
     {#if module === 'WHITEBOARD' && currentTab === 'foryou' && !isUnusedHere}
       <BoardsForYou {boards} drawn={continued.boards} opened={continued.opened} {hubName} {onnavigate} onstart={createPlaces.length > 0 ? startBoard : undefined} oncomments={(count) => (boardComments = count)} />
@@ -1011,7 +1016,7 @@
   /* design-system-lint-ignore: `primitive.breakpoint.large` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
     .pages-pair { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-    .pages-pair > [data-pages-verified] { grid-column: -2 / -1; }
+    .pages-pair > [data-pages-verified], .pages-pair > [data-pages-start] { grid-column: -2 / -1; }
   }
   .panel { display: grid; grid-template-columns: minmax(0, 1fr); min-inline-size: 0; border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-raised); }
   .panel > .eyebrow { padding: var(--sp-150) var(--sp-200) var(--sp-050); }

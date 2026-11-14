@@ -446,6 +446,10 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
     const recent = page.getByRole('region', { name: 'Recently changed pages' });
     assert.deepEqual(await recent.locator('.name').allTextContents(), [PAGES[1].title, 'Onboarding guide', 'Support rota']);
     assert.equal(await recent.getByRole('link').first().getAttribute('href'), `/pages/${PAGES[1].id}`);
+    // The templates stand beside *recently changed* where the screen is wide enough, under it otherwise.
+    const [left, right] = [await recent.boundingBox(), await start.boundingBox()];
+    if (width >= 905) assert.ok(left && right && right.x >= left.x + left.width - 1 && Math.abs(right.y - left.y) < 40, 'the templates stand beside recently changed');
+    else assert.ok(left && right && right.y >= left.y + left.height - 1, 'the templates stand under recently changed');
     await noSidewaysScroll(page, `pages ${width} ${scheme}`);
     assert.deepEqual(failures, []);
   });
