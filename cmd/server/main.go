@@ -2515,6 +2515,7 @@ func run() error {
 		knowledgeservice.ConfirmPost{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ReadPostConfirmations{Space: pageSpace}.Descriptor(),
 		knowledgeservice.RemindPost{Space: pageSpace}.Descriptor(),
+		knowledgeservice.FollowHubPosts{Space: pageSpace}.Descriptor(),
 		knowledgeservice.ListPostReplies{Space: pageSpace}.Descriptor(),
 		knowledgeservice.AddPostReply{Space: pageSpace}.Descriptor(),
 		knowledgeservice.DeletePostReply{Space: pageSpace}.Descriptor(),

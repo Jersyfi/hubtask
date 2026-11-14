@@ -266,6 +266,7 @@ var restDoors = map[string]restDoor{
 	"extendDataSubjectRequest":          {UseCase: "ExtendDataSubjectRequest", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"fetchCoverImage":                   {UseCase: "FetchCoverImage", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"findDuplicatesByTitle":             {UseCase: "FindDuplicatesByTitle", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), NoStore: true},
+	"followHubPosts":                    {UseCase: "FollowHubPosts", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"forgetPassword":                    {UseCase: "ForgetPassword", Status: 202, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: true, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil), Request: []string{"host", "tenant_header"}, Empty: true},
 	"forgetSyncDevice":                  {UseCase: "ForgetSyncDevice", Status: 204, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
 	"getAccount":                        {UseCase: "GetAccount", Status: 200, Query: []string(nil), IfMatch: false, IfMatchAs: "", StepUp: false, BodyRequired: false, ETag: "", BodyAs: "", Location: "", NullClears: false, Integers: []string(nil)},
@@ -2508,6 +2509,13 @@ func (c *RestController) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Re
 	var body openapi.FindDuplicatesByTitleJSONRequestBody
 	var answer openapi.LookalikePage
 	c.door(w, r, restDoors["findDuplicatesByTitle"], usecase.Input{}, nil, &body, &answer)
+}
+
+// FollowHubPosts answers PUT /hubs/{hubId}/posts/following by the generated mapping.
+func (c *RestController) FollowHubPosts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID) {
+	var body openapi.FollowHubPostsJSONRequestBody
+	var answer openapi.PostFollowing
+	c.door(w, r, restDoors["followHubPosts"], usecase.Input{"hub_id": hubId.String()}, nil, &body, &answer)
 }
 
 // ForgetPassword answers POST /auth/password:forgot by the generated mapping.

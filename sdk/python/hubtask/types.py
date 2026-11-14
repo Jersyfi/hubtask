@@ -6279,6 +6279,10 @@ class PostList(TypedDict, total=False):
     data: Required[list["Post"]]
     may_write: Required[bool]
     workspace_wide: Required[bool]
+    following: bool
+
+class PostFollowing(TypedDict, total=False):
+    following: Required[bool]
 
 class PostConfirmations(TypedDict, total=False):
     confirmed: Required[int]

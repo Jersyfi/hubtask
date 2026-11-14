@@ -5,6 +5,7 @@ package knowledge
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"testing"
 	"time"
@@ -81,6 +82,7 @@ type postStore struct {
 	reactions map[shared.ID]map[shared.ID]domain.Reaction
 	groups    map[shared.ID][]shared.ID
 	people    []shared.ID
+	follows   map[shared.ID][]shared.ID
 }
 
 func newPostStore() *postStore {
@@ -88,7 +90,25 @@ func newPostStore() *postStore {
 		posts: map[shared.ID]domain.Post{}, titles: map[shared.ID]string{}, seen: map[shared.ID][]shared.ID{},
 		confirmed: map[shared.ID][]shared.ID{}, reactions: map[shared.ID]map[shared.ID]domain.Reaction{},
 		groups: map[shared.ID][]shared.ID{member: {team}}, people: []shared.ID{writer, member, guest, requester},
+		follows: map[shared.ID][]shared.ID{hub: {writer, member, guest, requester}},
 	}
+}
+
+func (s *postStore) Follow(_ context.Context, hubID, account shared.ID, _ time.Time) error {
+	if !slices.Contains(s.follows[hubID], account) {
+		s.follows[hubID] = append(s.follows[hubID], account)
+	}
+	return nil
+}
+func (s *postStore) Unfollow(_ context.Context, hubID, account shared.ID) error {
+	s.follows[hubID] = slices.DeleteFunc(s.follows[hubID], func(id shared.ID) bool { return id == account })
+	return nil
+}
+func (s *postStore) Follows(_ context.Context, hubID, account shared.ID) (bool, error) {
+	return slices.Contains(s.follows[hubID], account), nil
+}
+func (s *postStore) Followers(_ context.Context, hubID shared.ID, _ int) ([]shared.ID, error) {
+	return slices.Clone(s.follows[hubID]), nil
 }
 
 func (s *postStore) Insert(_ context.Context, post domain.Post) error {
@@ -532,5 +552,45 @@ func TestAScheduledPostsLiveDocumentIsItsWritersAlone(t *testing.T) {
 	}
 	if _, err := (Locator{Space: f.space}).Locate(ctx, actorOf(writer), id); err != nil {
 		t.Fatalf("its writer is refused: %v", err)
+	}
+}
+
+// B-5: a person follows a hub's posts or stops, for themselves alone - an agent or a service
+// account is refused, and nobody without READ on the hub follows it. A post that asks for it tells
+// its hub's followers within its audience, never beyond it (UC-DOC-17 check 5).
+func TestTheHubsFollowersWithinTheAudienceAreTold(t *testing.T) {
+	f := newPostFixture()
+	f.posts.follows[hub] = nil
+	in := func(follow bool) usecase.Input { return usecase.Input{"hub_id": hub.String(), "following": follow} }
+	for _, account := range []shared.ID{member, guest} {
+		if out, err := call(t, FollowHubPosts{Space: f.space}.Descriptor(), actorOf(account), in(true)); err != nil || out["following"] != true {
+			t.Fatalf("%s follows: %v, %v", account, out, err)
+		}
+	}
+	if _, err := call(t, FollowHubPosts{Space: f.space}.Descriptor(), actorOf(requester), in(true)); err == nil {
+		t.Error("a requester who reads nothing followed the hub's posts")
+	}
+	for _, account := range []shared.ID{agent, robot} {
+		if _, err := call(t, FollowHubPosts{Space: f.space}.Descriptor(), actorOf(account), in(true)); !errors.Is(err, shared.ErrForbidden) {
+			t.Errorf("%s followed: %v; wants posts.person_follows", account, err)
+		}
+	}
+	list, err := call(t, ListHubPosts{Space: f.space}.Descriptor(), actorOf(member), usecase.Input{"hub_id": hub.String()})
+	if err != nil || list["following"] != true {
+		t.Fatalf("the member's list %v, %v; wants following", list, err)
+	}
+
+	// Published to the hub: its followers are told, the writer who published it not.
+	f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339)})
+	// Narrowed to a group the guest is not in: the guest follows but is not told.
+	f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339), "audience": "GROUPS", "group_ids": []any{team.String()}})
+	// The member stops following: the next post tells only the guest.
+	if _, err := call(t, FollowHubPosts{Space: f.space}.Descriptor(), actorOf(member), in(false)); err != nil {
+		t.Fatal(err)
+	}
+	f.post(t, usecase.Input{"publish_at": start.Format(time.RFC3339)})
+	want := [][]shared.ID{{member, guest}, {member}, {guest}}
+	if !slices.EqualFunc(f.told.published, want, slices.Equal) {
+		t.Errorf("told %v; wants %v", f.told.published, want)
 	}
 }

@@ -78,6 +78,29 @@ INSERT INTO post_read (tenant_id, page_id, account_id, read_at)
 VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('account_id'), sqlc.arg('at'))
 ON CONFLICT (tenant_id, page_id, account_id) DO NOTHING;
 
+-- name: FollowHubPosts :exec
+-- A person follows a hub's posts (B-5): told when one that asks for it goes out.
+INSERT INTO post_follow (tenant_id, hub_id, account_id, followed_at)
+VALUES (current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('account_id'), sqlc.arg('at'))
+ON CONFLICT (tenant_id, hub_id, account_id) DO NOTHING;
+
+-- name: UnfollowHubPosts :exec
+DELETE FROM post_follow
+WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND account_id = sqlc.arg('account_id');
+
+-- name: FollowsHubPosts :one
+SELECT EXISTS (
+  SELECT 1 FROM post_follow
+  WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id') AND account_id = sqlc.arg('account_id')
+)::boolean AS follows;
+
+-- name: HubPostFollowers :many
+-- Who follows the hub's posts; whom of them a post reaches is the application's to judge (rule 2).
+SELECT account_id FROM post_follow
+WHERE tenant_id = current_tenant_id() AND hub_id = sqlc.arg('hub_id')
+ORDER BY account_id
+LIMIT sqlc.arg('batch');
+
 -- name: ConfirmPost :exec
 INSERT INTO post_confirmation (tenant_id, page_id, account_id, confirmed_at)
 VALUES (current_tenant_id(), sqlc.arg('page_id'), sqlc.arg('account_id'), sqlc.arg('at'))

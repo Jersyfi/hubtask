@@ -160,6 +160,7 @@ func Descriptors() []usecase.Descriptor {
 		knowledgeservice.ConfirmPost{}.Descriptor(),
 		knowledgeservice.ReadPostConfirmations{}.Descriptor(),
 		knowledgeservice.RemindPost{}.Descriptor(),
+		knowledgeservice.FollowHubPosts{}.Descriptor(),
 		knowledgeservice.ListPostReplies{}.Descriptor(),
 		knowledgeservice.AddPostReply{}.Descriptor(),
 		knowledgeservice.DeletePostReply{}.Descriptor(),

@@ -26,7 +26,7 @@ Before the release on Monday, the product lead writes the release note from its 
 2. A scheduled post is seen by the hub's writers alone until its moment; at its moment it is published for its audience without anybody acting, dated at the moment asked.
 3. *Feature until* keeps a post on top of the hub's posts until that date; after it, the post stands among the others by its date.
 4. *Who sees it* is the hub's readers or those of them in up to 20 groups named; where every member of the workspace reads the hub, the hub's readers are offered as *Everyone in the workspace*. A person outside the audience neither lists the post, nor opens it or its page, nor finds it in a page search - it answers `posts.not_found` or `pages.not_found` as if it were not there.
-5. When the post asks for it, the hub's readers in its audience are told once it is published; the writer who published it is not.
+5. A person follows a hub's posts or stops (an agent or a service account is refused, `posts.person_follows`); when a post asks for it, those of its audience who follow the hub's posts are told once it is published - nobody beyond the audience, and not the writer who published it.
 6. Every door does the same (REST, MCP, `hubctl`): a requester who only raises requests and a person without READ on the hub are refused; a service account sees a post for the hub's readers but is in no audience; an agent sees no more than the person it acts for.
 7. In the hub column a section *Posts* stands at its foot, newest first, the unread ones with a dot, then *All posts*; the hub's posts list narrows to unread, mine and - for writers - scheduled ones.
 

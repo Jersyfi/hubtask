@@ -79,6 +79,13 @@ type Posts interface {
 	// PeopleReaching answers the people holding a role that may reach the hub - the workspace's,
 	// for a zero hub -, bounded; whether each reads it is the application's to ask.
 	PeopleReaching(ctx context.Context, hubID shared.ID, limit int) ([]shared.ID, error)
+	// Follow and Unfollow keep whether a person follows a hub's posts (B-5); Follows answers it.
+	Follow(ctx context.Context, hubID, account shared.ID, at time.Time) error
+	Unfollow(ctx context.Context, hubID, account shared.ID) error
+	Follows(ctx context.Context, hubID, account shared.ID) (bool, error)
+	// Followers answers who follows the hub's posts, bounded; whom a post reaches is the
+	// application's to judge.
+	Followers(ctx context.Context, hubID shared.ID, limit int) ([]shared.ID, error)
 	// GroupsOf answers each account's groups.
 	GroupsOf(ctx context.Context, accounts []shared.ID) (map[shared.ID][]shared.ID, error)
 	InsertReply(ctx context.Context, reply Reply) error

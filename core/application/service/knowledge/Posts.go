@@ -35,6 +35,7 @@ const (
 	ConfirmPostName           = "ConfirmPost"
 	ReadPostConfirmationsName = "ReadPostConfirmations"
 	RemindPostName            = "RemindPost"
+	FollowHubPostsName        = "FollowHubPosts"
 	ListPostRepliesName       = "ListPostReplies"
 	AddPostReplyName          = "AddPostReply"
 	DeletePostReplyName       = "DeletePostReply"
@@ -48,6 +49,7 @@ const (
 	PostSeenAction      audit.Action = "post.seen"
 	PostConfirmedAction audit.Action = "post.confirmed"
 	PostRemindedAction  audit.Action = "post.reminded"
+	PostFollowedAction  audit.Action = "post.followed"
 	PostRepliedAction   audit.Action = "post_reply.added"
 	PostReplyGoneAction audit.Action = "post_reply.deleted"
 	PostReactedAction   audit.Action = "post_reply.reacted"
@@ -385,7 +387,8 @@ func (s Space) settled(ctx context.Context, tenant shared.ID, post domain.Post, 
 	return post, false, nil
 }
 
-// told tells a just published post's audience, when it asks for that.
+// told tells those of a just published post's audience who follow its hub's posts, when it asks
+// for that.
 func (s Space) told(ctx context.Context, actor appshared.ActorContext, post domain.Post) error {
 	if s.Posting.Notify == nil || !post.Notify {
 		return nil
@@ -394,7 +397,18 @@ func (s Space) told(ctx context.Context, actor appshared.ActorContext, post doma
 	if err != nil {
 		return err
 	}
-	audience = slices.DeleteFunc(audience, func(id shared.ID) bool { return id == actor.AccountID })
+	var followers []shared.ID
+	err = s.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		followers, err = s.Posting.Posts.Followers(ctx, post.HubID, maxPeople)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	// The hub's followers are told (B-5) - within the audience, never beyond it.
+	audience = slices.DeleteFunc(audience, func(id shared.ID) bool {
+		return id == actor.AccountID || !slices.Contains(followers, id)
+	})
 	return s.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return s.Posting.Notify.PostPublished(ctx, actor.TenantID, post, audience)
 	})
@@ -445,11 +459,16 @@ func (h ListHubPosts) Execute(ctx context.Context, actor appshared.ActorContext,
 	}
 	now := h.Space.Clock.Now()
 	var rows []repository.PostRow
+	following := false
 	err = h.Space.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if _, err := h.Space.hub(ctx, hubID); err != nil {
 			return err
 		}
 		rows, err = posts.List(ctx, hubID, person(actor), repository.PostFilter{Mine: filter == "MINE", Unread: filter == "UNREAD"}, now, maxPosts)
+		if err != nil || !isPerson(actor) {
+			return err
+		}
+		following, err = posts.Follows(ctx, hubID, actor.AccountID)
 		return err
 	})
 	if err != nil {
@@ -469,7 +488,7 @@ func (h ListHubPosts) Execute(ctx context.Context, actor appshared.ActorContext,
 		// The confirmations' standing is read one post at a time, for a writer, on the post itself.
 		data = append(data, PostOutput(row, reader.WritesHub, wide, nil, now))
 	}
-	return usecase.Output{"data": data, "may_write": reader.WritesHub, "workspace_wide": reader.WritesHub && wide}, nil
+	return usecase.Output{"data": data, "may_write": reader.WritesHub, "workspace_wide": reader.WritesHub && wide, "following": following}, nil
 }
 
 // Descriptor is the catalogue entry.
@@ -871,6 +890,65 @@ func (h MarkPostSeen) Descriptor() usecase.Descriptor {
 				return nil, err
 			}
 			return h.Space.mark(ctx, actor, id, PostSeenAction, false)
+		}),
+	})
+}
+
+// FollowHubPosts lets a person follow a hub's posts, or stop: a follower is told when a post that
+// asks for it goes out, if the post is for them (B-5).
+type FollowHubPosts struct{ Space Space }
+
+// Execute follows or stops following.
+func (h FollowHubPosts) Execute(ctx context.Context, actor appshared.ActorContext, hubID shared.ID, follow bool) (usecase.Output, error) {
+	posts, err := h.Space.posts()
+	if err != nil {
+		return nil, err
+	}
+	if err := actor.RequireScope(pagesRead); err != nil {
+		return nil, err
+	}
+	if err := h.Space.Authorizer.Authorize(ctx, actor, h.Space.request(hubID, service.PermissionRead, PostFollowedAction, pagesRead, postTarget, hubID)); err != nil {
+		return nil, err
+	}
+	// Only a person follows: an agent's choice is not its person's, and a service account is in no
+	// audience.
+	if !isPerson(actor) {
+		return nil, shared.ErrForbidden.WithDetail("posts.person_follows")
+	}
+	err = h.Space.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if _, err := h.Space.hub(ctx, hubID); err != nil {
+			return err
+		}
+		if follow {
+			return posts.Follow(ctx, hubID, actor.AccountID, h.Space.Clock.Now())
+		}
+		return posts.Unfollow(ctx, hubID, actor.AccountID)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return usecase.Output{"following": follow}, nil
+}
+
+// Descriptor is the catalogue entry.
+func (h FollowHubPosts) Descriptor() usecase.Descriptor {
+	return descriptor(usecase.Descriptor{
+		Name: FollowHubPostsName, Permission: service.PermissionRead,
+		Summary: "Follows a hub's posts, or stops: a follower is told when a post that asks for it goes " +
+			"out, if the post is for them. Only a person follows, never an agent for them.",
+		SideEffects: "Records or forgets the person's following; no audit entry, since what a person follows is personal.",
+		TokenScope:  pagesRead,
+		Input: []usecase.Field{
+			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
+			{Name: "following", Kind: usecase.KindBool, Required: true, Description: "Whether the caller follows the hub's posts."},
+		},
+		Audit: usecase.AuditDeclaration{Action: PostFollowedAction, TargetType: postTarget, Severity: audit.SeverityInfo},
+		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
+			hubID, err := in.ID("hub_id")
+			if err != nil {
+				return nil, err
+			}
+			return h.Execute(ctx, actor, hubID, in.Bool("following"))
 		}),
 	})
 }

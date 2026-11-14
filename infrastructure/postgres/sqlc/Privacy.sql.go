@@ -723,6 +723,19 @@ func (q *Queries) DeletePostConfirmationsOfAccount(ctx context.Context, accountI
 	return result.RowsAffected(), nil
 }
 
+const deletePostFollowsOfAccount = `-- name: DeletePostFollowsOfAccount :execrows
+DELETE FROM post_follow WHERE tenant_id = current_tenant_id() AND account_id = $1
+`
+
+// The hubs whose posts the person follows (B-5): erased with the person.
+func (q *Queries) DeletePostFollowsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deletePostFollowsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deletePostReactionsOfAccount = `-- name: DeletePostReactionsOfAccount :execrows
 DELETE FROM post_reaction WHERE tenant_id = current_tenant_id() AND account_id = $1
 `

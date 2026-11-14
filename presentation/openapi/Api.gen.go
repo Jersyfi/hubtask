@@ -23619,9 +23619,18 @@ type PostCreateAudience string
 // PostCreateTemplate defines model for PostCreate.Template.
 type PostCreateTemplate string
 
+// PostFollowing defines model for PostFollowing.
+type PostFollowing struct {
+	// Following Whether the caller follows the hub's posts.
+	Following bool `json:"following"`
+}
+
 // PostList defines model for PostList.
 type PostList struct {
 	Data []Post `json:"data"`
+
+	// Following Whether the caller follows the hub's posts and is told when one goes out.
+	Following *bool `json:"following,omitempty"`
 
 	// MayWrite Whether the caller may write posts here.
 	MayWrite bool `json:"may_write"`
@@ -32450,6 +32459,9 @@ type CreatePageJSONRequestBody = PageCreate
 // CreatePostJSONRequestBody defines body for CreatePost for application/json ContentType.
 type CreatePostJSONRequestBody = PostCreate
 
+// FollowHubPostsJSONRequestBody defines body for FollowHubPosts for application/json ContentType.
+type FollowHubPostsJSONRequestBody = PostFollowing
+
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
@@ -34726,6 +34738,9 @@ type ServerInterface interface {
 	// CreatePost Write a new post
 	// (POST /hubs/{hubId}/posts)
 	CreatePost(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
+	// FollowHubPosts Follow a hub's posts
+	// (PUT /hubs/{hubId}/posts/following)
+	FollowHubPosts(w http.ResponseWriter, r *http.Request, hubId openapi_types.UUID)
 	// ListHubQueues A hub's queues with their counts
 	// (GET /hubs/{hubId}/queues)
 	ListHubQueues(w http.ResponseWriter, r *http.Request, hubId HubId)
@@ -49656,6 +49671,32 @@ func (siw *ServerInterfaceWrapper) CreatePost(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CreatePost(w, r, hubId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// FollowHubPosts operation middleware
+func (siw *ServerInterfaceWrapper) FollowHubPosts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hubId" -------------
+	var hubId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hubId", r.PathValue("hubId"), &hubId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hubId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FollowHubPosts(w, r, hubId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66294,6 +66335,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/page-comments/{commentId}", wrapper.ChangePageComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.ListHubPosts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/hubs/{hubId}/posts", wrapper.CreatePost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/hubs/{hubId}/posts/following", wrapper.FollowHubPosts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts", wrapper.ListUnreadPosts)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/posts/{pageId}", wrapper.ReadPost)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/posts/{pageId}", wrapper.SetPostSettings)

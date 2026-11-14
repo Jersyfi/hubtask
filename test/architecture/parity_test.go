@@ -235,6 +235,7 @@ var auditedOnlyWhenRefused = map[string]string{
 	"ConfirmPost":        "UC-DOC-18: a read confirmation is shown to the post's writers only, as MarkPostSeen",
 	"ReactToPostReply":   "UC-DOC-18: who reacted to whom, as GiveKudos",
 	"UnreactToPostReply": "UC-DOC-18, as ReactToPostReply",
+	"FollowHubPosts":     "UC-DOC-17: which hubs a person follows is theirs alone, as MarkPostSeen",
 }
 
 // Gate SG-13: a use case with security or privacy relevance carries an audit declaration

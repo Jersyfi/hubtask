@@ -23625,9 +23625,18 @@ type PostCreateAudience string
 // PostCreateTemplate defines model for PostCreate.Template.
 type PostCreateTemplate string
 
+// PostFollowing defines model for PostFollowing.
+type PostFollowing struct {
+	// Following Whether the caller follows the hub's posts.
+	Following bool `json:"following"`
+}
+
 // PostList defines model for PostList.
 type PostList struct {
 	Data []Post `json:"data"`
+
+	// Following Whether the caller follows the hub's posts and is told when one goes out.
+	Following *bool `json:"following,omitempty"`
 
 	// MayWrite Whether the caller may write posts here.
 	MayWrite bool `json:"may_write"`
@@ -32456,6 +32465,9 @@ type CreatePageJSONRequestBody = PageCreate
 // CreatePostJSONRequestBody defines body for CreatePost for application/json ContentType.
 type CreatePostJSONRequestBody = PostCreate
 
+// FollowHubPostsJSONRequestBody defines body for FollowHubPosts for application/json ContentType.
+type FollowHubPostsJSONRequestBody = PostFollowing
+
 // CreateReleaseJSONRequestBody defines body for CreateRelease for application/json ContentType.
 type CreateReleaseJSONRequestBody CreateReleaseJSONBody
 
@@ -39376,6 +39388,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
 	CreatePost(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FollowHubPostsWithBody Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPostsWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FollowHubPosts Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPosts(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListHubQueues A hub's queues with their counts
 	//
@@ -57308,6 +57338,44 @@ func (c *Client) CreatePostWithBody(ctx context.Context, hubId openapi_types.UUI
 // Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
 func (c *Client) CreatePost(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCreatePostRequest(c.Server, hubId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FollowHubPostsWithBody Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *Client) FollowHubPostsWithBody(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFollowHubPostsRequestWithBody(c.Server, hubId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FollowHubPosts Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *Client) FollowHubPosts(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFollowHubPostsRequest(c.Server, hubId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -89501,6 +89569,53 @@ func NewCreatePostRequestWithBody(server string, hubId openapi_types.UUID, conte
 	return req, nil
 }
 
+// NewFollowHubPostsRequest calls the generic FollowHubPosts builder with application/json body
+func NewFollowHubPostsRequest(server string, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewFollowHubPostsRequestWithBody(server, hubId, "application/json", bodyReader)
+}
+
+// NewFollowHubPostsRequestWithBody constructs an http.Request for the FollowHubPosts method, with any body, and a specified content type
+func NewFollowHubPostsRequestWithBody(server string, hubId openapi_types.UUID, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "hubId", hubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/hubs/%s/posts/following", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewListHubQueuesRequest constructs an http.Request for the ListHubQueues method
 func NewListHubQueuesRequest(server string, hubId HubId) (*http.Request, error) {
 	var err error
@@ -117816,6 +117931,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /hubs/{hubId}/posts (the `CreatePost` operationId).
 	CreatePostWithResponse(ctx context.Context, hubId openapi_types.UUID, body CreatePostJSONRequestBody, reqEditors ...RequestEditorFn) (*CreatePostResult, error)
 
+	// FollowHubPostsWithBodyWithResponse Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPostsWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error)
+
+	// FollowHubPostsWithResponse Follow a hub's posts
+	//
+	// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+	FollowHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error)
+
 	// ListHubQueuesWithResponse A hub's queues with their counts
 	//
 	// The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
@@ -144346,6 +144479,54 @@ func (r CreatePostResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CreatePostResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type FollowHubPostsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *PostFollowing
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r FollowHubPostsResult) GetJSON200() *PostFollowing {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r FollowHubPostsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r FollowHubPostsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r FollowHubPostsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FollowHubPostsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r FollowHubPostsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -177160,6 +177341,36 @@ func (c *ClientWithResponses) CreatePostWithResponse(ctx context.Context, hubId 
 	return ParseCreatePostResult(rsp)
 }
 
+// FollowHubPostsWithBodyWithResponse Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *ClientWithResponses) FollowHubPostsWithBodyWithResponse(ctx context.Context, hubId openapi_types.UUID, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error) {
+	rsp, err := c.FollowHubPostsWithBody(ctx, hubId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFollowHubPostsResult(rsp)
+}
+
+// FollowHubPostsWithResponse Follow a hub's posts
+//
+// Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /hubs/{hubId}/posts/following (the `FollowHubPosts` operationId).
+func (c *ClientWithResponses) FollowHubPostsWithResponse(ctx context.Context, hubId openapi_types.UUID, body FollowHubPostsJSONRequestBody, reqEditors ...RequestEditorFn) (*FollowHubPostsResult, error) {
+	rsp, err := c.FollowHubPosts(ctx, hubId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFollowHubPostsResult(rsp)
+}
+
 // ListHubQueuesWithResponse A hub's queues with their counts
 //
 // The hub's saved views marked as queues the caller sees - their own and those shared at the hub - by `queue_position`, each with how many entries its query holds and how many of them are `AT_RISK` or `BREACHED`, counted by the view's own filter with the caller's own permissions. A hub with a desk and no queue view answers the four standard queues by `key` - `mine`, `unassigned`, `breaching` and `open` - with `view_id` and `name` null, over the open entries of its desks; a hub with neither answers none. `desks` names the hub's desks either way. A count that takes longer than two seconds, or whose view anchors something the caller may not read, is null. Needs READ on the hub and the service desk switched on.
@@ -201903,6 +202114,39 @@ func ParseCreatePostResult(rsp *http.Response) (*CreatePostResult, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseFollowHubPostsResult parses an HTTP response from a FollowHubPostsWithResponse call
+func ParseFollowHubPostsResult(rsp *http.Response) (*FollowHubPostsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FollowHubPostsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest PostFollowing
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

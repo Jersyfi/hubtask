@@ -445,6 +445,10 @@ DELETE FROM post_read WHERE tenant_id = current_tenant_id() AND account_id = sql
 -- The read confirmations the person gave (UC-DOC-18 check 6).
 DELETE FROM post_confirmation WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
 
+-- name: DeletePostFollowsOfAccount :execrows
+-- The hubs whose posts the person follows (B-5): erased with the person.
+DELETE FROM post_follow WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');
+
 -- name: DeletePostReactionsOfAccount :execrows
 -- The reactions the person gave in a post's discussion (UC-DOC-18 check 6).
 DELETE FROM post_reaction WHERE tenant_id = current_tenant_id() AND account_id = sqlc.arg('account_id');

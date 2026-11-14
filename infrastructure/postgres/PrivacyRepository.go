@@ -716,10 +716,12 @@ func (r PrivacyRepository) DiscardArrangements(ctx context.Context, accountID sh
 		"the delegations":        queries.DeleteDelegationsOfAccount,
 		"the chat links":         queries.DeleteChatLinksOfAccount,
 		"the own settings":       queries.DeletePersonSettingsOfAccount,
-		// What the person saw, confirmed and reacted to under posts (UC-DOC-18 check 6).
+		// What the person saw, confirmed and reacted to under posts (UC-DOC-18 check 6), and the
+		// hubs whose posts they follow.
 		"the posts seen":      queries.DeletePostReadsOfAccount,
 		"the confirmations":   queries.DeletePostConfirmationsOfAccount,
 		"the reactions given": queries.DeletePostReactionsOfAccount,
+		"the posts followed":  queries.DeletePostFollowsOfAccount,
 	} {
 		rows, err := remove(ctx, id)
 		if err != nil {

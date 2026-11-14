@@ -2434,6 +2434,14 @@ var generatedCommands = []door{
 			{Name: "title", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"title", "state"}},
+	{Group: "post", Verb: "follow", OperationID: "followHubPosts", Method: "PUT", Path: "/hubs/{hubId}/posts/following", Summary: "Follow a hub's posts",
+		PathParams: []doorParam{
+			{Name: "hubId", Kind: "uuid", Help: "", Required: true},
+		},
+		Body: []doorParam{
+			{Name: "following", Kind: "boolean", Help: "Whether the caller follows the hub's posts", Required: true},
+		},
+		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"following"}},
 	{Group: "post", Verb: "get", OperationID: "readPost", Method: "GET", Path: "/posts/{pageId}", Summary: "Read a post",
 		PathParams: []doorParam{
 			{Name: "pageId", Kind: "uuid", Help: "", Required: true},

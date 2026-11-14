@@ -3371,6 +3371,9 @@ func (pending) SetCoverImagesPolicy(w http.ResponseWriter, r *http.Request)  { n
 func (pending) ListHubPosts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.ListHubPostsParams) {
 	notAvailable(w, r)
 }
+func (pending) FollowHubPosts(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
 func (pending) CreatePost(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }

@@ -34435,6 +34435,54 @@
         }
       }
     },
+    "/hubs/{hubId}/posts/following": {
+      "parameters": [
+        {
+          "name": "hubId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "pages"
+        ],
+        "operationId": "followHubPosts",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "post follow",
+        "summary": "Follow a hub's posts",
+        "description": "Follows the hub's posts, or stops. A follower is told when a post that asks for it goes out - only one that is for them; a post never reaches anybody beyond its audience. Only a person follows: an agent or a service account is refused `posts.person_follows`. Needs READ on the hub.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostFollowing"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostFollowing"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/posts": {
       "get": {
         "tags": [
@@ -71528,6 +71576,22 @@
           "workspace_wide": {
             "type": "boolean",
             "description": "For a writer: every member of the workspace reads the hub, so its readers are everyone in the workspace."
+          },
+          "following": {
+            "type": "boolean",
+            "description": "Whether the caller follows the hub's posts and is told when one goes out."
+          }
+        }
+      },
+      "PostFollowing": {
+        "type": "object",
+        "required": [
+          "following"
+        ],
+        "properties": {
+          "following": {
+            "type": "boolean",
+            "description": "Whether the caller follows the hub's posts."
           }
         }
       },

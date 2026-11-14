@@ -160,6 +160,43 @@ func (q *Queries) FindPostReply(ctx context.Context, id pgtype.UUID) (FindPostRe
 	return i, err
 }
 
+const followHubPosts = `-- name: FollowHubPosts :exec
+INSERT INTO post_follow (tenant_id, hub_id, account_id, followed_at)
+VALUES (current_tenant_id(), $1, $2, $3)
+ON CONFLICT (tenant_id, hub_id, account_id) DO NOTHING
+`
+
+type FollowHubPostsParams struct {
+	HubID     pgtype.UUID
+	AccountID pgtype.UUID
+	At        pgtype.Timestamptz
+}
+
+// A person follows a hub's posts (B-5): told when one that asks for it goes out.
+func (q *Queries) FollowHubPosts(ctx context.Context, arg FollowHubPostsParams) error {
+	_, err := q.db.Exec(ctx, followHubPosts, arg.HubID, arg.AccountID, arg.At)
+	return err
+}
+
+const followsHubPosts = `-- name: FollowsHubPosts :one
+SELECT EXISTS (
+  SELECT 1 FROM post_follow
+  WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND account_id = $2
+)::boolean AS follows
+`
+
+type FollowsHubPostsParams struct {
+	HubID     pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) FollowsHubPosts(ctx context.Context, arg FollowsHubPostsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, followsHubPosts, arg.HubID, arg.AccountID)
+	var follows bool
+	err := row.Scan(&follows)
+	return follows, err
+}
+
 const groupsOfAccounts = `-- name: GroupsOfAccounts :many
 SELECT gm.account_id, gm.group_id FROM account_group_member gm
 WHERE gm.tenant_id = current_tenant_id() AND gm.account_id = ANY($1::uuid[])
@@ -185,6 +222,39 @@ func (q *Queries) GroupsOfAccounts(ctx context.Context, accountIds []pgtype.UUID
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const hubPostFollowers = `-- name: HubPostFollowers :many
+SELECT account_id FROM post_follow
+WHERE tenant_id = current_tenant_id() AND hub_id = $1
+ORDER BY account_id
+LIMIT $2
+`
+
+type HubPostFollowersParams struct {
+	HubID pgtype.UUID
+	Batch int32
+}
+
+// Who follows the hub's posts; whom of them a post reaches is the application's to judge (rule 2).
+func (q *Queries) HubPostFollowers(ctx context.Context, arg HubPostFollowersParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, hubPostFollowers, arg.HubID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []pgtype.UUID{}
+	for rows.Next() {
+		var account_id pgtype.UUID
+		if err := rows.Scan(&account_id); err != nil {
+			return nil, err
+		}
+		items = append(items, account_id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -650,6 +720,21 @@ func (q *Queries) TakeBackPostReply(ctx context.Context, arg TakeBackPostReplyPa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const unfollowHubPosts = `-- name: UnfollowHubPosts :exec
+DELETE FROM post_follow
+WHERE tenant_id = current_tenant_id() AND hub_id = $1 AND account_id = $2
+`
+
+type UnfollowHubPostsParams struct {
+	HubID     pgtype.UUID
+	AccountID pgtype.UUID
+}
+
+func (q *Queries) UnfollowHubPosts(ctx context.Context, arg UnfollowHubPostsParams) error {
+	_, err := q.db.Exec(ctx, unfollowHubPosts, arg.HubID, arg.AccountID)
+	return err
 }
 
 const updatePost = `-- name: UpdatePost :execrows

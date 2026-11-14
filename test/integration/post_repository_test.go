@@ -247,6 +247,9 @@ func TestAPersonsPostTracesAreErased(t *testing.T) {
 		if err := posts.Confirm(ctx, page, subject, at); err != nil {
 			return err
 		}
+		if err := posts.Follow(ctx, hub, subject, at); err != nil {
+			return err
+		}
 		for _, r := range []repository.Reply{
 			{ID: lone, PageID: page, AuthorID: subject, Body: "Thanks", CreatedAt: at},
 			{ID: answered, PageID: page, AuthorID: subject, Body: "A question", CreatedAt: at},
@@ -263,12 +266,13 @@ func TestAPersonsPostTracesAreErased(t *testing.T) {
 	traces := func() int {
 		return countIn(ctx, t, `SELECT (SELECT count(*) FROM post_read WHERE account_id = $1)
 			+ (SELECT count(*) FROM post_confirmation WHERE account_id = $1)
-			+ (SELECT count(*) FROM post_reaction WHERE account_id = $1)`, subject.String())
+			+ (SELECT count(*) FROM post_reaction WHERE account_id = $1)
+			+ (SELECT count(*) FROM post_follow WHERE account_id = $1)`, subject.String())
 	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		_, err := privacyRepo().DiscardArrangements(ctx, subject)
 		return err
-	}); err == nil && traces() != 3 {
+	}); err == nil && traces() != 4 {
 		t.Fatalf("another workspace removed the traces: %d left", traces())
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
@@ -350,5 +354,64 @@ func TestTheUnreadPostsAreReadAcrossHubs(t *testing.T) {
 	}
 	if slices.Contains(unread(tenantA, later), page) {
 		t.Error("a seen post is still new")
+	}
+}
+
+// Following a hub's posts (B-5): set, answered and listed in its own workspace, forgotten on
+// unfollowing; the workspace next door neither sees nor changes it (rule 3).
+func TestFollowingAHubsPostsStaysInItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	hub, _, _, at := seedPost(ctx, t)
+	follower := seedAccount(ctx, t, tenantA)
+	posts := postgres.NewPostRepository()
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := posts.Follow(ctx, hub, follower, at); err != nil {
+			return err
+		}
+		return posts.Follow(ctx, hub, follower, at.Add(time.Minute))
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		follows, err := posts.Follows(ctx, hub, follower)
+		if err != nil || !follows {
+			t.Errorf("follows %v, %v; wants following", follows, err)
+		}
+		followers, err := posts.Followers(ctx, hub, 100)
+		if err != nil || !slices.Equal(followers, []shared.ID{follower}) {
+			t.Errorf("followers %v, %v; wants the follower once", followers, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if follows, err := posts.Follows(ctx, hub, follower); err != nil || follows {
+			t.Errorf("next door answers following %v, %v", follows, err)
+		}
+		if followers, err := posts.Followers(ctx, hub, 100); err != nil || len(followers) != 0 {
+			t.Errorf("next door lists followers %v, %v", followers, err)
+		}
+		if err := posts.Unfollow(ctx, hub, follower); err != nil {
+			return err
+		}
+		if err := posts.Follow(ctx, hub, follower, at); err == nil {
+			t.Error("next door followed a hub it does not hold")
+		}
+		return nil
+	}); err != nil {
+		t.Logf("next door's write refused: %v", err)
+	}
+	if countIn(ctx, t, `SELECT count(*) FROM post_follow WHERE hub_id = $1`, hub.String()) != 1 {
+		t.Fatal("next door changed who follows the hub")
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return posts.Unfollow(ctx, hub, follower)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if countIn(ctx, t, `SELECT count(*) FROM post_follow WHERE hub_id = $1`, hub.String()) != 0 {
+		t.Error("unfollowing left the row")
 	}
 }

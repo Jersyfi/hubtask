@@ -953,6 +953,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `post.changed` | SetPostSettings | `post` | INFO | Every time |
 | `post.confirmed` | ConfirmPost | `post` | INFO | When refused |
 | `post.created` | CreatePost | `post` | INFO | Every time |
+| `post.followed` | FollowHubPosts | `post` | INFO | When refused |
 | `post.published` | PublishPost | `post` | INFO | Every time |
 | `post.read` | ListHubPosts | `post` | INFO | When refused |
 | `post.read` | ListPostReplies | `post` | INFO | When refused |

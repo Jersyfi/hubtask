@@ -15684,6 +15684,7 @@
   "posts.not_found": "This post does not exist or is not for you.",
   "posts.not_published": "This post is not published yet.",
   "posts.person_confirms": "Only a person confirms having read a post, never an agent or a service account for them.",
+  "posts.person_follows": "Only a person follows a hub's posts, never an agent or a service account for them.",
   "posts.person_reacts": "Only a person reacts in a discussion, never an agent or a service account for them.",
   "posts.reply_length": "A reply needs words, at most 64 KB of them.",
   "posts.reply_not_found": "This reply does not exist.",

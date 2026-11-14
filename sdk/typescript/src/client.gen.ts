@@ -4242,6 +4242,11 @@ export class HubtaskClient {
     return this.call("POST", "/hubs/{hubId}/posts", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Follow a hub's posts */
+  followHubPosts(hubId: string, body: NonNullable<operations["followHubPosts"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["followHubPosts"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/hubs/{hubId}/posts/following", { "hubId": hubId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The posts new for the caller */
   listUnreadPosts(options: CallOptions = {}): Promise<operations["listUnreadPosts"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/posts", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

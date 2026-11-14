@@ -302,6 +302,72 @@ func (PostRepository) PeopleReaching(ctx context.Context, hubID shared.ID, limit
 	return idsFrom(rows)
 }
 
+// Follow records that the account follows the hub's posts, once.
+func (PostRepository) Follow(ctx context.Context, hubID, account shared.ID, at time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	ids, err := pageUUIDs(hubID, account)
+	if err != nil {
+		return err
+	}
+	if err := queries.FollowHubPosts(ctx, sqlc.FollowHubPostsParams{HubID: ids[0], AccountID: ids[1], At: timestampOf(at)}); err != nil {
+		return pageFailed("following a hub's posts", err)
+	}
+	return nil
+}
+
+// Unfollow forgets that the account follows the hub's posts.
+func (PostRepository) Unfollow(ctx context.Context, hubID, account shared.ID) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	ids, err := pageUUIDs(hubID, account)
+	if err != nil {
+		return err
+	}
+	if err := queries.UnfollowHubPosts(ctx, sqlc.UnfollowHubPostsParams{HubID: ids[0], AccountID: ids[1]}); err != nil {
+		return pageFailed("unfollowing a hub's posts", err)
+	}
+	return nil
+}
+
+// Follows answers whether the account follows the hub's posts.
+func (PostRepository) Follows(ctx context.Context, hubID, account shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	ids, err := pageUUIDs(hubID, account)
+	if err != nil {
+		return false, err
+	}
+	follows, err := queries.FollowsHubPosts(ctx, sqlc.FollowsHubPostsParams{HubID: ids[0], AccountID: ids[1]})
+	if err != nil {
+		return false, pageFailed("reading whether a hub's posts are followed", err)
+	}
+	return follows, nil
+}
+
+// Followers answers who follows the hub's posts.
+func (PostRepository) Followers(ctx context.Context, hubID shared.ID, limit int) ([]shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids, err := pageUUIDs(hubID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.HubPostFollowers(ctx, sqlc.HubPostFollowersParams{HubID: ids[0], Batch: boundedInt32(min(limit, 100000))})
+	if err != nil {
+		return nil, pageFailed("reading a hub's post followers", err)
+	}
+	return idsFrom(rows)
+}
+
 // GroupsOf answers each account's groups.
 func (PostRepository) GroupsOf(ctx context.Context, accounts []shared.ID) (map[shared.ID][]shared.ID, error) {
 	out := map[shared.ID][]shared.ID{}

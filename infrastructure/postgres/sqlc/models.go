@@ -2731,6 +2731,13 @@ type PostConfirmation struct {
 	ConfirmedAt pgtype.Timestamptz
 }
 
+type PostFollow struct {
+	TenantID   pgtype.UUID
+	HubID      pgtype.UUID
+	AccountID  pgtype.UUID
+	FollowedAt pgtype.Timestamptz
+}
+
 type PostReaction struct {
 	TenantID  pgtype.UUID
 	ReplyID   pgtype.UUID

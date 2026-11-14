@@ -124,6 +124,7 @@ var subjectColumns = map[string][]string{
 	"post_confirmation": {"account_id"},
 	"post_reply":        {"author_id"},
 	"post_reaction":     {"account_id"},
+	"post_follow":       {"account_id"},
 	// The public forms they made, whose requests are filed as them.
 	"public_form": {"created_by"},
 	// The articles they published to a portal and the ones they rated.
