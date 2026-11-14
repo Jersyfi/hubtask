@@ -95,7 +95,8 @@ func (p *pass) item(ctx context.Context, item domain.Item) (domain.Decision, err
 		}
 		return d, nil
 	case len(ident.Matches) == 1:
-		ci, err := p.s.Store.FindCI(ctx, ident.Matches[0], true)
+		// A dry run reads in a read-only transaction, which refuses the lock.
+		ci, err := p.s.Store.FindCI(ctx, ident.Matches[0], !p.dry)
 		if err != nil {
 			return d, err
 		}

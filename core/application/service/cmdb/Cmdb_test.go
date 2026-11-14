@@ -96,6 +96,8 @@ type memory struct {
 	dups      []domain.Duplicate
 	// wide is a value whose lookup the index refuses as too wide.
 	wide string
+	// locked counts the objects read to be written: a read-only transaction refuses the lock.
+	locked int
 }
 
 func newMemory() *memory {
@@ -128,7 +130,10 @@ func (m *memory) UpdateCI(_ context.Context, ci domain.CI, expected int) error {
 	m.cis[ci.ID] = ci
 	return nil
 }
-func (m *memory) FindCI(_ context.Context, id shared.ID, _ bool) (domain.CI, error) {
+func (m *memory) FindCI(_ context.Context, id shared.ID, lock bool) (domain.CI, error) {
+	if lock {
+		m.locked++
+	}
 	ci, ok := m.cis[id]
 	if !ok {
 		return domain.CI{}, shared.ErrNotFound.WithDetail("cmdb.ci_not_found")
@@ -428,6 +433,23 @@ func TestADryRunWritesNothingAndAnUpdateOnlySourceHolds(t *testing.T) {
 		map[string]any{"class": "server", "name": "web9", "native_key": "9"})})
 	if !slices.Equal(outcomes(out), []string{"HOLD"}) || f.m.holds[0].Reason != domain.HoldMayNotCreate {
 		t.Fatalf("update-only source %v", outcomes(out))
+	}
+}
+
+// A dry run that finds an object reads it without locking it: it runs in a read-only
+// transaction, which refuses a lock (UC-AST-02 check 5).
+func TestADryRunFindsAnObjectWithoutLockingIt(t *testing.T) {
+	f := newFixture()
+	if _, err := call(t, CreateCi{f.inv}.Descriptor(), as(anna), usecase.Input{
+		"hub_id": hub.String(), "class": "server", "name": "web1", "attributes": map[string]any{"asset_tag": "T-1"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	f.m.locked = 0
+	out, err := call(t, ReconcileCis{f.inv}.Descriptor(), as(anna), usecase.Input{"hub_id": hub.String(), "source": "netbox", "dry_run": true,
+		"items": items(map[string]any{"class": "server", "name": "web1", "attributes": map[string]any{"asset_tag": "T-1"}})})
+	if err != nil || len(outcomes(out)) != 1 || outcomes(out)[0] == "CREATE" || f.m.locked != 0 {
+		t.Fatalf("dry run %v, %v; %d locked", outcomes(out), err, f.m.locked)
 	}
 }
 
