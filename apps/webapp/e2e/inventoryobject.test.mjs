@@ -144,6 +144,12 @@ async function open(browser, { width = 1280, height = 900, path = `/cis/${PORTAL
       const was = CIS.find((each) => each.id === compliance[1]);
       return route.fulfill({ json: { ...was, ...body, version: was.version + 1 } });
     }
+    const confirmed = /^\/cis\/([^/]+):confirm$/.exec(at);
+    if (confirmed && method === 'POST') {
+      written.push({ call: `POST ${at}`, body: request.postDataJSON() });
+      const was = CIS.find((each) => each.id === confirmed[1]);
+      return route.fulfill({ json: { ...was, review_due: '2027-11-14', confirmed_at: '2026-11-14T10:00:00Z', confirmed_by: ACCOUNT.id, version: was.version + 1 } });
+    }
     const affect = /^\/items\/([^/]+)\/cis\/([^/]+)$/.exec(at);
     if (affect && method === 'PUT') {
       written.push({ call: `PUT ${at}` });
@@ -198,6 +204,40 @@ test('chromium: the head says the stage as a step bar, and a writer changes it t
   await menu.getByRole('menuitem', { name: 'In maintenance' }).click();
   const put = await waitFor(page, written, `PUT /cis/${PORTAL_ID}/compliance`);
   assert.deepEqual(put.body, { stage: 'MAINTENANCE' });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the head\'s primary act confirms the object beside its review day', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures, written } = await open(browser);
+  t.after(() => context.close());
+
+  await page.getByRole('list', { name: 'Stage of Portal-API' }).waitFor({ timeout: 20_000 });
+  // The scene `grammar`: the status, the primary *Confirm*, the chip with the review day.
+  const bar = head(page).locator('.action-bar');
+  assert.match((await bar.innerText()).replace(/\s+/gu, ' '), /Confirm Review Feb 9, 2027/u);
+  assert.equal(await bar.getByRole('button', { name: 'Confirm', exact: true }).evaluate((each) => each.closest('.step') !== null), true, 'Confirm is the head\'s step');
+  await bar.getByRole('button', { name: 'Confirm', exact: true }).click();
+  const post = await waitFor(page, written, `POST /cis/${PORTAL_ID}:confirm`);
+  assert.deepEqual(post.body, {});
+  await page.getByRole('status').filter({ hasText: 'Confirmed. Next review on Nov 14, 2027.' }).waitFor({ state: 'attached', timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owning person confirms their object without write; the meta line reads the confirmation', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const confirmedAt = '2026-11-02T09:30:00Z';
+  LAPTOP.confirmed_at = confirmedAt;
+  t.after(() => delete LAPTOP.confirmed_at);
+  const { page, context, failures } = await open(browser, { role: 'VIEWER', path: `/cis/${LAPTOP.id}` });
+  t.after(() => context.close());
+
+  await page.getByRole('list', { name: 'Stage of NB-0417' }).waitFor({ timeout: 20_000 });
+  assert.equal(await head(page).getByRole('button', { name: 'Confirm', exact: true }).count(), 1, 'the owner is offered Confirm');
+  assert.equal(await page.getByRole('button', { name: 'Change stage', exact: true }).count(), 0, 'a reader changes no stage');
+  assert.match((await head(page).innerText()).replace(/\s+/gu, ' '), /confirmed Nov 2, 2026/u);
   assert.deepEqual(failures, []);
 });
 
@@ -391,7 +431,7 @@ test('chromium: at 390 px the object is read only - the step bar scrolls, the ma
   assert.equal(await page.locator('#ci-attributes').isVisible(), false);
   await marks(page).getByRole('link', { name: /Work on it/u }).click();
   await page.locator('#ci-work').waitFor({ state: 'visible', timeout: 5_000 });
-  for (const name of ['Change stage', 'Report an incident', 'Start work on it', 'Relation', 'Change', 'set', 'Add the register record']) {
+  for (const name of ['Confirm', 'Change stage', 'Report an incident', 'Start work on it', 'Relation', 'Change', 'set', 'Add the register record']) {
     assert.equal(await page.getByRole('button', { name, exact: true }).count(), 0, `${name} is drawn on a phone`);
   }
   // The step bar scrolls sideways inside itself; the page does not.
@@ -409,7 +449,7 @@ test('chromium: a reader without write sees no write anywhere', async (t) => {
   await page.locator('[data-ci-graph]').waitFor({ timeout: 20_000 });
   await page.locator('#ci-work [data-work=open]').waitFor({ timeout: 10_000 });
   await page.locator('[data-register-empty]').waitFor({ timeout: 10_000 });
-  for (const name of ['Change stage', 'Report an incident', 'Start work on it', 'Relation', 'Change', 'set', 'Add the register record']) {
+  for (const name of ['Confirm', 'Change stage', 'Report an incident', 'Start work on it', 'Relation', 'Change', 'set', 'Add the register record']) {
     assert.equal(await page.getByRole('button', { name, exact: true }).count(), 0, `${name} is drawn for a reader`);
   }
   assert.equal(await page.locator('[data-missing-attributes]').evaluate((each) => each.tagName), 'P', 'the missing attributes are said, not offered');

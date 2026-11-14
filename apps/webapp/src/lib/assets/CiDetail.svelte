@@ -10,7 +10,7 @@
   // saved groups (`CiRail`).
   //
   // **What the reader may never do is not drawn** (P-05): without WRITE_ITEMS there is no edit, no
-  // relate, no stage and no *report an incident*. A phone reads (UC-AST-01 check 10): the marks are
+  // relate, no stage and no *report an incident*; *Confirm* is the owning person's or a writer's. A phone reads (UC-AST-01 check 10): the marks are
   // the switch between the sections, and nothing writes there; the stage and the reports also wait
   // for the network.
   import { placeMark } from '../workspace/PlaceMark.svelte';
@@ -36,7 +36,7 @@
   import { resource, resourceWhen } from '../data/resource.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import AttributeField from './AttributeField.svelte';
@@ -69,6 +69,9 @@
   /** A writer on a screen that writes; the stage and the reports also need the network. */
   const mayEdit = $derived(mayWrite && !viewport.isCompact && !ci.merged_into);
   const mayAct = $derived(mayEdit && live.state !== 'offline');
+  /** *Confirm*: the owning person reads and confirms their own object, a writer any (UC-AST-10). */
+  const isOwner = $derived(Boolean(ci.owner_account_id) && ci.owner_account_id === actor.account?.id);
+  const mayConfirm = $derived((mayWrite || isOwner) && !viewport.isCompact && !ci.merged_into && live.state !== 'offline');
 
   // The hub's objects: the names a relation's other end and a location are shown by, the owners and
   // needs an impact row says, the objects a relation may be made to. An end beyond the first page is
@@ -149,10 +152,11 @@
   const holding = $derived(groupsHolding(ci, saved, { classes, me: actor.account?.id, tags }));
 
   // The head: confirmed when and kept by whom, the stage as a path, the stage changed by a writer.
+  const confirmedWhen = $derived(ci.confirmed_at ?? ci.last_seen_at);
   const sources = $derived([...new Set(Object.values(ci.provenance).map((each) => each.source))].filter((each) => each !== 'manual'));
   const meta = $derived(
     [
-      ci.last_seen_at ? t('app.object.confirmed', { when: formatDateTime(ci.last_seen_at, messages.locale) }) : t('app.object.never_confirmed'),
+      confirmedWhen ? t('app.object.confirmed', { when: formatDateTime(confirmedWhen, messages.locale) }) : t('app.object.never_confirmed'),
       sources.length > 0 ? t('app.object.kept_from', { sources: sources.join(', ') }) : t('app.object.kept_by_hand'),
     ].join(' · '),
   );
@@ -170,6 +174,26 @@
       isStaging = false;
     }
   }
+
+  // *Confirm* (scene `grammar`): the object is as recorded, its next review moves a year on.
+  let isConfirming = $state(false);
+  async function confirm() {
+    if (isConfirming) return;
+    isConfirming = true;
+    try {
+      const answer = await cmdb.confirm(ci);
+      toast.show({ text: t('app.object.confirmed_toast', { day: formatPlainDay(answer.review_due, messages.locale) }), tone: 'success' });
+    } catch (error) {
+      toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
+    } finally {
+      isConfirming = false;
+    }
+  }
+  const reviewChip = $derived(
+    ci.review_due
+      ? { label: t('app.object.review_chip', { day: formatPlainDay(ci.review_due, messages.locale) }), tone: ci.review_due < new Date().toISOString().slice(0, 10) ? ('warning' as const) : ('neutral' as const) }
+      : undefined,
+  );
 
   async function copyReference() {
     try {
@@ -282,6 +306,8 @@
       trail={hub && !viewport.isCompact ? ciTrail : undefined}
       tools={headTools}
       menu={headMenu}
+      next={mayConfirm ? { label: t('app.object.confirm'), icon: 'check', onclick: () => void confirm() } : undefined}
+      due={reviewChip}
       facts={ci.status !== 'OK' ? statusFact : undefined}
       end={mayAct ? stageMenu : undefined}
     >

@@ -76,6 +76,13 @@ class Cmdb {
     });
   }
 
+  /** The object is as recorded: its next review moves on, an open round's question about it is answered. */
+  confirm(ci: Pick<ConfigurationItem, 'id' | 'hub_id'>, reviewMonths?: number): Promise<ConfigurationItem> {
+    return engine.mutate<ConfigurationItem>('POST', `${ciPath(ci.id)}:confirm`, reviewMonths ? { review_months: reviewMonths } : {}, {
+      invalidates: [ciPath(ci.id), ...inventory(ci.hub_id), campaignsPath(ci.hub_id), '/ci-campaigns/'],
+    });
+  }
+
   setCompliance(ci: ConfigurationItem, body: CiCompliance): Promise<ConfigurationItem> {
     return engine.mutate<ConfigurationItem>('PUT', `${ciPath(ci.id)}/compliance`, body, {
       ifMatch: `"${ci.version}"`,
