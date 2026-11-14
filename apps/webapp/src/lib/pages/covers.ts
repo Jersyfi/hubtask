@@ -10,14 +10,14 @@ export interface PageCover { readonly source: CoverSource; readonly key: string;
 const chart = (n: number) => `var(--chart-categorical-${n})`;
 const soft = (name: string) => `var(--label-${name}-bg)`;
 
-/** Six strong gradients of the chart colours, six soft ones of the labels' surfaces. */
+/** Six strong gradients of the seven chart colours, six soft ones of the labels' surfaces. */
 export const GRADIENTS: Readonly<Record<string, readonly [string, string]>> = {
   'indigo-teal': [chart(1), chart(2)],
   'rose-amber': [chart(4), chart(3)],
   'green-sky': [chart(5), chart(6)],
   'amber-red': [chart(3), chart(7)],
-  'slate-violet': [chart(8), chart(9)],
-  'sky-violet': [chart(10), chart(11)],
+  'red-indigo': [chart(7), chart(1)],
+  'sky-indigo': [chart(6), chart(1)],
   'soft-teal': [soft('teal'), soft('blue')],
   'soft-violet': [soft('violet'), soft('magenta')],
   'soft-amber': [soft('amber'), soft('orange')],
@@ -31,9 +31,9 @@ export const GALLERY: Readonly<Record<string, string>> = {
   dawn: `radial-gradient(circle at 20% 110%, ${chart(3)} 0 30%, transparent 31%), radial-gradient(circle at 75% 25%, ${soft('amber')} 0 12%, transparent 13%), linear-gradient(180deg, ${chart(4)}, ${soft('orange')})`,
   hills: `radial-gradient(ellipse 60% 50% at 25% 100%, ${chart(5)} 0 99%, transparent 100%), radial-gradient(ellipse 70% 45% at 80% 100%, ${chart(2)} 0 99%, transparent 100%), linear-gradient(180deg, ${soft('blue')}, ${soft('teal')})`,
   tide: `repeating-radial-gradient(circle at 50% 160%, ${chart(6)} 0 6%, ${chart(1)} 6% 12%)`,
-  stripes: `repeating-linear-gradient(135deg, ${chart(9)} 0 var(--sp-300), ${chart(11)} var(--sp-300) var(--sp-600))`,
+  stripes: `repeating-linear-gradient(135deg, ${chart(1)} 0 var(--sp-300), ${chart(4)} var(--sp-300) var(--sp-600))`,
   dots: `radial-gradient(circle, ${chart(1)} 0 var(--sp-025), transparent var(--sp-050)) 0 0 / var(--sp-300) var(--sp-300), linear-gradient(90deg, ${soft('violet')}, ${soft('blue')})`,
-  night: `radial-gradient(circle at 80% 30%, ${soft('amber')} 0 6%, transparent 7%), linear-gradient(180deg, ${chart(8)}, ${chart(9)})`,
+  night: `radial-gradient(circle at 80% 30%, ${soft('amber')} 0 6%, transparent 7%), linear-gradient(180deg, ${chart(1)}, ${chart(7)})`,
 };
 
 /** How a cover draws as a background; nothing for a key this client does not know or an image not resolved. */

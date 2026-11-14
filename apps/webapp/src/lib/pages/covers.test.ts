@@ -11,6 +11,10 @@ test('a cover draws from tokens alone: twelve gradients, a gallery, every colour
   assert.ok(Object.keys(GALLERY).length >= 6);
   for (const key of [...Object.keys(GRADIENTS), ...Object.keys(GALLERY)]) assert.match(key, /^[a-z0-9][a-z0-9-]{0,39}$/u, 'a key the server accepts');
   for (const drawn of [...Object.values(GRADIENTS).flat(), ...Object.values(GALLERY)]) assert.doesNotMatch(drawn, /#[0-9a-f]{3,8}\b|rgb|hsl/iu, 'a colour outside the tokens');
+  // The design system names seven chart colours; a var() past them draws nothing.
+  for (const drawn of [...Object.values(GRADIENTS).flat(), ...Object.values(GALLERY)]) {
+    for (const [, n] of drawn.matchAll(/--chart-categorical-(\d+)/gu)) assert.ok(Number(n) >= 1 && Number(n) <= 7, `chart colour ${n}`);
+  }
   assert.equal(coverBackground({ source: 'GRADIENT', key: 'indigo-teal', position: 50 }), 'linear-gradient(120deg, var(--chart-categorical-1), var(--chart-categorical-2))');
 });
 
