@@ -7170,6 +7170,12 @@ class CiGroupFilter(TypedDict, total=False):
     stages: list[Literal["PLANNED", "ORDERED", "IN_STOCK", "IN_USE", "MAINTENANCE", "RETIRED", "DISPOSED"]]
     name_has: str
     attributes: dict[str, Any]
+    owners: list[str]
+    no_owner: bool
+    locations: list[str]
+    no_location: bool
+    tags: list[str]
+    no_tag: bool
 
 class CiGroupDefine(TypedDict, total=False):
     name: Required[str]

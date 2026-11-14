@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/src/lib/data/replica.test.ts]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, test/integration/cmdb_work_test.go, apps/webapp/src/lib/data/cmdb.test.ts, apps/webapp/src/lib/data/replica.test.ts]
 ---
 
 # Group configuration items by a filter and draw the service map
@@ -22,7 +22,7 @@ The CRM's machines come and go with the load. Dana defines the group "CRM machin
 
 ## How to check
 
-1. A group of a hub has a key, a name and a filter - classes with those below them, stages, a text the name holds, attribute values to equal without case -, at least one condition; it holds the CIs the filter matches now, merged ones never.
+1. A group of a hub has a key, a name and a filter - classes with those below them, stages, a text the name holds, attribute values to equal without case, and the owners (people or groups), locations and asset tags (without case) the inventory line's `asset.owner`, `asset.location` and `asset.tag` keys name, each also as "none" -, at least one condition; it holds the CIs the filter matches now, merged ones never.
 2. A group may stand for a service CI of its hub; its members are then drawn beneath that service in the service map.
 3. The service map of a hub places every active service and offering and everything whose failure they suffer in layers - offerings, services, application services, software and data, virtual and cloud resources, what they stand on - with the relations carrying impact between them, up to 2,000 CIs.
 4. A hub's groups travel to a device filed under the hub.

@@ -29,6 +29,8 @@
   "cmdb.disposal_method_unknown": "Die Entsorgung eines Assets braucht ihre Art: gelöscht, vernichtet, recycelt, zurückgegeben oder verkauft.",
   "cmdb.group_condition_invalid": "Eine Bedingung einer Gruppe nennt ein Attribut mit höchstens 64 Zeichen und einen Wert mit höchstens 500.",
   "cmdb.group_conditions_too_many": "Eine Gruppe hat höchstens zehn Attributbedingungen.",
+  "cmdb.group_value_invalid": "Eine Besitzerin oder ein Ort einer Gruppe ist eine Person, eine Gruppe oder ein Ort aus der Liste; ein Etikett hat höchstens 100 Zeichen in einer Zeile.",
+  "cmdb.group_values_too_many": "Eine Gruppe nennt höchstens fünfzig Besitzer, fünfzig Orte und fünfzig Etiketten.",
   "cmdb.group_filter_empty": "Eine Gruppe braucht mindestens eine Bedingung.",
   "cmdb.group_key_invalid": "Der Schlüssel einer Gruppe beginnt mit einem Kleinbuchstaben und enthält nur Kleinbuchstaben, Ziffern und Unterstriche.",
   "cmdb.group_name_invalid": "Eine Gruppe braucht einen einzeiligen Namen mit höchstens 200 Zeichen.",

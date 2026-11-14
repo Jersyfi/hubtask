@@ -373,6 +373,12 @@ type filterDoc struct {
 	Stages     []string          `json:"stages,omitempty"`
 	NameHas    string            `json:"name_has,omitempty"`
 	Attributes map[string]string `json:"attributes,omitempty"`
+	Owners     []shared.ID       `json:"owners,omitempty"`
+	NoOwner    bool              `json:"no_owner,omitempty"`
+	Locations  []shared.ID       `json:"locations,omitempty"`
+	NoLocation bool              `json:"no_location,omitempty"`
+	Tags       []string          `json:"tags,omitempty"`
+	NoTag      bool              `json:"no_tag,omitempty"`
 }
 
 func (CmdbAssuranceRepository) PutGroup(ctx context.Context, g cmdb.Group, expected int) error {
@@ -380,7 +386,11 @@ func (CmdbAssuranceRepository) PutGroup(ctx context.Context, g cmdb.Group, expec
 	if err != nil {
 		return err
 	}
-	doc := filterDoc{Classes: g.Filter.Classes, NameHas: g.Filter.NameHas, Attributes: g.Filter.Attributes}
+	f := g.Filter
+	doc := filterDoc{
+		Classes: f.Classes, NameHas: f.NameHas, Attributes: f.Attributes, Owners: f.Owners, NoOwner: f.NoOwner,
+		Locations: f.Locations, NoLocation: f.NoLocation, Tags: f.Tags, NoTag: f.NoTag,
+	}
 	for _, s := range g.Filter.Stages {
 		doc.Stages = append(doc.Stages, string(s))
 	}
@@ -407,7 +417,10 @@ func groupFrom(r sqlc.FindCmdbGroupRow) (cmdb.Group, error) {
 	if err := json.Unmarshal(r.Filter, &doc); err != nil {
 		return cmdb.Group{}, cmdbFailed("reading a group", err)
 	}
-	f := cmdb.Filter{Classes: doc.Classes, NameHas: doc.NameHas, Attributes: doc.Attributes}
+	f := cmdb.Filter{
+		Classes: doc.Classes, NameHas: doc.NameHas, Attributes: doc.Attributes, Owners: doc.Owners, NoOwner: doc.NoOwner,
+		Locations: doc.Locations, NoLocation: doc.NoLocation, Tags: doc.Tags, NoTag: doc.NoTag,
+	}
 	for _, s := range doc.Stages {
 		f.Stages = append(f.Stages, cmdb.Stage(s))
 	}

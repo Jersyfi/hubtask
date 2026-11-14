@@ -76675,6 +76675,52 @@
             "additionalProperties": {
               "type": "string"
             }
+          },
+          "owners": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "The owner is one of these people or groups (or nobody, with no_owner) - the inventory line's asset.owner.",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "no_owner": {
+            "type": "boolean",
+            "description": "Also",
+            "or only": null,
+            "CIs without an owner.": null
+          },
+          "locations": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "The location is one of these location CIs (or none, with no_location) - asset.location.",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "no_location": {
+            "type": "boolean",
+            "description": "Also",
+            "or only": null,
+            "CIs without a location.": null
+          },
+          "tags": {
+            "type": "array",
+            "maxItems": 50,
+            "description": "The asset tag is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          "no_tag": {
+            "type": "boolean",
+            "description": "Also",
+            "or only": null,
+            "CIs without an asset tag.": null
           }
         }
       },

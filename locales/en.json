@@ -29,6 +29,8 @@
   "cmdb.disposal_method_unknown": "Disposing of an asset needs its method: wiped, destroyed, recycled, returned or sold.",
   "cmdb.group_condition_invalid": "A group's condition names an attribute of up to 64 characters and a value of up to 500.",
   "cmdb.group_conditions_too_many": "A group holds at most ten attribute conditions.",
+  "cmdb.group_value_invalid": "An owner or a location of a group is a person, a group or a location chosen from the list; a tag has up to 100 characters on one line.",
+  "cmdb.group_values_too_many": "A group names at most fifty owners, fifty locations and fifty tags.",
   "cmdb.group_filter_empty": "A group needs at least one condition.",
   "cmdb.group_key_invalid": "A group's key starts with a lower-case letter and holds only lower-case letters, digits and underscores.",
   "cmdb.group_name_invalid": "A group needs a name of one line, up to 200 characters.",

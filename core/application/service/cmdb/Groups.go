@@ -43,11 +43,20 @@ func GroupOutput(g domain.Group, members int) usecase.Output {
 	for k, v := range g.Filter.Attributes {
 		attrs[k] = v
 	}
+	ids := func(in []shared.ID) []string {
+		out := make([]string, 0, len(in))
+		for _, id := range in {
+			out = append(out, id.String())
+		}
+		return out
+	}
+	f := g.Filter
 	out := usecase.Output{
 		"id": g.ID.String(), "hub_id": g.HubID.String(), "key": g.Key, "name": g.Name,
 		"filter": usecase.Output{
-			"classes": append([]string{}, g.Filter.Classes...), "stages": stages, "name_has": g.Filter.NameHas,
-			"attributes": attrs,
+			"classes": append([]string{}, f.Classes...), "stages": stages, "name_has": f.NameHas,
+			"attributes": attrs, "owners": ids(f.Owners), "no_owner": f.NoOwner, "locations": ids(f.Locations),
+			"no_location": f.NoLocation, "tags": append([]string{}, f.Tags...), "no_tag": f.NoTag,
 		},
 		"service_id": idOrNil(g.ServiceID), "updated_at": g.UpdatedAt, "version": g.Version,
 	}
@@ -59,11 +68,42 @@ func GroupOutput(g domain.Group, members int) usecase.Output {
 
 func filterOf(raw any) domain.Filter {
 	m, _ := raw.(map[string]any)
-	f := domain.Filter{Classes: texts(m["classes"]), NameHas: text(m, "name_has"), Attributes: textMap(m["attributes"])}
+	f := domain.Filter{
+		Classes: texts(m["classes"]), NameHas: text(m, "name_has"), Attributes: textMap(m["attributes"]),
+		Tags: texts(m["tags"]), NoOwner: m["no_owner"] == true, NoLocation: m["no_location"] == true, NoTag: m["no_tag"] == true,
+	}
 	for _, s := range texts(m["stages"]) {
 		f.Stages = append(f.Stages, domain.Stage(s))
 	}
+	for _, s := range texts(m["owners"]) {
+		f.Owners = append(f.Owners, shared.ID(s))
+	}
+	for _, s := range texts(m["locations"]) {
+		f.Locations = append(f.Locations, shared.ID(s))
+	}
 	return f
+}
+
+// assetTags reads a hub's asset tags where a group asks for one; nil where none does.
+func (s Inventory) assetTags(ctx context.Context, hub shared.ID, groups ...domain.Group) (domain.AssetTags, error) {
+	if !slices.ContainsFunc(groups, func(g domain.Group) bool { return g.Filter.NamesTags() }) {
+		return nil, nil
+	}
+	tags := domain.AssetTags{}
+	var after shared.ID
+	for {
+		page, err := s.Assurance.Assets(ctx, hub, after, inventoryPage)
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range page {
+			tags[a.CIID] = a.AssetTag
+		}
+		if len(page) < inventoryPage {
+			return tags, nil
+		}
+		after = page[len(page)-1].CIID
+	}
 }
 
 // ListCiGroups answers a hub's CI groups with how many CIs each holds now.
@@ -73,7 +113,7 @@ type ListCiGroups struct{ Inventory Inventory }
 func (h ListCiGroups) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: ListCiGroupsName, Permission: service.PermissionRead,
-		Summary: "Lists a hub's CI groups - sets defined by a filter on class, stage, name and attribute values, " +
+		Summary: "Lists a hub's CI groups - sets defined by a filter on class, stage, name, attribute values, owner, location and asset tag, " +
 			"never by listing CIs - with how many CIs each holds now and the service each stands for, if any.",
 		SideEffects: "None. Reads only.", TokenScope: cisRead, ReadOnly: true,
 		Input: []usecase.Field{{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."}},
@@ -100,10 +140,14 @@ func (h ListCiGroups) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
+				tags, err := s.assetTags(ctx, hub, groups...)
+				if err != nil {
+					return err
+				}
 				members := make([]int, len(groups))
 				if err := s.eachCI(ctx, hub, func(ci domain.CI) bool {
 					for i, g := range groups {
-						if g.Filter.Matches(ci, reg.classes) {
+						if g.Filter.Matches(ci, reg.classes, tags) {
 							members[i]++
 						}
 					}
@@ -129,14 +173,16 @@ func (h DefineCiGroup) Descriptor() usecase.Descriptor {
 	return descriptor(usecase.Descriptor{
 		Name: DefineCiGroupName, Permission: service.PermissionWriteItems,
 		Summary: "Defines a CI group of a hub under a key, or changes it: a name and a filter - classes (with those " +
-			"below them), stages, a text the name holds and attribute values to equal, without case; at least one. " +
+			"below them), stages, a text the name holds, attribute values to equal without case, and the owners " +
+			"(people or groups), locations and asset tags the inventory line's asset.owner, asset.location and " +
+			"asset.tag keys name, each with or without none (no_owner, no_location, no_tag); at least one. " +
 			"When it names a service CI of the hub, the members are what that service rests on beside its relations.",
 		SideEffects: "Writes the group, an audit entry and the change log.", TokenScope: cisWrite,
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub."},
 			{Name: "key", Kind: usecase.KindString, Required: true, Description: "The group's key, lower case."},
 			{Name: "name", Kind: usecase.KindString, Required: true, Description: "What it is called."},
-			{Name: "filter", Kind: usecase.KindObject, Required: true, Description: "classes, stages, name_has and attributes (key to value)."},
+			{Name: "filter", Kind: usecase.KindObject, Required: true, Description: "classes, stages, name_has, attributes (key to value), owners, no_owner, locations, no_location, tags, no_tag."},
 			{Name: "service_id", Kind: usecase.KindID, Description: "A service CI of the hub the group stands for; null clears."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true, Description: "The version last read; zero or absent for a new key."},
 		},
@@ -195,9 +241,13 @@ func (h DefineCiGroup) Descriptor() usecase.Descriptor {
 					return err
 				}
 				g.Version = version + 1
+				tags, err := s.assetTags(ctx, hub, g)
+				if err != nil {
+					return err
+				}
 				members := 0
 				if err := s.eachCI(ctx, hub, func(ci domain.CI) bool {
-					if g.Filter.Matches(ci, reg.classes) {
+					if g.Filter.Matches(ci, reg.classes, tags) {
 						members++
 					}
 					return true
@@ -255,8 +305,12 @@ func (h ListCiGroupMembers) Descriptor() usecase.Descriptor {
 				if err != nil {
 					return err
 				}
+				tags, err := s.assetTags(ctx, g.HubID, g)
+				if err != nil {
+					return err
+				}
 				return s.eachCI(ctx, g.HubID, func(ci domain.CI) bool {
-					if g.Filter.Matches(ci, reg.classes) {
+					if g.Filter.Matches(ci, reg.classes, tags) {
 						data = append(data, usecase.Output{"ci_id": ci.ID.String(), "class": ci.Class, "name": ci.Name, "stage": string(ci.Stage)})
 					}
 					return true
@@ -350,6 +404,10 @@ func (s Inventory) serviceMap(ctx context.Context, hub, only shared.ID) (usecase
 	if err != nil {
 		return nil, err
 	}
+	tags, err := s.assetTags(ctx, hub, groups...)
+	if err != nil {
+		return nil, err
+	}
 	sourceSuffers, targetSuffers := reg.types.Suffering()
 	in := map[shared.ID]bool{}
 	var order []shared.ID
@@ -384,7 +442,7 @@ func (s Inventory) serviceMap(ctx context.Context, hub, only shared.ID) (usecase
 			if g.ServiceID != ci.ID {
 				continue
 			}
-			for _, m := range g.Members(cis, reg.classes) {
+			for _, m := range g.Members(cis, reg.classes, tags) {
 				add(m.ID)
 				members = append(members, membership{ci.ID, m.ID, g.Key})
 			}

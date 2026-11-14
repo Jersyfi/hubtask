@@ -6,6 +6,7 @@ package cmdb
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -115,7 +116,7 @@ func TestAGroupHoldsTheCIsItsFilterMatches(t *testing.T) {
 		{ID: id("13"), Class: "server", Stage: StageInUse, Attributes: map[string]any{"app": "crm"}},
 		{ID: id("14"), Class: "virtual_machine", Stage: StageInUse, Status: StatusMerged, Attributes: map[string]any{"app": "crm"}},
 	}
-	if m := g.Members(cis, classes); len(m) != 1 || m[0].ID != id("10") {
+	if m := g.Members(cis, classes, nil); len(m) != 1 || m[0].ID != id("10") {
 		t.Fatalf("members: %+v", m)
 	}
 	for name, in := range map[string]GroupInput{
@@ -125,6 +126,59 @@ func TestAGroupHoldsTheCIsItsFilterMatches(t *testing.T) {
 		"stage":        {Key: "x", Name: "x", Filter: Filter{Stages: []Stage{"GONE"}}},
 	} {
 		if _, err := NewGroup(id("01"), id("02"), id("03"), id("04"), in, classes, now); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// UC-AST-11 check 1: a group keeps the inventory line's owner, location and tag - each a set of
+// values or none, as the asset.owner, asset.location and asset.tag keys read them.
+func TestAGroupMatchesOwnerLocationAndTagAsTheInventoryLineDoes(t *testing.T) {
+	classes := NewClasses(nil)
+	team, room, other := id("20"), id("21"), id("22")
+	cis := []CI{
+		{ID: id("10"), Class: "laptop", Compliance: Compliance{OwnerAccount: id("07"), Location: room}},
+		{ID: id("11"), Class: "laptop", Compliance: Compliance{OwnerGroup: team, Location: other}},
+		{ID: id("12"), Class: "laptop"},
+		{ID: id("13"), Class: "laptop", Status: StatusMerged},
+	}
+	tags := AssetTags{id("10"): " INV-7 ", id("11"): "inv-8"}
+	members := func(f Filter) []string {
+		g, err := NewGroup(id("01"), id("02"), id("03"), id("04"), GroupInput{Key: "x", Name: "x", Filter: f}, classes, now)
+		if err != nil {
+			t.Fatalf("%+v: %v", f, err)
+		}
+		var out []string
+		for _, ci := range g.Members(cis, classes, tags) {
+			out = append(out, string(ci.ID[len(ci.ID)-2:]))
+		}
+		return out
+	}
+	for name, c := range map[string]struct {
+		f    Filter
+		want []string
+	}{
+		"a person or a group":   {Filter{Owners: []shared.ID{id("07"), team}}, []string{"10", "11"}},
+		"a group or nobody":     {Filter{Owners: []shared.ID{team}, NoOwner: true}, []string{"11", "12"}},
+		"nobody":                {Filter{NoOwner: true}, []string{"12"}},
+		"a location":            {Filter{Locations: []shared.ID{room}}, []string{"10"}},
+		"no location":           {Filter{NoLocation: true}, []string{"12"}},
+		"a tag, lowered":        {Filter{Tags: []string{"Inv-7"}}, []string{"10"}},
+		"no tag":                {Filter{NoTag: true}, []string{"12"}},
+		"keys together narrow":  {Filter{Owners: []shared.ID{team}, Tags: []string{"INV-7", "INV-8"}}, []string{"11"}},
+		"a location or nowhere": {Filter{Locations: []shared.ID{other}, NoLocation: true}, []string{"11", "12"}},
+	} {
+		if got := members(c.f); !slices.Equal(got, c.want) {
+			t.Errorf("%s: %v, want %v", name, got, c.want)
+		}
+	}
+	for name, f := range map[string]Filter{
+		"a tag too long":  {Tags: []string{strings.Repeat("x", 101)}},
+		"an empty tag":    {Tags: []string{" "}},
+		"too many owners": {Owners: slices.Repeat([]shared.ID{team}, MaxGroupValues+1)},
+		"a malformed id":  {Locations: []shared.ID{"room"}},
+	} {
+		if _, err := NewGroup(id("01"), id("02"), id("03"), id("04"), GroupInput{Key: "x", Name: "x", Filter: f}, classes, now); err == nil {
 			t.Errorf("%s: accepted", name)
 		}
 	}

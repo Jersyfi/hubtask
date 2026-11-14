@@ -15868,10 +15868,28 @@ type CiGroupDefine struct {
 
 // CiGroupFilter defines model for CiGroupFilter.
 type CiGroupFilter struct {
-	Attributes *map[string]string     `json:"attributes,omitempty"`
-	Classes    *[]string              `json:"classes,omitempty"`
-	NameHas    *string                `json:"name_has,omitempty"`
-	Stages     *[]CiGroupFilterStages `json:"stages,omitempty"`
+	Attributes *map[string]string `json:"attributes,omitempty"`
+	Classes    *[]string          `json:"classes,omitempty"`
+
+	// Locations The location is one of these location CIs (or none, with no_location) - asset.location.
+	Locations *[]openapi_types.UUID `json:"locations,omitempty"`
+	NameHas   *string               `json:"name_has,omitempty"`
+
+	// NoLocation Also
+	NoLocation *bool `json:"no_location,omitempty"`
+
+	// NoOwner Also
+	NoOwner *bool `json:"no_owner,omitempty"`
+
+	// NoTag Also
+	NoTag *bool `json:"no_tag,omitempty"`
+
+	// Owners The owner is one of these people or groups (or nobody, with no_owner) - the inventory line's asset.owner.
+	Owners *[]openapi_types.UUID  `json:"owners,omitempty"`
+	Stages *[]CiGroupFilterStages `json:"stages,omitempty"`
+
+	// Tags The asset tag is one of these, compared lowered (or none, with no_tag) - asset.tag. Kept lowered.
+	Tags *[]string `json:"tags,omitempty"`
 }
 
 // CiGroupFilterStages defines model for CiGroupFilter.Stages.

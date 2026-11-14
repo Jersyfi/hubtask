@@ -7,10 +7,12 @@ package integration
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/cmdb"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -65,6 +67,41 @@ func TestAHubsOpenWorkOnItsCIsStaysInItsWorkspace(t *testing.T) {
 	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
 		if rows, _ := repo.OpenWorkOfHub(ctx, hub, 100); len(rows) != 0 {
 			t.Errorf("the workspace next door read the open work: %+v", rows)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A group keeps the inventory line's owners, locations and tags with their nones (UC-AST-11 check
+// 1), and the workspace next door finds none of it.
+func TestAGroupKeepsItsOwnerLocationAndTagConditions(t *testing.T) {
+	ctx := context.Background()
+	hub, app, _ := seedCIs(ctx, t)
+	repo := postgres.NewCmdbAssuranceRepository()
+	group := freshID(t)
+	f := cmdb.Filter{Owners: []shared.ID{authorA}, NoOwner: true, Locations: []shared.ID{app}, NoLocation: true, Tags: []string{"inv-7"}, NoTag: true}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.PutGroup(ctx, cmdb.Group{ID: group, HubID: hub, Key: "line", Name: "Line", Filter: f, UpdatedBy: authorA, UpdatedAt: time.Now()}, 0)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		g, err := repo.FindGroup(ctx, group)
+		if err != nil {
+			return err
+		}
+		if !reflect.DeepEqual(g.Filter, f) {
+			t.Errorf("the filter read back: %+v", g.Filter)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, err := repo.FindGroup(ctx, group); err == nil {
+			t.Error("the workspace next door found the group")
 		}
 		return nil
 	}); err != nil {
