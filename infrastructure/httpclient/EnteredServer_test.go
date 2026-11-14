@@ -18,7 +18,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
 )
 
-// The one exception to the private-network rule (security.md §10, ADR-0104): the document server
+// UC-MED-06/8. The one exception to the private-network rule (security.md §10, ADR-0104): the document server
 // the administration entered may sit on a private network, and only calls to its own host use it.
 
 func byName(names map[string]string) func(context.Context, string) ([]netip.Addr, error) {

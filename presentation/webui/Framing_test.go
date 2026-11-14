@@ -14,7 +14,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/webui"
 )
 
-// UC-MED-06 check 2 (ADR-0104, security.md §9): a page of a workspace that entered a document
+// UC-MED-06/7 (ADR-0104, security.md §9): a page of a workspace that entered a document
 // server may frame that origin and post a form to it - and to no other -; a page of another
 // workspace, an asset, and the same page once the server is removed keep the closed policy.
 func TestTheEditorsFrameOpensOnlyForTheWorkspacesServer(t *testing.T) {

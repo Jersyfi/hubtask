@@ -65,6 +65,7 @@ type answered struct {
 
 var docx = append([]byte("PK\x03\x04"), bytes.Repeat([]byte{1}, 60)...)
 
+// UC-MED-06/3, UC-MED-06/4, UC-MED-06/5, UC-MED-06/6, UC-MED-06/7 (the editor's address).
 func TestADocumentServerEditsAFileThroughTheWopiHost(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)

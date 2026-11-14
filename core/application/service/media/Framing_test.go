@@ -39,7 +39,7 @@ func (s storedServers) DocumentServer(ctx context.Context) (domain.DocumentServe
 	return s.by[scope.TenantID], nil
 }
 
-// UC-MED-06 check 2 (ADR-0104): the page's policy opens the editor's frame for the server the
+// UC-MED-06/7 (ADR-0104): the page's policy opens the editor's frame for the server the
 // workspace the page loads in has entered - not another workspace's, none on the installation's
 // own host, and none again once the server is removed.
 func TestThePolicyOpensOnlyTheWorkspacesOwnDocumentServer(t *testing.T) {
