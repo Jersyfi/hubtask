@@ -855,7 +855,8 @@ As built: the hub's *Inventory* has the tool's head with the trail, the figure f
 neither, the stock is read there (UC-AST-01 check 10). The view bar is *Stock · Map · Health ·
 Alerts n · Upkeep*, never a second strip; every former section keeps its address under
 `/hubs/:id/inventory/` and lands on its tab (`inventoryPlace`): runs, duplicates, connectors,
-campaigns and import on *Upkeep* at that part, groups on *Stock* with its saved groups, register and
+campaigns and import on *Upkeep*, each drawn alone under *Back to upkeep* with its `#care-{part}`
+anchor (a deeper page, so a part's own dialog never opens over another), groups on *Stock* with its saved groups, register and
 software on *Stock*'s switch *All objects · Devices and licences n · Software n*, which a reader
 reads too (UC-AST-12 check 5); an address the reader cannot reach shows *Stock*. *Stock* is the query
 line with the `asset.` keys - narrowed on the device over the hub's loaded objects with the server's
@@ -867,12 +868,55 @@ empty inventory offers the create and the import, a reader is told how objects a
 a card: its program, its state as badges (*Last run failed*, *No credential yet*, *Switched
 off*), when it last and next runs, *Pull now* as its one act and the dry run, the full pull,
 *Change* and the credential in its menu; an alert intake shows its address with a line about its
-secret. Alerts narrow in a toolbar; an empty list says how alerts arrive and offers *Set up an
-alert intake* to whoever may define one, narrowed to firing it says *Nothing is firing*. An object's
+secret. Alerts are a calm table - alert, object, entry, since, count, state - narrowed in a toolbar;
+an empty list says how alerts arrive and offers *Set up an alert intake* to whoever may define one,
+narrowed to firing it says *Nothing is firing*. An object's
 head is a `PageHeader` (trail, object type, lifecycle, *Copy the reference*); its relations are drawn
 as what points at it, the object and what it points at, six a side with the rest counted, beside the
 list from the expanded width and above it on a phone, hidden from assistive technology because
 the list carries every relation with its link.
+
+*Map* (scene `invmap`) shows one service at a time, the worst-standing first by the health's
+service scores: *Service: name ▾*, how far below it (*1 step · 2 · 3*), *Only problems* (the ways to
+objects with an open entry, a firing alert or found wanting) and *As a list* (§8 of the concept: the
+picture's table), the legend at the end. The service stands at the start, what it rests on in
+columns by steps, measured curves between them; an object with an open incident is drawn on the
+danger surface with the entry's key, a planned change's key beside it, a stage other than *in use*
+as a lozenge, and the way from the service down to a struck object dashed - the dash, the key and a
+hidden word say it, never the colour alone. Under it *Open on this service* (each entry *via* the
+object it names, or *direct*) and *Planned changes*, each with its collisions as the entry's own read
+answers them (`readEntryCis`: other entries planned in an overlapping window on an object it names or
+reaches, across the hub), so the map and the entry's page never disagree. *All services* keeps the
+hub's layered map. The map writes nothing; on a phone the picture scrolls in its own frame and the
+cards stack.
+
+*Upkeep* (scene `invcare`, IN-4) is one page of cards: six figures - complete, correct (with the
+deviations a source's run held), stale, orphaned, duplicates, without responsibility -, each on the
+warning surface when wanting and opening what it counts (*Health*, the runs, the duplicates, the stock
+narrowed to `asset.owner: none`); *To do*, one row per problem with one act - *Assign* and *Check* open
+the object, *Relate* its relations, *Compare* a deviation beside its run's decision in a Dialog L and
+closes it, *Decide* a duplicate pair in today's comparison in a Dialog L -, five shown and *Show all n*;
+the open attestation round with its score (no reminder: the server has no act for one) or *Start a
+round*, the earlier rounds counted; the open duplicate pairs; and *Sources and runs*: each connector
+that brings objects with its last run (*12 read · 1 changed*) and its next, each source a run named
+without a connector, and *By hand* - the objects only a person ever spoke for -, a run's decisions in
+a Dialog L behind its row, *Connect a source*, *Import*, *All runs*, *All connectors*. The deviations
+are rows of *To do* and have no card of their own. On a phone *Upkeep* reads: no act that writes.
+
+**The source definitions stay in the administration** (`/assets/sources`, beside the object types),
+not in *Upkeep*: a source's trust order is the workspace's and decides reconciliation in every hub,
+while *Upkeep* is one hub's - its connectors and its runs. *Manage sources* in *Sources and runs*
+leads there for a STRUCTURE holder.
+
+*Devices and licences* (scene `invreg`) is the register as a calm table - number in the monospace
+face, device as *object type · name*, with whom, state, cost aligned to the end, warranty as month
+and year on the warning surface once it ended or ends within six months on a device still kept -,
+the value issued and the warranties ending beside *Stock*'s switch. A row opens the device beside the
+table (its address `?asset=`), on a phone as a sheet that reads: number, name and holder, the
+device's life (`AssetLife`, as the object's page draws it), its stock facts and the moves its state
+allows as buttons for a writer online - *Back to stock*, *Retire*, *Issue* once a holder or a
+stockroom is named, *Dispose of* with its method and certificate in a Dialog M. *Software* is one
+table of versions grouped by product.
 
 ### 7.4 Service desk and portal
 
