@@ -990,11 +990,11 @@
 
 
 {#if isMoving && current}
-  <Dialog size="s" bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}>
+  <Dialog size="s" bind:isOpen={isMoving} title={t('app.pages.move_title', { title: current.title })} dismissLabel={t('app.pages.cancel')}
+    primary={{ label: t('app.pages.move'), onclick: move }}>
     <Select label={t('app.pages.move_under')} options={moveOptions} bind:value={moveParent} />
     {#snippet actions()}
-      <Button tone="subtle" onclick={() => (isMoving = false)}>{t('app.pages.cancel')}</Button>
-      <Button tone="primary" onclick={move}>{t('app.pages.move')}</Button>
+      <Button tone="secondary" onclick={() => (isMoving = false)}>{t('app.pages.cancel')}</Button>
     {/snippet}
   </Dialog>
 {/if}

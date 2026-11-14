@@ -855,7 +855,8 @@
 {/snippet}
 
 {#if isDigestOpen}
-  <Dialog size="m" bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isDigestOpen} title={t('app.dashboards.digest_title')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.dashboards.digest_save'), onclick: () => void saveDigest() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.dashboards.digest_hint')}</p>
       <Select label={t('app.dashboards.digest_cadence')} bind:value={digestDraft.cadence}
@@ -867,30 +868,36 @@
       {#if digest}
         <p class="quiet">{t('app.dashboards.digest_next', { when: formatDateTime(digest.next_at, locale) })}</p>
       {/if}
-      <Inline justify="end">
-        {#if digest}<Button tone="danger" onclick={() => void stopDigest()}>{t('app.dashboards.digest_stop')}</Button>{/if}
-        <Button tone="primary" onclick={() => void saveDigest()}>{t('app.dashboards.digest_save')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      {#if digest}<Button tone="danger" onclick={() => void stopDigest()}>{t('app.dashboards.digest_stop')}</Button>{/if}
+      <Button tone="secondary" onclick={() => (isDigestOpen = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isRenaming}
-  <Dialog size="m" bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isRenaming} title={t('app.dashboards.rename')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.goals.save'), disabledReason: draft.name.trim() === '' ? t('app.dashboards.name_needed') : draft.sharing === 'GROUPS' && draft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined, onclick: () => void saveName() }}>
     <Stack gap="150">
       <Input label={t('app.dashboards.col_name')} bind:value={draft.name} maxlength={200} />
       <SharingPicker bind:sharing={draft.sharing} bind:groupIds={draft.groupIds} />
-      <Inline justify="end"><Button disabledReason={draft.name.trim() === '' ? t('app.dashboards.name_needed') : draft.sharing === 'GROUPS' && draft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined} onclick={() => void saveName()}>{t('app.goals.save')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isRenaming = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isDeleting && dashboard}
-  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.dashboards.delete_title', { name: dashboard.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isDeleting} title={t('app.dashboards.delete_title', { name: dashboard.name })} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.dashboards.delete'), tone: 'danger', onclick: () => void remove() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.dashboards.delete_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void remove()}>{t('app.dashboards.delete')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDeleting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

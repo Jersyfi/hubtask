@@ -1879,17 +1879,17 @@
       </div>
     {/if}
     {#if isBeginning}
-      <div class="begin" role="dialog" aria-modal="false" aria-labelledby="board-begin-title" tabindex="-1" data-board-begin
-        onkeydown={(event) => { if (event.key === 'Escape') { event.stopPropagation(); begin('BLANK'); } }}>
-        <header class="begin-head">
-          <div>
-            <h2 id="board-begin-title" class="begin-title">{t('app.whiteboards.begin_title')}</h2>
-            <p class="quiet">{t('app.whiteboards.begin_body')}</p>
-          </div>
-          <Button tone="subtle" size="sm" onclick={() => begin('BLANK')}>{t('app.whiteboards.begin_leave_empty')}</Button>
-        </header>
-        <BoardTemplates look="tiles" bind:chosen={templateStart} onpick={begin} />
-      </div>
+      <!-- The overlay ladder's own dialog: closing it without a choice leaves the board empty. -->
+      <Dialog size="l" isOpen={true} title={t('app.whiteboards.begin_title')} dismissLabel={t('app.whiteboards.begin_leave_empty')}
+        onClose={() => { if (isBeginning) begin('BLANK'); }}>
+        <div class="begin" data-board-begin>
+          <p class="quiet">{t('app.whiteboards.begin_body')}</p>
+          <BoardTemplates look="tiles" bind:chosen={templateStart} onpick={begin} />
+        </div>
+        {#snippet actions()}
+          <Button tone="secondary" onclick={() => begin('BLANK')}>{t('app.whiteboards.begin_leave_empty')}</Button>
+        {/snippet}
+      </Dialog>
     {/if}
 
     {#if mode === 'list'}
@@ -2516,26 +2516,7 @@
   .blank-title { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); color: var(--text-primary); }
   .blank.beginning { inset-block: calc(var(--sp-1600) + var(--sp-400)) auto; margin-block: 0; }
   .keys { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--sp-050); }
-  .begin {
-    position: absolute;
-    inset-inline: 0;
-    inset-block-end: var(--sp-300);
-    z-index: 3;
-    display: grid;
-    gap: var(--sp-200);
-    inline-size: min(calc(100% - 2 * var(--sp-200)), calc(var(--layout-pane-width) * 2.2));
-    max-block-size: calc(100% - 2 * var(--sp-300));
-    margin-inline: auto;
-    padding: var(--sp-300);
-    box-sizing: border-box;
-    overflow: auto;
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-xl);
-    background: var(--bg-raised);
-    box-shadow: var(--shadow-overlay);
-  }
-  .begin-head { display: flex; align-items: start; justify-content: space-between; gap: var(--sp-200); }
-  .begin-title { margin: 0 0 var(--sp-050); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+  .begin { display: grid; gap: var(--sp-200); }
 
   /* The sheet lies over the canvas below the top-right island, so opening it never moves the board. */
   .sheet {

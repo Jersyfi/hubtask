@@ -20,7 +20,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Badge, Button, Dialog, Icon, Inline, Input, ProductBand, ProgressBar, StateLozenge, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
+    Badge, Button, Dialog, Icon, Input, ProductBand, ProgressBar, StateLozenge, Select, Skeleton, Stack, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type ViewLink,
   } from '@hubtask/design-system/components';
   import ProductEmpty from '../lib/product/ProductEmpty.svelte';
@@ -438,67 +438,73 @@
 <TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 
 {#if isDefining}
-  <Dialog size="m" bind:isOpen={isDefining} title={t('app.goals.new_period')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isDefining} title={t('app.goals.new_period')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.goals.define'), disabledReason: periodDraft.name.trim() === '' || periodDraft.start === '' || periodDraft.end === '' ? t('app.goals.period_incomplete') : undefined, onclick: () => void definePeriod() }}>
     <Stack gap="150">
       <Input label={t('app.goals.period_name')} hint={t('app.goals.period_name_hint')} bind:value={periodDraft.name} maxlength={200} />
       <Input label={t('app.goals.period_start')} type="date" bind:value={periodDraft.start} />
       <Input label={t('app.goals.period_end')} type="date" bind:value={periodDraft.end} />
-      <Inline justify="end">
-        <Button disabledReason={periodDraft.name.trim() === '' || periodDraft.start === '' || periodDraft.end === '' ? t('app.goals.period_incomplete') : undefined}
-          onclick={() => void definePeriod()}>{t('app.goals.define')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isDefining = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isClosing && chosen}
-  <Dialog size="s" bind:isOpen={isClosing} title={t('app.goals.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="s" bind:isOpen={isClosing} title={t('app.goals.close_title', { name: chosen.name })} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.goals.close_period'), tone: 'danger', onclick: () => void closePeriod() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.goals.close_hint')}</p>
-      <Inline justify="end"><Button tone="danger" onclick={() => void closePeriod()}>{t('app.goals.close_period')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isClosing = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isSetting && chosen}
-  <Dialog size="m" bind:isOpen={isSetting} title={t('app.goals.new_goal')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isSetting} title={t('app.goals.new_goal')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.goals.set'), disabledReason: goalDraft.title.trim() === '' ? t('app.goals.title_needed') : undefined, onclick: () => void setGoal() }}>
     <Stack gap="150">
       <Input label={t('app.goals.goal_title')} bind:value={goalDraft.title} maxlength={200} />
       <Select label={t('app.goals.col_place')} bind:value={goalDraft.place} options={placeChoices} />
       <Select label={t('app.goals.parent')} hint={t('app.goals.parent_hint')} bind:value={goalDraft.parent}
         options={[{ value: '', label: t('app.goals.no_parent') }, ...tree.map(({ goal }) => ({ value: goal.id, label: goal.title }))]} />
-      <Inline justify="end">
-        <Button disabledReason={goalDraft.title.trim() === '' ? t('app.goals.title_needed') : undefined} onclick={() => void setGoal()}>{t('app.goals.set')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isSetting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isGathering}
-  <Dialog size="m" bind:isOpen={isGathering} title={t('app.portfolios.new')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isGathering} title={t('app.portfolios.new')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.portfolios.create'), disabledReason: portfolioDraft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined, onclick: () => void createPortfolio() }}>
     <Stack gap="150">
       <Input label={t('app.portfolios.col_name')} bind:value={portfolioDraft.name} maxlength={200} />
       <Textarea label={t('app.portfolios.description')} bind:value={portfolioDraft.description} maxlength={10000} />
       <Select label={t('app.portfolios.col_parent')} bind:value={portfolioDraft.parent}
         options={[{ value: '', label: t('app.portfolios.no_parent') }, ...(portfolioList ?? []).map((each) => ({ value: each.id, label: each.name }))]} />
-      <Inline justify="end">
-        <Button disabledReason={portfolioDraft.name.trim() === '' ? t('app.portfolios.name_needed') : undefined} onclick={() => void createPortfolio()}>{t('app.portfolios.create')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isGathering = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isBuilding}
-  <Dialog size="m" bind:isOpen={isBuilding} title={t('app.dashboards.new')} dismissLabel={t('app.links.cancel')}>
+  <Dialog size="m" bind:isOpen={isBuilding} title={t('app.dashboards.new')} dismissLabel={t('app.links.cancel')}
+    primary={{ label: t('app.dashboards.create'), disabledReason: dashboardDraft.name.trim() === '' ? t('app.dashboards.name_needed') : dashboardDraft.sharing === 'GROUPS' && dashboardDraft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined, onclick: () => void createDashboard() }}>
     <Stack gap="150">
       <Input label={t('app.dashboards.col_name')} bind:value={dashboardDraft.name} maxlength={200} />
       <Select label={t('app.goals.col_place')} bind:value={dashboardDraft.place}
         options={[{ value: '', label: t('app.goals.workspace') }, ...containers.hubs.map((each) => ({ value: each.id, label: each.name }))]} />
       <SharingPicker bind:sharing={dashboardDraft.sharing} bind:groupIds={dashboardDraft.groupIds} />
-      <Inline justify="end">
-        <Button disabledReason={dashboardDraft.name.trim() === '' ? t('app.dashboards.name_needed') : dashboardDraft.sharing === 'GROUPS' && dashboardDraft.groupIds.length === 0 ? t('app.dashboards.groups_needed') : undefined} onclick={() => void createDashboard()}>{t('app.dashboards.create')}</Button>
-      </Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isBuilding = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 

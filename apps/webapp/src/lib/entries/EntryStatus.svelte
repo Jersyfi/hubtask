@@ -280,7 +280,6 @@
         {@const key = answer.workflow}
         <Button tone="secondary" onclick={() => { isPictureOpen = false; onnavigate?.(`/administration/workflows/${key}`); }}>{t('app.workflows.open_designer')}</Button>
       {/if}
-      <Button tone="primary" onclick={() => (isPictureOpen = false)}>{t('app.workflows.close')}</Button>
     {/snippet}
   </Dialog>
 {/if}

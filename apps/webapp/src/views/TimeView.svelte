@@ -28,7 +28,7 @@
 
   import FailureNote from '../lib/frame/FailureNote.svelte';
   import {
-    Banner, Button, Checkbox, Dialog, Icon, IconButton, Inline, Input, ProductBand, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
+    Banner, Button, Checkbox, Dialog, Icon, IconButton, Input, ProductBand, Select, Skeleton, Stack, Switch, Textarea, ViewBar, WorkPage,
     DataTable, type DataColumn, type DataRowMenu, type ViewLink,
   } from '@hubtask/design-system/components';
   import type { CapacityList, PlacedTimeRecord, TimeReport, Timesheet, TimesheetList, TimesheetWeek, WorkTypeList } from '@hubtask/sync-engine';
@@ -655,7 +655,8 @@
 {/snippet}
 
 {#if isRecording}
-  <Dialog bind:isOpen={isRecording} title={editing ? t('app.time.change') : t('app.time.add')} dismissLabel={t('app.links.cancel')} size="m">
+  <Dialog bind:isOpen={isRecording} title={editing ? t('app.time.change') : t('app.time.add')} dismissLabel={t('app.links.cancel')} size="m"
+    primary={{ label: editing ? t('app.time.save') : t('app.time.record'), onclick: () => void saveRecord() }}>
     <Stack gap="150">
       <Select label={t('app.time.col_day')} bind:value={draft.day} options={days.map((day) => ({ value: day, label: dayHeading(day, locale) }))} />
       <Select label={t('app.time.col_entry')} bind:value={draft.entry} options={entryChoices} />
@@ -666,31 +667,39 @@
       <Checkbox label={t('app.time.billable')} checked={draft.billable}
         onchange={(event: Event) => { draft.billable = (event.currentTarget as HTMLInputElement).checked; draft.isBillableTouched = true; }} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-      <Inline justify="end"><Button onclick={() => void saveRecord()}>{editing ? t('app.time.save') : t('app.time.record')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isRecording = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isCorrecting && correcting}
-  <Dialog bind:isOpen={isCorrecting} title={t('app.time.correct_title', { minutes: minutesText(correcting.minutes), day: formatPlainDay(correcting.day, messages.locale) })} dismissLabel={t('app.links.cancel')} size="m">
+  <Dialog bind:isOpen={isCorrecting} title={t('app.time.correct_title', { minutes: minutesText(correcting.minutes), day: formatPlainDay(correcting.day, messages.locale) })} dismissLabel={t('app.links.cancel')} size="m"
+    primary={{ label: t('app.time.correct'), onclick: () => void saveCorrection() }}>
     <Stack gap="150">
       <p class="quiet">{t('app.time.correct_hint')}</p>
       <Input label={t('app.time.col_day')} type="date" bind:value={correction.day} />
       <Input label={t('app.time.correction_label')} hint={t('app.time.correction_hint')} bind:value={correction.minutes} error={correctionError} />
       <Textarea label={t('app.time.col_note')} bind:value={correction.note} maxlength={2000} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-      <Inline justify="end"><Button onclick={() => void saveCorrection()}>{t('app.time.correct')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isCorrecting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
 {#if isRejecting && deciding}
-  <Dialog bind:isOpen={isRejecting} title={t('app.time.send_back_title', { name: personName(deciding.account_id) })} dismissLabel={t('app.links.cancel')} size="s">
+  <Dialog bind:isOpen={isRejecting} title={t('app.time.send_back_title', { name: personName(deciding.account_id) })} dismissLabel={t('app.links.cancel')} size="s"
+    primary={{ label: t('app.time.send_back'), disabledReason: reason.trim() === '' ? t('app.time.reason_needed') : undefined, onclick: () => void reject() }}>
     <Stack gap="150">
       <Textarea label={t('app.time.reason')} hint={t('app.time.reason_hint')} bind:value={reason} maxlength={500} />
       {#if dialogFailure}<FailureNote problem={dialogFailure} />{/if}
-      <Inline justify="end"><Button disabledReason={reason.trim() === '' ? t('app.time.reason_needed') : undefined} onclick={() => void reject()}>{t('app.time.send_back')}</Button></Inline>
     </Stack>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (isRejecting = false)}>{t('app.links.cancel')}</Button>
+    {/snippet}
   </Dialog>
 {/if}
 
