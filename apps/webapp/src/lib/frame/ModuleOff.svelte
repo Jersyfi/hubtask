@@ -17,7 +17,6 @@
   import { PRODUCTS } from '../navigation.ts';
   import { PRODUCT_TILES } from '../product/tiles.ts';
   import { productTemplates } from '../product/templates.ts';
-  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import TemplateCards from '../product/TemplateCards.svelte';
   import { WorkspaceStarts } from '../product/workspaceStarts.svelte.ts';
   import { timeWays } from '../time/ways.ts';
@@ -165,7 +164,12 @@
   {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
 </Stack>
 
-<CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={(_id, landing) => { startingFrom = undefined; onnavigate?.(landing ?? row?.path ?? '/'); }} />
+<!-- Loaded when a template is chosen: this page is part of the first screen, the dialog is not. -->
+{#if startingFrom !== undefined}
+  {#await import('../workspace/CreateContainerDialog.svelte') then { default: CreateContainerDialog }}
+    <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" template={startingFrom} oncreated={(_id, landing) => { startingFrom = undefined; onnavigate?.(landing ?? row?.path ?? '/'); }} />
+  {/await}
+{/if}
 
 <TemplateDialog template={starts.opened} {onnavigate} onClose={() => (starts.opened = undefined)} />
 
