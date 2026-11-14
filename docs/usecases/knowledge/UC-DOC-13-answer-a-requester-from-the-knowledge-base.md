@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Access_test.go, core/domain/model/knowledge/LanguageVariant_test.go, core/application/service/knowledge/Articles_test.go, core/application/service/knowledge/LanguageVariants_test.go, test/integration/page_repository_test.go]
+checked_by: [core/domain/model/knowledge/Access_test.go, core/domain/model/knowledge/LanguageVariant_test.go, core/application/service/knowledge/Articles_test.go, core/application/service/knowledge/LanguageVariants_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/portal/portal.test.ts, apps/webapp/e2e/portal-frame.test.mjs]
 ---
 
 # Answer a requester from the knowledge base
@@ -26,6 +26,12 @@ The IT hub's page "Reset your password" explains the steps. Anna, who manages th
 2. A requester of that service - REQUEST at the collection, reading no hub - is offered the service's articles that the words typed so far find, best first, or the most read without words, and opens one: the page alone, as it stands now; a page trashed, archived or restricted since, or taken back, is not found.
 3. The requester says whether an article helped, one answer per person that a second replaces; beside the page its publisher sees, per service, how often it was opened and how many it helped and did not - never who said what.
 4. Somebody who manages a hub's members links one of its pages to another page of the same space as its variant in one language - a BCP 47 tag, one page per tag, at most 20; a variant is no source and a source no variant; a tag that is no language is refused as `pages.language_malformed`, one taken as `pages.variant_language_taken` - and takes the link back; the trail records each. A requester offered or opening the source's article reads it in their language: the variant under the exact tag first, then the one under its language alone (`de` for `de-AT`), then the source; a variant trashed, archived or restricted since gives way to the next, and the opening and the rating stay the article's.
+5. Somebody who manages a hub's members shares a page with everything under it with a service's
+   portal, as a space, and narrows it back to the page alone; the trail records each. The
+   service's requesters then find, open and rate every live page under it - the openings and
+   ratings counting on the space - and see the space with its pages in the portal's *knowledge*;
+   a page behind a restriction, and everything under it, never reaches them, nor does a page of
+   another workspace. By the owner's decision (work-surface concept, E-13).
 
 ## Where it ends
 

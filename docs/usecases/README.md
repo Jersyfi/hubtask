@@ -328,6 +328,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SVC-11](./servicedesk/UC-SVC-11-see-the-requests-of-my-organisation.md) | See the requests of my organisation in the portal | servicedesk |
 | [UC-SVC-12](./servicedesk/UC-SVC-12-answer-a-requester-by-mail.md) | Answer a requester by mail and get their reply on the request | servicedesk |
 | [UC-SVC-13](./servicedesk/UC-SVC-13-take-a-request-from-somebody-without-an-account.md) | Take a request from somebody without an account through a public form | servicedesk |
+| [UC-SVC-14](./servicedesk/UC-SVC-14-ask-any-department-without-a-link.md) | Ask any department without a link | servicedesk |
 | [UC-TIM-01](./timekeeping/UC-TIM-01-track-my-time-on-what-i-work-on.md) | Track my time on what I work on | timekeeping |
 | [UC-TIM-02](./timekeeping/UC-TIM-02-fill-in-and-hand-in-my-week.md) | Fill in and hand in my week | timekeeping |
 | [UC-TIM-03](./timekeeping/UC-TIM-03-approve-a-teams-time.md) | Approve a team's time | timekeeping |
