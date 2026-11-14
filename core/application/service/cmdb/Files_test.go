@@ -81,7 +81,7 @@ var (
 	unsealed = ciID("0204")
 )
 
-// UC-AST-01 check 11: a writer puts their upload on an object and takes it off again; the link
+// UC-AST-01 check 12: a writer puts their upload on an object and takes it off again; the link
 // moves the reference count, a retry changes nothing, the trail names the file by identifier only
 // (rule 10). A file somebody else uploaded is put on only where the writer reads an object that
 // holds it, and an upload that is not READY or not an attachment is refused.

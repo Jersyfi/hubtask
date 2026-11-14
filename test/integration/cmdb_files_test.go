@@ -13,7 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/media"
 )
 
-// An inventory object's files (migration 0434, UC-AST-01 check 11): linked once, listed oldest
+// An inventory object's files (migration 0434, UC-AST-01 check 12): linked once, listed oldest
 // first, counted, answered as the hub that holds them, counted by the reconciliation, and gone
 // with the object; the workspace next door neither reads, adds nor removes one.
 func TestAnObjectsFilesStayInItsWorkspace(t *testing.T) {

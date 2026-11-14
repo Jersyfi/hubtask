@@ -605,7 +605,7 @@ func (c ciHolders) ReferencingCis(_ context.Context, id shared.ID) ([]shared.ID,
 	return c[id], nil
 }
 
-// UC-AST-01 check 11: a file on an inventory object is read by whoever may read the object's hub,
+// UC-AST-01 check 12: a file on an inventory object is read by whoever may read the object's hub,
 // asked along the hub's path; somebody who may not is told it does not exist.
 func TestAFileOnAnInventoryObjectIsReadByTheObjectsReaders(t *testing.T) {
 	for _, allow := range []bool{true, false} {
