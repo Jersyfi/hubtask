@@ -39,6 +39,7 @@
   import { announcer } from '../announce.svelte.ts';
   import EntryPicker from '../entries/EntryPicker.svelte';
   import { keyboardTool, tabTarget } from './keys.ts';
+  import { isLevelWithIslands } from './islands.ts';
   import { DOCK, PHONE_DOCK, afterUse, neighbourOf, toolOfKey, type DockTool } from './dock.ts';
   import { keepThenReplace } from './restore.ts';
   import { sceneKey } from './scene.ts';
@@ -133,6 +134,15 @@
   let surface = $state<SVGSVGElement | undefined>(undefined);
   let toolbar = $state<HTMLDivElement | undefined>(undefined);
   let zoombar = $state<HTMLDivElement | undefined>(undefined);
+  /** The session bar stands level with the top islands at the centre, below them where it would touch one (W-5). */
+  let titleIsland = $state<HTMLDivElement | undefined>(undefined);
+  let peopleIsland = $state<HTMLDivElement | undefined>(undefined);
+  let titleWidth = $state(0);
+  let peopleWidth = $state(0);
+  let sessionWidth = $state(0);
+  const isSessionLevel = $derived(
+    !titleIsland || !peopleIsland || isLevelWithIslands(view.width, sessionWidth, [titleWidth, peopleWidth], Math.min(titleIsland.offsetLeft, peopleIsland.offsetLeft)),
+  );
   let cards = $state<Map<string, ReferenceTarget>>(new Map());
   let isPickingEntry = $state(false);
   let picked = $state<WorkItem | undefined>(undefined);
@@ -1797,7 +1807,7 @@
     {/if}
 
     <!-- The four islands and the dock (W-1): no head above the board. -->
-    <div class="island top-left" data-board-island="title">
+    <div class="island top-left" data-board-island="title" bind:this={titleIsland} bind:offsetWidth={titleWidth}>
       {#if back}<IconButton size="sm" icon="chevron-left" label={t('app.whiteboards.back_to_boards')} onclick={() => onnavigate(back)} />{/if}
       <div class="name">{@render heading()}</div>
       <span class="status" class:live={isLive && unsent === 0 && status !== 'offline'} aria-live="polite" data-board-status>
@@ -1816,7 +1826,7 @@
       </Menu>
     </div>
 
-    <div class="island top-right" data-board-island="people">
+    <div class="island top-right" data-board-island="people" bind:this={peopleIsland} bind:offsetWidth={peopleWidth}>
       {#if peers.length > 0}
         <Popover label={t('app.whiteboards.here_now')} bind:isOpen={isPeopleOpen} placement={{ side: 'block-end', align: 'end' }}>
           {#snippet trigger(props)}
@@ -1872,7 +1882,7 @@
 
     {#if remaining || voting}
       <!-- The session bar: the running timer and vote, the same for everyone (W-5). -->
-      <div class="island session-bar" role="group" aria-label={t('app.whiteboards.session')} data-board-session>
+      <div class="island session-bar" class:below={!isSessionLevel} role="group" aria-label={t('app.whiteboards.session')} data-board-session bind:offsetWidth={sessionWidth}>
         {#if remaining}
           <Icon name="timer" size="sm" />
           <span class="clock" class:over={!remaining.running && remaining.left === 0} role="timer" aria-label={t('app.whiteboards.timer_left', { time: clockOf(remaining.left) })}>{clockOf(remaining.left)}</span>
@@ -2227,7 +2237,8 @@
   .bottom-left { inset-block-end: var(--sp-200); inset-inline-start: var(--sp-200); }
   .bottom-left:empty { display: none; }
   .name { min-inline-size: 0; flex: 0 1 auto; padding-inline: var(--sp-050); }
-  .status { display: inline-flex; align-items: center; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
+  /* A long status gives way before the board's name does. */
+  .status { display: inline-block; flex: 0 100 auto; min-inline-size: 0; overflow: hidden; color: var(--text-secondary); font-size: var(--fs-075); text-overflow: ellipsis; white-space: nowrap; }
   .status.live { color: var(--text-success); }
   .modes { display: inline-flex; padding: var(--sp-025); border-radius: var(--r-md); background: var(--bg-surface-sunken); }
   .mode {
@@ -2265,7 +2276,7 @@
     font-weight: var(--fw-semibold);
   }
   .session-bar {
-    inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200));
+    inset-block-start: var(--sp-200);
     inset-inline: 0;
     margin-inline: auto;
     inline-size: fit-content;
@@ -2273,6 +2284,7 @@
     gap: var(--sp-100);
     padding-inline: var(--sp-150);
   }
+  .session-bar.below { inset-block-start: calc(var(--sp-200) + var(--density-control-md-min) + var(--sp-200)); }
   .vote-words { display: grid; line-height: var(--lh-tight); }
   .pager { inset-block-start: calc(var(--sp-100) + var(--density-control-md-min) + var(--sp-200)); inset-inline: 0; margin-inline: auto; inline-size: fit-content; }
   .pager-name { font-size: var(--fs-075); padding-inline: var(--sp-050); }

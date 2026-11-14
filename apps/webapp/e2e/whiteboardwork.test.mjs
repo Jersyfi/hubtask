@@ -203,7 +203,7 @@ test('chromium: the board reads as a list by frame in reading order (UC-CNV-01 c
   assert.deepEqual(failures, []);
 });
 
-test('chromium: a timer started from Moderate is one bar at the top centre with a minute more (UC-CNV-05 check 4)', async (t) => {
+test('chromium: a timer started from Moderate is one bar at the top centre, level with the islands, with a minute more (UC-CNV-05 check 4)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await open(browser);
@@ -218,7 +218,16 @@ test('chromium: a timer started from Moderate is one bar at the top centre with 
   const stage = await box(page.locator('.stage'));
   const at = await box(bar);
   assert.ok(Math.abs(at.x + at.width / 2 - (stage.x + stage.width / 2)) < 4, 'the session bar is not at the centre');
-  assert.ok(at.y - stage.y < 80, `the session bar is not at the top: ${at.y - stage.y}`);
+  // Level with the top islands where it clears both (the rule: islands.test.ts), else just below them;
+  // either way it touches neither.
+  const clear = () => page.evaluate(() => {
+    const bar = document.querySelector('[data-board-session]');
+    const at = bar.getBoundingClientRect();
+    const [title, people] = ['title', 'people'].map((name) => document.querySelector(`[data-board-island=${name}]`).getBoundingClientRect());
+    const level = !bar.classList.contains('below');
+    return level ? Math.abs(at.top - title.top) < 2 && at.left >= title.right && at.right <= people.left : at.top >= title.bottom && at.top >= people.bottom;
+  });
+  assert.ok(await clear(), 'the session bar touches a top island');
   const clock = bar.getByRole('timer');
   const was = await clock.textContent();
   await bar.getByRole('button', { name: '1 min' }).click();
@@ -226,6 +235,9 @@ test('chromium: a timer started from Moderate is one bar at the top centre with 
   const [m1] = was.split(':').map(Number);
   const [m2] = (await clock.textContent()).split(':').map(Number);
   assert.ok(m2 >= m1 + 1 || m2 === m1 + 1, `a minute more read ${was} → ${await clock.textContent()}`);
+  await page.setViewportSize({ width: 1100, height: 860 });
+  await page.waitForFunction(() => document.querySelector('[data-board-session]').classList.contains('below'), null, { timeout: 5_000 });
+  assert.ok(await clear(), 'the session bar touches a top island where there is no room beside them');
   assert.deepEqual(failures, []);
 });
 
