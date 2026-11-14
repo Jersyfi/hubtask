@@ -253,7 +253,7 @@
     {#if unreadLabel}<UnreadDot />{:else if icon && color}<ProductTile {icon} {color} />{:else if icon}<Icon name={icon} size="sm" />{/if}
   </span>
   {#if !isRail}
-    <span class="name" title={label}>{label}{#if unreadLabel}<VisuallyHidden>, {unreadLabel}</VisuallyHidden>{/if}</span>
+    <span class="name" title={label}>{label}{#if unreadLabel}<VisuallyHidden>{unreadLabel}</VisuallyHidden>{/if}</span>
     {#if badge}
       <span class="badge" title={badge.label}><Icon name={badge.icon} label={badge.label} size="sm" /></span>
     {/if}
