@@ -136,11 +136,12 @@ test('chromium: Stock comes first under its figure, the operator\'s sections und
   assert.equal(await page.getByRole('tablist').count(), 0, 'a second strip');
   await page.getByRole('link', { name: 'web-2', exact: true }).waitFor({ timeout: 5_000 });
 
-  // Every former operator's section is a part of Upkeep, with its own address.
+  // Every former operator's section is a part of Upkeep, with its own address: the round, the
+  // duplicates, then the sources with their runs and the import (scene invcare).
   await tabTo(page, 'Upkeep');
   await page.waitForFunction(() => location.pathname.endsWith('/inventory/care'), null, { timeout: 5_000 });
   await page.locator('[data-care-part=import]').waitFor({ timeout: 5_000 });
-  assert.deepEqual(await page.locator('[data-care-part]').evaluateAll((all) => all.map((each) => each.getAttribute('data-care-part'))), ['runs', 'duplicates', 'connectors', 'campaigns', 'import']);
+  assert.deepEqual(await page.locator('[data-care-part]').evaluateAll((all) => all.map((each) => each.getAttribute('data-care-part'))), ['campaigns', 'duplicates', 'connectors', 'runs', 'import']);
   // The register and the software are Stock's switch.
   await tabTo(page, 'Stock');
   await page.getByRole('radio', { name: /Devices and licences/ }).waitFor({ timeout: 5_000 });
