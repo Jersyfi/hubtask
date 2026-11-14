@@ -174,3 +174,16 @@ test('a release has the one head every object has: its state a status button, pu
   assert.match(view, /<StatusButton\s+current=\{\{ id: lozenge, label: stateWord, category: 'todo' \}\}/u);
   assert.doesNotMatch(view, /class="card-head"/u);
 });
+
+test('the agents\' home opens with its product band and figures line, as every product home does (H-3, WB-5)', () => {
+  const view = sources.find(({ path }) => path === 'views/AgentsView.svelte')?.text ?? '';
+  assert.match(view, /<ProductBand product="agents" icon="zap" name=\{title\}/u);
+  assert.match(view, /figures=\{figureParts\} \/>/u);
+  assert.match(view, /<ListPage \{head\} top=\{isProductHome \? band : undefined\}/u);
+});
+
+test('every tab of the goals\' home starts with its figures, the dashboards\' and portfolios\' too (H-4, WB-5)', () => {
+  const view = sources.find(({ path }) => path === 'views/GoalsView.svelte')?.text ?? '';
+  assert.match(view, /current === 'portfolios' \? \(portfolioList \? \[t\('app\.goals\.figure_portfolios'/u);
+  assert.match(view, /current === 'dashboards' \? \(dashboardList \? \[t\('app\.goals\.figure_dashboards'/u);
+});

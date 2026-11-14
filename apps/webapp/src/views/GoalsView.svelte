@@ -163,8 +163,11 @@
       onnavigate(address({ period: made.id }));
     }, t('app.goals.period_defined'));
   }
-  const figureParts = $derived(
-    current !== 'goals' || !chosen || !goalList
+  // Every tab of the home starts with its figures (WB-5): the goals', the portfolios', the dashboards'.
+  const figureParts = $derived.by(() =>
+    current === 'portfolios' ? (portfolioList ? [t('app.goals.figure_portfolios', { count: portfolioList.length })] : [])
+    : current === 'dashboards' ? (dashboardList ? [t('app.goals.figure_dashboards', { count: dashboardList.length }), t('app.goals.figure_dashboards_shared', { count: dashboardList.filter((each) => each.sharing !== 'PRIVATE').length })] : [])
+    : current !== 'goals' || !chosen || !goalList
       ? []
       : [
           t('app.goals.figure_goals', { count: goalList.length }),
