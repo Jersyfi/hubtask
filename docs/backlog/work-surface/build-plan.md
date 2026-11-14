@@ -152,3 +152,9 @@ exactly one done column. The repair is a one-off, idempotent job with a dry run,
 * Open for the coherence pass: a whiteboard connector cannot be chosen or deleted in the UI (W-4: every
   object takes the selection bar); the board's island/bar markup and the pages' `FloatingToolbar` become
   one component; the selection bar's brand-tinted primary becomes a design-system button tone.
+* **Owner's decisions of 2026-11-14 (document server):** (1) the editor launches embedded: the content
+  security policy opens `frame-src` and `form-action` for exactly the document server the administration
+  entered, and only while one is entered; every other origin stays closed; the token is short-lived, per
+  person and file. (2) Without a document server no converter is added: office files show a card with type
+  and size and the download; with one, its conversion endpoint renders the PDF preview. Still open with the
+  owner: a document server on a private network (the outbound guard refuses private addresses).
