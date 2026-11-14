@@ -28,6 +28,7 @@
     alertsPath, assetsFigure, classesPath, healthPath, inventoryPath, inventoryPlace, sectionOf, type AssetSection, type Words,
   } from '../lib/data/cmdb.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
+  import { live } from '../lib/data/live.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { page as frame } from '../lib/frame/page.svelte.ts';
@@ -45,9 +46,11 @@
     /** The stock opened with this line, or this saved group's: an object page's trail and rail link here. */
     line?: string;
     group?: string;
+    /** The register's device opened beside it (scene invreg 2). */
+    asset?: string;
   }
 
-  const { hubId, section, onnavigate, isCreateAsked = false, line, group }: Props = $props();
+  const { hubId, section, onnavigate, isCreateAsked = false, line, group, asset }: Props = $props();
 
   const classesRead = resource<CiClassList>(classesPath);
   const classes = $derived(classesRead.state.status === 'ready' ? classesRead.state.data.data : []);
@@ -72,6 +75,8 @@
     untrack(() => ask('ci'));
   });
   const mayShape = $derived(holdsHere('STRUCTURE') === true);
+  // Writing stays online and off the phone (UC-AST-01 check 10).
+  const mayAct = $derived(mayWrite && !viewport.isCompact && live.state !== 'offline');
 
   // The head's figure and the alerts' count, from the same reads the health and the alerts tabs
   // draw; a refusal of either leaves its part out rather than the whole head.
@@ -178,7 +183,8 @@
       <div role="region" aria-label={tabLabel(place.tab)} data-inventory-tab={place.tab}>
         {#if place.tab === 'inventory'}
           <Stock {hubId} {classes} {words} {mayWrite} {onnavigate} part={place.stock} {wanting} {line} {group} isSavedShown={asked0 === 'groups'}
-            asked={asked === 'ci' || asked === 'group' ? asked : undefined} onasked={answered} onimport={() => onnavigate(inventoryPath(hubId, 'import'))} />
+            asked={asked === 'ci' || asked === 'group' ? asked : undefined} onasked={answered} onimport={() => onnavigate(inventoryPath(hubId, 'import'))}
+            {asset} {mayAct} />
         {:else if place.tab === 'map'}
           <MapTab {hubId} {classes} {words} />
         {:else if place.tab === 'health'}

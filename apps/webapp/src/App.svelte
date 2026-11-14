@@ -735,6 +735,7 @@
           isCreateAsked: route.query['new'] === '1',
           line: route.query['line'],
           group: route.query['group'],
+          asset: route.query['asset'],
           onnavigate: (path: string) => router.navigate(path),
         }}
       />
