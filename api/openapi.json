@@ -43996,7 +43996,7 @@
       },
       "TodaySection": {
         "type": "string",
-        "description": "A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, inbox and recently opened.\n",
+        "description": "A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, new for you (the posts not read yet), inbox and recently opened.\n",
         "enum": [
           "OVERDUE",
           "DUE_TODAY",
@@ -44004,6 +44004,7 @@
           "TIME",
           "APPROVALS",
           "COLLECTIONS",
+          "NEWS",
           "INBOX",
           "RECENT"
         ]

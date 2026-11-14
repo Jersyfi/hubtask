@@ -1362,7 +1362,7 @@ class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
 
-TodaySection = Literal["OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "INBOX", "RECENT"]
+TodaySection = Literal["OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "NEWS", "INBOX", "RECENT"]
 
 Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
 

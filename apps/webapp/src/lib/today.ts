@@ -279,7 +279,7 @@ export function timeTodayOf(
 /** The cards of Today's row (work-surface concept §6.1), in the product's own order. */
 export const TODAY_CARDS = ['OVERDUE', 'DUE_TODAY', 'REPLY', 'TIME', 'APPROVALS'] as const;
 /** The tiles over the full width, in the product's own order. */
-export const TODAY_TILES = ['COLLECTIONS', 'INBOX', 'RECENT'] as const;
+export const TODAY_TILES = ['COLLECTIONS', 'NEWS', 'INBOX', 'RECENT'] as const;
 export type TodayCard = (typeof TODAY_CARDS)[number];
 export type TodayTile = (typeof TODAY_TILES)[number];
 export type TodaySection = TodayCard | TodayTile;

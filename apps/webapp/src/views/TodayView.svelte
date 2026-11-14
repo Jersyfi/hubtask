@@ -26,7 +26,7 @@
 
   import { untrack } from 'svelte';
 
-  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, WorkItem } from '@hubtask/sync-engine';
+  import type { AgentList, AgentRequest, AgentRequestList, ApprovalList, ConfigTemplate, ConfigTemplateList, EntrySlaList, ItemQueryResult, MySprintList, SprintDetail, TimesheetWeek, TimeTimer, UnreadPostList, WorkItem } from '@hubtask/sync-engine';
   import { Button, Checkbox, Dialog, Disclosure, EmptyState, Icon, IconButton, Kbd, PageHeader, Skeleton, Stack, Tabs, TaskRow, Widget, WidgetStrip, WorkPage } from '@hubtask/design-system/components';
   import FailureState from '../lib/frame/FailureState.svelte';
 
@@ -44,6 +44,9 @@
   import { portalStart } from '../lib/portal/portal.ts';
   import { holds, holdsHere, hubCreationHere, mayDo, reachesAdministrationArea, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { postMoment, unreadPostsPath } from '../lib/data/posts.ts';
+  import { resource } from '../lib/data/resource.svelte.ts';
   import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
@@ -538,7 +541,12 @@
   const sectionOrder = $derived(localOrder ?? actor.account?.today_sections ?? []);
   const sectionHidden = $derived(localHidden ?? actor.account?.today_sections_hidden ?? []);
   const givenCards = $derived(cardsOf(manifest.value?.modules_on));
-  const givenTiles = $derived<TodayTile[]>(TODAY_TILES.filter((tile) => tile !== 'INBOX' || hasJumble));
+  // *New for you* (B-5): the published posts the reader has not seen, across every hub they read.
+  const hasPosts = $derived(manifest.value?.modules_on?.includes('KNOWLEDGE') ?? false);
+  const newPosts = $derived(hasPosts ? resource<UnreadPostList>(unreadPostsPath) : undefined);
+  const unreadPosts = $derived(newPosts?.state.status === 'ready' ? newPosts.state.data.data : []);
+  $effect(() => accounts.resolve(unreadPosts.map((post) => post.created_by)));
+  const givenTiles = $derived<TodayTile[]>(TODAY_TILES.filter((tile) => (tile !== 'INBOX' || hasJumble) && (tile !== 'NEWS' || hasPosts)));
   const cards = $derived(arrangeSections(givenCards, sectionOrder, sectionHidden));
   const tiles = $derived(arrangeSections(givenTiles, sectionOrder, sectionHidden));
   let isArranging = $state(false);
@@ -579,6 +587,7 @@
     TIME: 'app.today.time',
     APPROVALS: 'app.today.approvals',
     COLLECTIONS: 'app.today.collections',
+    NEWS: 'app.today.news',
     INBOX: 'app.today.jumble',
     RECENT: 'app.today.recent',
   };
@@ -885,6 +894,25 @@
         </ul>
       </Widget>
     </div>
+  {:else if key === 'NEWS' && unreadPosts.length > 0}
+    <!-- What was posted for the reader and not read yet (B-5): a dot, the title, who and where. -->
+    <div class="tile" data-tile={key}>
+      <Widget title={t('app.today.news')} count={String(unreadPosts.length)}>
+        <ul class="news">
+          {#each unreadPosts.slice(0, 3) as post (post.page_id)}
+            <li data-news={post.page_id}>
+              <a class="news-title" href={`/posts/${post.page_id}`}><span class="news-dot" aria-hidden="true"></span><span class="name">{post.title}</span></a>
+              <span class="from">{[
+                t('app.today.news_by', { name: (post.created_by ? accounts.nameOf(post.created_by) : undefined) ?? t('app.people.unnamed') }),
+                containers.find(post.hub_id)?.name,
+                formatRelative(postMoment(post), messages.locale),
+                post.confirm_by && !post.confirmed ? t('app.posts.confirm_asked') : undefined,
+              ].filter(Boolean).join(' · ')}</span>
+            </li>
+          {/each}
+        </ul>
+      </Widget>
+    </div>
   {:else if key === 'INBOX' && hasJumble && waiting.length > 0}
     <!-- What arrived and has not been put anywhere: where it came from, from whom and when, and
          the two decisions at the row. -->
@@ -1083,6 +1111,13 @@
   oncreated={(id, landing) => { tryingWith = undefined; onnavigate?.(landing ?? `/hubs/${id}`); }} />
 
 <style>
+  .news { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-150); }
+  .news li { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
+  .news-title { display: flex; align-items: center; gap: var(--sp-100); color: var(--text-primary); text-decoration: none; font-weight: var(--fw-semibold); min-inline-size: 0; }
+  .news-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .news-title:hover .name { text-decoration: underline; }
+  .news-dot { inline-size: var(--sp-100); block-size: var(--sp-100); border-radius: var(--r-full); background: var(--accent-primary); flex: none; }
+  .news .from { color: var(--text-subtle); font-size: var(--fs-075); }
   /* The scene `today` (work-surface concept §6.1): the cards' row, two columns that end level, the
      tiles over the full width. One column below `expanded`; on a phone the cards swipe and the
      columns are a switch (§7). */

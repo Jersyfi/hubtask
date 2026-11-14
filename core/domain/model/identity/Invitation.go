@@ -245,7 +245,7 @@ type TodaySections struct {
 }
 
 // todaySectionKeys is the closed set, cards first: a section is a word, never free text.
-var todaySectionKeys = [...]string{"OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "INBOX", "RECENT"}
+var todaySectionKeys = [...]string{"OVERDUE", "DUE_TODAY", "REPLY", "TIME", "APPROVALS", "COLLECTIONS", "NEWS", "INBOX", "RECENT"}
 
 // todaySectionsOf checks both lists: known keys only, upper case, each once in the order given -
 // so neither can grow past the set.

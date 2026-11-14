@@ -11065,6 +11065,7 @@ const (
 	TodaySectionCOLLECTIONS TodaySection = "COLLECTIONS"
 	TodaySectionDUETODAY    TodaySection = "DUE_TODAY"
 	TodaySectionINBOX       TodaySection = "INBOX"
+	TodaySectionNEWS        TodaySection = "NEWS"
 	TodaySectionOVERDUE     TodaySection = "OVERDUE"
 	TodaySectionRECENT      TodaySection = "RECENT"
 	TodaySectionREPLY       TodaySection = "REPLY"
@@ -11081,6 +11082,8 @@ func (e TodaySection) Valid() bool {
 	case TodaySectionDUETODAY:
 		return true
 	case TodaySectionINBOX:
+		return true
+	case TodaySectionNEWS:
 		return true
 	case TodaySectionOVERDUE:
 		return true
@@ -27122,7 +27125,7 @@ type TimesheetWeek struct {
 // TimesheetWeekState defines model for TimesheetWeek.State.
 type TimesheetWeekState string
 
-// TodaySection A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, inbox and recently opened.
+// TodaySection A card or a tile of *Today* a person may hide and order: the cards overdue, due today, needs your reply, time today and waits for your yes; the tiles your collections, new for you (the posts not read yet), inbox and recently opened.
 type TodaySection string
 
 // TotpConfirmation defines model for TotpConfirmation.
