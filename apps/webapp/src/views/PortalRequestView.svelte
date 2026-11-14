@@ -8,6 +8,7 @@
 
   import { untrack } from 'svelte';
   import { Badge, Button, PageHeader, DetailPage, Radio, Skeleton, Stack, StateLozenge, Textarea } from '@hubtask/design-system/components';
+  import RichText from '../lib/entries/RichText.svelte';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { PortalRequestDetail, WorkItem } from '@hubtask/sync-engine';
 
@@ -92,7 +93,7 @@
       <span data-portal-state={standing?.category}>{#if standing}<StateLozenge label={standing.label} vocabulary="category" state={standing.category} size="md" />{/if}</span>
       <Button tone="subtle" size="sm" icon="arrow-left" onclick={() => onnavigate?.(`/portal/${detail.collection_id}`)}>{t('app.portal.back')}</Button>
     </div>
-    {#if detail.notes}<p class="notes">{detail.notes}</p>{/if}
+    {#if detail.notes}<div class="notes" data-portal-notes><RichText value={detail.notes} label={t('app.portal.request')} /></div>{/if}
 
     {#if detail.merged_into}
       {@const into = detail.merged_into}
@@ -112,8 +113,8 @@
             {#if into.comments.length === 0}<p class="quiet">{t('app.portal.replies_none')}</p>{/if}
             <ol class="replies">
               {#each into.comments as comment (comment.id)}
-                <li><span class="who">{t('app.portal.team')} · {at(comment.created_at)}</span>
-                  <p class="body">{comment.body ?? ''}</p></li>
+                <li data-portal-reply><span class="who">{t('app.portal.team')} · {at(comment.created_at)}</span>
+                  <div class="body"><RichText value={comment.body ?? ''} label={t('app.portal.replies')} /></div></li>
               {/each}
             </ol>
           {:else}
@@ -149,9 +150,9 @@
         {#if detail.comments.length === 0}<p class="quiet">{t('app.portal.replies_none')}</p>{/if}
         <ol class="replies">
           {#each detail.comments as comment (comment.id)}
-            <li class:mine={comment.mine}>
+            <li class:mine={comment.mine} data-portal-reply>
               <span class="who">{comment.mine ? t('app.portal.you') : comment.by_requester ? t('app.portal.colleague') : t('app.portal.team')} · {at(comment.created_at)}</span>
-              <p class="body">{comment.body ?? ''}</p>
+              <div class="body"><RichText value={comment.body ?? ''} label={t('app.portal.replies')} /></div>
             </li>
           {/each}
         </ol>
@@ -193,7 +194,7 @@
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
   .standing { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
-  .notes, .body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .notes, .body { margin: 0; overflow-wrap: anywhere; }
   .goals, .replies { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
   .goals li { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
   .replies li { padding: var(--sp-100); border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); }

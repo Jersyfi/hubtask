@@ -36,6 +36,11 @@ const request = (id, collection, title, extra) => ({
   id, number: 8, collection_id: collection, entry_type: 'incident', title, notes: null, status: 'in_progress', status_name: 'Being worked on',
   status_category: 'IN_PROGRESS', is_completed: false, completed_at: null, created_at: '2026-11-10T09:00:00Z', updated_at: '2026-11-12T09:40:00Z', is_own: true, ...extra,
 });
+// What the team wrote is Markdown; a requester reads it formatted, never its syntax, and never
+// markup a text could carry in.
+const NOTES = '**Since Monday** the VPN drops every hour.';
+const REPLY = { id: '01a0e2e0-0000-7000-8000-0000000051c1', body: 'Please _restart_ the client:\n\n- quit it\n- open it again', created_at: '2026-11-12T09:40:00Z', mine: false, by_requester: false };
+const ARTICLE = '## If it is lost\n\nRevoke it under **Account**.\n\n<img src="x" onerror="window.injected=1">';
 const APPROVAL = {
   id: '01a0e2e0-0000-7000-8000-0000000051b1', item_id: THEIRS, item_title: 'Access for Max to the supplier portal', item_number: 3, on_behalf_of: null,
   workflow: 'requests', step: 'approve', item_version: 1, state: 'PENDING', current_level: 1,
@@ -58,14 +63,14 @@ async function open(browser, { width, outsider, path, approvals = [APPROVAL] }) 
     if (p === '/requests') return route.fulfill({ json: { data: collection === IT ? [request(MINE, IT, 'The VPN drops', { last_reply_at: '2026-11-12T09:40:00Z', next_due_at: '2026-11-12T14:00:00Z' })] : [request('01a0e2e0-0000-7000-8000-0000000051f3', HR, 'Certificate for leave', { status_name: null, status_category: 'TODO', created_at: '2026-11-11T09:00:00Z' })], page_info: { next_cursor: null }, organisation: null } });
     if (p === `/requests/${THEIRS}` || p === `/requests/${MINE}`) {
       if (!outsider && p === `/requests/${THEIRS}`) return route.fulfill({ status: 404, json: { status: 404, code: 'errors.not_found' } });
-      return route.fulfill({ json: { ...request(p.split('/').pop(), IT, 'The VPN drops'), comments: [], sla: [], satisfaction: null, merged_into: null } });
+      return route.fulfill({ json: { ...request(p.split('/').pop(), IT, 'The VPN drops', { notes: NOTES }), comments: [REPLY], sla: [], satisfaction: null, merged_into: null } });
     }
     // A requester reads no entry through any door (UC-SVC-05): their REST answers are as before.
     if (p.startsWith('/items/') && outsider) return route.fulfill({ status: 404, json: { status: 404, code: 'errors.not_found' } });
     if (p === '/approvals') return route.fulfill({ json: { data: approvals, page: { next_cursor: null, has_more: false } } });
     if (p === '/portal-knowledge') return route.fulfill({ json: { data: [{ page_id: SPACE, title: 'Customer handbook', icon: '', with_subpages: true, pages: [{ page_id: UNDER, parent_id: SPACE, title: 'Lost device', icon: '' }] }] } });
     if (p === '/articles') return route.fulfill({ json: { data: [] } });
-    if (p === `/articles/${UNDER}`) return route.fulfill({ json: { page_id: UNDER, collection_id: IT, variant_page_id: null, title: 'Lost device', icon: '', body: 'Revoke it under Account.', content_language: null, updated_at: '2026-11-01T09:00:00Z' } });
+    if (p === `/articles/${UNDER}`) return route.fulfill({ json: { page_id: UNDER, collection_id: IT, variant_page_id: null, title: 'Lost device', icon: '', body: ARTICLE, content_language: null, updated_at: '2026-11-01T09:00:00Z' } });
     if (p === '/memberships') return route.fulfill({ json: { ...PAGE, data: [], grantable_roles: [] } });
     return stub(route);
   });
@@ -199,5 +204,29 @@ test('chromium 1280 px: a member reaches every department through Erstellen, sea
   await page.locator('[data-portal-dir-kind="laptop"]').click();
   await page.getByRole('dialog', { name: 'Order a laptop' }).getByLabel('In a few words').waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('dialog', { name: 'Order a laptop' }).getByLabel('In a few words').inputValue(), 'laptop');
+  assert.deepEqual(failures, []);
+});
+
+// P-12: a request's notes, the team's replies and an article read as formatted text - no `**`, no
+// `##` - and an HTML tag in the text is neither drawn nor run.
+test('chromium 1280 px: the portal reads notes, replies and articles formatted, never as Markdown', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, { width: 1280, outsider: true, path: `/portal/requests/${MINE}` });
+  t.after(close);
+  const notes = page.locator('[data-portal-notes]');
+  await notes.locator('strong', { hasText: 'Since Monday' }).waitFor({ timeout: 15_000 });
+  const replies = page.locator('[data-portal-reply]');
+  await replies.locator('em', { hasText: 'restart' }).waitFor({ timeout: 10_000 });
+  assert.equal(await replies.locator('li', { hasText: 'open it again' }).count(), 1, 'the reply\'s list is a list');
+  for (const text of [await notes.innerText(), await replies.innerText()]) assert.doesNotMatch(text, /\*\*|_restart_|^- /m);
+
+  await page.goto(`${served.origin}/portal/${IT}/articles/${UNDER}`);
+  const body = page.locator('[data-portal-article-body]');
+  await body.getByRole('heading', { name: 'If it is lost' }).waitFor({ timeout: 15_000 });
+  await body.locator('strong', { hasText: 'Account' }).waitFor();
+  assert.doesNotMatch(await body.innerText(), /##|\*\*/);
+  assert.equal(await body.locator('img').count(), 0, 'an HTML tag in the text was drawn');
+  assert.equal(await page.evaluate(() => window.injected), undefined, 'an HTML tag in the text ran');
   assert.deepEqual(failures, []);
 });

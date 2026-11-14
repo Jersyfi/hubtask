@@ -4,11 +4,12 @@
   // An article a service publishes, read in its portal (UC-DOC-13 checks 2 to 4): the page as
   // it stands now, in the reader's language where the server found a variant of it, and whether
   // it helped - one answer per reader, which the publisher counts and never names. The Markdown is
-  // shown as written, never as markup a page could inject. A page of a shared space (PO-4) reads
-  // with the space's outline beside it and its path above (scene `portalext` 5).
+  // read formatted, as a page reads, never as markup a page could inject. A page of a shared space
+  // (PO-4) reads with the space's outline beside it and its path above (scene `portalext` 5).
 
   import { untrack } from 'svelte';
   import { Breadcrumb, Button, PageHeader, DetailPage, Skeleton } from '@hubtask/design-system/components';
+  import RichText from '../lib/entries/RichText.svelte';
   import FailureState from '../lib/frame/FailureState.svelte';
   import type { Article, PortalKnowledge } from '@hubtask/sync-engine';
 
@@ -92,7 +93,7 @@
           { id: 'here', label: read.title },
         ]} onnavigate={(path) => onnavigate?.(path)} />
         {#if !viewport.isCompact}<h1 class="title">{read.icon ? `${read.icon} ` : ''}{read.title}</h1>{/if}
-        <article class="body" lang={read.content_language ?? undefined}>{articleText(read.body)}</article>
+        <article class="body" data-portal-article-body><RichText value={articleText(read.body)} label={read.title} lang={read.content_language ?? undefined} /></article>
         <section class="helped" aria-labelledby="article-helped">
           <h2 class="ask" id="article-helped">{t('app.portal.helped')}</h2>
           <div class="answers">
@@ -118,7 +119,7 @@
   .answers { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .quiet { margin: 0; color: var(--text-secondary); }
   .refusal { margin: 0; color: var(--text-danger); }
-  .body { margin: 0; max-inline-size: 72ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .body { margin: 0; max-inline-size: 72ch; overflow-wrap: anywhere; }
   .read { display: grid; gap: var(--sp-300); grid-template-columns: minmax(0, 1fr); container-type: inline-size; }
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (min-width: 600px) {
