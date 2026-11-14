@@ -249,10 +249,15 @@
 
   /** The collection's level for its tasks: a list, board columns or a workflow (build-plan §5). */
   let stateMode = $state<StateMode | undefined>(undefined);
+  /** Each entry type's own level, from the same read: the replica's record carries neither. */
+  let stateModes = $state<Readonly<Record<string, StateMode>> | undefined>(undefined);
   $effect(() => {
     const wanted = id;
     if (container?.type !== 'COLLECTION') return;
-    return untrack(() => containers.levelOf(wanted, (level) => (stateMode = level)));
+    return untrack(() => containers.levelOf(wanted, (level, byType) => {
+      stateMode = level;
+      stateModes = byType;
+    }));
   });
 
   // The workflow the collection runs for its tasks, where it runs one: the board's columns then
@@ -274,7 +279,7 @@
   );
   /** An entry type's own level and workflow (build-plan §5): the server answers it per type. */
   function levelOfType(entryType: string) {
-    const mode = container?.state_modes?.[entryType];
+    const mode = stateModes?.[entryType];
     if (!container || !mode || mode === stateMode) return undefined;
     const runs = mode === 'WORKFLOW' ? workflowFor(workflows.list, container.id, container.parent_id ?? undefined, entryType)?.published ?? undefined : undefined;
     return { mode, workflow: runs };

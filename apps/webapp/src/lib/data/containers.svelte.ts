@@ -103,9 +103,9 @@ class Containers {
    * read (`state_mode`), never in the replica's records, so it is its own read - followed, because a
    * level switch or a scheme change invalidates `/containers`.
    */
-  levelOf(id: string, into: (level: StateMode | undefined) => void): () => void {
+  levelOf(id: string, into: (level: StateMode | undefined, byType: Readonly<Record<string, StateMode>> | undefined) => void): () => void {
     return engine.subscribe<Container>({ path: `/containers/${id}` }, (next) => {
-      if (next.status === 'ready') into(next.data.state_mode);
+      if (next.status === 'ready') into(next.data.state_mode, next.data.state_modes);
     });
   }
 
