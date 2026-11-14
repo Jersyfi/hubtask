@@ -9699,6 +9699,7 @@ const (
 	SearchKindPAGE       SearchKind = "PAGE"
 	SearchKindPERSON     SearchKind = "PERSON"
 	SearchKindPORTFOLIO  SearchKind = "PORTFOLIO"
+	SearchKindPOST       SearchKind = "POST"
 	SearchKindRELEASE    SearchKind = "RELEASE"
 	SearchKindSPRINT     SearchKind = "SPRINT"
 	SearchKindTICKET     SearchKind = "TICKET"
@@ -9725,6 +9726,8 @@ func (e SearchKind) Valid() bool {
 	case SearchKindPERSON:
 		return true
 	case SearchKindPORTFOLIO:
+		return true
+	case SearchKindPOST:
 		return true
 	case SearchKindRELEASE:
 		return true
@@ -25252,13 +25255,13 @@ type SearchAllAnswer struct {
 
 // SearchAllHit One object as a hit row draws it.
 type SearchAllHit struct {
-	// AuthorId The account that made it; for entries, tickets and pages, null for the other kinds.
+	// AuthorId The account that made it; for entries, tickets, pages and posts, null for the other kinds.
 	AuthorId *openapi_types.UUID `json:"author_id"`
 
 	// CollectionId An entry's or a sprint's collection, or that of the entry a comment or file is on.
 	CollectionId *openapi_types.UUID `json:"collection_id"`
 
-	// CreatedAt When it was made; for entries, tickets and pages, null for the other kinds.
+	// CreatedAt When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds.
 	CreatedAt *time.Time `json:"created_at"`
 
 	// HubId The hub it stands in; null for the workspace's own, for portfolios and for people.
@@ -25275,13 +25278,13 @@ type SearchAllHit struct {
 		Kind SearchAllHitOnKind `json:"kind"`
 	} `json:"on"`
 
-	// Snippet The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for.
+	// Snippet The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for.
 	Snippet *string `json:"snippet"`
 
 	// State An entry's or a ticket's OPEN or DONE, a page's VERIFIED or REVIEW_DUE (null when never verified), a goal's or a portfolio's status, a release's or a sprint's state, an inventory item's stage, a dashboard's sharing, a person's account status.
 	State *string `json:"state"`
 
-	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.
+	// Tile What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory item's class key, a file's media type, a person's account kind.
 	Tile *string `json:"tile"`
 
 	// Title The title, a name, a file name, or for a comment the title of what it is on.

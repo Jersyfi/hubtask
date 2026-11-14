@@ -29882,7 +29882,7 @@
         "x-hubtask-rest": "generated",
         "x-hubtask-cli": "find all",
         "summary": "One search over every kind of object the caller may read",
-        "description": "Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases and sprints whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what somebody looks for is their content.\n",
+        "description": "Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names, comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one hit row draws (title, place, tile, the passage that matched where there is one, its state), grouped by kind in the order of `kinds` and best first within a kind, at most `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the search to that kind. `facets` counts the hits per kind the caller may read; a count with `more` is a lower bound. Every hit and every count is narrowed to what the caller may read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where the caller may read what it is on. Among equally good pages a verified one comes first. A post is found by its title and body once it is published, and only by a person it is for - never as a page, and never a draft or a scheduled one, not even by its writers. A `POST` because what somebody looks for is their content.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -51292,7 +51292,7 @@
           },
           "kinds": {
             "type": "array",
-            "maxItems": 13,
+            "maxItems": 14,
             "description": "The kinds to search, in the order the answer groups them; omitted is every kind. `TICKET` is the entries of the collections that act as a service desk; where it is asked, `ENTRY` holds the other entries, and where it is not, every entry.\n",
             "items": {
               "$ref": "#/components/schemas/SearchKind"
@@ -51327,7 +51327,8 @@
           "COMMENT",
           "PORTFOLIO",
           "RELEASE",
-          "SPRINT"
+          "SPRINT",
+          "POST"
         ]
       },
       "SearchAllAnswer": {
@@ -51423,14 +51424,14 @@
               "string",
               "null"
             ],
-            "description": "What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon, an inventory item's class key, a file's media type, a person's account kind.\n"
+            "description": "What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon, an inventory item's class key, a file's media type, a person's account kind.\n"
           },
           "snippet": {
             "type": [
               "string",
               "null"
             ],
-            "description": "The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for."
+            "description": "The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for."
           },
           "state": {
             "type": [
@@ -51459,7 +51460,7 @@
               "null"
             ],
             "format": "date-time",
-            "description": "When it was made; for entries, tickets and pages, null for the other kinds."
+            "description": "When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds."
           },
           "author_id": {
             "type": [
@@ -51467,7 +51468,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "The account that made it; for entries, tickets and pages, null for the other kinds."
+            "description": "The account that made it; for entries, tickets, pages and posts, null for the other kinds."
           },
           "on": {
             "description": "What a comment or a file belongs to; null for every other kind.",

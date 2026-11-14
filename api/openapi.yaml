@@ -20503,7 +20503,7 @@ paths:
       summary: One search over every kind of object the caller may read
       description: >
         Entries, tickets, pages, whiteboards, goals, dashboards, inventory items, people, file names,
-        comments, portfolios, releases and sprints whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one
+        comments, portfolios, releases, sprints and posts whose words match, in one answer; a ticket key finds its entry: each hit names its kind and carries what one
         hit row draws (title, place, tile, the passage that matched where there is one, its
         state), grouped by kind in the order of `kinds` and best first within a kind, at most
         `size` per kind. `q` is a Hubtask query: its keys narrow, a key of one kind keeps the
@@ -20511,7 +20511,9 @@ paths:
         `more` is a lower bound. Every hit and every count is narrowed to what the caller may
         read. People and portfolios stand in no hub and are left out where `hub_id` narrows. People
         are found by their display name only; a file by its name, never its contents. Files and comments are found on entries, pages and whiteboards, each where
-        the caller may read what it is on. Among equally good pages a verified one comes first. A `POST` because what
+        the caller may read what it is on. Among equally good pages a verified one comes first. A post is found
+        by its title and body once it is published, and only by a person it is for - never as a page, and never
+        a draft or a scheduled one, not even by its writers. A `POST` because what
         somebody looks for is their content.
       requestBody:
         required: true
@@ -32583,7 +32585,7 @@ components:
             is one ticket key, `SA-12`, finds that entry first wherever the caller may read it.
         kinds:
           type: array
-          maxItems: 13
+          maxItems: 14
           description: >
             The kinds to search, in the order the answer groups them; omitted is every kind.
             `TICKET` is the entries of the collections that act as a service desk; where it is
@@ -32593,7 +32595,7 @@ components:
         size: { type: integer, minimum: 1, maximum: 25, default: 5, description: "At most this many hits per kind." }
     SearchKind:
       type: string
-      enum: [ENTRY, TICKET, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT, PORTFOLIO, RELEASE, SPRINT]
+      enum: [ENTRY, TICKET, PAGE, WHITEBOARD, GOAL, DASHBOARD, ASSET, PERSON, FILE, COMMENT, PORTFOLIO, RELEASE, SPRINT, POST]
     SearchAllAnswer:
       type: object
       required: [data, facets]
@@ -32620,9 +32622,9 @@ components:
         tile:
           type: [string, "null"]
           description: >
-            What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's icon,
+            What its tile shows: an entry's or a ticket's level (TASK, WORK_PACKAGE, ACTIVITY), a page's or a post's icon,
             an inventory item's class key, a file's media type, a person's account kind.
-        snippet: { type: [string, "null"], description: "The passage that matched, the words found between « and »; for pages, comments, and entries and tickets whose notes hold a word asked for." }
+        snippet: { type: [string, "null"], description: "The passage that matched, the words found between « and »; for pages, posts, comments, and entries and tickets whose notes hold a word asked for." }
         state:
           type: [string, "null"]
           description: >
@@ -32631,8 +32633,8 @@ components:
             stage, a dashboard's sharing, a person's account status.
         key: { type: [string, "null"], description: "An entry's or a ticket's key where its collection has a handle or a key prefix." }
         updated_at: { type: [string, "null"], format: date-time }
-        created_at: { type: [string, "null"], format: date-time, description: "When it was made; for entries, tickets and pages, null for the other kinds." }
-        author_id: { type: [string, "null"], format: uuid, description: "The account that made it; for entries, tickets and pages, null for the other kinds." }
+        created_at: { type: [string, "null"], format: date-time, description: "When it was made, for a post when it was published; for entries, tickets, pages and posts, null for the other kinds." }
+        author_id: { type: [string, "null"], format: uuid, description: "The account that made it; for entries, tickets, pages and posts, null for the other kinds." }
         on:
           description: What a comment or a file belongs to; null for every other kind.
           oneOf:

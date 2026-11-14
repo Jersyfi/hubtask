@@ -2522,7 +2522,7 @@ class SearchAllRequest(TypedDict, total=False):
     hub_id: str
     size: int
 
-SearchKind = Literal["ENTRY", "TICKET", "PAGE", "WHITEBOARD", "GOAL", "DASHBOARD", "ASSET", "PERSON", "FILE", "COMMENT", "PORTFOLIO", "RELEASE", "SPRINT"]
+SearchKind = Literal["ENTRY", "TICKET", "PAGE", "WHITEBOARD", "GOAL", "DASHBOARD", "ASSET", "PERSON", "FILE", "COMMENT", "PORTFOLIO", "RELEASE", "SPRINT", "POST"]
 
 class SearchAllAnswer(TypedDict, total=False):
     data: Required[list["SearchAllHit"]]
