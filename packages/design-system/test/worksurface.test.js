@@ -271,7 +271,7 @@ test('a ruled task row is a line of one region, not a card, and keeps its whole 
 
 test('a view switcher\'s targets reach layout.target on a phone or a coarse pointer (§7)', () => {
   const css = source('ViewSwitcher.svelte');
-  assert.match(css, /@media \(pointer: coarse\), \(width < 600px\) \{\s*\.view \{ min-block-size: var\(--layout-target\); \}/u);
+  assert.match(css, /@media \(pointer: coarse\), \(width < 600px\) \{\s*\.view \{ min-block-size: var\(--layout-target\); min-inline-size: var\(--layout-target\); \}/u);
 });
 
 // --- InsertList ------------------------------------------------------------------------------

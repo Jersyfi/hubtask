@@ -190,7 +190,7 @@
      board's and the sprint's column strips among them - is at least layout.target tall. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
-    .view { min-block-size: var(--layout-target); }
+    .view { min-block-size: var(--layout-target); min-inline-size: var(--layout-target); }
   }
 
   .view[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
