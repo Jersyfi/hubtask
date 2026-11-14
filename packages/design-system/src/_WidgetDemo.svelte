@@ -27,6 +27,9 @@
     <Widget title="New for you" tile={{ icon: 'bell', product: 'pages' }} act={{ label: 'Read', onclick: () => {} }}>
       <p class="text">New ticket system from 1 December</p><p class="quiet">Post by Mehmet · IT service desk · asks for a read receipt</p>
     </Widget>
+    <Widget title="Plan" tile={{ icon: 'calendar', product: 'plans' }} figure="6 days" unit="to the sprint's end" href="#plan">
+      <p class="text">Sprint 24 – Passkeys</p>
+    </Widget>
     <Widget title="Needs you" count="6" tile={{ icon: 'inbox', product: 'desk' }}>
       <ul class="rows"><li><span>SA-7 · VPN drops after 10 minutes</span><span class="quiet">Reply</span></li><li><span>SA-4 · Access to the supplier portal</span><span class="quiet">Take</span></li></ul>
     </Widget>

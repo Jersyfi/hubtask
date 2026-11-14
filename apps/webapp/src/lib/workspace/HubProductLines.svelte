@@ -11,7 +11,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Icon, ProductTile, StateLozenge, type IconName } from '@hubtask/design-system/components';
+  import { StateLozenge, Widget, type IconName } from '@hubtask/design-system/components';
 
   import { engine } from '../data/engine.ts';
   import { actor } from '../data/account.svelte.ts';
@@ -185,9 +185,8 @@
   <ul class="tiles" aria-label={t('app.hub_overview.products')}>
     {#each tiles as tile (tile.id)}
       <li data-product-line={tile.id}>
-        <a href={tile.href}>
-          <span class="head"><ProductTile icon={tile.icon} color={tile.color} size="sm" /><span class="product">{tile.product}</span><Icon name="chevron-right" size="sm" /></span>
-          <span class="figure-line"><b class="figure">{tile.figure}</b> <span class="unit">{tile.unit}</span></span>
+        <!-- Every tool's tile is Today's widget (WB-5): one figure size, the head, the way to the tool. -->
+        <Widget title={tile.product} tile={{ icon: tile.icon, color: tile.color }} figure={tile.figure} unit={tile.unit} href={tile.href}>
           {#each tile.lines ?? [] as line, index (index)}<span class="line">{line}</span>{/each}
           {#if tile.picture === 'week'}
             <span class="week" aria-hidden="true">
@@ -199,7 +198,7 @@
             <span class="goal"><span class="goal-title">{tile.goal.title}</span><StateLozenge vocabulary="goal" state={goalState(tile.goal.status)} label={t(`app.goals.status_${tile.goal.status}`)} /></span>
             <span class="progress" aria-hidden="true"><span style:inline-size={`${Math.round(Math.min(1, Math.max(0, tile.goal.progress > 1 ? tile.goal.progress / 100 : tile.goal.progress)) * 100)}%`}></span></span>
           {/if}
-        </a>
+        </Widget>
       </li>
     {/each}
   </ul>
@@ -207,21 +206,8 @@
 
 <style>
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(var(--sp-500) * 5)), 1fr)); gap: var(--sp-150); margin: 0; padding: 0; list-style: none; }
-  /* A tile per tool, as scene `hub` draws it: the tool's head, one figure with its word, a line or
-     two and a small picture. */
-  a {
-    display: flex; flex-direction: column; gap: var(--sp-100); block-size: 100%; box-sizing: border-box;
-    padding: var(--sp-150) var(--sp-200);
-    border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg);
-    background: var(--bg-raised); color: var(--text-primary); text-decoration: none; font-size: var(--fs-090);
-  }
-  a:hover { border-color: var(--border-default); }
-  a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
-  .head { display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-  .product { flex: 1 1 auto; color: var(--text-primary); font-weight: var(--fw-semibold); }
-  .figure-line { display: flex; align-items: baseline; gap: var(--sp-100); }
-  .figure { font-size: var(--fs-600); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
-  .unit, .line { color: var(--text-secondary); }
+  li { display: grid; }
+  .line { color: var(--text-secondary); font-size: var(--fs-090); }
   .line { overflow-wrap: anywhere; }
   .week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-050); align-items: end; block-size: var(--sp-500); margin-block-start: auto; }
   .day { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: var(--sp-025); block-size: 100%; align-items: end; justify-items: stretch; }
