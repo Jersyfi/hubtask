@@ -393,7 +393,7 @@ test('chromium: a saved group\'s row menu deletes it after a small dialog naming
   const dialog = page.getByRole('dialog', { name: 'Delete “Without an owner”?' });
   await dialog.waitFor({ timeout: 5_000 });
   assert.match(await dialog.innerText(), /the objects it holds stay as they are/u);
-  await dialog.getByRole('button', { name: 'Cancel' }).first().click();
+  await dialog.getByRole('button', { name: 'Close' }).click();
   await dialog.waitFor({ state: 'detached', timeout: 5_000 });
   assert.equal(written.filter((each) => each.method === 'DELETE').length, 0, 'cancelling deleted');
 
