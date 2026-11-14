@@ -37,6 +37,7 @@
   import { toast } from '../frame/toasts.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { formatDateTime, formatPlainDay } from '../i18n/datetime.ts';
+  import { todayIn } from '../i18n/zone.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import AttributeField from './AttributeField.svelte';
@@ -191,7 +192,7 @@
   }
   const reviewChip = $derived(
     ci.review_due
-      ? { label: t('app.object.review_chip', { day: formatPlainDay(ci.review_due, messages.locale) }), tone: ci.review_due < new Date().toISOString().slice(0, 10) ? ('warning' as const) : ('neutral' as const) }
+      ? { label: t('app.object.review_chip', { day: formatPlainDay(ci.review_due, messages.locale) }), tone: ci.review_due < todayIn(actor.zone) ? ('warning' as const) : ('neutral' as const) }
       : undefined,
   );
 
