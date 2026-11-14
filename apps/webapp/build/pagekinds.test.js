@@ -75,6 +75,14 @@ function kindsOf(view) {
     // which is the frame's navigation as a page (page-system §7.10).
     for (const match of markup.matchAll(/data-page-kind="(work|detail|browse)"/g)) kinds.add(match[1]);
   }
+  // A view without a kind of its own that draws another routed view whole - a post in the page's
+  // own reader - is that page.
+  if (kinds.size > 0) return kinds;
+  const routed = new Map(routedViews().map((each) => [fileOf(each), each]));
+  for (const use of uses(fileOf(view))) {
+    const other = routed.get(use.file);
+    if (other && other !== view) for (const kind of kindsOf(other)) kinds.add(kind);
+  }
   return kinds;
 }
 

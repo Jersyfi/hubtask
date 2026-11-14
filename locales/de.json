@@ -15797,5 +15797,6 @@
   "app.posts.nav_all": "Alle Beiträge",
   "app.posts.nav_unread": "ungelesen",
   "app.today.news": "Neu für dich",
-  "app.today.news_by": "Beitrag von {name}"
+  "app.today.news_by": "Beitrag von {name}",
+  "app.posts.post": "Beitrag"
 }

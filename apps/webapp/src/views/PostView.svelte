@@ -210,8 +210,10 @@
 {/snippet}
 
 {#if read.state.status === 'failed'}
+  <VisuallyHidden as="h1">{t('app.posts.post')}</VisuallyHidden>
   <p class="refusal">{renderProblem(read.state.error, messages).message}</p>
 {:else if !post}
+  <VisuallyHidden as="h1">{t('app.posts.post')}</VisuallyHidden>
   <Spinner label={t('app.posts.loading')} />
 {:else}
   <VisuallyHidden>{t(isWriting ? 'app.posts.writing' : 'app.posts.reading')}</VisuallyHidden>
