@@ -12,7 +12,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, rankTarget, type RankCommand } from '@hubtask/design-system/components';
+  import { Button, Dialog, Popover, rankTarget, type RankCommand } from '@hubtask/design-system/components';
   import type { DroppedReference, WorkItem } from '@hubtask/sync-engine';
 
   import DuePanel from './DuePanel.svelte';
@@ -57,6 +57,26 @@
   let dating = $state<WorkItem | undefined>(undefined);
   let assigning = $state<WorkItem | undefined>(undefined);
   let labelling = $state<WorkItem | undefined>(undefined);
+  /**
+   * The ⋯ the date, person or labels picker hangs from: the same picker the rail opens, as a
+   * popover there and a sheet on a phone (work-surface concept §7, one picker from every door).
+   * The menu has given focus back to its trigger by the time it asks for one.
+   */
+  let door = $state<HTMLElement | undefined>(undefined);
+  let isPickerOpen = $state(false);
+
+  function openPicker() {
+    const at = document.activeElement;
+    door = at instanceof HTMLElement && at !== document.body ? at : undefined;
+    isPickerOpen = true;
+  }
+
+  $effect(() => {
+    if (isPickerOpen) return;
+    dating = undefined;
+    assigning = undefined;
+    labelling = undefined;
+  });
   let sharing = $state<WorkItem | undefined>(undefined);
   let isSharing = $state(false);
   let moving = $state<WorkItem | undefined>(undefined);
@@ -167,12 +187,15 @@
         }
         case 'dates':
           dating = item;
+          openPicker();
           return;
         case 'person':
           assigning = item;
+          openPicker();
           return;
         case 'labels':
           labelling = item;
+          openPicker();
           return;
         case 'share':
           sharing = item;
@@ -310,22 +333,28 @@
   </div>
 {/if}
 
-{#if dating}
-  <Dialog size="m" isOpen={true} title={t('app.due.title')} dismissLabel={t('app.workspace.cancel')} onClose={() => (dating = undefined)}>
+{#snippet picker()}
+  {#if dating}
     <DuePanel item={items.find(dating.id) ?? dating} />
-  </Dialog>
-{/if}
-
-{#if assigning}
-  <Dialog size="m" isOpen={true} title={t('app.people.assignee')} dismissLabel={t('app.workspace.cancel')} onClose={() => (assigning = undefined)}>
+  {:else if assigning}
     <AssigneePanel item={items.find(assigning.id) ?? assigning} path={pathOf(assigning)} />
-  </Dialog>
-{/if}
-
-{#if labelling}
-  <Dialog size="m" isOpen={true} title={t('app.entry_menu.labels')} dismissLabel={t('app.workspace.cancel')} onClose={() => (labelling = undefined)}>
+  {:else if labelling}
     <LabelsPanel item={items.find(labelling.id) ?? labelling} />
-  </Dialog>
+  {/if}
+{/snippet}
+
+{#if dating || assigning || labelling}
+  {@const title = dating ? t('app.due.title') : assigning ? t('app.people.assignee') : t('app.entry_menu.labels')}
+  {#if door}
+    <Popover label={title} bind:isOpen={isPickerOpen} at={door} placement={{ side: 'block-end', align: 'end' }}>
+      {@render picker()}
+    </Popover>
+  {:else}
+    <!-- Opened with nothing to hang from - a key on a row: the same picker, standing in the middle. -->
+    <Dialog size="s" bind:isOpen={isPickerOpen} {title} dismissLabel={t('app.sheet_close')}>
+      {@render picker()}
+    </Dialog>
+  {/if}
 {/if}
 
 {#if sharing}
@@ -340,7 +369,7 @@
 {#if moving}
   <MoveDialog
     isOpen={true}
-    title={t('app.entry_menu.label', { title: moving.title })}
+    title={t('app.entry_menu.move_title', { title: moving.title })}
     label={t('app.move.destination')}
     placeholder={t('app.move.choose')}
     options={destinations}

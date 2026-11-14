@@ -6394,6 +6394,7 @@
   "app.update.server": "Server",
   "app.update.server_value": "{host} · {version}",
   "app.entry_menu.label": "Aktionen für {title}",
+  "app.entry_menu.move_title": "{title} verschieben",
   "app.entry_menu.select": "Auswählen",
   "app.entry_menu.open": "Öffnen",
   "app.entry_menu.complete": "Als erledigt markieren",
