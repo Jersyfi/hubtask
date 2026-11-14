@@ -207,10 +207,11 @@
       <Button size="sm" tone="subtle" icon="eye" data-post-preview onclick={() => onnavigate(`/posts/${post.page_id}`)}>{t('app.posts.preview')}</Button>
     {/if}
     <!-- Scene postwrite 3: the panel hangs from its button at the top right, anchored by the
-         design system's popover, never measured here. -->
+         design system's popover, never measured here. While it is open, its own act (*Publish* or
+         *Schedule for …*) is the one primary, and the button it hangs from steps back. -->
     <Popover label={post.state === 'PUBLISHED' ? t('app.posts.settings') : t('app.posts.publish')} placement={{ side: 'block-end', align: 'end' }} bind:isOpen={isPublishing}>
       {#snippet trigger(props)}
-        <Button size="sm" tone={post.state === 'PUBLISHED' ? 'secondary' : 'primary'} icon={post.state === 'PUBLISHED' ? 'settings' : 'chevron-down'}
+        <Button size="sm" tone={post.state === 'PUBLISHED' || isPublishing ? 'secondary' : 'primary'} icon={post.state === 'PUBLISHED' ? 'settings' : 'chevron-down'}
           data-post-publish-open {...props}>
           {post.state === 'PUBLISHED' ? t('app.posts.settings') : t('app.posts.publish')}
         </Button>
