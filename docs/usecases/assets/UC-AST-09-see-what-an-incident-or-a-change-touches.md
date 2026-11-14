@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18, P-19]
 state: verified
 tasks: []
-checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
+checked_by: [core/domain/model/cmdb/Assurance_test.go, core/application/service/cmdb/Assurance_test.go, core/application/service/cmdb/Work_test.go, core/application/service/sync/InitialSyncCmdb_test.go, test/integration/cmdb_assurance_test.go, apps/webapp/src/lib/data/cmdb.test.ts]
 ---
 
 # See what an incident or a change touches
@@ -28,6 +28,7 @@ Kai opens the incident "Booking is slow" and names the booking application as af
 4. An entry planned with a start and a due collides with another entry planned on the same CI, or on one its CIs reach, in an overlapping window; the collision says whether both name the CI itself.
 5. An entry's affected CIs travel to a device filed under the CI's hub and never to a reader of another hub.
 6. The entry's screen shows its affected CIs, the services they reach, the related entries and the collisions, and a writer names and removes a CI there.
+7. A configuration item lists every entry that names it, or names a CI beneath it - one whose failure it suffers, up to eight steps -, each once with its reason (it names the CI itself, or the nearest CI beneath it names), open ones first: only entries the reader may see, never archived ones.
 
 ## Where it ends
 

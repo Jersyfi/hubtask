@@ -1240,6 +1240,11 @@ export class HubtaskClient {
     return this.call("GET", "/cis/{ciId}/backlinks", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** The entries a configuration item is part of */
+  listCiWork(ciId: string, options: CallOptions = {}): Promise<operations["listCiWork"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/cis/{ciId}/work", { "ciId": ciId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The configuration items an entry names as affected */
   listEntryCis(itemId: string, options: CallOptions = {}): Promise<operations["listEntryCis"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/items/{itemId}/cis", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

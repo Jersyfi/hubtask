@@ -7082,6 +7082,24 @@ class EntryCis(TypedDict, total=False):
     related: Required[list["EntryOnCi"]]
     collisions: Required[list["EntryOnCi"]]
 
+class CiWork(TypedDict, total=False):
+    ci_id: Required[str]
+    data: Required[list["CiWorkEntry"]]
+
+class CiWorkEntry(TypedDict, total=False):
+    item_id: Required[str]
+    key: Required[str | None]
+    title: Required[str]
+    entry_type: Required[str]
+    collection_id: Required[str]
+    hub_id: Required[str | None]
+    status: Required[dict[str, Any] | None]
+    completed: Required[bool]
+    start_at: Required[str | None]
+    due_at: Required[str | None]
+    reason: Required[Literal["NAMES", "BENEATH"]]
+    via: Required[dict[str, Any] | None]
+
 class EntryOnCi(TypedDict, total=False):
     item_id: Required[str]
     title: Required[str]

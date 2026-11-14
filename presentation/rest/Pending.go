@@ -3079,6 +3079,10 @@ func (pending) ListEntryCis(w http.ResponseWriter, r *http.Request, _ openapi_ty
 	notAvailable(w, r)
 }
 
+func (pending) ListCiWork(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) ListSoftwareAliases(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

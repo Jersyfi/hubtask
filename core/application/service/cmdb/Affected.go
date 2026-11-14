@@ -41,10 +41,11 @@ const (
 )
 
 // Affecting is what an entry's affected CIs need beside the inventory: the entries and who may
-// see them.
+// see them, and the workflows that name their statuses (nil names none).
 type Affecting struct {
 	Inventory Inventory
 	Pointers  Pointers
+	Workflows workrepo.Workflows
 }
 
 func entryPath(s workrepo.EntrySummary) []identity.Scope {

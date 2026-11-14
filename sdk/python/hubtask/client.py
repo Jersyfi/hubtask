@@ -1003,6 +1003,10 @@ class Client:
         """What points at a configuration item"""
         return self._call("GET", "/cis/{ciId}/backlinks", {"ciId": ci_id}, None, {}, None, "none", None, "json")
 
+    def list_ci_work(self, ci_id: str) -> "CiWork":
+        """The entries a configuration item is part of"""
+        return self._call("GET", "/cis/{ciId}/work", {"ciId": ci_id}, None, {}, None, "none", None, "json")
+
     def list_entry_cis(self, item_id: str) -> "EntryCis":
         """The configuration items an entry names as affected"""
         return self._call("GET", "/items/{itemId}/cis", {"itemId": item_id}, None, {}, None, "none", None, "json")

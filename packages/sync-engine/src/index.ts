@@ -360,6 +360,8 @@ export type {
   CiAlert,
   EntryCis,
   EntryOnCi,
+  CiWork,
+  CiWorkEntry,
   CiCampaign,
   CiCampaignList,
   CiCampaignDetail,

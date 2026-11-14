@@ -967,6 +967,11 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: false},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: true, StepUp: false, List: false, Columns: []string{"id", "name", "status", "version"}},
+	{Group: "ci", Verb: "work", OperationID: "listCiWork", Method: "GET", Path: "/cis/{ciId}/work", Summary: "The entries a configuration item is part of",
+		PathParams: []doorParam{
+			{Name: "ciId", Kind: "uuid", Help: "", Required: true},
+		},
+		HasBody: false, BodyRequired: false, IfMatch: false, StepUp: false, List: true, Columns: []string{"key", "title"}},
 	{Group: "cmdb", Verb: "alias define", OperationID: "defineSoftwareAlias", Method: "POST", Path: "/software-aliases", Summary: "Count what installations report as one product",
 		Body: []doorParam{
 			{Name: "match_product", Kind: "string", Help: "", Required: true},

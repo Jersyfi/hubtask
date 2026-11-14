@@ -9961,6 +9961,44 @@
         }
       }
     },
+    "/cis/{ciId}/work": {
+      "parameters": [
+        {
+          "name": "ciId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "cmdb"
+        ],
+        "operationId": "listCiWork",
+        "x-hubtask-rest": "generated",
+        "x-hubtask-cli": "ci work",
+        "summary": "The entries a configuration item is part of",
+        "description": "Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.\n",
+        "responses": {
+          "200": {
+            "description": "The entries on the CI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CiWork"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/items/{itemId}/cis": {
       "parameters": [
         {
@@ -76054,6 +76092,151 @@
                   }
                 }
               ]
+            }
+          }
+        }
+      },
+      "CiWork": {
+        "type": "object",
+        "required": [
+          "ci_id",
+          "data"
+        ],
+        "properties": {
+          "ci_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "data": {
+            "type": "array",
+            "description": "Open entries first, then at most twenty completed ones; within each, the latest named first.",
+            "items": {
+              "$ref": "#/components/schemas/CiWorkEntry"
+            }
+          }
+        }
+      },
+      "CiWorkEntry": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "key",
+          "title",
+          "entry_type",
+          "collection_id",
+          "hub_id",
+          "status",
+          "completed",
+          "start_at",
+          "due_at",
+          "reason",
+          "via"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The entry's key, INC-128; null where the entry has no number or its collection no word."
+          },
+          "title": {
+            "type": "string"
+          },
+          "entry_type": {
+            "type": "string"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "status": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The entry's status as the workflow in force names it; null where none runs.",
+            "required": [
+              "key",
+              "name",
+              "category"
+            ],
+            "properties": {
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "start_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "due_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "NAMES",
+              "BENEATH"
+            ],
+            "description": "NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers."
+          },
+          "via": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "The nearest CI beneath that the entry names; null for NAMES.",
+            "required": [
+              "ci_id",
+              "name",
+              "class"
+            ],
+            "properties": {
+              "ci_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string"
+              },
+              "class": {
+                "type": "string"
+              }
             }
           }
         }

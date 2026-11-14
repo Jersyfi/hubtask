@@ -3256,6 +3256,24 @@ func (e CiSourceDefineKind) Valid() bool {
 	}
 }
 
+// Defines values for CiWorkEntryReason.
+const (
+	BENEATH CiWorkEntryReason = "BENEATH"
+	NAMES   CiWorkEntryReason = "NAMES"
+)
+
+// Valid indicates whether the value is a known member of the CiWorkEntryReason enum.
+func (e CiWorkEntryReason) Valid() bool {
+	switch e {
+	case BENEATH:
+		return true
+	case NAMES:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CmdbHealthProblemsKinds.
 const (
 	CmdbHealthProblemsKindsDUPLICATE     CmdbHealthProblemsKinds = "DUPLICATE"
@@ -16144,6 +16162,49 @@ type CiSourceDefineKind string
 type CiSourceList struct {
 	Data []CiSource `json:"data"`
 }
+
+// CiWork defines model for CiWork.
+type CiWork struct {
+	CiId openapi_types.UUID `json:"ci_id"`
+
+	// Data Open entries first, then at most twenty completed ones; within each, the latest named first.
+	Data []CiWorkEntry `json:"data"`
+}
+
+// CiWorkEntry defines model for CiWorkEntry.
+type CiWorkEntry struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	Completed    bool                `json:"completed"`
+	DueAt        *time.Time          `json:"due_at"`
+	EntryType    string              `json:"entry_type"`
+	HubId        *openapi_types.UUID `json:"hub_id"`
+	ItemId       openapi_types.UUID  `json:"item_id"`
+
+	// Key The entry's key, INC-128; null where the entry has no number or its collection no word.
+	Key *string `json:"key"`
+
+	// Reason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+	Reason  CiWorkEntryReason `json:"reason"`
+	StartAt *time.Time        `json:"start_at"`
+
+	// Status The entry's status as the workflow in force names it; null where none runs.
+	Status *struct {
+		Category *string `json:"category"`
+		Key      string  `json:"key"`
+		Name     *string `json:"name"`
+	} `json:"status"`
+	Title string `json:"title"`
+
+	// Via The nearest CI beneath that the entry names; null for NAMES.
+	Via *struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+	} `json:"via"`
+}
+
+// CiWorkEntryReason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+type CiWorkEntryReason string
 
 // CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
@@ -34505,6 +34566,9 @@ type ServerInterface interface {
 	// ReadCiImpact What a configuration item's failure reaches
 	// (GET /cis/{ciId}/impact)
 	ReadCiImpact(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID, params ReadCiImpactParams)
+	// ListCiWork The entries a configuration item is part of
+	// (GET /cis/{ciId}/work)
+	ListCiWork(w http.ResponseWriter, r *http.Request, ciId openapi_types.UUID)
 	// SetCiConnectorCredential Set a connector's credential
 	// (PUT /cmdb-connectors/{connectorId}/credential)
 	SetCiConnectorCredential(w http.ResponseWriter, r *http.Request, connectorId openapi_types.UUID)
@@ -43840,6 +43904,32 @@ func (siw *ServerInterfaceWrapper) ReadCiImpact(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadCiImpact(w, r, ciId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCiWork operation middleware
+func (siw *ServerInterfaceWrapper) ListCiWork(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "ciId" -------------
+	var ciId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ciId", r.PathValue("ciId"), &ciId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ciId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCiWork(w, r, ciId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -66346,6 +66436,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/cis/{ciId}/compliance", wrapper.SetCiCompliance)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/impact", wrapper.ReadCiImpact)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/backlinks", wrapper.ListCiBacklinks)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/cis/{ciId}/work", wrapper.ListCiWork)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/cis", wrapper.ListEntryCis)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.UnaffectEntryCi)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/cis/{ciId}", wrapper.AffectEntryCi)

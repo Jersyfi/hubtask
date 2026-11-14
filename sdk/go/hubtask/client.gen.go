@@ -3262,6 +3262,24 @@ func (e CiSourceDefineKind) Valid() bool {
 	}
 }
 
+// Defines values for CiWorkEntryReason.
+const (
+	BENEATH CiWorkEntryReason = "BENEATH"
+	NAMES   CiWorkEntryReason = "NAMES"
+)
+
+// Valid indicates whether the value is a known member of the CiWorkEntryReason enum.
+func (e CiWorkEntryReason) Valid() bool {
+	switch e {
+	case BENEATH:
+		return true
+	case NAMES:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CmdbHealthProblemsKinds.
 const (
 	CmdbHealthProblemsKindsDUPLICATE     CmdbHealthProblemsKinds = "DUPLICATE"
@@ -16150,6 +16168,49 @@ type CiSourceDefineKind string
 type CiSourceList struct {
 	Data []CiSource `json:"data"`
 }
+
+// CiWork defines model for CiWork.
+type CiWork struct {
+	CiId openapi_types.UUID `json:"ci_id"`
+
+	// Data Open entries first, then at most twenty completed ones; within each, the latest named first.
+	Data []CiWorkEntry `json:"data"`
+}
+
+// CiWorkEntry defines model for CiWorkEntry.
+type CiWorkEntry struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	Completed    bool                `json:"completed"`
+	DueAt        *time.Time          `json:"due_at"`
+	EntryType    string              `json:"entry_type"`
+	HubId        *openapi_types.UUID `json:"hub_id"`
+	ItemId       openapi_types.UUID  `json:"item_id"`
+
+	// Key The entry's key, INC-128; null where the entry has no number or its collection no word.
+	Key *string `json:"key"`
+
+	// Reason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+	Reason  CiWorkEntryReason `json:"reason"`
+	StartAt *time.Time        `json:"start_at"`
+
+	// Status The entry's status as the workflow in force names it; null where none runs.
+	Status *struct {
+		Category *string `json:"category"`
+		Key      string  `json:"key"`
+		Name     *string `json:"name"`
+	} `json:"status"`
+	Title string `json:"title"`
+
+	// Via The nearest CI beneath that the entry names; null for NAMES.
+	Via *struct {
+		CiId  openapi_types.UUID `json:"ci_id"`
+		Class string             `json:"class"`
+		Name  string             `json:"name"`
+	} `json:"via"`
+}
+
+// CiWorkEntryReason NAMES, the entry names this CI itself; BENEATH, it names a CI whose failure this CI suffers.
+type CiWorkEntryReason string
 
 // CmdbHealth A hub's active configuration items judged: completeness and correctness from 0 to 1, the counts of stale, orphaned and duplicate CIs, CIs without an owner and reviews overdue, per class, and the CIs found wanting with the kinds of problem; the relations a program reported and has not confirmed within the staleness period of their source's class; each service scored by the share of the CIs it rests on - itself and what its failure follows from - found wanting in nothing, worst first; and each source's conflict rate over the hub's latest twenty runs - of the attributes it reported with another value, the share a better source kept.
 type CmdbHealth struct {
@@ -37698,6 +37759,13 @@ type ClientInterface interface {
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListCiWork The entries a configuration item is part of
+	//
+	// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+	//
+	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+	ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetCiConnectorCredentialWithBody Set a connector's credential
 	//
 	// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
@@ -53370,6 +53438,23 @@ func (c *Client) SetCiCompliance(ctx context.Context, ciId openapi_types.UUID, p
 // Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 func (c *Client) ReadCiImpact(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadCiImpactRequest(c.Server, ciId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListCiWork The entries a configuration item is part of
+//
+// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+//
+// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+func (c *Client) ListCiWork(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListCiWorkRequest(c.Server, ciId)
 	if err != nil {
 		return nil, err
 	}
@@ -82017,6 +82102,40 @@ func NewReadCiImpactRequest(server string, ciId openapi_types.UUID, params *Read
 			rawQueryFragments = append(rawQueryFragments, encoded)
 		}
 		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewListCiWorkRequest constructs an http.Request for the ListCiWork method
+func NewListCiWorkRequest(server string, ciId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "ciId", ciId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/cis/%s/work", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -116973,6 +117092,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /cis/{ciId}/impact (the `ReadCiImpact` operationId).
 	ReadCiImpactWithResponse(ctx context.Context, ciId openapi_types.UUID, params *ReadCiImpactParams, reqEditors ...RequestEditorFn) (*ReadCiImpactResult, error)
 
+	// ListCiWorkWithResponse The entries a configuration item is part of
+	//
+	// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+	ListCiWorkWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiWorkResult, error)
+
 	// SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
 	//
 	// Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
@@ -138052,6 +138180,54 @@ func (r ReadCiImpactResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadCiImpactResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListCiWorkResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *CiWork
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListCiWorkResult) GetJSON200() *CiWork {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListCiWorkResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListCiWorkResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListCiWorkResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListCiWorkResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListCiWorkResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -175607,6 +175783,21 @@ func (c *ClientWithResponses) ReadCiImpactWithResponse(ctx context.Context, ciId
 	return ParseReadCiImpactResult(rsp)
 }
 
+// ListCiWorkWithResponse The entries a configuration item is part of
+//
+// Every entry - a ticket, a change, a task - that names the CI as affected, or names a CI beneath it, one whose failure it suffers up to eight steps, each once: open ones first, then at most twenty completed ones. Only entries the reader may see, never archived ones. Needs READ on the hub.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /cis/{ciId}/work (the `ListCiWork` operationId).
+func (c *ClientWithResponses) ListCiWorkWithResponse(ctx context.Context, ciId openapi_types.UUID, reqEditors ...RequestEditorFn) (*ListCiWorkResult, error) {
+	rsp, err := c.ListCiWork(ctx, ciId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListCiWorkResult(rsp)
+}
+
 // SetCiConnectorCredentialWithBodyWithResponse Set a connector's credential
 //
 // Sealed at rest and never answered again. A pull takes the secret its program gave; an alert intake draws its own and answers it once in `secret`, which the monitoring program presents as a bearer token or signs each delivery with. Needs STRUCTURE in the workspace.
@@ -198636,6 +198827,39 @@ func ParseReadCiImpactResult(rsp *http.Response) (*ReadCiImpactResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest CiImpact
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListCiWorkResult parses an HTTP response from a ListCiWorkWithResponse call
+func ParseListCiWorkResult(rsp *http.Response) (*ListCiWorkResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListCiWorkResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest CiWork
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

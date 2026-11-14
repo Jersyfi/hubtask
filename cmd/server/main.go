@@ -2240,7 +2240,7 @@ func run() error {
 		Assurance: postgres.NewCmdbAssuranceRepository(),
 	}
 	// An entry's affected CIs read the entries and who may see them (UC-AST-09).
-	affecting := cmdbservice.Affecting{Inventory: inventory, Pointers: cmdbservice.Pointers{Entries: entryLinks, Reader: authorizer}}
+	affecting := cmdbservice.Affecting{Inventory: inventory, Pointers: cmdbservice.Pointers{Entries: entryLinks, Reader: authorizer}, Workflows: workflows}
 	// Its connectors (research itsm-cmdb-ai §6.3): every pull through the guarded client and the
 	// inventory's reconciliation, a breaker per connector; an alert's entry through the registry.
 	alertEntries := &deferredCatalogue{}
@@ -2770,6 +2770,7 @@ func run() error {
 		cmdbservice.ReadCmdbHealth{Inventory: inventory}.Descriptor(),
 		cmdbservice.ReadCiImpact{Inventory: inventory}.Descriptor(),
 		cmdbservice.ListEntryCis{Affecting: affecting}.Descriptor(),
+		cmdbservice.ListCiWork{Affecting: affecting}.Descriptor(),
 		cmdbservice.AffectEntryCi{Affecting: affecting}.Descriptor(),
 		cmdbservice.UnaffectEntryCi{Affecting: affecting}.Descriptor(),
 		cmdbservice.ListCiCampaigns{Inventory: inventory}.Descriptor(),

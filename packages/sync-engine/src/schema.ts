@@ -460,6 +460,8 @@ export type CiAlertList = components['schemas']['CiAlertList'];
 /** An entry's affected CIs, certification campaigns, CI groups and the service map, assets and software (M6). */
 export type EntryCis = components['schemas']['EntryCis'];
 export type EntryOnCi = components['schemas']['EntryOnCi'];
+export type CiWork = components['schemas']['CiWork'];
+export type CiWorkEntry = components['schemas']['CiWorkEntry'];
 export type CiCampaign = components['schemas']['CiCampaign'];
 export type CiCampaignList = components['schemas']['CiCampaignList'];
 export type CiCampaignDetail = components['schemas']['CiCampaignDetail'];
