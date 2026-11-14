@@ -1211,4 +1211,15 @@
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
   }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .mode { min-block-size: var(--layout-target); }
+    button.pill { position: relative; }
+    button.pill::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+    .token { position: relative; }
+    .token::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

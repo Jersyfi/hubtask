@@ -392,4 +392,14 @@
   .spaces:not([data-rows]) { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .spaces:not([data-rows]) .space { border: 0; border-radius: var(--r-md); padding: var(--sp-100); }
   .words { display: flex; flex-direction: column; gap: var(--sp-025); min-inline-size: 0; }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .all { position: relative; }
+    .all::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+    .card-head a { position: relative; }
+    .card-head a::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

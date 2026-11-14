@@ -467,4 +467,12 @@
   .card-head .name:hover { text-decoration: underline; }
   .held { justify-self: start; }
   .chip { padding: var(--sp-025) var(--sp-100); border-radius: var(--r-full); background: var(--bg-surface-sunken); color: var(--text-primary); font-size: var(--fs-075); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .agent-card a.name { position: relative; }
+    .agent-card a.name::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

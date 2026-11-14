@@ -111,4 +111,11 @@
   .row:hover { background: var(--bg-surface-hover); }
   .title { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .more { margin: 0; padding: var(--sp-100) var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .row { min-block-size: var(--layout-target); }
+  }
 </style>

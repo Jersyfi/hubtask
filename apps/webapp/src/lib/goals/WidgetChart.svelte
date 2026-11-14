@@ -346,4 +346,12 @@
   [data-series='5'] { --series: var(--chart-categorical-5); }
   [data-series='6'] { --series: var(--chart-categorical-6); }
   [data-series='7'] { --series: var(--chart-categorical-7); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .goal a { position: relative; }
+    .goal a::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

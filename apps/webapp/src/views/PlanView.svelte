@@ -1426,4 +1426,12 @@
   .what[data-depth='2'] { padding-inline-start: var(--sp-300); }
   .what[data-depth='3'] { padding-inline-start: var(--sp-400); }
   .what[data-depth='4'] { padding-inline-start: var(--sp-500); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .what a { position: relative; }
+    .what a::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

@@ -298,3 +298,31 @@ test('no text is set at a size off the type scale: a page\'s headings, a side se
   const chart = sources.find(({ path }) => path === 'lib/goals/WidgetChart.svelte')?.text ?? '';
   assert.doesNotMatch(chart, /font-size="\d/u, 'a chart sets text in its drawing\'s units');
 });
+
+test('the controls the press walk still found short reach a thumb\'s target on a phone (§7)', () => {
+  const block = (path: string) => {
+    const text = sources.find((each) => each.path === path)?.text ?? '';
+    return text.slice(text.lastIndexOf('@media (pointer: coarse), (width < '));
+  };
+  const overhangs = (path: string, selector: string) =>
+    assert.ok(block(path).includes(`${selector}::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2))`), `${path} ${selector}`);
+  const grows = (path: string, selector: string) =>
+    assert.ok(block(path).includes(`${selector} { min-block-size: var(--layout-target); }`), `${path} ${selector}`);
+  grows('lib/media/AttachmentPanel.svelte', 'button.name');
+  grows('lib/pages/PageCover.svelte', '.tabs button');
+  grows('views/SearchView.svelte', '.orders button');
+  grows('lib/capture/CaptureDialog.svelte', '.mode');
+  overhangs('lib/capture/CaptureDialog.svelte', 'button.pill');
+  overhangs('lib/capture/CaptureDialog.svelte', '.token');
+  grows('lib/pages/LiveEmbed.svelte', '.row');
+  overhangs('views/PlanView.svelte', '.what a');
+  overhangs('views/PortalView.svelte', '.all');
+  overhangs('views/PortalView.svelte', '.card-head a');
+  overhangs('views/AgentsView.svelte', '.agent-card a.name');
+  overhangs('lib/pages/PageStarts.svelte', 'button.link');
+  overhangs('views/PagesView.svelte', '.which button');
+  overhangs('views/SprintView.svelte', '.card-title');
+  overhangs('lib/files/EntryFiles.svelte', '.what a');
+  grows('lib/posts/PostPublish.svelte', '.when button');
+  assert.match(block('lib/workspace/PlacePeople.svelte'), /\.members \{ position: relative; z-index: 1; \}/u, 'the members\' overhang is painted over');
+});

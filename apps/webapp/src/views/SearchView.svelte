@@ -1076,5 +1076,6 @@
   @media (pointer: coarse), (width < 600px) {
     .chip { position: relative; }
     .chip::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+    .orders button { min-block-size: var(--layout-target); }
   }
 </style>

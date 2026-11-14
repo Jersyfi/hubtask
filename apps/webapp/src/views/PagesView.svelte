@@ -1172,4 +1172,12 @@
   /* Icon and title stand under the cover's picture, never on it (E-18); the icon reaches into its edge. */
   .covered .icon { position: relative; margin-block-start: calc(-1 * var(--sp-600)); }
   .page-adds { display: flex; gap: var(--sp-050); margin-block-end: var(--sp-050); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .which button { position: relative; }
+    .which button::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

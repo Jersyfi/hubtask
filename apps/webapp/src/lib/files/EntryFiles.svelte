@@ -196,4 +196,12 @@
   .row[data-view='grid']:hover :global([data-unlink-file]), .row[data-view='grid']:focus-within :global([data-unlink-file]) { opacity: 1; }
   .row[data-view='grid'] .end { position: absolute; inset-block-start: var(--sp-050); inset-inline: var(--sp-050); justify-content: space-between; }
   .picture { display: grid; place-items: center; block-size: var(--sp-1000); background: var(--bg-canvas); color: var(--text-subtle); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .what a { position: relative; }
+    .what a::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

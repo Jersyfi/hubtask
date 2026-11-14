@@ -79,4 +79,14 @@
   .spaces { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
   .link { padding: 0; border: 0; background: none; color: var(--text-brand); font: inherit; cursor: pointer; }
   .link[aria-pressed='true'] { text-decoration: underline; }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    button.link { position: relative; }
+    button.link::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+    .start-all { position: relative; }
+    .start-all::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
+  }
 </style>

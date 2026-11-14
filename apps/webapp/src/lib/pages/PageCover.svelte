@@ -235,4 +235,12 @@
     border-radius: var(--r-sm); background: var(--bg-raised); color: var(--text-secondary); font-size: var(--fs-075);
   }
   .swatch[aria-pressed='true'] { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--bw-hairline); }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .tabs button { min-block-size: var(--layout-target); }
+    .swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
 </style>

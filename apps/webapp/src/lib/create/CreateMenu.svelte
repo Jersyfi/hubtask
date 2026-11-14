@@ -416,4 +416,11 @@
   }
 
   .keys { display: inline-flex; align-items: center; gap: var(--sp-050); margin-inline-start: auto; }
+
+  /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
+     reaches layout.target, by its own height or beyond its drawn box. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .field { align-self: stretch; min-block-size: var(--layout-target); }
+  }
 </style>
