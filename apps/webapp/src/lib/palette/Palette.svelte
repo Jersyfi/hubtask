@@ -955,6 +955,9 @@
   /* The words make room for the key rather than run under it - a German placeholder is long. */
   .float:has(> .keys) :global(input) { padding-inline-end: calc(var(--sp-100) + var(--sp-500)); text-overflow: ellipsis; }
   .sheet { display: flex; flex-direction: column; gap: var(--sp-100); }
+  /* On a phone the field and the foot stay and the hits scroll inside the screen (scene palette 3). */
+  .sheet:has(> .menu[data-phone]) { block-size: 100%; }
+  .sheet > .menu[data-phone] { flex: 1 1 auto; min-block-size: 0; overflow-y: auto; }
   /* Under the hits, where a thumb is: *Filter* beside the one primary act. */
   .phone-foot {
     position: sticky;

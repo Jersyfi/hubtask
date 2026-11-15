@@ -127,3 +127,12 @@ test('a widget\'s figure is a key figure\'s size', () => {
 test('a start page names itself once where the bar carries its name', () => {
   assert.match(source('EmptyState.svelte'), /\{#if isHome && isTitleInBar\}<h2 class="title">\{title\}<\/h2>\{:else if isHome\}<h1 class="title">/);
 });
+
+test('on a phone a sheet and a drawer from the foot keep their head and scroll inside the screen', () => {
+  const sheet = source('Sheet.svelte');
+  assert.match(sheet, /\.body:has\(> \.items\) \{ display: flex; flex-direction: column; \}/u);
+  assert.match(sheet, /\.body > \.items \{ flex: 0 1 auto; min-block-size: 0; overflow: auto; \}/u);
+  const drawer = source('Drawer.svelte');
+  assert.match(drawer, /\.drawer\[data-edge='block-end'\]\[open\] \{ display: flex; flex-direction: column; overflow: hidden; \}/u);
+  assert.match(drawer, /\.drawer\[data-edge='block-end'\] \.body \{ flex: 1 1 auto; min-block-size: 0; overflow: auto; \}/u);
+});

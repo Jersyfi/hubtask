@@ -237,6 +237,9 @@
   .sheet[open] { display: flex; flex-direction: column; margin: auto 0 0; }
   .panel { flex: 1 1 auto; min-block-size: 0; box-sizing: border-box; }
   .body { flex: 1 1 auto; min-block-size: 0; overflow: auto; }
+  /* A list of actions is the scroller itself, so the menu stands inside the screen, not only its body. */
+  .body:has(> .items) { display: flex; flex-direction: column; }
+  .body > .items { flex: 0 1 auto; min-block-size: 0; overflow: auto; }
 
   .sheet::backdrop { background: var(--bg-scrim); }
 
