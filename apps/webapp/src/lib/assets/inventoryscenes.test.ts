@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  careTodos, healthFigures, isByHand, monthsUntil, registerSummary, serviceGraph, serviceWork, sourceRows, troublePath, warrantyTone, workMarks,
+  careTodos, distinctNames, healthFigures, isByHand, monthsUntil, registerSummary, serviceGraph, serviceWork, sourceRows, troublePath, warrantyTone, workMarks,
 } from './inventoryscenes.ts';
 
 const node = (ci_id: string, layer = 3) => ({ ci_id, class: 'server', name: ci_id, stage: 'IN_USE', layer });
@@ -146,4 +146,25 @@ test('the register says the value issued per currency and the warranties ending 
   ], '2026-11-14');
   assert.deepEqual(summary, { inUse: [{ currency: 'EUR', minor: 296000 }, { currency: 'CHF', minor: 5000 }], ending: 1, firstInMonths: 4 });
   assert.deepEqual(registerSummary([], '2026-11-14'), { inUse: [], ending: 0 });
+});
+
+// Two objects of one name in a list of to-dos are told apart by what differs between them (N26):
+// the first attribute both carry with different values, else the end of their identifiers.
+test('objects of one name are told apart by what differs between them', () => {
+  const ci = (id: string, name: string, attributes: Record<string, unknown>) => ({ id, name, attributes });
+  const names = distinctNames([
+    ci('a-0001', 'PostgreSQL', { version: '16.4', vendor: 'PGDG' }),
+    ci('a-0002', 'PostgreSQL', { version: '15.8', vendor: 'PGDG' }),
+    ci('a-0003', 'nginx', {}),
+    ci('a-0004', 'Router', { site: 'A' }),
+    ci('a-0005', 'router ', { site: 'A' }),
+    { id: 'a-0006' } as never,
+  ]);
+  assert.deepEqual(names, {
+    'a-0001': 'PostgreSQL · 16.4',
+    'a-0002': 'PostgreSQL · 15.8',
+    'a-0003': 'nginx',
+    'a-0004': 'Router · 0004',
+    'a-0005': 'router · 0005',
+  });
 });

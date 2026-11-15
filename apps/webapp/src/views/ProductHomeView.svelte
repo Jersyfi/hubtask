@@ -35,7 +35,8 @@
   import BoardCard from '../lib/whiteboards/BoardCard.svelte';
   import { engine } from '../lib/data/engine.ts';
   import { formatPlainDay, formatRelative } from '../lib/i18n/datetime.ts';
-  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigTemplateList, ItemAggregateResult, MySprintList, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import type { CiClassList, CmdbHealth, ConfigTemplate, ConfigurationItem, ConfigTemplateList, ItemAggregateResult, MySprintList, PageList, PlanSchedule, PortfolioList, ReleaseDetail, SprintDetail, ReleaseList, SprintList, WhiteboardList } from '@hubtask/sync-engine';
+  import { distinctNames } from '../lib/assets/inventoryscenes.ts';
   import { PORTFOLIOS } from '../lib/data/goals.svelte.ts';
   import BoardTemplates, { type BoardStart } from '../lib/whiteboards/BoardTemplates.svelte';
   import BoardsForYou from '../lib/whiteboards/BoardsForYou.svelte';
@@ -266,11 +267,13 @@
   /** *For you* on the inventory: what needs attention across hubs, each item by its name. */
   const ATTENTION_SHOWN = 5;
   const attention = $derived(module === 'ASSETS' && currentTab === homeViews[0]?.id ? attentionAcross(healthAt, assetHubs, ATTENTION_SHOWN) : []);
-  let ciNames = $state<Record<string, string>>({});
+  // Two objects of one name are told apart by what differs between them (distinctNames).
+  let attentionCis = $state<Record<string, ConfigurationItem>>({});
+  const ciNames = $derived(distinctNames(Object.values(attentionCis)));
   $effect(() => {
-    const unknown = attention.map((each) => each.ci_id).filter((id) => !(id in ciNames));
+    const unknown = attention.map((each) => each.ci_id).filter((id) => !(id in attentionCis));
     untrack(() => {
-      for (const id of unknown) void cmdb.read(id).then((ci) => { if (ci) ciNames = { ...ciNames, [id]: ci.name }; });
+      for (const id of unknown) void cmdb.read(id).then((ci) => { if (ci) attentionCis = { ...attentionCis, [id]: ci }; });
     });
   });
 

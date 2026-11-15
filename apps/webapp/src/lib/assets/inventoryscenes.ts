@@ -332,3 +332,41 @@ export function registerSummary(
 
 /** The moves a register row offers as buttons, in the order a person walks them (scene invreg 2). */
 export const REGISTER_ACTS: readonly CiAsset['state'][] = ['ORDERED', 'IN_STOCK', 'DEPLOYED', 'RETIRED', 'DISPOSED'];
+
+/** An object as a list names it. */
+interface Named {
+  readonly id: string;
+  readonly name: string;
+  readonly attributes?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Each object's name as a list of to-dos shows it: alone where it is unique, and where two share a
+ * name, with what tells them apart - the first attribute every one of them carries with a different
+ * plain value, else the end of each one's identifier - so two rows never read the same.
+ */
+export function distinctNames(cis: readonly Named[]): Record<string, string> {
+  const groups = new Map<string, Named[]>();
+  // An answer without a name names nothing here; the list says *unknown object* for it.
+  for (const ci of cis.filter((each) => typeof each.name === 'string')) {
+    const key = ci.name.trim().toLocaleLowerCase();
+    groups.set(key, [...(groups.get(key) ?? []), ci]);
+  }
+  const out: Record<string, string> = {};
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      out[group[0]!.id] = group[0]!.name.trim();
+      continue;
+    }
+    const plain = (ci: Named, key: string) => {
+      const value = ci.attributes?.[key];
+      return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
+    };
+    const telling = Object.keys(group[0]!.attributes ?? {}).find((key) => {
+      const values = group.map((ci) => plain(ci, key));
+      return values.every((value) => value !== '') && new Set(values).size === group.length;
+    });
+    for (const ci of group) out[ci.id] = `${ci.name.trim()} · ${telling ? plain(ci, telling) : ci.id.slice(-4)}`;
+  }
+  return out;
+}

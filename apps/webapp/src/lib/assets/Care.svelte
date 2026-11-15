@@ -42,7 +42,7 @@
   import DecisionList from './DecisionList.svelte';
   import Duplicates from './Duplicates.svelte';
   import ImportFile from './ImportFile.svelte';
-  import { TODOS_SHOWN, careTodos, healthFigures, isByHand, sourceRows, type CareTodo, type FigureId, type SourceRow } from './inventoryscenes.ts';
+  import { TODOS_SHOWN, careTodos, distinctNames, healthFigures, isByHand, sourceRows, type CareTodo, type FigureId, type SourceRow } from './inventoryscenes.ts';
   import Runs from './Runs.svelte';
 
   interface Props {
@@ -87,7 +87,8 @@
   let connectors = $state<readonly CiConnector[]>([]);
   let runs = $state<readonly CiRun[]>([]);
   let cis = $state<readonly ConfigurationItem[] | undefined>(undefined);
-  let names = $state<Record<string, string>>({});
+  /** The objects the to-dos name, read with the page or one by one. */
+  let known = $state<Record<string, ConfigurationItem>>({});
   let refusal = $state<string | undefined>(undefined);
   $effect(() => {
     const at = hubId;
@@ -116,7 +117,7 @@
         engine.subscribe<ConfigurationItemList>({ path: cisPath(at, { limit: 500 }) }, (state) => {
           if (state.status === 'ready') {
             cis = state.data.data;
-            names = { ...names, ...Object.fromEntries(state.data.data.map((ci) => [ci.id, ci.name])) };
+            known = { ...known, ...Object.fromEntries(state.data.data.map((ci) => [ci.id, ci])) };
           }
         }),
       ];
@@ -129,17 +130,21 @@
   $effect(() => {
     if (!cis) return;
     const unknown = [...new Set(todos.flatMap((each) => [each.ciId, ...(each.duplicate?.ci_ids ?? [])]))]
-      .filter((id): id is string => Boolean(id) && !(id! in names))
+      .filter((id): id is string => Boolean(id) && !(id! in known))
       .slice(0, 50);
     untrack(() => {
       for (const id of unknown) {
         void cmdb.read(id).then((ci) => {
-          if (ci) names = { ...names, [id]: ci.name };
+          if (ci) known = { ...known, [id]: ci };
         });
       }
     });
   });
-  const nameOf = (id: string | undefined) => (id ? (names[id] ?? t('app.assets.unknown_ci')) : t('app.assets.unknown_ci'));
+  // Two objects of one name among the to-dos are told apart by what differs between them.
+  const names = $derived(distinctNames(
+    [...new Set(todos.flatMap((each) => [each.ciId, ...(each.duplicate?.ci_ids ?? [])]))].flatMap((id) => (id && known[id] ? [known[id]] : [])),
+  ));
+  const nameOf = (id: string | undefined) => (id ? (names[id] ?? known[id]?.name ?? t('app.assets.unknown_ci')) : t('app.assets.unknown_ci'));
 
   // (1) The six figures, each a link to what it counts.
   const figures = $derived(health ? healthFigures(health, holds.length) : []);
