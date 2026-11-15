@@ -5,6 +5,8 @@ um"), with E-1…E-23 approved as proposed (§9). Built whole in concept mode on
 `ux/work-surface` (`docs/backlog/README.md`, "A concept built whole"): commits only, no CI, shown
 to the owner locally on the seeded demo at the three widths, and the one pull request opened only
 after the owner's feedback. The build order is §13; what was open before the build is §12.
+**Built** on `ux/work-surface-v2` by the second build ([`build-plan.md`](./build-plan.md), which
+replaced §13's order); what it delivers and what stays open is §14.
 **Mockups:** [`mockups/index.html`](./mockups/index.html) — the 59 scenes after the change, at
 desktop 1440, tablet 820 and phone 390, with the rules beside them. Open it through a local server
 from the checkout's root after `make tokens` (`python3 -m http.server`, then
@@ -835,3 +837,45 @@ editor reuse and before posts; the file viewer after the entry's files.
 | 15 | **Portal and create.** Status names in the portal (additive), search first, the outsiders' portal frame (E-13), *Anfragen & Hilfe* for people inside, shared knowledge spaces, approvals tab; *Erstellen* with the kind picker, keys and *request to a department* around the unchanged capture | `portal`, `portaldir`, `portalext`, `create` | UC-SVC-05, 09, UC-DOC-13, UC-WRK-26 and the two new use cases' tests |
 | 16 | **Inventory.** One name, the stock with class tree and query line, the item with `ObjectHead`, step bar, relations, impact and *work on it*, the service map, *Pflege*, devices and licences; inventory groups as a query | `invlist`, `ci`, `invmap`, `invcare`, `invreg` | UC-AST-01, 05–12 tests; #1795 taken in |
 | 17 | **Close.** Every scene walked at three widths beside its mockup, the heights measured, the ADRs written and named to the owner, arc42 and the design-system document's wave, the use cases' `state:`, `checked_by:` and *Today* moved; shown to the owner, then the one pull request | all | `make check`; the owner's look |
+
+## 14. Delivered and open
+
+Written at the close of the second build (2026-11-15), against the cut checklist's items 1-7, 9
+and 10 as §12 ran them before the build.
+
+**Delivered.** The areas of §6 are built on the server, contract first, and in the web app: the
+entry and the ticket with one head, rail and composer; lists as calm tables; the list, board and
+workflow levels with the server keeping column and completion together, the drop, the level
+switches and the one-off repair (build-plan §5, ADR-0103); the Hubtask query in both spellings at
+every door and the search over every kind (ADR-0102); the view panel, sprint, backlog and plan;
+*Today* and the hub overview; product homes and empty states, with the workspace's goal sets and
+kinds of work as templates; dashboards with filters and the *list* and *text* widgets; pages with
+covers and the image library; whiteboards; posts; the file viewer and the document server (ADR-0104,
+the owner's decisions of 2026-11-14); the portal and *Create*; the inventory as an object database
+with its history and files. The rules are in their subject documents: `domain-model.md` §3.5a,
+§3.8, §3.10, §3.11; `api-guidelines.md` §3.1; `user-experience.md` §1 (UX-9…UX-16, the WB rules),
+§2.4, §3.3, §5.3, §5.6, §7.2-§7.5, §7.12; `design-system.md` wave 7 and the tokens; `security.md`
+§8-§10; `data-protection.md`, `data-retention.md`, `configuration.md`, `arc42.md`. ADR-0102,
+ADR-0103, ADR-0104 and ADR-0105 (§12 item 6's object grammar and product colours) are written.
+The use cases' states follow their tests; the new ones are UC-WRK-43…46, UC-FLW-06, UC-DOC-16…18,
+UC-MED-05, UC-MED-06 and UC-SVC-14.
+
+**Open.**
+
+* The checks each use case's *Today* lists: UC-WRK-04 check 1 (the phone sheet), UC-WRK-05
+  checks 2 and 9, UC-WRK-17 checks 6 and 12, UC-WRK-44 checks 3-6 and 8 (built, not proven by a
+  test), UC-WRK-36 checks 10 and 11, UC-FLW-02 check 4, UC-FLW-06 check 6.
+* UC-WRK-17 check 12 still names the filter's *As a line* field, which the *View* panel's query
+  line replaced: its last sentence is a correction for the owner.
+* The use cases of §12 item 1 whose checks the build did not extend - UC-WRK-03, UC-WRK-28,
+  UC-SVC-06, UC-MED-01, UC-PLN-03…05 and UC-DOC-02…15 except 05, 06, 13 and 14 - describe what they
+  did before; the concept's additions there are built, not yet checks.
+* E-23 against P-05 (§12 item 5): `StatusButton` draws the steps a person may not take as menu
+  rows marked `aria-disabled` with their reason, not as a line of information; either the owner
+  accepts that reading of P-05 or the rows become text.
+* The `post.` query keys are not served; the name searches of `POST /search:all` scan a tenant's
+  rows and want an index once a workspace grows large.
+* For the owner (build-plan §6): the posts' seen, confirm and react use cases on the audit gate's
+  exception list; a page version restored through the API leaving an open live document stale (a
+  finding to file with consent).
+
