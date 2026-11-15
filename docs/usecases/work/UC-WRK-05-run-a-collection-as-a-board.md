@@ -79,9 +79,5 @@ column at a time.
 
 ## Today
 
-
 * Check 2: not met in the web app — the board never reorders columns; they stay in creation order unless reordered through the API.
-* Check 6: met — the server couples on every door; the web board drops through `POST /items/{id}:drop` and completes nothing itself (`apps/webapp/e2e/board.test.mjs`, `flow.test.mjs`, `boardlevels.test.mjs`).
-* Check 9: partly met — each column names its statuses, *Ohne Spalte* stands folded and is a drop target (`boardlevels.test.mjs`); the mapping is edited per status in the scheme change's preview (`boardlevel.test.ts`), not yet walked on screen and not yet on the board itself.
-* Check 10: met — a `CHOOSE` opens the step picker and nothing is written until one is chosen (`boardlevels.test.mjs`); a column the carried card may not enter dims with the server's reason (`boardlevel.test.ts`), a refused drop says it (`flow.test.mjs`).
-* Check 11: met — the state control is one component (`StateChip`) on the list row and the board card, on a phone the same row and card carry it (`boardlevels.test.mjs`, `statechip.test.ts`); the entry head's one control is its status button, which offers the same states by level - the board's columns without a workflow, moved through `:drop`, the steps where one runs (WB-1, `entryhead.test.mjs`). *Show as board* and *Back to the list* sit in the collection's ⋯ menu and preview the server's dry run (`boardlevels.test.mjs`). The check's wording was corrected: "one control in the same place" meant the state control, the level switches belong to the ⋯ menu.
+* Check 9: partly met — each column names its statuses and *Ohne Spalte* stands folded and takes drops; the mapping is changed per status in the scheme change's preview, not yet walked on screen, and not on the board itself.

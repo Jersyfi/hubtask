@@ -5,9 +5,9 @@ context: work
 actors: [PE-member, PE-person, PE-handler]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-12, P-13]
-state: specified
+state: verified
 tasks: []
-checked_by: [apps/webapp/e2e/calmlist.test.mjs, apps/webapp/e2e/listarrangement.test.mjs, apps/webapp/e2e/loadmore.test.mjs, apps/webapp/e2e/productsband.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts]
+checked_by: [apps/webapp/e2e/calmlist.test.mjs, apps/webapp/e2e/listarrangement.test.mjs, apps/webapp/e2e/loadmore.test.mjs, apps/webapp/e2e/productsband.test.mjs, apps/webapp/src/lib/entries/statechip.test.ts, apps/webapp/src/lib/entries/listview.test.ts]
 ---
 
 # Overview a queue and a list
@@ -69,7 +69,3 @@ foot loads more.
 * Ranking and moving entries is [UC-WRK-06](./UC-WRK-06-put-work-in-order-and-move-it-where-it-belongs.md).
 * *+ Entry* stands only under a group capture can place an entry in (a column); under a group by
   person, due date or category the one add at the list's foot remains.
-
-## Today
-
-* Check 1: not met — a desk's collection lists key, type, due and person; requester, priority and SLA stand on the queue page only, until the *Ansicht* panel's fields (work-surface concept E-21).

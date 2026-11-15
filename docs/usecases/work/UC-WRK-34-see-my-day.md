@@ -5,7 +5,7 @@ context: work
 actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
-state: built
+state: verified
 tasks: [UX-15]
 checked_by: [test/integration/query_group_queue_test.go, apps/webapp/e2e/today.test.mjs, apps/webapp/e2e/todaybands.test.mjs, apps/webapp/src/lib/today.test.ts, apps/webapp/e2e/looks.test.mjs]
 ---

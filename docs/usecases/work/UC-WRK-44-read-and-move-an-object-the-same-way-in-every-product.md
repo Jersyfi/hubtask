@@ -5,7 +5,7 @@ context: work
 actors: [PE-member, PE-guest, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-12, P-17]
-state: specified
+state: partial
 tasks: []
 checked_by: [apps/webapp/src/lib/entries/entrysteps.test.ts, apps/webapp/src/lib/servicedesk/deadlines.test.ts, apps/webapp/e2e/entryhead.test.mjs]
 ---
@@ -59,6 +59,8 @@ phone the same ticket is one column: the marks are a switch, the properties a sh
 
 ## Today
 
-* Check 4: not met - no engine walk yet proves the note tab on a ticket, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
-* Check 5: not met - the deadlines' order and chip are proven as a unit (`deadlines.test.ts`), no engine walk yet, work surface family 3.1.
-* Check 8: not met - the heads of inventory object, goal, release, agent and portfolio, work surface family 3.1 (`docs/backlog/work-surface/build-plan.md`).
+* Check 3: not proven — the conversation opens on *All* with the history between the comments; no test cites it.
+* Check 4: not proven — the composer's *Reply* and *Internal note* tabs are built and the ticket's conversation tabs count replies and notes apart, but no walk saves a note and finds it only under *Internal notes*.
+* Check 5: partly met — the rail's deadlines stand first, most urgent first, in the reader's words; the head's one chip and *All deadlines as a table* are not walked.
+* Check 6: not proven — the status menu is UC-FLW-06's and the step buttons are gone (UC-FLW-06's tests); no test cites this check.
+* Check 8: not proven — inventory object, goal, release, agent and portfolio pages start with the same `ObjectHead`; no walk compares them.

@@ -5,7 +5,7 @@ context: work
 actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-11, P-12, P-13]
-state: built
+state: verified
 tasks: [B-08, F2-12, F10-11]
 checked_by: [test/integration/move_test.go, core/domain/model/work/Path_test.go, apps/webapp/e2e/container.test.mjs, core/domain/service/Move_test.go, core/application/service/work/MoveWorkItem_test.go, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/kompassentry.test.mjs, apps/webapp/e2e/calmlist.test.mjs, core/domain/service/Hierarchy_test.go]
 ---

@@ -5,7 +5,7 @@ context: assets
 actors: [PE-admin, PE-integrator, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [core/domain/model/cmdb/Cmdb_test.go, core/application/service/cmdb/Cmdb_test.go, test/integration/cmdb_repository_test.go, apps/webapp/src/lib/data/cmdb.test.ts, core/application/service/cmdb/Configuration_test.go]
 ---

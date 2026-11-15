@@ -88,6 +88,5 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Today
 
-* Check 12: met for the API, MCP and hubctl; in the web app the line is the panel *Ansicht*'s query line (`@hubtask/query`), no longer the filter's *As a line* field.
-
-* Check 6: met for a view whose filter is conditions joined by AND — applying it spells them on the query line of the View panel (`lineOf` in `apps/webapp/src/lib/data/viewquery.ts`), where they are changed. A filter the line cannot spell (an OR, a NOT) is kept whole, counted as one condition and combined with what the person adds, so it is honoured but not shown condition by condition.
+* Check 6: partly met — a saved filter of conditions joined by AND is spelled on the *View* panel's query line, where it is changed; a filter the line cannot spell (an OR, a NOT) is kept whole and counted as one condition, honoured but not shown condition by condition.
+* Check 12: met through the API, MCP and `hubctl`; in the web app the filter's *As a line* field the check names is gone - the *View* panel's query line (UC-WRK-43) reads a line into the conditions and the order and spells them back. The check's last sentence waits for the owner's correction.

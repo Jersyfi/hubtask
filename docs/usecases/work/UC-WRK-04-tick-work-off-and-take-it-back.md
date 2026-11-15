@@ -55,4 +55,4 @@ it.
 
 ## Today
 
-* Check 1: partly met — the list row and the card show the column chip (L1) or the status chip (L2) in the checkbox's place, the checkbox at L0 (`boardlevels.test.mjs`, `statechip.test.ts`); the entry head's menu by level is family 3.1's; the phone sheet is not yet walked.
+* Check 1: partly met — the checkbox (L0), the column chip (L1) and the status chip (L2) are the one control on the list row, the card and the entry head; the phone sheet is not yet walked.

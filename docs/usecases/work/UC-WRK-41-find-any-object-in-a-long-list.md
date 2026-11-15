@@ -5,7 +5,7 @@ context: work
 actors: [PE-admin, PE-auditor, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-12, P-13]
-state: built
+state: verified
 tasks: []
 checked_by: [apps/webapp/build/pagekinds.test.js, apps/webapp/e2e/pagesystem.test.mjs, apps/webapp/e2e/listarrangement.test.mjs]
 ---

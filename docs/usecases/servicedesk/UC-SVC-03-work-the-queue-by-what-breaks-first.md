@@ -5,7 +5,7 @@ context: servicedesk
 actors: [PE-handler]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-18]
-state: built
+state: verified
 tasks: []
 checked_by: [infrastructure/postgres/query/Sla_test.go, core/domain/model/view/Filter_test.go, test/integration/query_sla_test.go, core/application/service/realtime/Documents_test.go, core/application/service/work/Presence_test.go, apps/webapp/src/lib/entries/presence.test.ts, core/application/service/work/MergeSplit_test.go, apps/webapp/src/lib/entries/entryMenu.test.ts, core/application/service/servicedesk/EntryRequester_test.go, test/integration/cmdb_repository_test.go, core/application/service/servicedesk/RequesterReplies_test.go, core/application/service/notification/RecordNotifications_test.go, apps/webapp/src/lib/servicedesk/desk.test.ts, apps/webapp/e2e/servicedeskwalk.test.mjs, apps/webapp/src/lib/servicedesk/queues.test.ts, apps/webapp/e2e/productsband.test.mjs, apps/webapp/e2e/kompass.test.mjs, apps/webapp/e2e/kompassscreens.test.mjs, core/application/service/servicedesk/Queues_test.go, test/integration/hub_queue_test.go, core/domain/model/view/SavedView_test.go]
 ---
