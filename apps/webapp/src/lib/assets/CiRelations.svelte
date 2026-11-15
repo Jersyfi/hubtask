@@ -248,5 +248,11 @@
   .row-what { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-050) var(--sp-100); min-inline-size: 0; }
   .row-word { color: var(--text-secondary); font-size: var(--fs-075); }
   .row-what a { color: var(--text-primary); font-weight: var(--fw-medium); text-decoration: none; }
+  /* A thumb's target (§7): the link's press reaches layout.target beyond its line of text. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .row-what a { position: relative; }
+    .row-what a::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: 0; }
+  }
   .row-end { display: inline-flex; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 </style>

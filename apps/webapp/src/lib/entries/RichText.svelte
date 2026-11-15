@@ -251,6 +251,8 @@
      reaches layout.target, by its own height or beyond its drawn box. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    /* Room at the start for the press: a folded section clips what stands past its edge. */
+    .rich :global(.page-body ul[data-type='taskList']) { padding-inline-start: var(--sp-200); }
     .rich :global(.page-body ul[data-type='taskList'] li > label) { position: relative; }
     .rich :global(.page-body ul[data-type='taskList'] li > label::after) { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }

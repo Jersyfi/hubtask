@@ -1734,18 +1734,19 @@
       {#if writable && chosen && chosen.kind !== 'CONNECTOR' && chosen.kind !== 'STROKE' && !chosen.locked}
         {@const r = 5 / view.zoom}
         <!-- Drag an edge's dot to draw an arrow, the corner to size it; "+" adds the neighbour (W-4). -->
+        <!-- The plus before the handles: its wider press on a phone lies under the edge's dot and the corner. -->
+        {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE'}
+          <g class="plus" role="button" tabindex="-1" aria-label={t('app.whiteboards.add_neighbour')} transform={`translate(${chosen.x + chosen.width + 14 / view.zoom} ${chosen.y + chosen.height / 2}) scale(${1 / view.zoom})`}
+            onpointerdown={(event) => { event.stopPropagation(); addNeighbour(chosen); }} data-board-plus>
+            <circle class="plus-hit" r="10" /><circle r="10" /><path d="M -5 0 H 5 M 0 -5 V 5" />
+          </g>
+        {/if}
         {#if chosen.kind !== 'FRAME'}
           {#each [[chosen.x + chosen.width / 2, chosen.y], [chosen.x + chosen.width, chosen.y + chosen.height / 2], [chosen.x + chosen.width / 2, chosen.y + chosen.height], [chosen.x, chosen.y + chosen.height / 2]] as [cx, cy], i (i)}
             <circle class="dot-handle" {cx} {cy} {r} onpointerdown={(event) => handleStart(event, chosen)} role="presentation" data-board-handle />
           {/each}
         {/if}
         <rect class="handle" x={chosen.x + chosen.width - r} y={chosen.y + chosen.height - r} width={2 * r} height={2 * r} onpointerdown={(event) => resizeStart(event, chosen)} role="presentation" />
-        {#if chosen.kind === 'STICKY' || chosen.kind === 'SHAPE'}
-          <g class="plus" role="button" tabindex="-1" aria-label={t('app.whiteboards.add_neighbour')} transform={`translate(${chosen.x + chosen.width + 14 / view.zoom} ${chosen.y + chosen.height / 2}) scale(${1 / view.zoom})`}
-            onpointerdown={(event) => { event.stopPropagation(); addNeighbour(chosen); }} data-board-plus>
-            <circle r="10" /><path d="M -5 0 H 5 M 0 -5 V 5" />
-          </g>
-        {/if}
       {/if}
       {#each pins as pin (pin.thread.id)}
         <g
@@ -2633,6 +2634,12 @@
   .handle { fill: var(--accent-primary); cursor: nwse-resize; }
   .dot-handle { fill: var(--bg-raised); stroke: var(--accent-primary); stroke-width: 1.5; cursor: crosshair; }
   .plus { cursor: pointer; }
+  .plus .plus-hit { fill: transparent; stroke: none; }
+  /* A thumb's target (§7): the plus is pressed in a circle of layout.target, drawn as small as the mockup. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .plus .plus-hit { r: calc(var(--layout-target) / 2); }
+  }
   .plus circle { fill: var(--accent-primary-subtle); stroke: var(--accent-primary); }
   .plus path { stroke: var(--accent-primary); stroke-width: 1.5; }
   .card-top { fill: var(--accent-primary); }

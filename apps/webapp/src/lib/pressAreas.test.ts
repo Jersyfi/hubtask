@@ -52,3 +52,19 @@ test('a picker\'s search is a press tall at a phone\'s width (P-1)', () => {
 test('a status chip in a phone row stands over the row\'s link, so its press reaches it (N20)', () => {
   assert.match(read('./entries/StateChip.svelte'), /button\.chip \{ position: relative; z-index: var\(--z-raised\); \}/u);
 });
+
+test('an object\'s relation link presses a target tall at a phone\'s width, its line kept (N20)', () => {
+  assert.match(read('./assets/CiRelations.svelte'), /@media \(pointer: coarse\), \(width < \d+px\) \{\s*\.row-what a \{ position: relative; \}\s*\.row-what a::after \{ content: ''; position: absolute; inset-block: min\(0%, calc\(\(100% - var\(--layout-target\)\) \/ 2\)\);/u);
+});
+
+test('the whiteboard\'s plus presses a circle of layout.target under the edge handles (N20)', () => {
+  const canvas = read('./whiteboards/BoardCanvas.svelte');
+  assert.match(canvas, /@media \(pointer: coarse\), \(width < \d+px\) \{\s*\.plus \.plus-hit \{ r: calc\(var\(--layout-target\) \/ 2\); \}/u);
+  const plus = canvas.indexOf('data-board-plus>');
+  assert.ok(plus > 0 && plus < canvas.indexOf('class="dot-handle"') && plus < canvas.indexOf('class="handle"'), 'the plus is drawn before the handles');
+  assert.ok(canvas.slice(plus, canvas.indexOf('</g>', plus)).includes('class="plus-hit"'));
+});
+
+test('a description\'s task box keeps its whole press inside a folded section at a phone\'s width (N20)', () => {
+  assert.match(read('./entries/RichText.svelte'), /@media \(pointer: coarse\), \(width < \d+px\) \{\s*\/\*[^*]*\*\/\s*\.rich :global\(\.page-body ul\[data-type='taskList'\]\) \{ padding-inline-start: var\(--sp-200\); \}\s*\.rich :global\(\.page-body ul\[data-type='taskList'\] li > label\) \{ position: relative; \}/u);
+});
