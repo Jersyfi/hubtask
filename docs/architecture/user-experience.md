@@ -45,6 +45,14 @@ Each principle has a stable identifier a screen, a test or a review cites.
 | UX-6 | **Lively, calm, through tokens** | Things arrive, move and leave visibly — lists, panels, cards, figures — in the motion roles (§6). Figures are live where the reader looks. Motion stays short and honours reduced motion |
 | UX-7 | **Never by colour alone** | Rule 3 of the design system, applied to every chart, bar and status (WCAG 1.4.1, 1.4.11) |
 | UX-8 | **Freedom of use is kept** | Every default is a starting point the customer changes: templates are copied, never bound; a product's home is a door, not a cage; the plain task manager stays whole for a household that switches nothing on (D1, P-03) |
+| UX-9 | **One object, one shape** (WB-1) | Entry, ticket, inventory object, goal, release, agent and portfolio share one head (`ObjectHead`): key with the product's tile, type, title, and under it the action bar with the status, the next step, the person and the due date (§5.6) |
+| UX-10 | **The product colour identifies, it means nothing** (WB-2) | A product's colour (`product.<id>.surface`, `.ink`) stands in its home's head band, at the key, in its empty state and on widgets; never as a status, a button or a chart's series |
+| UX-11 | **What matters first, the rest folded** (WB-3) | The main column is description, parts and conversation; everything else is in the property rail; an empty section is one line with ＋; at most two levels |
+| UX-12 | **Lists are calm tables** (WB-4) | One region with hairlines, columns by the kind of collection, groups with counts and *+ Entry*, one act and ⋯ on hover; comfortable or compact, remembered on the device |
+| UX-13 | **Figures on top, sentences instead of keys** (WB-5) | Every product home and head starts with its figures; trends are a chart in the fixed palette (`chart.categorical.1–7`) with a table beside it |
+| UX-14 | **Never empty when there is something** (WB-6) | A product home does not open on an empty tab when the product has content; what is truly empty says so in a sentence, with a template as the main way and a side way |
+| UX-15 | **Immediate and visible** (WB-7) | A change appears at once and arrives, moves and leaves in the motion roles (§6); an error stands in place, with undo where there is one |
+| UX-16 | **Every device, the same functions** (WB-8) | Only the arrangement changes: a table becomes rows, a rail a sheet, columns strips, and the primary act floats above the bottom bar |
 
 ---
 
