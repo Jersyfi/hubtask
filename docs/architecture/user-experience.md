@@ -610,8 +610,8 @@ refuses a `*.empty` or `*_none` message code rendered outside `EmptyState` in `v
   as the primary act -, then jump marks to the sections (with their counts), the content and the
   properties in a rail beside it (`PropertyRail`); on a phone the jump marks switch between
   sections and the properties open as a sheet. The conversation opens on *All*, the history as
-  quiet rows between the comments. Blocked steps are a line of information under the allowed ones,
-  never disabled controls (P-05).
+  quiet rows between the comments. The steps the reader may not take stand under the allowed ones
+  with their reason and are never taken (design-system.md, `StatusButton`).
 
 ### 5.7 A place's settings
 
