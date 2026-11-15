@@ -298,6 +298,9 @@ test('chromium: 375 × 812 — the menu of the last row on screen opens as a she
   const surface = await menu.evaluate((list) => list.closest('dialog')?.getBoundingClientRect().toJSON());
   assert.ok(surface, 'the menu is not a sheet on a phone');
   assert.ok(surface.top >= 0 && surface.bottom <= 812, `the sheet runs past the viewport: ${surface.top}–${surface.bottom}`);
+  // The sheet sets its own text flow: a row's nowrap must not reach it and push it sideways.
+  const flow = await menu.evaluate((list) => { const sheet = list.closest('dialog'); return { space: getComputedStyle(sheet).whiteSpace, left: sheet.scrollLeft, wide: sheet.scrollWidth - sheet.clientWidth }; });
+  assert.deepEqual(flow, { space: 'normal', left: 0, wide: 0 }, 'the sheet is wider than the screen or scrolled sideways');
   // Every item comes into view inside the sheet, and the page does not move for it.
   const items = menu.getByRole('menuitem');
   const count = await items.count();
@@ -309,6 +312,7 @@ test('chromium: 375 × 812 — the menu of the last row on screen opens as a she
     });
     assert.ok(around.top >= 0 && around.bottom <= 812, `the sheet runs past the viewport: ${around.top}–${around.bottom}`);
     assert.ok(box.top >= around.top - 1 && box.bottom <= around.bottom + 1, `item ${index} is outside the sheet: ${box.top}–${box.bottom}`);
+    assert.ok(box.left >= around.left - 1 && box.right <= around.right + 1, `item ${index} runs past the sheet's sides: ${box.left}–${box.right}`);
   }
   assert.equal(await page.evaluate(() => scrollY), scrolled, 'reaching the items scrolled the page');
   assert.deepEqual(failures, []);

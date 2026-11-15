@@ -222,6 +222,8 @@
     background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
     color: var(--text-primary);
+    /* A dialog inherits from where it is mounted: a row's nowrap would widen the sheet past the screen. */
+    white-space: normal;
     overflow: hidden;
     animation: rise var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
