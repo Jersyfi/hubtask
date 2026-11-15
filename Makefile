@@ -879,6 +879,24 @@ gate-cli:
 	$(call go_test,,./cmd/hubctl/...,)
 	./bin/hubctl$(GOEXE) --version
 
+## e2e: Build the web app and walk it in Chromium; SUITES="timewalk explain" walks those alone
+# As ci.yml's engines job does: the packages the web app builds on, the web app, the workbench
+# that workbench-layout measures, then every suite in Chromium (ENGINES=firefox,webkit for the
+# others). A named suite runs alone, one test at a time, as a worker walks the one it touched.
+.PHONY: e2e
+e2e:
+	@test -n "$(PNPM)" || { echo "pnpm is missing - run 'make tools-node'"; exit 1; }
+	$(PNPM) --filter "@hubtask/webapp^..." build
+	$(PNPM) --filter @hubtask/webapp build
+	@if [ -n "$(SUITES)" ]; then \
+		for suite in $(SUITES); do \
+			(cd apps/webapp && ENGINES=$${ENGINES:-chromium} node --test --test-concurrency=1 e2e/$$suite.test.mjs) || exit 1; \
+		done; \
+	else \
+		$(PNPM) --filter @hubtask/design-system workbench:build && \
+		ENGINES=$${ENGINES:-chromium} $(PNPM) --filter @hubtask/webapp test:engines; \
+	fi
+
 ## gate-e2e: The hubctl end-to-end session against the reference Compose stack
 # The other half of gate-compose. That one asks whether the stack starts; this one asks whether a
 # person can do anything with it - sign in, build a hierarchy, complete, delete, restore - through
