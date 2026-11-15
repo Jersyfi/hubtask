@@ -292,6 +292,18 @@ test('a list grouped by status heads each group with the queue\'s badge and no c
   assert.match(list, /\.group-head \{ min-block-size: var\(--layout-target\); padding-block: 0; \}/u, 'the head is the toggle\'s press tall, so the press stays off the next row (P-2)');
 });
 
+test('an object\'s title is set as a page head\'s: one face, one size, one weight (H-5)', () => {
+  const kit = fileURLToPath(new URL('../../../../packages/design-system/src/', import.meta.url));
+  const titleOf = (file: string) => {
+    const css = readFileSync(join(kit, file), 'utf8');
+    const rule = /\n {2}\.title \{([^}]*)\}/u.exec(css)?.[1] ?? '';
+    return ['font-family', 'font-size', 'font-weight'].map((property) => new RegExp(`${property}: ([^;]+);`, 'u').exec(rule)?.[1]);
+  };
+  const page = titleOf('PageHeader.svelte');
+  assert.deepEqual(page, ['var(--font-display)', 'var(--fs-450)', 'var(--fw-bold)']);
+  assert.deepEqual(titleOf('ObjectHead.svelte'), page, 'an object head sets its title its own way');
+});
+
 test('a link a component leaves unstyled takes the design system\'s link style, underlined in running text only (C-1)', () => {
   const css = readFileSync(join(srcDir, 'app.css'), 'utf8');
   assert.match(css, /:where\(a:any-link\) \{\s*color: var\(--text-brand\);\s*text-decoration: none;/u, 'an unstyled link keeps the browser\'s underline');

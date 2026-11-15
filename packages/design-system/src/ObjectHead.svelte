@@ -260,11 +260,12 @@
   .title-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
   .title-ends { display: inline-flex; align-self: center; align-items: center; gap: var(--sp-100); margin-inline-start: auto; }
 
+  /* Set as a page head's title (H-5): one face, size and weight for every head. */
   .title {
     margin: 0;
-    font-family: var(--font-ui);
+    font-family: var(--font-display);
     font-size: var(--fs-450);
-    font-weight: var(--fw-semibold);
+    font-weight: var(--fw-bold);
     line-height: var(--lh-tight);
     overflow-wrap: anywhere;
   }
@@ -294,9 +295,9 @@
     border-radius: var(--r-sm);
     background: var(--bg-surface);
     color: var(--text-primary);
-    font-family: var(--font-ui);
+    font-family: var(--font-display);
     font-size: var(--fs-450);
-    font-weight: var(--fw-semibold);
+    font-weight: var(--fw-bold);
     line-height: var(--lh-tight);
   }
 
