@@ -253,6 +253,7 @@ test('every small control listed reaches a thumb\'s target on a phone (P-2, §7)
     assert.ok(media.includes(`${selector}::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2))`), `${path} ${selector}`);
   };
   grows('lib/entries/StateChip.svelte', 'button.chip');
+  grows('lib/assets/RegisterPanel.svelte', '.object');
   grows('lib/planning/PointsChip.svelte', 'button.chip');
   grows('lib/workspace/PlacePeople.svelte', '.members');
   grows('views/SearchView.svelte', '.chip');

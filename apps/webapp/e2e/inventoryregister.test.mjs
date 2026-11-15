@@ -18,6 +18,7 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
+import { pressArea } from './press.mjs';
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
 import { CIS, bar, noSidewaysScroll, openInventory } from './inventoryseed.mjs';
@@ -128,5 +129,20 @@ test('chromium 390 px: scene invreg on a phone - the device opens as a sheet tha
   assert.equal(await sheet.locator('[data-register-acts]').count(), 0, 'a phone moves a device');
   await noSidewaysScroll(page, 'the device on a phone', assert);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/invreg.390.png` });
+  assert.deepEqual(failures, []);
+});
+
+// A thumb's target (user-experience.md §7): on a phone the device's link to its object takes a
+// press across layout.target (44 px) each way.
+test('chromium 375 px: the device sheet\'s link to its object takes a 44 px press', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures } = await openInventory(browser, served.origin, { width: 375, height: 812, path: REGISTER, now: NOW });
+  t.after(() => context.close());
+  await page.locator('[data-register]').getByRole('row').nth(3).waitFor({ timeout: 20_000 });
+  await page.locator('[data-register]').getByRole('row').filter({ hasText: 'NB-0422' }).getByRole('link').first().click();
+  const link = page.getByRole('dialog').getByRole('link', { name: 'Open the object' });
+  await link.waitFor({ timeout: 5_000 });
+  const area = await pressArea(link);
+  assert.ok(area.width >= 44 && area.height >= 44, `the object link takes ${JSON.stringify(area)}`);
   assert.deepEqual(failures, []);
 });
