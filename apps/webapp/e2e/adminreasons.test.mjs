@@ -16,7 +16,7 @@
 // Against the shared fixture. Chromium; the chip's behaviour in Firefox and WebKit is
 // `engines.test.mjs`'s.
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
@@ -117,32 +117,37 @@ async function walk(page, paths) {
   return found;
 }
 
-for (const width of WIDTHS) {
-  for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
-    test(`chromium: ${width} px — every administration page explains without breaking, for ${who}`, async (t) => {
+// The walks three at a time, each opening its pages in a context of its own: one after another
+// they waited out the reads of some three hundred pages in a row, all at once they starve the
+// suites that run beside them.
+describe('the administration and the installation explain without breaking', { concurrency: 3 }, () => {
+  for (const width of WIDTHS) {
+    for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
+      test(`chromium: ${width} px — every administration page explains without breaking, for ${who}`, async (t) => {
+        const browser = await sharedChromium(t);
+        const { context, page, failures } = await as(browser, width, permissions);
+        t.after(() => context.close());
+        assert.ok(ADMINISTRATION.length >= 20, `only ${ADMINISTRATION.length} administration routes were found`);
+        assert.deepEqual(await walk(page, ADMINISTRATION), []);
+        assert.deepEqual(failures, []);
+      });
+    }
+
+    test(`chromium: ${width} px — every installation page explains without breaking`, async (t) => {
       const browser = await sharedChromium(t);
-      const { context, page, failures } = await as(browser, width, permissions);
+      const { context, page, failures } = await as(browser, width, PERMISSIONS.OWNER);
       t.after(() => context.close());
-      assert.ok(ADMINISTRATION.length >= 20, `only ${ADMINISTRATION.length} administration routes were found`);
-      assert.deepEqual(await walk(page, ADMINISTRATION), []);
+      assert.ok(INSTALLATION.length >= 10, `only ${INSTALLATION.length} installation routes were found`);
+      assert.deepEqual(await walk(page, INSTALLATION), []);
       assert.deepEqual(failures, []);
     });
   }
 
-  test(`chromium: ${width} px — every installation page explains without breaking`, async (t) => {
+  test('chromium: 768 px, dark — the administration and the installation explain without breaking', async (t) => {
     const browser = await sharedChromium(t);
-    const { context, page, failures } = await as(browser, width, PERMISSIONS.OWNER);
+    const { context, page, failures } = await as(browser, 768, PERMISSIONS.AUDITOR, 'dark');
     t.after(() => context.close());
-    assert.ok(INSTALLATION.length >= 10, `only ${INSTALLATION.length} installation routes were found`);
-    assert.deepEqual(await walk(page, INSTALLATION), []);
+    assert.deepEqual(await walk(page, [...ADMINISTRATION, ...INSTALLATION]), []);
     assert.deepEqual(failures, []);
   });
-}
-
-test('chromium: 768 px, dark — the administration and the installation explain without breaking', async (t) => {
-  const browser = await sharedChromium(t);
-  const { context, page, failures } = await as(browser, 768, PERMISSIONS.AUDITOR, 'dark');
-  t.after(() => context.close());
-  assert.deepEqual(await walk(page, [...ADMINISTRATION, ...INSTALLATION]), []);
-  assert.deepEqual(failures, []);
 });
