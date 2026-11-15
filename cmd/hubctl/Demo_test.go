@@ -47,6 +47,9 @@ const showcaseSelf = "0190a000-0000-7000-8000-00000000aaaa"
 const showcaseSprint = "0190a000-0000-7000-8000-00000000bbbb"
 const showcaseMacro = "0190a000-0000-7000-8000-00000000cccc"
 
+// showcaseKnowledge is the knowledge base page the desk's template brought.
+const showcaseKnowledge = "0190a000-0000-7000-8000-00000000dddd"
+
 func serveShowcase(t *testing.T) *showcaseInstallation {
 	t.Helper()
 	s := &showcaseInstallation{marks: map[string]map[string]any{}}
@@ -117,6 +120,9 @@ func serveShowcase(t *testing.T) *showcaseInstallation {
 		case r.Method == http.MethodGet && (strings.HasPrefix(path, "/goals/") || strings.HasPrefix(path, "/dashboards/")):
 			// The showcase's own check-ins moved it on since it was made at version 1.
 			answer(map[string]any{"id": strings.Split(path, "/")[2], "version": 3})
+		case r.Method == http.MethodGet && strings.HasPrefix(path, "/hubs/") && strings.HasSuffix(path, "/pages"):
+			// What the desk's template brings: its own knowledge base.
+			answer(map[string]any{"data": []any{map[string]any{"id": showcaseKnowledge, "title": "Wissensdatenbank"}}})
 		case r.Method == http.MethodGet:
 			answer(map[string]any{"data": []any{}, "version": 0})
 		case strings.HasSuffix(path, ":plan"):
@@ -165,7 +171,7 @@ func TestTheShowcaseMarksWhatItMakesAndMakesItOnce(t *testing.T) {
 	for _, m := range s.marks {
 		kinds[m["kind"].(string)]++
 	}
-	for kind, least := range map[string]int{"CONTAINER": 12, "ENTRY": 59, "PAGE": 10, "WHITEBOARD": 3, "GOAL": 4,
+	for kind, least := range map[string]int{"CONTAINER": 12, "ENTRY": 59, "PAGE": 9, "WHITEBOARD": 3, "GOAL": 4,
 		"PORTFOLIO": 2, "DASHBOARD": 3, "TIME_RECORD": 15} {
 		if kinds[kind] < least {
 			t.Errorf("%d marks of %s, want at least %d (%v)", kinds[kind], kind, least, kinds)
@@ -408,6 +414,30 @@ func TestTheShowcasesDeskDashboardShowsEveryKindInGerman(t *testing.T) {
 				t.Errorf("an English widget title: %q", title)
 			}
 		}
+	}
+}
+
+// The desk's articles go under the knowledge base its template brought, so the desk's pages show
+// one knowledge base, not two roots of the same name side by side.
+func TestTheShowcasesArticlesGoUnderTheTemplatesKnowledgeBase(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	articles := 0
+	for _, w := range s.bodies {
+		if !strings.HasSuffix(w.path, "/pages") || !strings.HasPrefix(w.path, "/hubs/") {
+			continue
+		}
+		if strings.HasPrefix(str(w.body["title"]), "Wissensdatenbank") {
+			t.Errorf("a second knowledge base was made: %q", w.body["title"])
+		}
+		if w.body["parent_id"] == showcaseKnowledge {
+			articles++
+		}
+	}
+	if articles != 3 {
+		t.Errorf("%d articles under the template's knowledge base, want 3", articles)
 	}
 }
 

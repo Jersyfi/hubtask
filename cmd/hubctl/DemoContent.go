@@ -899,6 +899,28 @@ const demoArchitecture = `Die App spricht ausschließlich mit der **Public API v
 2. Bestellungen werden offline mit einem Idempotenzschlüssel gepuffert.
 `
 
+// pageTitled answers the hub's page of that title, or empty where it has none or it cannot be read.
+func (d *demo) pageTitled(ctx context.Context, hub, title string) string {
+	if hub == "" {
+		return ""
+	}
+	var pages struct {
+		Data []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+		} `json:"data"`
+	}
+	if err := d.call(ctx, func(ctx context.Context) error { return d.c.Get(ctx, "/hubs/"+hub+"/pages", nil, &pages) }); err != nil {
+		return ""
+	}
+	for _, p := range pages.Data {
+		if p.Title == title {
+			return p.ID
+		}
+	}
+	return ""
+}
+
 func (d *demo) page(ctx context.Context, key, hub string, body map[string]any) (string, bool) {
 	if hub == "" {
 		return "", false
@@ -936,8 +958,18 @@ func (d *demo) wiki(ctx context.Context, scrum string, desk demoHub, classic str
 			d.say(ctx, "Lukas Brandt", "page comment", "POST", "/pages/"+ritual+"/comments", map[string]any{"body": "Retro ab Dezember bitte remote – die Hälfte des Teams ist im Homeoffice."})
 		}
 	}
-	if kb, _ := d.page(ctx, "desk.knowledge", desk.hub, map[string]any{"title": "Wissensdatenbank Service Desk", "icon": "💡",
-		"body": "Lösungen für häufige Anfragen. Artikel mit ✅ sind für das Kundenportal freigegeben."}); kb != "" {
+	// The desk's template brings a knowledge base of its own; the articles go under it rather than
+	// under a second root beside it.
+	kb := d.held["page.desk.knowledge"]
+	if kb == "" {
+		kb = d.pageTitled(ctx, desk.hub, "Wissensdatenbank")
+	}
+	if kb == "" {
+		kb, _ = d.page(ctx, "desk.knowledge", desk.hub, map[string]any{"title": "Wissensdatenbank", "icon": "💡",
+			"body": "Lösungen für häufige Anfragen. Artikel mit ✅ sind für das Kundenportal freigegeben."})
+	}
+	d.knowledge = kb
+	if kb != "" {
 		for i, a := range [][2]string{
 			{"VPN verbindet nicht: die fünf häufigsten Ursachen", "1. Zeit auf dem Laptop falsch\n2. Zertifikat abgelaufen\n3. Hotel-WLAN blockiert UDP 4500\n4. Alte Client-Version\n5. Konto gesperrt"},
 			{"Passwort zurücksetzen, wenn du ausgesperrt bist", "Auf der Anmeldeseite *Passwort vergessen* wählen. Der Link gilt 30 Minuten."},
@@ -1302,7 +1334,7 @@ func (d *demo) deskDashboard(ctx context.Context, hub, company, deskGoal string)
 		widgets = append(widgets, map[string]any{"title": "Ziele des Desks", "chart": "PROGRESS", "source": "GOALS", "x": 0, "y": 8, "w": 6, "h": 2, "goal_ids": goals})
 	}
 	note := "Diese Woche zählt: **VPN-Störung** zuerst. Ab Montag gilt der neue Bereitschaftsplan."
-	if kb := d.held["page.desk.knowledge"]; kb != "" {
+	if kb := d.knowledge; kb != "" {
 		note += " Lösungen stehen in der [Wissensdatenbank](/pages/" + kb + ")."
 	}
 	widgets = append(widgets, map[string]any{"title": "Hinweis der Leitung", "chart": "TEXT", "source": "TEXT", "x": 6, "y": 8, "w": 6, "h": 2, "text": note})
