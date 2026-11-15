@@ -65,8 +65,8 @@
   const takesHubStarts = $derived(isProduct && mayShape && !hasOwnStart);
   $effect(() => {
     if (!takesHubStarts) return;
-    return untrack(() => config.templates((next) => {
-      if (next.status === 'ready') catalogue = next.data.data;
+    return untrack(() => config.templates((next: { status: string; data?: { data?: readonly ConfigTemplate[] } }) => {
+      if (next.status === 'ready' && Array.isArray(next.data?.data)) catalogue = next.data.data;
     }));
   });
   const templateName = (template: ConfigTemplate): string =>
