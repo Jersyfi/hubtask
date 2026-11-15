@@ -976,4 +976,9 @@
   @media (pointer: coarse), (width < 600px) {
     .corner::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
+  /* A thumb's target (§7, N20): the move handle is a press, as wide and tall as one. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .handle { min-inline-size: var(--layout-target); min-block-size: var(--layout-target); }
+  }
 </style>

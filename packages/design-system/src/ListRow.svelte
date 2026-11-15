@@ -148,7 +148,7 @@
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
     a.content,
-    button.content { position: relative; }
+    button.content { position: relative; min-block-size: var(--layout-target); }
     a.content::after,
     button.content::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: 0; }
   }

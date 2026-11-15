@@ -167,6 +167,7 @@
      reaches layout.target, by its own height or beyond its drawn box. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    .name a { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
     .node { position: relative; min-block-size: var(--layout-target); }
     .name a::after { content: ''; position: absolute; inset: 0; }
     .chip { position: relative; z-index: var(--z-raised); }

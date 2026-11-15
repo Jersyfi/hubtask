@@ -1020,6 +1020,7 @@
     .row { min-block-size: var(--layout-target); }
     .lead,
     .lead .title { align-self: stretch; }
+    .lead > .title { min-block-size: var(--layout-target); }
   }
 
   /* A row's menu alone shows where the pointer or the keyboard is, as a list row's tools do: over

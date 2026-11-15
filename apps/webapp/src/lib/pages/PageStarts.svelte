@@ -84,6 +84,8 @@
      reaches layout.target, by its own height or beyond its drawn box. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    /* Tall as a thumb's target: a press area drawn past the box is clipped or covered (N20). */
+    button.link { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
     button.link { position: relative; }
     button.link::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
     .start-all { position: relative; }

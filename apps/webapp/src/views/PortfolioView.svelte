@@ -299,7 +299,7 @@
           menu={projectMenu} onmenu={(item: Project, id: string) => { if (id === 'change') openProject(item); else void takeOut(item.container_id, item.name); }}
           rowLabel={(item: Project) => item.name} actionsLabel={t('app.goals.actions')} sheetDismissLabel={t('app.page.sheet_close')} sheetGrabLabel={t('app.page.sheet_grab')}>
           {#snippet cell(item: Project, column: DataColumn)}
-            {#if column.id === 'project'}<a href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}
+            {#if column.id === 'project'}<a class="project" href={projectPath(item.kind, item.container_id)}>{item.name}</a>{#if item.archived}<span class="note">{t('app.portfolios.archived')}</span>{/if}
             {:else if column.id === 'when'}
               {#if item.start_on || item.end_on}<span class="day">{item.start_on ? formatPlainDay(item.start_on, locale) : ''}</span> – <span class="day">{item.end_on ? formatPlainDay(item.end_on, locale) : ''}</span>{/if}
             {:else if column.id === 'health'}
@@ -423,4 +423,9 @@
   .progress { display: block; min-width: var(--sp-1600); white-space: nowrap; }
   .clip { display: block; max-inline-size: var(--layout-panel-width); white-space: pre-wrap; }
   .plain { margin: 0; padding-inline-start: var(--sp-200); }
+  /* A thumb's target (§7, N20): a project's link is as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .project { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
+  }
 </style>

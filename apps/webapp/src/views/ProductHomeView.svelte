@@ -1035,4 +1035,9 @@
   .hubs { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   /* One line with an ellipsis and the whole name as the tooltip (user-experience.md §2.5). */
   .name { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* A thumb's target (§7, N20): a page's and a space's link are as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .review-rows .name, .space-rows .name { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
+  }
 </style>

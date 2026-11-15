@@ -490,6 +490,7 @@
      reaches layout.target, by its own height or beyond its drawn box. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    .back, .act { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
     .act { position: relative; z-index: var(--z-raised); }
     .act::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
     /* Tall as its target, so its press does not reach up into the last row's act. */

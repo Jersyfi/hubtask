@@ -143,4 +143,9 @@
   .what > :global(* + *) { margin-inline-start: var(--sp-100); }
   a { color: var(--text-primary); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
+  /* A thumb's target (§7, N20): the object and entry links are as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    a { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
+  }
 </style>

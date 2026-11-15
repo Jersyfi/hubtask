@@ -1434,6 +1434,7 @@
      reaches layout.target, by its own height or beyond its drawn box. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    .what a { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
     .what a { position: relative; }
     .what a::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }

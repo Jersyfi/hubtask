@@ -270,4 +270,9 @@
   .figures dt { color: var(--text-secondary); font-size: var(--fs-075); }
   .figures dd { margin: 0; font-size: var(--fs-300); font-weight: var(--fw-semibold); }
   .meta { color: var(--text-subtle); font-size: var(--fs-075); margin: 0; }
+  /* A thumb's target (§7, N20): a round's row is as tall as a press. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (pointer: coarse), (width < 600px) {
+    .pick { min-block-size: var(--layout-target); }
+  }
 </style>

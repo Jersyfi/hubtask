@@ -80,6 +80,7 @@
      reaches layout.target beyond its drawn box (P-2). */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    .members { min-block-size: var(--layout-target); }
     .members { position: relative; z-index: 1; }
     .members::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }

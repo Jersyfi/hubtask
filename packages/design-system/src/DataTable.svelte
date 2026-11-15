@@ -580,6 +580,8 @@
     .data-table :global(td.select .native) { inset: calc((var(--sp-250) - var(--layout-target)) / 2); width: auto; height: auto; }
     .data-table :global(.end-inner .icon-button[data-size]) { width: var(--layout-target); height: var(--layout-target); }
     .twist { inline-size: var(--layout-target); block-size: var(--layout-target); margin-block: calc((var(--sp-300) - var(--layout-target)) / 2); }
+    /* The row's press is as tall as a thumb's target, not only its line of text (N20). */
+    .press { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
   }
 
   .shown { color: var(--text-subtle); }

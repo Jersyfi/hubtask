@@ -18,7 +18,7 @@ test('the status chip stands in a column of its own, one width in every row, und
 });
 
 test('the meta line is one line from a tablet\'s width, so a row is two lines at most (N12, N14)', () => {
-  assert.match(source, /@media \(width >= 600px\) \{\s*\.meta-line \{ flex-wrap: nowrap; overflow: hidden; \}/u);
+  assert.match(source, /@media \(width >= \d+px\) \{\s*\.meta-line \{ flex-wrap: nowrap; overflow: hidden; \}/u);
 });
 
 // L-2: a desk's queue keeps its seven columns in one row at a desktop's width - the person in

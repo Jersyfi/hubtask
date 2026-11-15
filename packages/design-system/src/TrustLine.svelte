@@ -94,6 +94,7 @@
      beyond its drawn box, so the line keeps its height. */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (pointer: coarse), (width < 600px) {
+    .verify { display: inline-flex; align-items: center; min-block-size: var(--layout-target); }
     .verify { position: relative; }
     .verify::after { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
