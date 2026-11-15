@@ -35,6 +35,10 @@ import (
 // encryption is not worth the name (security.md §8).
 const minSecretKeyLength = 32
 
+// defaultCoverImagesURL is the public image library a cover may take a picture from, dialled only
+// for a workspace that chose it (PG-6).
+const defaultCoverImagesURL = "https://api.openverse.org/v1"
+
 type EnvConfig struct {
 	version string
 	commit  string
@@ -178,6 +182,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			DocumentServerPrivate: getBool("HUBTASK_DOCUMENT_SERVER_PRIVATE_NETWORK", tenancy != env.TenancyMulti),
 			CAFile:                get("HUBTASK_HTTP_CA_FILE", ""),
 			CARoots:               readOptional(get("HUBTASK_HTTP_CA_FILE", "")),
+			CoverImagesURL:        get("HUBTASK_COVER_IMAGES_URL", defaultCoverImagesURL),
 		},
 		Queue: env.QueueConfig{
 			PollInterval:      getDuration("HUBTASK_QUEUE_POLL_INTERVAL", 2*time.Second),

@@ -45,6 +45,15 @@ func jpeg(body string) httpclient.Response {
 
 const one, two = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222"
 
+// The library is asked at the configured address, a trailing slash or not.
+func TestTheLibraryIsAskedAtTheConfiguredAddress(t *testing.T) {
+	for _, configured := range []string{"https://library.test/v1", "https://library.test/v1/"} {
+		if got := NewOpenLibrary(&fakeClient{}, configured, time.Second).Base; got != "https://library.test/v1" {
+			t.Errorf("NewOpenLibrary(%q).Base = %q", configured, got)
+		}
+	}
+}
+
 // A search finds openly licensed pictures with who made them and a preview fetched by the server;
 // a picture whose preview fails is left out, and an id that is no id never reaches an address.
 func TestASearchFindsPicturesWithTheirMakerAndPreview(t *testing.T) {

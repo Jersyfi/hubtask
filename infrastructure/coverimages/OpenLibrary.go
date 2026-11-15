@@ -38,9 +38,9 @@ type OpenLibrary struct {
 	Timeout time.Duration
 }
 
-// NewOpenLibrary answers the library at its public address.
-func NewOpenLibrary(client httpclient.Port, timeout time.Duration) OpenLibrary {
-	return OpenLibrary{Client: client, Base: "https://api.openverse.org/v1", Timeout: timeout}
+// NewOpenLibrary answers the library at the configured API root (HUBTASK_COVER_IMAGES_URL).
+func NewOpenLibrary(client httpclient.Port, base string, timeout time.Duration) OpenLibrary {
+	return OpenLibrary{Client: client, Base: strings.TrimRight(base, "/"), Timeout: timeout}
 }
 
 type found struct {

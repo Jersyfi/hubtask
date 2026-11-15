@@ -604,6 +604,10 @@ type OutboundConfig struct {
 	// CARoots is CAFile's content, read once when the configuration is loaded; nil where none is
 	// named or it could not be read, which the validation refuses.
 	CARoots []byte
+	// CoverImagesURL is the API root of the openly licensed image library a page's cover may take
+	// a picture from (UC-DOC-16 check 5). Configuration rather than source, so that nothing is
+	// dialled that nobody configured (PG-6); it is asked only for a workspace that chose it.
+	CoverImagesURL string
 }
 
 // MetricsConfig covers what a metric may say about a tenant.

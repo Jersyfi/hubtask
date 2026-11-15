@@ -2078,7 +2078,7 @@ func run() error {
 		// An image library a cover may take a picture from, where the workspace chooses one
 		// (UC-DOC-16 check 5): through the guarded client, with room for a cover-sized picture.
 		Covers: knowledgeservice.CoverLibrary{
-			Library:  coverimagesadapter.NewOpenLibrary(coverImagesClient(cfg.Outbound), cfg.Outbound.Timeout),
+			Library:  coverimagesadapter.NewOpenLibrary(coverImagesClient(cfg.Outbound), cfg.Outbound.CoverImagesURL, cfg.Outbound.Timeout),
 			Settings: postgres.SettingRepository{},
 		},
 		// A hub's posts, a scheduled one published by its timer (UC-DOC-17, UC-DOC-18).
