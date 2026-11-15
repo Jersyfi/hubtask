@@ -341,7 +341,8 @@ export interface SyncEngineOptions {
    * Called when a request meets a `401`, to exchange the refresh token for the next pair.
    *
    * `true` means a new credential is held and the request is retried **once**; `false` means the
-   * session is over and `onUnauthorized` follows. The exchange itself is the application's - this
+   * session is over and `onUnauthorized` follows; a rejection means the exchange did not happen
+   * (shed for load, not reached) - the request fails with it and the session stays. The exchange itself is the application's - this
    * package knows there is one and never what it presents - and it happens here rather than in
    * every store for a reason that is not tidiness: presenting a retired refresh token is theft as
    * far as the server is concerned and costs the whole family (`security.md` §5, T-01), so ten
