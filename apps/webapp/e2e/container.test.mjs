@@ -14,8 +14,9 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
+import { pressArea } from './press.mjs';
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, HUB, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
+import { BUCKETS, COLLECTION, HUB, ITEMS, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -395,4 +396,35 @@ test('chromium: 1280 px — the line in the panel is read into the query and the
 
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
+});
+
+// A thumb's target (user-experience.md §7): on a phone, while entries are picked for the bulk bar,
+// a row's label chips are marks, not targets of their own - a press on one lands on the row's link
+// or on the bar drawn over it, each taking layout.target (44 px) each way.
+test('chromium: 375 px — while picking, a press on a row\'s label chip lands on a 44 px target', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, failures, close } = await openCollection(browser, 375);
+  t.after(close);
+  await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
+  await page.locator('[data-bar="menu"] button').click();
+  await page.getByRole('menuitem', { name: 'Select entries' }).click();
+  await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
+  const chips = page.locator('.task-row .chip');
+  assert.ok((await chips.count()) > 0, 'no label chip on a row');
+  for (const chip of await chips.all()) {
+    await chip.scrollIntoViewIfNeeded();
+    const marker = await chip.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const target = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)?.closest('a, button, label, [role="toolbar"], .bar');
+      if (!target) return null;
+      target.setAttribute('data-pressed-probe', '');
+      return target.tagName;
+    });
+    assert.notEqual(marker, null, 'a press on a label chip lands on nothing');
+    const target = page.locator('[data-pressed-probe]');
+    const area = await pressArea(target);
+    await target.evaluate((element) => element.removeAttribute('data-pressed-probe'));
+    assert.ok(area.width >= 44 && area.height >= 44, `a press on a label chip lands on ${marker} of ${JSON.stringify(area)}`);
+  }
+  assert.deepEqual(failures, []);
 });

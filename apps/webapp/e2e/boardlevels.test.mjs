@@ -14,6 +14,7 @@ import { join, dirname } from 'node:path';
 
 import { sharedChromium } from './browser.mjs';
 
+import { pressArea } from './press.mjs';
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, ITEMS, MANIFEST, PERMISSIONS, signedIn, stub, chooseView } from './fixture.mjs';
 
@@ -105,6 +106,18 @@ test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing 
   const drop = written.find((each) => each.path === `/items/${ITEMS[0].id}:drop`);
   assert.equal(drop?.body?.bucket_id, BUCKETS[2].id);
   assert.equal(written.filter((each) => each.path.endsWith(':complete')).length, 0, 'the client completed it itself');
+});
+
+// A thumb's target (user-experience.md §7): on a phone the status chip, drawn small, takes a press
+// across layout.target (44 px) each way.
+test('chromium: L2 - at 375 px the status chip of a row takes a 44 px press', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context } = await at(browser, 'WORKFLOW', { width: 375 });
+  t.after(() => context.close());
+  const chip = page.locator(`[data-row="${ITEMS[0].id}"] [data-state-chip]`);
+  await chip.waitFor({ timeout: 15_000 });
+  const area = await pressArea(chip);
+  assert.ok(area.width >= 44 && area.height >= 44, `the status chip takes ${JSON.stringify(area)}`);
 });
 
 // UC-WRK-31 check 5: under a workflow each column names its statuses, the rest fold into Ohne Spalte.
