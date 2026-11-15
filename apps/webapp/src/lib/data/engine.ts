@@ -102,7 +102,8 @@ const transport = watchedForPause(new FetchTransport({
  *
  * The engine calls this at most once at a time and retries the refused request once after it.
  * Nothing here decides what a failure means for the screen: `false` sends the engine to
- * `onUnauthorized`, which is where the session ends and the path is remembered.
+ * `onUnauthorized`, which is where the session ends and the path is remembered; a rejection fails
+ * the request alone.
  *
  * **No bearer on this call**, and that is the contract's shape rather than an omission: the refresh
  * token in the body is the whole credential, and demanding the very thing this call exists to
@@ -129,12 +130,19 @@ async function renew(): Promise<boolean> {
       refresh: answer.body.refresh_token,
     });
     return true;
-  } catch {
-    // Refused, unreachable, or malformed: all three mean the same thing to the caller, which is
-    // that there is no credential to retry with. Which of the three it was is the server's to
-    // record, not this client's to distinguish.
+  } catch (cause) {
+    // Shed for load (`429`, the address's budget - T-02), failed at the server or not reached: the
+    // refresh token was never spent, so the session is not over. The request fails with it and
+    // the next refusal exchanges again.
+    if (isUnspent(cause)) throw cause;
+    // Refused or malformed: there is no credential to retry with.
     return false;
   }
+}
+
+/** An exchange the server never made: the refresh token presented is still the live one. */
+function isUnspent(cause: unknown): boolean {
+  return cause instanceof TransportError && (cause.kind === 'offline' || cause.kind === 'timeout' || cause.status === 429 || (cause.status ?? 0) >= 500);
 }
 
 /**

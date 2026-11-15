@@ -223,3 +223,47 @@ test('chromium: a stale bearer signs the reader out, and the sign-in reads the m
   assert.equal(await markOf(page).locator('.dot').count(), 0, 'the bar still says the installation is unread');
   assert.deepEqual(failures, []);
 });
+
+// A refresh the server sheds for load (`429`, the address's sign-in budget spent - T-02) did not
+// refuse the session: the token was never spent. The reader stays signed in, and the next
+// exchange presents the same refresh token and goes on.
+test('chromium: a refresh answered 429 keeps the session, and the next exchange goes on', async (t) => {
+  const browser = await sharedChromium(t);
+
+  const GOOD = 'e2e-fresh-bearer';
+  const exchanges = [];
+  const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const bearer = request.headers().authorization;
+    if (path.endsWith('/api/v1/auth/sessions:refresh')) {
+      exchanges.push(request.postDataJSON()?.refresh_token);
+      return exchanges.length === 1
+        ? route.fulfill(problem(429, 'errors.rate_limited'))
+        : route.fulfill({ json: { access_token: GOOD, refresh_token: 'e2e-next-refresh' } });
+    }
+    if (bearer !== undefined && bearer !== `Bearer ${GOOD}`) return route.fulfill(problem(401, 'errors.unauthenticated'));
+    if (path.endsWith('/api/v1/meta/capabilities')) return route.fulfill({ json: MANIFEST });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    if (sessionStorage.getItem('hubtask.refresh') !== null) return;
+    sessionStorage.setItem('hubtask.bearer', 'e2e-stale-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-stale-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  for (let waited = 0; exchanges.length === 0 && waited < 100; waited++) await page.waitForTimeout(100);
+  await page.waitForTimeout(500);
+  assert.equal(await page.getByRole('textbox', { name: 'Email address' }).count(), 0, 'a shed refresh signed the reader out');
+
+  // The next refusal, of this page or after a reload, exchanges the same unspent token.
+  await page.reload();
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByRole('textbox', { name: 'Email address' }).count(), 0);
+  assert.deepEqual(exchanges.slice(0, 2), ['e2e-stale-refresh', 'e2e-stale-refresh'], 'the second exchange presented another token');
+  assert.equal(await page.evaluate(() => sessionStorage.getItem('hubtask.refresh')), 'e2e-next-refresh');
+});
