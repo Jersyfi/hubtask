@@ -20829,43 +20829,6 @@ paths:
               schema: { $ref: "#/components/schemas/SearchReindex" }
         "403": { $ref: "#/components/responses/Problem" }
 
-  /boards:repair:
-    post:
-      tags: [items]
-      operationId: repairBoards
-      x-hubtask-cli: "board repair"
-      x-hubtask-rest: generated
-      summary: Bring every board of the workspace to one model
-      description: |
-        Once, for a workspace whose boards were made before columns, completion and statuses were
-        kept together: on a board without a workflow exactly one done column (the rightmost marked
-        one, else the rightmost column), every completed entry moved into it and every open entry
-        standing in it completed; on a board under a workflow - the workflows in force for the
-        board's entry types together, a status key in one column at most - a board that maps no
-        status first given the proposed mapping (the same name, the done column the done statuses,
-        the first column the initial one), then a column for each status no column shows, and every
-        entry in the column of its status; the unused starting columns of a
-        collection whose default view is not the board taken off, the done column last.
-
-        Requires `STRUCTURE` at the workspace and the `workspace:manage` scope. `dry_run` counts
-        and writes nothing; a second run answers zeros. Auditable, with the counts only.
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                dry_run: { type: boolean, default: false }
-      responses:
-        "200":
-          description: What the run found and, unless it was a dry run, did
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/BoardRepair" }
-        "4XX":
-          $ref: "#/components/responses/Problem"
-
   /containers/{containerId}/board:switch:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -33865,19 +33828,6 @@ components:
         from: { type: string, description: "On a try: the status it was judged from." }
         leaves_from: { type: boolean, description: "On a try: whether it leaves that status." }
 
-    BoardRepair:
-      type: object
-      required: [dry_run, boards, done_marked, moved_into_done, completed, columns_added, placed_by_status, columns_removed]
-      properties:
-        dry_run: { type: boolean }
-        boards: { type: integer, description: The boards looked at. }
-        done_marked: { type: integer, description: Boards given exactly one done column. }
-        moved_into_done: { type: integer, description: Completed entries moved into the done column. }
-        completed: { type: integer, description: Open entries in a done column completed. }
-        columns_added: { type: integer, description: Columns added for statuses no column showed. }
-        placed_by_status: { type: integer, description: Entries put into the column of their status. }
-        columns_removed: { type: integer, description: Unused starting columns taken off. }
-        statuses_mapped: { type: integer, description: Statuses given an existing column on a board that mapped none. }
     DropAnswer:
       type: object
       required: [outcome, steps, item]

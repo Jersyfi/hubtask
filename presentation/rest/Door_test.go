@@ -372,25 +372,6 @@ func TestADropAnswersTheOutcomeAndTheEntry(t *testing.T) {
 	}
 }
 
-// The board repair hands on the dry run and answers the counts.
-func TestTheBoardRepairAnswersItsCounts(t *testing.T) {
-	registry := &catalogue{out: usecase.Output{
-		"dry_run": true, "boards": 2, "done_marked": 0, "moved_into_done": 1, "completed": 1,
-		"columns_added": 0, "placed_by_status": 0, "columns_removed": 3,
-	}}
-	recorder := callDoor(t, registry, http.MethodPost, "/boards:repair", `{"dry_run":true}`,
-		map[string]string{"Content-Type": "application/json"})
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
-	}
-	if registry.name != "RepairBoards" || registry.in["dry_run"] != true {
-		t.Errorf("%s %v", registry.name, registry.in)
-	}
-	if !strings.Contains(recorder.Body.String(), `"columns_removed":3`) {
-		t.Errorf("the answer is %s", recorder.Body)
-	}
-}
-
 // A secret shown once is marked so for a cache and the idempotency record (T-18) - only when the
 // answer carries it: an invitation sent by mail shows no link and is not marked.
 func TestAGeneratedAnswerShowingASecretOnceIsMarkedSo(t *testing.T) {

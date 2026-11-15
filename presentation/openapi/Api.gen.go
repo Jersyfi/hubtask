@@ -14830,34 +14830,6 @@ type BoardPreview struct {
 	} `json:"unmapped"`
 }
 
-// BoardRepair defines model for BoardRepair.
-type BoardRepair struct {
-	// Boards The boards looked at.
-	Boards int `json:"boards"`
-
-	// ColumnsAdded Columns added for statuses no column showed.
-	ColumnsAdded int `json:"columns_added"`
-
-	// ColumnsRemoved Unused starting columns taken off.
-	ColumnsRemoved int `json:"columns_removed"`
-
-	// Completed Open entries in a done column completed.
-	Completed int `json:"completed"`
-
-	// DoneMarked Boards given exactly one done column.
-	DoneMarked int  `json:"done_marked"`
-	DryRun     bool `json:"dry_run"`
-
-	// MovedIntoDone Completed entries moved into the done column.
-	MovedIntoDone int `json:"moved_into_done"`
-
-	// PlacedByStatus Entries put into the column of their status.
-	PlacedByStatus int `json:"placed_by_status"`
-
-	// StatusesMapped Statuses given an existing column on a board that mapped none.
-	StatusesMapped *int `json:"statuses_mapped,omitempty"`
-}
-
 // BoardSwitch defines model for BoardSwitch.
 type BoardSwitch struct {
 	ColumnsCreated int  `json:"columns_created"`
@@ -29862,11 +29834,6 @@ type DownloadWorkspaceArchiveParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
-// RepairBoardsJSONBody defines parameters for RepairBoards.
-type RepairBoardsJSONBody struct {
-	DryRun *bool `json:"dry_run,omitempty"`
-}
-
 // ListBusinessCalendarsParams defines parameters for ListBusinessCalendars.
 type ListBusinessCalendarsParams struct {
 	IncludeOffered *bool `form:"include_offered,omitempty" json:"include_offered,omitempty"`
@@ -32687,9 +32654,6 @@ type StartBackupJSONRequestBody = BackupStart
 // DownloadWorkspaceArchiveJSONRequestBody defines body for DownloadWorkspaceArchive for application/json ContentType.
 type DownloadWorkspaceArchiveJSONRequestBody = WorkspaceArchiveDownload
 
-// RepairBoardsJSONRequestBody defines body for RepairBoards for application/json ContentType.
-type RepairBoardsJSONRequestBody RepairBoardsJSONBody
-
 // DefineBusinessCalendarJSONRequestBody defines body for DefineBusinessCalendar for application/json ContentType.
 type DefineBusinessCalendarJSONRequestBody = BusinessCalendarDefine
 
@@ -34699,9 +34663,6 @@ type ServerInterface interface {
 	// CompareBaseline A baseline beside today's plan
 	// (GET /baselines/{baselineId})
 	CompareBaseline(w http.ResponseWriter, r *http.Request, baselineId openapi_types.UUID)
-	// RepairBoards Bring every board of the workspace to one model
-	// (POST /boards:repair)
-	RepairBoards(w http.ResponseWriter, r *http.Request)
 	// ListBusinessCalendars The workspace's business calendars
 	// (GET /business-calendars)
 	ListBusinessCalendars(w http.ResponseWriter, r *http.Request, params ListBusinessCalendarsParams)
@@ -43266,20 +43227,6 @@ func (siw *ServerInterfaceWrapper) CompareBaseline(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompareBaseline(w, r, baselineId)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// RepairBoards operation middleware
-func (siw *ServerInterfaceWrapper) RepairBoards(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RepairBoards(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -67491,7 +67438,6 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:all", wrapper.SearchAll)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/query:ask", wrapper.AskQuery)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/boards:repair", wrapper.RepairBoards)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:switch", wrapper.SwitchBoard)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/board:workflow", wrapper.MakeBoardWorkflow)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)

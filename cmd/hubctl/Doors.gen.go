@@ -640,11 +640,6 @@ var generatedCommands = []door{
 			{Name: "name", Kind: "string", Help: "", Required: true},
 		},
 		HasBody: true, BodyRequired: true, IfMatch: false, StepUp: false, List: false, Columns: []string{"id", "name"}},
-	{Group: "board", Verb: "repair", OperationID: "repairBoards", Method: "POST", Path: "/boards:repair", Summary: "Bring every board of the workspace to one model",
-		Body: []doorParam{
-			{Name: "dry_run", Kind: "boolean", Help: "", Required: false},
-		},
-		HasBody: true, BodyRequired: false, IfMatch: false, StepUp: false, List: false, Columns: []string{"boards", "columns_added", "columns_removed", "completed", "done_marked"}},
 	{Group: "board", Verb: "switch", OperationID: "switchBoard", Method: "POST", Path: "/containers/{containerId}/board:switch", Summary: "Show a collection's tasks as a board, or as a list again",
 		PathParams: []doorParam{
 			{Name: "containerId", Kind: "uuid", Help: "", Required: true},

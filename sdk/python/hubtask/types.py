@@ -2825,17 +2825,6 @@ StepVerdict = TypedDict("StepVerdict", {
     "leaves_from": bool,
 }, total=False)
 
-class BoardRepair(TypedDict, total=False):
-    dry_run: Required[bool]
-    boards: Required[int]
-    done_marked: Required[int]
-    moved_into_done: Required[int]
-    completed: Required[int]
-    columns_added: Required[int]
-    placed_by_status: Required[int]
-    columns_removed: Required[int]
-    statuses_mapped: int
-
 class DropAnswer(TypedDict, total=False):
     outcome: Required[Literal["MOVED", "STEP_TAKEN", "CHOOSE"]]
     steps: Required[list[dict[str, Any]]]

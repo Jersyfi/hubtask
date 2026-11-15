@@ -3778,11 +3778,6 @@ export class HubtaskClient {
     return this.call("POST", "/search:reindex", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Bring every board of the workspace to one model */
-  repairBoards(body: NonNullable<operations["repairBoards"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["repairBoards"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/boards:repair", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
-  }
-
   /** Show a collection's tasks as a board, or as a list again */
   switchBoard(containerId: string, body: NonNullable<operations["switchBoard"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["switchBoard"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/containers/{containerId}/board:switch", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);

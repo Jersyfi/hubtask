@@ -3003,10 +3003,6 @@ class Client:
         """Bring the workspace's search documents current"""
         return self._call("POST", "/search:reindex", {}, None, {}, None, "none", None, "json")
 
-    def repair_boards(self, body: dict[str, Any]) -> "BoardRepair":
-        """Bring every board of the workspace to one model"""
-        return self._call("POST", "/boards:repair", {}, None, {}, body, "json", "application/json", "json")
-
     def switch_board(self, container_id: str, body: dict[str, Any]) -> "BoardSwitch":
         """Show a collection's tasks as a board, or as a list again"""
         return self._call("POST", "/containers/{containerId}/board:switch", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
