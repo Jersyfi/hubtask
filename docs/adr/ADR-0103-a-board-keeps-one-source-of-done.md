@@ -34,3 +34,10 @@ and ignored the collection's own columns.
 
 Every writer of a column, a completion or a status reads the board (`work.Boards`). The web board
 drops its own done-column writes (build plan §6, Phase 2c).
+
+## Amendment — 2026-11-15: no repair
+
+The owner decided on 2026-11-15 that existing boards are not repaired: nobody but the owner uses
+Hubtask yet, so the break costs nobody and the one-off job (`RepairBoards`, `POST /boards:repair`)
+would be code kept for no one. The job, its endpoint and its audit event `boards.repaired` are
+removed; the last bullet of the decision no longer holds.

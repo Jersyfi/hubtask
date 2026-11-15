@@ -293,7 +293,7 @@ The rules behind each element are in [domain-model.md](./domain-model.md).
 | `Reference` | Value object | A pointer to any object (P-19), resolved for the reader by `ResolveReferences` |
 | `Ordering` | Value object | The sort key, a fractional index |
 | `CompletionPolicy` | Domain policy | Optional, per collection: a parent completes once all its children have |
-| `Board` | Domain policy | A collection's columns, done column and column ↔ status mapping: the level (L0/L1/L2), where an entry stands, what a drop does, the repair (§3.5a there) |
+| `Board` | Domain policy | A collection's columns, done column and column ↔ status mapping: the level (L0/L1/L2), where an entry stands, what a drop does (§3.5a there) |
 | `AssignmentStrategy` | Interface + strategies | `FIXED`, `RANDOM_MEMBER`, `RANDOM_GROUP_MEMBER`, `ROUND_ROBIN`, `LEAST_LOADED` (§3.6 there) |
 | Work item repository | Repository interface | The aggregate, tree queries, the query DSL |
 

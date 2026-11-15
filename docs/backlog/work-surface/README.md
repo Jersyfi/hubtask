@@ -845,8 +845,9 @@ and 10 as §12 ran them before the build.
 
 **Delivered.** The areas of §6 are built on the server, contract first, and in the web app: the
 entry and the ticket with one head, rail and composer; lists as calm tables; the list, board and
-workflow levels with the server keeping column and completion together, the drop, the level
-switches and the one-off repair (build-plan §5, ADR-0103); the Hubtask query in both spellings at
+workflow levels with the server keeping column and completion together, the drop and the level
+switches (build-plan §5, ADR-0103) - the one-off repair of existing boards removed again by the
+owner's decision of 2026-11-15, nobody but the owner using Hubtask yet; the Hubtask query in both spellings at
 every door and the search over every kind (ADR-0102); the view panel, sprint, backlog and plan;
 *Today* and the hub overview; product homes and empty states, with the workspace's goal sets and
 kinds of work as templates; dashboards with filters and the *list* and *text* widgets; pages with

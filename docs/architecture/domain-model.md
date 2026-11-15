@@ -795,8 +795,7 @@ another for bugs - shows the statuses of all of them: the board's shape is the w
 for every task-level type on it, joined by status key (`work.BoardShape`, `Workflows.OnBoard`), so
 a status key stands in at most one column whichever workflow it comes from, and where two
 workflows share a key the first one's category decides. A change of the scheme for one type
-therefore reaches the boards that type stands on and takes their `columns`, and the repair maps
-such a board as it maps one under a single workflow.
+therefore reaches the boards that type stands on and takes their `columns`.
 
 A **drop** onto a column (`Board.PlanDrop`) moves at L1; at L2 it takes the one step the person may
 take into a status of the column, offers the choice among several, or is refused with a reason
@@ -841,16 +840,14 @@ board without a workflow asks which column means done instead: the deletion name
 left as the suggestion (`Board.ChooseDoneSuccessor`); the deleted column's entries go there and its
 open entries are completed. Under a mapping the suggestion is taken and the entries go to *Ohne
 Spalte*; an open column's go to the first open column (`Board.TargetAfterDeleting`). A board made
-before this model is brought to it once by an administrator's repair (`RepairBoards`,
-`POST /boards:repair`); under a workflow a board that maps no status is first given the proposal
-(`DefaultMapping`), then a column for each status still unmapped.
+before this model is not migrated to it: the owner accepted the break on 2026-11-15, nobody but the
+owner using Hubtask yet.
 
-A **completion in bulk** - the mark moving, the repair - writes each entry's history
-(`item.completed`, by the person who moved the mark or ran the repair, its `cause`
-`DONE_COLUMN_MOVED` or `BOARD_REPAIR`) and its change for offline clients, but announces no
-completion event: nobody completed these entries by hand, so no notification goes out and no rule
-or automation runs - for hundreds of old entries both would be noise, and a rule firing on a repair
-would act on work nobody touched.
+A **completion in bulk** - the mark moving - writes each entry's history (`item.completed`, by
+the person who moved the mark, its `cause` `DONE_COLUMN_MOVED`) and its change for offline
+clients, but announces no completion event: nobody completed these entries by hand, so no
+notification goes out and no rule or automation runs - for hundreds of old entries both would be
+noise, and a rule firing on a moved mark would act on work nobody touched.
 
 ### 3.6 Automatic assignment
 
