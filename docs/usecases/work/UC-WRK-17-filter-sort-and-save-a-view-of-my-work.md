@@ -63,8 +63,9 @@ before saving a new one. At the end of the month the lead exports the view as CS
     is read into the same conditions and order, held to the same fields, operators and bounds, a
     line that cannot be read is refused with `query.line_malformed` naming the character it stops
     at, and a line sent beside conditions or an order is refused with `query.line_with_filter`.
-    In the web app, the filter's *As a line* field writes the line from the conditions and the
-    conditions from the line; a line the conditions cannot draw is kept whole, as a saved view's.
+    In the web app, the *View* panel's query line (UC-WRK-43) reads a line into the conditions and
+    the order and spells them back; a line the conditions cannot draw is kept whole, as a saved
+    view's.
 13. One panel *Ansicht* holds the layout, what is seen as the Hubtask query line (chips, the
     count while typing, the same query as text), the order, the fields - custom fields
     included -, the board's columns, lanes and limits, and saving with name, place and
@@ -89,4 +90,3 @@ before saving a new one. At the end of the month the lead exports the view as CS
 ## Today
 
 * Check 6: partly met — a saved filter of conditions joined by AND is spelled on the *View* panel's query line, where it is changed; a filter the line cannot spell (an OR, a NOT) is kept whole and counted as one condition, honoured but not shown condition by condition.
-* Check 12: met through the API, MCP and `hubctl`; in the web app the filter's *As a line* field the check names is gone - the *View* panel's query line (UC-WRK-43) reads a line into the conditions and the order and spells them back. The check's last sentence waits for the owner's correction.
