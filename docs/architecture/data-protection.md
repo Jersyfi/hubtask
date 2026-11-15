@@ -403,6 +403,8 @@ tenants, data categories and period within 72 hours
 | Metering (usage figures for billing) | Off; when enabled, aggregates only, no content. The daily counts are recorded always — the AI budget's because a limit needs them, entries, storage and people as numbers that name nobody; switching metering on is what offers them for billing ([multi-tenancy.md](./multi-tenancy.md) §4.3) |
 | Public sharing links | Off, expiring, revocable, not indexable |
 | Avatar retrieval from third-party services (Gravatar and similar) | Off (it leaks IP addresses to third parties) |
+| An image library for page covers (UC-DOC-16 check 5) | Off (`knowledge.cover_images`); when a workspace chooses one, the search words and the chosen picture's identifier leave the installation from the server, never from the reader's browser, and are not kept; the picture becomes an upload of the page with its maker's name |
+| A document server (UC-MED-06) | None; when a workspace's administration enters one, the file's bytes, its name and size, and the identifiers of its creator and of the person editing go to that server under a token for one person and one file, two hours long, never stored; a save comes back as a new version of the file, who saved it kept with it |
 | Full IP addresses in logs | No, truncated |
 | Email notifications containing task content | Title and link only, no full text; switchable |
 | Chat room notifications (UC-INT-12) | Title and link only, never a note or a comment; only where an administrator subscribed the room |
