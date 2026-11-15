@@ -315,8 +315,8 @@ test('chromium: the assets settings are a settings page without the home\'s act,
   const bar = page.getByRole('navigation', { name: 'Inventory', exact: true });
   assert.equal(await bar.getByRole('link', { name: 'Object types' }).getAttribute('aria-current'), 'page', 'the home\'s view bar is gone from its classes');
   assert.equal(await page.getByRole('button', { name: 'New object', exact: true }).count(), 0, 'the home\'s create act is shown on its settings');
-  // The way back to the home is the bar's first tab, as on every tab of the home.
-  assert.equal(await bar.getByRole('link', { name: 'Inventory' }).getAttribute('href'), '/assets');
+  // The way back to the home is the bar's first tab, *For you* as on every home.
+  assert.equal(await bar.getByRole('link', { name: 'For you' }).getAttribute('href'), '/assets');
   assert.deepEqual(failures, []);
 });
 
