@@ -126,6 +126,8 @@ test('chromium: Stock comes first under its figure, the operator\'s sections und
   const figure = page.locator('[data-assets-figure]');
   await figure.waitFor({ timeout: 20_000 });
   assert.match(await figure.innerText(), /40 objects[\s\S]*6 need attention/);
+  // The tool's tile stands before its name (scene invlist), decorative beside the one title.
+  assert.equal(await page.locator('main [data-head="tool"] .title-mark [data-tool-mark="inventory"]').count(), 1, 'the inventory head draws no tile');
   // The firing alert is counted on its tab (scene invlist 1).
   await bar(page).getByRole('link', { name: /Alerts\s*1/ }).waitFor({ timeout: 5_000 });
   // The count opens the health, where each one says why, and its title says what counts.

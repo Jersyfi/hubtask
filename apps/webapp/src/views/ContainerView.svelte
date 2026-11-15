@@ -12,6 +12,7 @@
   // makes a deep link land with a correct trail: ADR-0028's `index.html` fallback exists so a deep
   // link survives a reload, and a trail assembled from navigation history would be empty after one.
   import { placeMark } from '../lib/workspace/PlaceMark.svelte';
+  import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import StarToggle from '../lib/workspace/StarToggle.svelte';
 
   import {
@@ -1561,6 +1562,10 @@
       notices={headNotices}
       aside={people}
     >
+      {#snippet mark()}
+        <!-- The hub's own tile before its name (scene hub). -->
+        <span data-hub-mark><ContainerMark look={container} size="md" hasDefaultTile /></span>
+      {/snippet}
       {#snippet titleEnd()}
         <!-- ☆ right after the title (UC-WRK-37, the mockup's head): the same star as the sidebar's. -->
         <StarToggle kind="HUB" id={container.id} name={container.name} />

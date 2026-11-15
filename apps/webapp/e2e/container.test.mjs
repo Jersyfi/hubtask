@@ -307,6 +307,8 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
+  // The hub's tile before its name (scene hub).
+  assert.equal(await page.locator('main .title-mark [data-hub-mark]').count(), 1, 'the hub head draws no tile');
   // Creating a collection is the head's *New*, which opens *Create*; importing is the
   // place's menu, as on a collection.
   assert.equal(await newInHead(page).count(), 1);

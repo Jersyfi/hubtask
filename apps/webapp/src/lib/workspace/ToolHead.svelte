@@ -6,7 +6,7 @@
   // tool's bar at the offset a collection's stands at (`PlaceHead`), so switching *Schedule*,
   // *Releases* and *Sprints* moves neither the title nor the bar.
   import type { Snippet } from 'svelte';
-  import type { MenuItem, PageAction } from '@hubtask/design-system/components';
+  import { Icon, type MenuItem, type PageAction } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
@@ -36,7 +36,10 @@
   const { hubId, tool, current = '', onnavigate, title, titleEnd, figure, primary, secondary, menu, bar, notices }: Props = $props();
 
   const hub = $derived(containers.find(hubId));
-  const name = $derived(t(HUB_TOOLS.find((each) => each.id === tool)?.code ?? ''));
+  const row = $derived(HUB_TOOLS.find((each) => each.id === tool));
+  const name = $derived(t(row?.code ?? ''));
+  // The inventory's head carries the tool's tile before its name (scene invlist).
+  const hasMark = $derived(tool === 'inventory' && row !== undefined);
   const trail = $derived([
     ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
     { id: tool, label: name },
@@ -45,6 +48,7 @@
 
 <!-- On a phone the title stands in the bar and the figure alone fills the head's row: it keeps to
      that row's one line, so a long sentence never moves the tool's bar from tab to tab. -->
+{#snippet toolMark()}<span class="tool-mark" data-tool-mark={tool}><Icon name={row?.icon ?? 'shield'} size="md" /></span>{/snippet}
 {#snippet oneLine()}<span class="figure" data-compact={viewport.isCompact ? '' : undefined}>{@render figure?.()}</span>{/snippet}
 <PlaceHead
   kind="tool"
@@ -53,6 +57,7 @@
   trailLabel={t('app.product_home.trail')}
   expandLabel={t('app.admin.expand_trail')}
   oncrumb={(crumbId) => onnavigate(crumbId === hubId ? `/hubs/${hubId}` : toolPath(hubId, tool))}
+  mark={hasMark ? toolMark : undefined}
   {titleEnd}
   figure={figure ? oneLine : undefined}
   {primary}
@@ -67,6 +72,16 @@
 
 <style>
   .figure { min-width: 0; }
+  .tool-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--sp-400);
+    block-size: var(--sp-400);
+    border-radius: var(--r-md);
+    background: var(--bg-surface-sunken);
+    color: var(--text-secondary);
+  }
   .figure[data-compact] {
     overflow: hidden;
     white-space: nowrap;
