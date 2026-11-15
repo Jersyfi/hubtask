@@ -994,13 +994,21 @@ jobs:
   #
   # The browser is pinned to the package's version and cached under it, so it moves when the
   # dependency is bumped and not when the runner image changes underneath.
+  #
+  # The suites run in three shards (`node --test --test-shard`), each on its own runner: on one,
+  # about forty minutes; a shard is a third of the suites, by file. A failing shard does not cancel
+  # the others, so one run names every failing suite.
   engines:
-    name: The client runs in Chromium
+    name: The client runs in Chromium (${{ matrix.shard }}/3)
     needs: changes
     if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.expression == 'true' || needs.changes.outputs.editor == 'true' || needs.changes.outputs.whiteboard == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
-    # The suite alone takes thirty-odd minutes since the navigation's walks came in, and the apt
-    # steps up to fifteen on a slow mirror: forty minutes cancelled a run still passing.
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    # The whole suite on one runner took thirty-odd minutes, and the apt steps up to fifteen on a
+    # slow mirror: forty minutes cancelled a run still passing. Kept until a shard's own runs set it.
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1053,6 +1061,7 @@ jobs:
       - run: pnpm --filter @hubtask/webapp test:engines
         env:
           ENGINES: chromium
+          SHARD: ${{ matrix.shard }}/3
 
   # The installed apps' shell (ADR-0031, UC-WRK-33/5): the Tauri project at apps/webapp/src-tauri/,
   # built on the two desktop systems it ships for (F7 Decision 9) - only here, never by `go` or the
