@@ -14844,7 +14844,7 @@ type BoardRepair struct {
 	// ColumnsAdded Columns added for statuses no column showed.
 	ColumnsAdded int `json:"columns_added"`
 
-	// ColumnsRemoved Unused starting columns taken off.
+	// ColumnsRemoved Always 0 - a repair takes no column off.
 	ColumnsRemoved int `json:"columns_removed"`
 
 	// Completed Open entries in a done column completed.

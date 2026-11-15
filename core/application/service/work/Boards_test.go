@@ -79,7 +79,6 @@ func (m *mapping) CompleteInColumn(_ context.Context, _ shared.ID, column shared
 	m.completedIn = append(m.completedIn, column)
 	return []repository.MovedEntry{{ID: taskID, Version: 5}}, nil
 }
-func (m *mapping) EntriesOnBoard(context.Context, shared.ID) (int, error) { return 0, nil }
 
 func (m *mapping) PlaceUnplaced(_ context.Context, _ shared.ID, completed bool, column shared.ID, _ time.Time) ([]repository.MovedEntry, error) {
 	m.placed = append(m.placed, placedByStatus{completed: completed, from: unplaced, column: column})

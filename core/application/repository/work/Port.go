@@ -842,9 +842,6 @@ type BucketStatuses interface {
 	// by the account and at the moment given, and answers those it completed.
 	CompleteInColumn(ctx context.Context, collectionID, column, by shared.ID, at time.Time) ([]MovedEntry, error)
 
-	// EntriesOnBoard counts a collection's entries standing in any column, trashed ones included.
-	EntriesOnBoard(ctx context.Context, collectionID shared.ID) (int, error)
-
 	// PlaceUnplaced puts a collection's top-level tasks without a status and without a column, of
 	// one completion, into a column, and answers those it moved.
 	PlaceUnplaced(ctx context.Context, collectionID shared.ID, completed bool, column shared.ID, at time.Time) ([]MovedEntry, error)

@@ -465,9 +465,3 @@ WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collec
   AND wi.type = 'TASK' AND wi.parent_id IS NULL AND wi.status IS NULL AND NOT wi.is_completed
 RETURNING wi.id, wi.version;
 
--- name: CountWorkItemsOnBoard :one
--- How many entries of a collection stand in any column, trashed ones included: a board whose
--- columns hold none is unused.
-SELECT count(*) FROM work_item wi
-WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = sqlc.arg('collection_id')::uuid
-  AND wi.bucket_id IS NOT NULL;
