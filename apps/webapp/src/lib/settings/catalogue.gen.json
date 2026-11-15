@@ -1799,7 +1799,7 @@
       "lockable": true,
       "may": "REPLACE",
       "options": [
-        "OPENVERSE",
+        "OPEN_LIBRARY",
         "OFF"
       ],
       "restrictable": false,

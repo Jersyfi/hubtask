@@ -36298,7 +36298,7 @@
                     "type": "string",
                     "enum": [
                       "OFF",
-                      "OPENVERSE"
+                      "OPEN_LIBRARY"
                     ]
                   }
                 }
@@ -72192,7 +72192,7 @@
             "type": "string",
             "enum": [
               "OFF",
-              "OPENVERSE"
+              "OPEN_LIBRARY"
             ]
           },
           "source": {

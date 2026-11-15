@@ -4077,8 +4077,8 @@ func (e CoverImageFetchedContentType) Valid() bool {
 
 // Defines values for CoverImagesPolicyLibrary.
 const (
-	CoverImagesPolicyLibraryOFF       CoverImagesPolicyLibrary = "OFF"
-	CoverImagesPolicyLibraryOPENVERSE CoverImagesPolicyLibrary = "OPENVERSE"
+	CoverImagesPolicyLibraryOFF         CoverImagesPolicyLibrary = "OFF"
+	CoverImagesPolicyLibraryOPENLIBRARY CoverImagesPolicyLibrary = "OPEN_LIBRARY"
 )
 
 // Valid indicates whether the value is a known member of the CoverImagesPolicyLibrary enum.
@@ -4086,7 +4086,7 @@ func (e CoverImagesPolicyLibrary) Valid() bool {
 	switch e {
 	case CoverImagesPolicyLibraryOFF:
 		return true
-	case CoverImagesPolicyLibraryOPENVERSE:
+	case CoverImagesPolicyLibraryOPENLIBRARY:
 		return true
 	default:
 		return false
@@ -12675,8 +12675,8 @@ func (e SetDependencyTimingJSONBodyDependencyKind) Valid() bool {
 
 // Defines values for SetCoverImagesPolicyJSONBodyLibrary.
 const (
-	SetCoverImagesPolicyJSONBodyLibraryOFF       SetCoverImagesPolicyJSONBodyLibrary = "OFF"
-	SetCoverImagesPolicyJSONBodyLibraryOPENVERSE SetCoverImagesPolicyJSONBodyLibrary = "OPENVERSE"
+	SetCoverImagesPolicyJSONBodyLibraryOFF         SetCoverImagesPolicyJSONBodyLibrary = "OFF"
+	SetCoverImagesPolicyJSONBodyLibraryOPENLIBRARY SetCoverImagesPolicyJSONBodyLibrary = "OPEN_LIBRARY"
 )
 
 // Valid indicates whether the value is a known member of the SetCoverImagesPolicyJSONBodyLibrary enum.
@@ -12684,7 +12684,7 @@ func (e SetCoverImagesPolicyJSONBodyLibrary) Valid() bool {
 	switch e {
 	case SetCoverImagesPolicyJSONBodyLibraryOFF:
 		return true
-	case SetCoverImagesPolicyJSONBodyLibraryOPENVERSE:
+	case SetCoverImagesPolicyJSONBodyLibraryOPENLIBRARY:
 		return true
 	default:
 		return false

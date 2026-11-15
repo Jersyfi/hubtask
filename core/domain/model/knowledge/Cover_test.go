@@ -107,8 +107,8 @@ func TestCoverImagesAreOffUnlessChosen(t *testing.T) {
 	if got := CoverImagesOf(setting.Resolve(definition)); got != CoverImagesOff {
 		t.Fatalf("default = %s", got)
 	}
-	chosen := setting.Layer{Level: setting.LevelWorkspace, Entries: map[setting.Key]setting.Entry{CoverImagesKey: {Value: CoverImagesOpenverse, Hold: setting.HoldSet}}}
-	if got := CoverImagesOf(setting.Resolve(definition, chosen)); got != CoverImagesOpenverse {
+	chosen := setting.Layer{Level: setting.LevelWorkspace, Entries: map[setting.Key]setting.Entry{CoverImagesKey: {Value: CoverImagesOpenLibrary, Hold: setting.HoldSet}}}
+	if got := CoverImagesOf(setting.Resolve(definition, chosen)); got != CoverImagesOpenLibrary {
 		t.Fatalf("chosen = %s", got)
 	}
 }

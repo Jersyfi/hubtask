@@ -41,7 +41,7 @@
           bind:value={() => held.library ?? 'OFF', (library) => void set(library)}
           options={[
             { value: 'OFF', label: t('app.admin.cover_images_none') },
-            { value: 'OPENVERSE', label: 'Openverse' },
+            { value: 'OPEN_LIBRARY', label: t('app.instance.choice.knowledge.cover_images.OPEN_LIBRARY') },
           ]}
         />
       {/snippet}

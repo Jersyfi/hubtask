@@ -4602,7 +4602,7 @@
   "app.instance.setting.quotas.mailboxes": "Mailboxes per workspace",
   "app.instance.choice.sign_in.mfa_required_for.NONE": "Nobody",
   "app.instance.choice.knowledge.cover_images.OFF": "None",
-  "app.instance.choice.knowledge.cover_images.OPENVERSE": "Openverse",
+  "app.instance.choice.knowledge.cover_images.OPEN_LIBRARY": "Open image library",
   "app.instance.choice.sign_in.mfa_required_for.ADMINS": "Owners and administrators",
   "app.instance.choice.sign_in.mfa_required_for.EVERYONE": "Everyone signing in with a password",
   "app.instance.choice.sign_in.methods.PASSWORD": "Password",

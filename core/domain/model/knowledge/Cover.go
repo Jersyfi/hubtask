@@ -89,8 +89,8 @@ const CoverImagesKey setting.Key = "knowledge.cover_images"
 
 // The choices of CoverImagesKey: none, or the one library Hubtask can ask.
 const (
-	CoverImagesOff       = "OFF"
-	CoverImagesOpenverse = "OPENVERSE"
+	CoverImagesOff         = "OFF"
+	CoverImagesOpenLibrary = "OPEN_LIBRARY"
 )
 
 // CoverImagesDefinition declares the choice: off by default; the installation and a plan may set
@@ -98,7 +98,7 @@ const (
 func CoverImagesDefinition() setting.Definition {
 	return setting.Definition{
 		Key: CoverImagesKey, Kind: setting.KindChoice,
-		Options:  []string{CoverImagesOpenverse, CoverImagesOff},
+		Options:  []string{CoverImagesOpenLibrary, CoverImagesOff},
 		Levels:   []setting.Level{setting.LevelInstance, setting.LevelPlan, setting.LevelWorkspace},
 		Lockable: true, May: setting.MayReplace, Default: CoverImagesOff,
 		Writers: map[setting.Level]string{
@@ -110,7 +110,7 @@ func CoverImagesDefinition() setting.Definition {
 
 // CoverImagesOf reads the resolved choice; anything but a known library is off.
 func CoverImagesOf(r setting.Resolution) string {
-	if chosen, _ := r.Effective.(string); chosen == CoverImagesOpenverse {
+	if chosen, _ := r.Effective.(string); chosen == CoverImagesOpenLibrary {
 		return chosen
 	}
 	return CoverImagesOff

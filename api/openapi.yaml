@@ -24878,7 +24878,7 @@ paths:
               additionalProperties: false
               required: [library]
               properties:
-                library: { type: string, enum: [OFF, OPENVERSE] }
+                library: { type: string, enum: [OFF, OPEN_LIBRARY] }
       responses:
         "200":
           description: Set
@@ -43858,7 +43858,7 @@ components:
       type: object
       required: [library, source]
       properties:
-        library: { type: string, enum: [OFF, OPENVERSE] }
+        library: { type: string, enum: [OFF, OPEN_LIBRARY] }
         source: { type: string, description: The level whose value is in force. }
         locked_by: { type: string, description: The level that locked it, where one did. }
 

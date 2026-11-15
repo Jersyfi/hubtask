@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-17, P-18]
 state: verified
 tasks: []
-checked_by: [core/domain/model/knowledge/Cover_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/pages/covers.test.ts, core/application/service/knowledge/CoverImages_test.go, infrastructure/coverimages/Openverse_test.go, apps/webapp/e2e/pagesspace.test.mjs]
+checked_by: [core/domain/model/knowledge/Cover_test.go, core/application/service/knowledge/PageDoors_test.go, test/integration/page_repository_test.go, apps/webapp/src/lib/pages/covers.test.ts, core/application/service/knowledge/CoverImages_test.go, infrastructure/coverimages/OpenLibrary_test.go, apps/webapp/e2e/pagesspace.test.mjs]
 ---
 
 # Give a page a cover

@@ -6258,7 +6258,7 @@ class PortfolioPublicLinkMinted(TypedDict, total=False):
     token: Required[str]
 
 class CoverImagesPolicy(TypedDict, total=False):
-    library: Required[Literal["OFF", "OPENVERSE"]]
+    library: Required[Literal["OFF", "OPEN_LIBRARY"]]
     source: Required[str]
     locked_by: str
 

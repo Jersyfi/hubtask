@@ -54,7 +54,7 @@ func TestASearchFindsPicturesWithTheirMakerAndPreview(t *testing.T) {
 			`{"id":"` + one + `","creator":"Ada  Lovelace"},{"id":"` + two + `","creator":"B"},{"id":"../x","creator":"C"}]}`)},
 		base + "/images/" + one + "/thumb/": jpeg("preview"),
 	}}
-	library := Openverse{Client: client, Base: base, Timeout: time.Second}
+	library := OpenLibrary{Client: client, Base: base, Timeout: time.Second}
 	pictures, err := library.Search(context.Background(), " fjord ")
 	if err != nil || len(pictures) != 1 {
 		t.Fatalf("Search = %+v, %v", pictures, err)
@@ -85,7 +85,7 @@ func TestFetchingTakesThePictureOrItsFullRendition(t *testing.T) {
 		base + "/images/" + two + "/thumb/?full_size=true": jpeg("rendition"),
 		base + "/images/" + two + "/":                      {Status: 200, Body: []byte(`{"creator":"B","url":"https://pictures.test/gone.jpg"}`)},
 	}}
-	library := Openverse{Client: client, Base: base, Timeout: time.Second}
+	library := OpenLibrary{Client: client, Base: base, Timeout: time.Second}
 	image, err := library.Fetch(context.Background(), one)
 	if err != nil || string(image.Content) != "big" || image.Creator != "Ada" || image.ContentType != "image/jpeg" {
 		t.Fatalf("Fetch = %+v, %v", image, err)

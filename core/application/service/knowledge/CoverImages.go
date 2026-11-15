@@ -152,7 +152,7 @@ func (h SetCoverImagesPolicy) Descriptor() usecase.Descriptor {
 		SideEffects: "Stores the setting and writes an audit entry.",
 		TokenScope:  pagesWrite,
 		Input: []usecase.Field{
-			{Name: "library", Kind: usecase.KindString, Required: true, Enum: []string{domain.CoverImagesOff, domain.CoverImagesOpenverse}, Description: "The library offered, or OFF."},
+			{Name: "library", Kind: usecase.KindString, Required: true, Enum: []string{domain.CoverImagesOff, domain.CoverImagesOpenLibrary}, Description: "The library offered, or OFF."},
 		},
 		Audit: usecase.AuditDeclaration{Action: CoverImagesPolicySetAction, TargetType: coverImagesTarget, Severity: audit.SeverityNotice, Required: true},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {

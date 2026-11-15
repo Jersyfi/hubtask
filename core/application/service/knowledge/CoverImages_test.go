@@ -51,10 +51,10 @@ func TestAnImageLibraryIsOfferedOnlyWhereTheWorkspaceChoosesOne(t *testing.T) {
 
 	agent := as(anna)
 	agent.Kind = appshared.ActorAIAgent
-	if _, err := (SetCoverImagesPolicy{Space: f.space}).Execute(ctx, agent, domain.CoverImagesOpenverse); code(err) != "pages.agent_decides_policy_not" {
+	if _, err := (SetCoverImagesPolicy{Space: f.space}).Execute(ctx, agent, domain.CoverImagesOpenLibrary); code(err) != "pages.agent_decides_policy_not" {
 		t.Fatalf("an agent chose the library: %v", err)
 	}
-	if r, err := (SetCoverImagesPolicy{Space: f.space}).Execute(ctx, as(anna), domain.CoverImagesOpenverse); err != nil || domain.CoverImagesOf(r) != domain.CoverImagesOpenverse {
+	if r, err := (SetCoverImagesPolicy{Space: f.space}).Execute(ctx, as(anna), domain.CoverImagesOpenLibrary); err != nil || domain.CoverImagesOf(r) != domain.CoverImagesOpenLibrary {
 		t.Fatalf("SetCoverImagesPolicy: %v %v", r, err)
 	}
 
@@ -89,7 +89,7 @@ func TestAPlanLocksTheImageLibraryOff(t *testing.T) {
 	f.space.Covers = CoverLibrary{Library: &library{}, Settings: &settingsStore{plan: setting.Layer{Level: setting.LevelPlan, Entries: map[setting.Key]setting.Entry{
 		domain.CoverImagesKey: {Value: domain.CoverImagesOff, Hold: setting.HoldLock},
 	}}}}
-	if _, err := (SetCoverImagesPolicy{Space: f.space}).Execute(context.Background(), as(anna), domain.CoverImagesOpenverse); err == nil {
+	if _, err := (SetCoverImagesPolicy{Space: f.space}).Execute(context.Background(), as(anna), domain.CoverImagesOpenLibrary); err == nil {
 		t.Fatal("the workspace chose what its plan locked off")
 	}
 }

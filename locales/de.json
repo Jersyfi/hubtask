@@ -6063,7 +6063,7 @@
   "app.instance.setting.quotas.mailboxes": "Postfächer pro Arbeitsbereich",
   "app.instance.choice.sign_in.mfa_required_for.NONE": "Niemandem",
   "app.instance.choice.knowledge.cover_images.OFF": "Keine",
-  "app.instance.choice.knowledge.cover_images.OPENVERSE": "Openverse",
+  "app.instance.choice.knowledge.cover_images.OPEN_LIBRARY": "Offene Bildbibliothek",
   "app.instance.choice.sign_in.mfa_required_for.ADMINS": "Eigentümern und Administratoren",
   "app.instance.choice.sign_in.mfa_required_for.EVERYONE": "Allen, die sich mit einem Passwort anmelden",
   "app.instance.choice.sign_in.methods.PASSWORD": "Passwort",

@@ -31,16 +31,16 @@ const pageSize = 12
 // The library's ids are UUIDs; anything else never reaches a URL.
 var pictureID = regexp.MustCompile(`^[0-9a-fA-F-]{8,64}$`)
 
-// Openverse is the library's HTTP client. Base is its API root, without a trailing slash.
-type Openverse struct {
+// OpenLibrary is the library's HTTP client. Base is its API root, without a trailing slash.
+type OpenLibrary struct {
 	Client  httpclient.Port
 	Base    string
 	Timeout time.Duration
 }
 
-// NewOpenverse answers the library at its public address.
-func NewOpenverse(client httpclient.Port, timeout time.Duration) Openverse {
-	return Openverse{Client: client, Base: "https://api.openverse.org/v1", Timeout: timeout}
+// NewOpenLibrary answers the library at its public address.
+func NewOpenLibrary(client httpclient.Port, timeout time.Duration) OpenLibrary {
+	return OpenLibrary{Client: client, Base: "https://api.openverse.org/v1", Timeout: timeout}
 }
 
 type found struct {
@@ -53,7 +53,7 @@ type found struct {
 
 // Search finds pictures that may be changed and used commercially, with a preview of each fetched
 // beside one another; a preview that fails leaves its picture out.
-func (o Openverse) Search(ctx context.Context, query string) ([]coverimages.Picture, error) {
+func (o OpenLibrary) Search(ctx context.Context, query string) ([]coverimages.Picture, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
 		return nil, nil
@@ -95,7 +95,7 @@ func (o Openverse) Search(ctx context.Context, query string) ([]coverimages.Pict
 
 // Fetch reads one picture's larger rendition: the picture itself where it fits the client's
 // limit, otherwise the library's own full-size rendition of it.
-func (o Openverse) Fetch(ctx context.Context, id string) (coverimages.Image, error) {
+func (o OpenLibrary) Fetch(ctx context.Context, id string) (coverimages.Image, error) {
 	if !pictureID.MatchString(id) {
 		return coverimages.Image{}, shared.ErrNotFound.WithDetail("pages.cover_image_not_found")
 	}
@@ -115,7 +115,7 @@ func (o Openverse) Fetch(ctx context.Context, id string) (coverimages.Image, err
 	return coverimages.Image{Content: body, ContentType: kind, Creator: creatorOf(detail.Creator)}, nil
 }
 
-func (o Openverse) getJSON(ctx context.Context, address string, into any) error {
+func (o OpenLibrary) getJSON(ctx context.Context, address string, into any) error {
 	response, err := o.get(ctx, address, "application/json")
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (o Openverse) getJSON(ctx context.Context, address string, into any) error 
 }
 
 // getImage reads a picture, accepting only the three kinds a cover takes.
-func (o Openverse) getImage(ctx context.Context, address string) ([]byte, string, error) {
+func (o OpenLibrary) getImage(ctx context.Context, address string) ([]byte, string, error) {
 	if address == "" {
 		return nil, "", shared.ErrNotFound.WithDetail("pages.cover_image_not_found")
 	}
@@ -151,7 +151,7 @@ func (o Openverse) getImage(ctx context.Context, address string) ([]byte, string
 	return response.Body, kind, nil
 }
 
-func (o Openverse) get(ctx context.Context, address, accept string) (httpclient.Response, error) {
+func (o OpenLibrary) get(ctx context.Context, address, accept string) (httpclient.Response, error) {
 	ctx, cancel := context.WithTimeout(ctx, o.Timeout)
 	defer cancel()
 	response, err := o.Client.Do(ctx, httpclient.Request{
