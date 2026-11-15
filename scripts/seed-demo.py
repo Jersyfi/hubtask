@@ -218,7 +218,7 @@ def people(client, ws):
         count("people")
     for gname, members, desc in [
         ("Service Desk – 1st Level", ["mehmet.yilmaz", "sofia.rossi"], "Nimmt Störungen und Anfragen an."),
-        ("Change Advisory Board", ["lukas.brandt", "priya.natarajan"], "Approves normal and emergency changes."),
+        ("Change Advisory Board", ["lukas.brandt", "priya.natarajan"], "Gibt normale und dringende Änderungen frei."),
         ("Plattform-Team", ["amelia.hughes", "jonas.weber", "mehmet.yilmaz"], None),
     ]:
         ids = [ws["people"][m] for m in members if m in ws["people"]]
@@ -396,8 +396,8 @@ def agents(client, ws):
     # Approved, not live: going live needs an evaluation run against the model, which a demo
     # installation without the model cannot make (agents.evaluation_required).
     tried("agent approve", client.post, f"/agents/{triage['id']}:approve")
-    client.post("/agents", {"name": "Knowledge article drafter", "kind": "KNOWLEDGE_DRAFT", "owner_id": who(ws, "sofia.rossi"),
-                            "purpose": "Drafts a knowledge article from a resolved incident for a person to review and publish.",
+    client.post("/agents", {"name": "Wissensartikel-Entwürfe", "kind": "KNOWLEDGE_DRAFT", "owner_id": who(ws, "sofia.rossi"),
+                            "purpose": "Entwirft aus einer gelösten Störung einen Wissensartikel, den ein Mensch prüft und veröffentlicht.",
                             "risk_class": "MINIMAL", "model_id": model["id"], "policy": {"reversible": "NOTIFY", "irreversible": "APPROVAL"}})
     count("agents")
 
