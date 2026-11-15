@@ -33,14 +33,14 @@ const (
 // RepairBoards brings every board of the workspace to the model of domain-model.md §3.5a once:
 // without a workflow exactly one done column, completed entries in it and the entries in it
 // completed; under a workflow - every workflow the board's entry types run - a board mapping no
-// status given the proposed mapping, then a column for each status no column shows.
-// It adds, marks and fills columns but never takes one off: no shape tells a collection's starting
-// columns from columns a person made, and an entry without a column stands in the first one.
+// status given the proposed mapping, then a column for each status no column shows; and the unused starting
+// columns of a collection whose default view is not the board taken off, the done column last.
 // An administrator's one-off (the pattern of ReindexSearch): a dry run counts and writes nothing,
 // and a second run finds nothing to do.
 type RepairBoards struct {
-	Boards   Boards
-	Workflow WorkflowGate
+	Boards    Boards
+	Workflow  WorkflowGate
+	Structure StructureResolver
 	// Columns writes the columns' changes and records them for offline clients.
 	Columns BucketWriter
 	// Types is the registry, which tells the entry types standing on a board; nil takes the types
@@ -49,7 +49,6 @@ type RepairBoards struct {
 }
 
 // BoardRepair is what a run found and, unless it was a dry run, did.
-// ColumnsRemoved stays in the contract and is always zero.
 type BoardRepair struct {
 	DryRun         bool
 	Boards         int
@@ -116,6 +115,13 @@ func (h RepairBoards) repair(ctx context.Context, actor appshared.ActorContext, 
 	}
 	if shape != nil {
 		return h.repairMapped(ctx, actor, collection, board, *shape, now, report)
+	}
+	unused, err := h.unusedStartingColumns(ctx, collection, board)
+	if err != nil {
+		return err
+	}
+	if unused {
+		return h.removeColumns(ctx, actor, collection, board, now, report)
 	}
 	return h.repairColumns(ctx, actor, collection, board, now, report)
 }
@@ -246,6 +252,56 @@ func columnPlace(columns []domain.Bucket, orderKey string) int {
 	return len(columns)
 }
 
+// unusedStartingColumns reports a board that is only the starting columns a collection was given
+// where the board was not its default view (Projekt before §3.5a): to do, in progress and done,
+// no entry in the collection at all - one without a column stands in the first column, so the
+// board is in use - no mapping, and the board still not the default view.
+func (h RepairBoards) unusedStartingColumns(ctx context.Context, collection domain.Container, board domain.Board) (bool, error) {
+	if len(board.Columns) != 3 || len(board.Mapping) > 0 || !board.Columns[2].IsDoneBucket ||
+		board.Columns[0].IsDoneBucket || board.Columns[1].IsDoneBucket || !h.Structure.Wired() {
+		return false, nil
+	}
+	effective, err := h.Structure.within(repository.LayerRead).Of(ctx, collection)
+	if err != nil {
+		return false, err
+	}
+	if views := effective.Values.Views; views != nil && views.Default == domain.ViewKanban {
+		return false, nil
+	}
+	entries, err := h.Boards.Statuses.EntriesOnBoard(ctx, collection.ID)
+	return entries == 0, err
+}
+
+// removeColumns soft-deletes a board's columns, the done column last.
+func (h RepairBoards) removeColumns(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, board domain.Board, now time.Time, report *BoardRepair,
+) error {
+	ordered := make([]domain.Bucket, 0, len(board.Columns))
+	var done []domain.Bucket
+	for _, column := range board.Columns {
+		if column.IsDoneBucket {
+			done = append(done, column)
+			continue
+		}
+		ordered = append(ordered, column)
+	}
+	for _, column := range append(ordered, done...) {
+		deleted, changes, err := column.Deleted(now)
+		if err != nil || len(changes) == 0 {
+			return err
+		}
+		if err := h.Columns.Buckets.SetDeleted(ctx, deleted, column.Version); err != nil {
+			return err
+		}
+		deleted.Version = column.Version + 1
+		if err := (DeleteBucket{Writer: h.Columns}).recordChange(ctx, deleted, collection, actor); err != nil {
+			return err
+		}
+		report.ColumnsRemoved++
+	}
+	return nil
+}
+
 // mark writes one column's done mark and records it for offline clients.
 func (h RepairBoards) mark(ctx context.Context, actor appshared.ActorContext, column domain.Bucket, done *bool, collection domain.Container) error {
 	w := h.Columns
@@ -290,8 +346,9 @@ func (h RepairBoards) Descriptor() usecase.Descriptor {
 			"exactly one done column, the completed entries in it and the open entries in it " +
 			"completed; under a workflow - every workflow the board's entry types run - a board " +
 			"mapping no status given the proposed mapping, a column for each status no column shows " +
-			"and every entry in the column of its status. It never takes a column off. A dry run counts " +
-			"and writes nothing; a second run finds nothing to do.",
+			"and every entry in the column of its status; the unused starting columns of a collection whose default " +
+			"view is not the board taken off, the done column last. A dry run counts and writes " +
+			"nothing; a second run finds nothing to do.",
 		SideEffects: "Writes the columns and entries it repairs, records them for offline clients, " +
 			"and writes one audit entry with the counts. A dry run writes nothing.",
 		TokenScope: workspaceManage,

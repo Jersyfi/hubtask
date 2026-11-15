@@ -33876,7 +33876,7 @@ components:
         completed: { type: integer, description: Open entries in a done column completed. }
         columns_added: { type: integer, description: Columns added for statuses no column showed. }
         placed_by_status: { type: integer, description: Entries put into the column of their status. }
-        columns_removed: { type: integer, description: Always 0 - a repair takes no column off. }
+        columns_removed: { type: integer, description: Unused starting columns taken off. }
         statuses_mapped: { type: integer, description: Statuses given an existing column on a board that mapped none. }
     DropAnswer:
       type: object

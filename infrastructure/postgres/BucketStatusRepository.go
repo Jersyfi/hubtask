@@ -201,6 +201,24 @@ func (r BucketStatusRepository) CompleteInColumn(
 	return placedEntries(len(rows), func(i int) (pgtype.UUID, int32) { return rows[i].ID, rows[i].Version })
 }
 
+// EntriesOnBoard counts a collection's entries, those in no column included.
+func (r BucketStatusRepository) EntriesOnBoard(ctx context.Context, collectionID shared.ID) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountWorkItemsOnBoard(ctx, collection)
+	if err != nil {
+		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the board's entries: %w", err))
+	}
+	return int(count), nil
+}
+
 // PlaceUnplaced puts a collection's top-level tasks without a status and without a column, of one
 // completion, into a column.
 func (r BucketStatusRepository) PlaceUnplaced(

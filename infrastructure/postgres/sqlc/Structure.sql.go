@@ -293,6 +293,21 @@ func (q *Queries) CountBoardCells(ctx context.Context, collectionID pgtype.UUID)
 	return items, nil
 }
 
+const countWorkItemsOnBoard = `-- name: CountWorkItemsOnBoard :one
+SELECT count(*) FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid
+`
+
+// How many entries a collection holds, trashed ones included and whether or not they carry a
+// column: an entry without one stands in the board's first column, so only a collection without
+// any entry leaves its board unused.
+func (q *Queries) CountWorkItemsOnBoard(ctx context.Context, collectionID pgtype.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countWorkItemsOnBoard, collectionID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const findBucket = `-- name: FindBucket :one
 
 SELECT

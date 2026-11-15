@@ -54278,7 +54278,7 @@
           },
           "columns_removed": {
             "type": "integer",
-            "description": "Always 0 - a repair takes no column off."
+            "description": "Unused starting columns taken off."
           },
           "statuses_mapped": {
             "type": "integer",

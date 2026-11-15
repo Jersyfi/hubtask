@@ -53,6 +53,10 @@ func boardRepair(ctx context.Context, t *testing.T) work.RepairBoards {
 	return work.RepairBoards{
 		Boards:   boards,
 		Workflow: work.WorkflowGate{Workflows: postgres.NewWorkflowRepository()},
+		Structure: work.StructureResolver{
+			Containers: containers, Structures: postgres.NewStructureRepository(),
+			Profiles: postgres.NewCapabilityProfileRepository(),
+		},
 		Columns: work.BucketWriter{
 			Buckets: bucketRepo(), Containers: containers, Authorizer: onlyAdministrator{account: authorA},
 			Events: postgres.NewOutbox(jobQueue(t)), Changes: postgres.NewChangeLog(),
@@ -165,16 +169,21 @@ func TestTheBoardRepair(t *testing.T) {
 	}
 	doing := seedOnBoard(ctx, t, tenantA, authorA, mapped, "", false, "doing")
 
-	// Three columns, the last done, on a collection whose default view is not the board, its one
-	// entry in no column: the shape of the old starting columns, which a person's own board can
-	// have as well - and the entry stands in the first column on the screen.
-	_, threeColumns := hubWithCollection(ctx, t, tenantA, authorA)
+	// Starting columns nobody used, on a collection whose default view is not the board.
+	_, unused := hubWithCollection(ctx, t, tenantA, authorA)
+	seedRepairColumn(ctx, t, tenantA, unused, "a0", false)
+	seedRepairColumn(ctx, t, tenantA, unused, "a1", false)
+	seedRepairColumn(ctx, t, tenantA, unused, "a2", true)
+
+	// The same three columns with one entry in no column: it stands in the first column on the
+	// screen, so the board is in use and keeps them.
+	_, inUse := hubWithCollection(ctx, t, tenantA, authorA)
 	kept := []domain.Bucket{
-		seedRepairColumn(ctx, t, tenantA, threeColumns, "a0", false),
-		seedRepairColumn(ctx, t, tenantA, threeColumns, "a1", false),
-		seedRepairColumn(ctx, t, tenantA, threeColumns, "a2", true),
+		seedRepairColumn(ctx, t, tenantA, inUse, "a0", false),
+		seedRepairColumn(ctx, t, tenantA, inUse, "a1", false),
+		seedRepairColumn(ctx, t, tenantA, inUse, "a2", true),
 	}
-	seedOnBoard(ctx, t, tenantA, authorA, threeColumns, "", false, "")
+	seedOnBoard(ctx, t, tenantA, authorA, inUse, "", false, "")
 
 	// Another workspace's board, as broken as the first.
 	_, elsewhere := hubWithCollection(ctx, t, tenantB, authorB)
@@ -193,7 +202,7 @@ func TestTheBoardRepair(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the dry run: %v", err)
 	}
-	if !dry.DryRun || dry.MovedIntoDone < 1 || dry.Completed < 1 || dry.ColumnsAdded < 1 || dry.ColumnsRemoved != 0 {
+	if !dry.DryRun || dry.MovedIntoDone < 1 || dry.Completed < 1 || dry.ColumnsAdded < 1 || dry.ColumnsRemoved < 3 {
 		t.Fatalf("the dry run counted %+v", dry)
 	}
 	if entry := readEntry(ctx, t, tenantA, openInDone); entry.Completion.IsCompleted {
@@ -250,11 +259,13 @@ func TestTheBoardRepair(t *testing.T) {
 			t.Errorf("the entry in doing stands in %s; board %+v, mapping %v", entry.BucketID, board, mapping)
 		}
 	})
-	t.Run("a repair never takes a column off", func(t *testing.T) {
-		if report.ColumnsRemoved != 0 {
-			t.Errorf("the run counted %d columns removed", report.ColumnsRemoved)
+	t.Run("unused starting columns are taken off", func(t *testing.T) {
+		if board := liveColumns(ctx, t, tenantA, unused); len(board) != 0 {
+			t.Errorf("%d columns left", len(board))
 		}
-		board := liveColumns(ctx, t, tenantA, threeColumns)
+	})
+	t.Run("a board whose entries stand in no column keeps its columns", func(t *testing.T) {
+		board := liveColumns(ctx, t, tenantA, inUse)
 		if len(board) != len(kept) {
 			t.Fatalf("%d of %d columns left", len(board), len(kept))
 		}
