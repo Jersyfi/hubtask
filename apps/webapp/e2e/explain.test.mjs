@@ -4,8 +4,8 @@
 // The end-user screens explain without breaking (UC-WRK-32 checks 2, 3, 4, 6 and 7): a read-only
 // area says why once, at its top, and its rows say nothing; what the reader may never do is not
 // offered; a form marks what is missing when it is pressed; a save shows its progress in place and
-// confirms afterwards. Read in the built app over the shared fixture, at the three widths a person
-// meets - by the words on the page, not by a class, so a reason that came back as a line under a
+// confirms afterwards. Read in the built app over the shared fixture, at the phone's and the wide
+// layout - by the words on the page, not by a class, so a reason that came back as a line under a
 // row is caught whatever it is called.
 
 import { test } from 'node:test';
@@ -23,7 +23,10 @@ const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
 test.after(() => served.close());
 
-const WIDTHS = [375, 768, 1280];
+// The phone and the wide layout; the tablet width is the wide layout under the same breakpoint
+// (`medium`) and asserts nothing they do not, so it is walked once, by the archived collection.
+const WIDTHS = [375, 1280];
+const WITH_TABLET = [375, 768, 1280];
 
 /** Signs in with every memberships answer naming `role` for the reader at the workspace. */
 async function as(browser, width, role) {
@@ -52,7 +55,7 @@ async function rowBoxes(page) {
 const description = (locator) =>
   locator.evaluate((node) => (node.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
 
-for (const width of WIDTHS) {
+for (const width of WITH_TABLET) {
   test(`chromium: ${width} px — an archived collection says why once, and its rows say nothing`, async (t) => {
     const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
@@ -88,7 +91,9 @@ for (const width of WIDTHS) {
     assert.deepEqual(await rowBoxes(page), before, 'trying the box moved a row');
     assert.deepEqual(failures, []);
   });
+}
 
+for (const width of WIDTHS) {
   test(`chromium: ${width} px — a member reads whom to ask, and under an archived hub every reason names the hub`, async (t) => {
     const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'MEMBER');
