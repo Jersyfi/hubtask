@@ -41,6 +41,8 @@ var ShownOnceRoutes = map[string]bool{
 	http.MethodPost + " " + APIBasePath + "/pages/{pageId}/public-link":                     true,
 	http.MethodPost + " " + APIBasePath + "/portfolios/{portfolioId}/public-link":           true,
 	http.MethodPost + " " + APIBasePath + "/collections/{collectionId}/public-form":         true,
+	// The document server's access token for one person and one file (ADR-0104).
+	http.MethodPost + " " + APIBasePath + "/media/{mediaId}:edit": true,
 	// The one-time code a person says to a chat bot to link their chat account.
 	http.MethodPost + " " + APIBasePath + "/chat-bots/{botId}/link": true,
 	// Secrets and second-factor material.
