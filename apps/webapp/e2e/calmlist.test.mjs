@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, ITEMS, signedIn, stub } from './fixture.mjs';
@@ -70,8 +70,7 @@ async function swipe(page, context, locator, direction) {
 const tools = (page) => page.getByRole('group', { name: 'The list’s tools' });
 
 test('chromium 1280: one region with the heads, the rows ruled apart, the toolbar in words (UC-WRK-45 checks 1 and 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -97,8 +96,7 @@ test('chromium 1280: one region with the heads, the rows ruled apart, the toolba
 });
 
 test('chromium 1280: grouped by column, each group counts, folds and adds in place (UC-WRK-45 check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -129,8 +127,7 @@ test('chromium 1280: grouped by column, each group counts, folds and adds in pla
 });
 
 test('chromium 1280: one act and ⋯ on hover, the menu opens the same; ↓, Space and Enter (UC-WRK-45 checks 3 and 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -172,8 +169,7 @@ test('chromium 1280: one act and ⋯ on hover, the menu opens the same; ↓, Spa
 });
 
 test('chromium 390: a row swiped right is done, swiped left opens its menu, which offers the same (UC-WRK-45 check 7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser, { width: 390, height: 844, hasTouch: true });
   t.after(() => context.close());
 
@@ -193,8 +189,7 @@ test('chromium 390: a row swiped right is done, swiped left opens its menu, whic
 });
 
 test('chromium 1280: an entry ranks by its menu, by Alt+↑ and by its grip; Move inside stands refused with its reason where the type may not go (UC-WRK-06 checks 1 and 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -237,8 +232,7 @@ test('chromium 1280: an entry ranks by its menu, by Alt+↑ and by its grip; Mov
 });
 
 test('chromium 1280: a list longer than a page ends in "show more" at its foot, no page numbers (UC-WRK-45 check 8)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { total: 40 });
   t.after(() => context.close());
   const region = page.getByRole('region', { name: `Entries in ${COLLECTION.name}` });

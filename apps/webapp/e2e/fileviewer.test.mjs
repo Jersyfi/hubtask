@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, HUB, ITEMS, MANIFEST, OTHER, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -128,8 +128,7 @@ async function openEntry(browser, options) {
 }
 
 test('chromium: an entry\'s file opens the viewer with its place among the files; ← → page, Esc closes, an office file without a server is a card, and no Edit is drawn (UC-MED-05 checks 2, 3; UC-MED-06 check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, files, asked } = await openEntry(browser, { server: { kind: 'NONE' } });
   t.after(() => context.close());
 
@@ -164,8 +163,7 @@ test('chromium: an entry\'s file opens the viewer with its place among the files
 });
 
 test('chromium: with a document server the office file is asked for as a PDF and drawn as its pages (UC-MED-05 check 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, files, asked } = await openEntry(browser, { server: { kind: 'COLLABORA_ONLINE', url: 'https://office.example' }, pdf: 'pdf' });
   t.after(() => context.close());
 
@@ -181,8 +179,7 @@ test('chromium: with a document server the office file is asked for as a PDF and
 });
 
 test('chromium: Edit posts the token into a frame at the document server\'s editor, never in a URL (UC-MED-06 checks 2, 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, files, asked } = await openEntry(browser, { server: { kind: 'COLLABORA_ONLINE', url: 'https://office.example' }, pdf: 'pdf', editable: true });
   t.after(() => context.close());
   const posted = [];
@@ -215,8 +212,7 @@ test('chromium: Edit posts the token into a frame at the document server\'s edit
 });
 
 test('chromium: a document server that converts nothing leaves the office file a card (UC-MED-05 check 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, files, asked } = await openEntry(browser, { server: { kind: 'COLLABORA_ONLINE', url: 'https://office.example' }, pdf: 'unavailable' });
   t.after(() => context.close());
 
@@ -229,8 +225,7 @@ test('chromium: a document server that converts nothing leaves the office file a
 });
 
 test('chromium: a page\'s file card opens the viewer named after the page (UC-DOC-14 check 1, UC-MED-05 check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const PAGE = {
@@ -278,8 +273,7 @@ const varUint = (n) => {
 const EMPTY_DRAWING = Buffer.from([0, 1, ...varUint(2), 0, 0]);
 
 test('chromium: on a board a picture is drawn as itself, a file as a card, and a double click on the card opens the viewer, where it is a card to download (UC-CNV-08 checks 1, 3; UC-MED-05 checks 2, 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 860);
   t.after(() => context.close());
   const elements = [
@@ -337,8 +331,7 @@ test('chromium: on a board a picture is drawn as itself, a file as a card, and a
 });
 
 test('chromium: the workspace\'s Files section tests a document server, says a private address\'s reason, and saves the choice (UC-MED-06 check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const checks = [];

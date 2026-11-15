@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, ITEMS, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -37,8 +37,7 @@ const BRANCH = { ...PULL, id: '01a0e2e0-0000-7000-8000-000000002312', kind: 'BRA
 const json = (route, body, status = 200) => route.fulfill({ status, json: body });
 
 test('chromium: a forge is added under Settings → Code and its secret is shown once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   let hooks = [];
@@ -70,8 +69,7 @@ test('chromium: a forge is added under Settings → Code and its secret is shown
 });
 
 test('chromium: an entry shows its code and links a file from a store', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1400);
   t.after(() => context.close());
   let files = [];

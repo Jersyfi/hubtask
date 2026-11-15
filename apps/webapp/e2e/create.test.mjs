@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, ITEMS, MANIFEST, PAGE, PERMISSIONS, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -79,8 +79,7 @@ async function summon(page, key = 'c') {
 }
 
 test('chromium: Create, C, Q and the phone’s ＋ open one menu whose first line is capture’s (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser);
   t.after(() => context.close());
 
@@ -124,8 +123,7 @@ test('chromium: Create, C, Q and the phone’s ＋ open one menu whose first lin
 });
 
 test('chromium: the kinds the place allows, the kinds made last, and none whose module is off (check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const { context, page, failures } = await as(browser);
   t.after(() => context.close());
@@ -167,8 +165,7 @@ test('chromium: the kinds the place allows, the kinds made last, and none whose 
 });
 
 test('chromium: the place is preset from where one stands, a chip one changes, and the kinds follow it (check 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser);
   t.after(() => context.close());
 
@@ -197,8 +194,7 @@ test('chromium: the place is preset from where one stands, a chip one changes, a
 });
 
 test('chromium: a page, a whiteboard and a dashboard are made at once; the others open their own place (checks 4, 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, writes } = await as(browser);
   t.after(() => context.close());
 
@@ -237,8 +233,7 @@ test('chromium: a page, a whiteboard and a dashboard are made at once; the other
 });
 
 test('chromium: 375 px — holding the ＋ makes the kind made last (check 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, { width: 375 });
   t.after(() => context.close());
 
@@ -261,8 +256,7 @@ test('chromium: 375 px — holding the ＋ makes the kind made last (check 5)', 
 });
 
 test('chromium: from a template and an import stand at the foot and open capture in that mode (check 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser);
   t.after(() => context.close());
 

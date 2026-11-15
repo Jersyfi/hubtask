@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { MANIFEST, OTHER, signedIn } from './fixture.mjs';
@@ -22,8 +22,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: Help copies the details for support, and no search with them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: served.origin });
@@ -45,8 +44,7 @@ test('chromium: Help copies the details for support, and no search with them', a
 });
 
 test('chromium: Help names who administers the workspace, its support contact and its documentation', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 390, 800);
   t.after(() => context.close());
   await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({

@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { CHILDREN, COLLECTION, HUB, ITEMS, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -27,8 +27,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: Duplicate in an entry page’s subtree opens the copy of that entry', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
 
@@ -41,8 +40,7 @@ test('chromium: Duplicate in an entry page’s subtree opens the copy of that en
 });
 
 test('chromium: a view saved at hub scope names the hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   const saved = [];

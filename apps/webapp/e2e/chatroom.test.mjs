@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { MANIFEST, signedIn, stub } from './fixture.mjs';
@@ -38,8 +38,7 @@ const STORED = {
 };
 
 test('chromium: a Matrix room is subscribed by homeserver, room and token, and shows no secret', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1400);
   t.after(() => context.close());
 

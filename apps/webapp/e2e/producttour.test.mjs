@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -51,8 +51,7 @@ async function open(browser, account) {
 }
 
 test('chromium: a product home\'s first visit is marked once, and ending it writes the product seen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { products_seen: _seen, ...newcomer } = ACCOUNT;
   const { page, written, failures, close } = await open(browser, newcomer);
   t.after(close);
@@ -80,8 +79,7 @@ test('chromium: a product home\'s first visit is marked once, and ending it writ
 });
 
 test('chromium: an account that has seen the product meets no mark on its home', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, failures, close } = await open(browser, ACCOUNT);
   t.after(close);
   await page.goto(`${served.origin}/pages`);

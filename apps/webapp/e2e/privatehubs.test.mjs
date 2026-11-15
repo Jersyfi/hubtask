@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, EMERGENCY_ACCESS, HUB, OTHER, PRIVATE_HUBS, WORKSPACE, chooseNew, signedIn } from './fixture.mjs';
@@ -31,8 +31,7 @@ async function openCreate(page) {
 }
 
 test('chromium: *Private* is offered where the workspace has more than one person, and sent', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   let created;
@@ -55,8 +54,7 @@ test('chromium: *Private* is offered where the workspace has more than one perso
 });
 
 test('chromium: a workspace of one is not offered *Private*', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: { ...WORKSPACE, private_hubs_offered: false } }));
@@ -75,8 +73,7 @@ test('chromium: a workspace of one is not offered *Private*', async (t) => {
 });
 
 test('chromium: the owner of the hub makes it private, told whom it shuts out, and shares it again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   let isPrivate = false;
@@ -115,8 +112,7 @@ test('chromium: the owner of the hub makes it private, told whom it shuts out, a
 });
 
 test('chromium: an owner of the hub without the right to create hubs is offered sharing only (P-05)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   let isPrivate = false;
@@ -144,8 +140,7 @@ test('chromium: an owner of the hub without the right to create hubs is offered 
 });
 
 test('chromium: the administration lists the private hubs - whose and how big, never a name', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -167,8 +162,7 @@ test('chromium: the administration lists the private hubs - whose and how big, n
 });
 
 test('chromium: no private hub in a workspace of one, or no right to the list, and the row is absent', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const answer of [{ json: [] }, { status: 403, json: { code: 'access.not_permitted' } }]) {
     const { page, failures, context } = await signedIn(browser, 1280, 900);
     await context.route('**/api/v1/private-hubs', (route) => route.fulfill(answer));
@@ -189,8 +183,7 @@ function withSwitch(setting) {
 }
 
 test('chromium: with several people and no private hub the page stays, with *Private hubs allowed* on it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.route('**/api/v1/private-hubs', (route) => route.fulfill({ json: [] }));
@@ -219,8 +212,7 @@ test('chromium: with several people and no private hub the page stays, with *Pri
 });
 
 test('chromium: an installation lock shows the switch with who set it, and offers nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: withSwitch({ value: false, installation: false, lock: 'INSTANCE', source: 'INSTANCE', installation_source: 'INSTANCE' }) }));
@@ -237,8 +229,7 @@ test('chromium: an installation lock shows the switch with who set it, and offer
 
 // UC-ID-16 check 7: a plan that switches private hubs off says it is the plan, not the installation.
 test('chromium: a plan lock shows the switch with your plan as who set it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.route('**/api/v1/tenant', (route) => route.fulfill({ json: withSwitch({ value: false, installation: false, lock: 'PLAN', source: 'PLAN', installation_source: 'PLAN' }) }));
@@ -256,8 +247,7 @@ test('chromium: a plan lock shows the switch with your plan as who set it', asyn
 });
 
 test('chromium: the owner opens a private hub in an emergency - the reason, then the hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   let sent;
@@ -284,8 +274,7 @@ test('chromium: the owner opens a private hub in an emergency - the reason, then
 });
 
 test('chromium: a member is told in the frame and on the hub, whatever their mail did', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const access = { ...EMERGENCY_ACCESS, hub_id: HUB.id, opened_by: OTHER.id, opened_at: new Date(Date.now() - 3_600_000).toISOString(), ends_at: new Date(Date.now() - 60_000).toISOString() };

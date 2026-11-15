@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
@@ -30,8 +30,7 @@ const names = (page, selector) => page.locator(selector).evaluateAll((all) => al
 const column = (page, depth) => names(page, `[data-map-depth="${depth}"] [data-map-node]`);
 
 test('chromium: scene invmap - a service by depth, its disruption and its change, open and planned', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/map` });
   t.after(() => context.close());
 
@@ -124,8 +123,7 @@ test('chromium: scene invmap - a service by depth, its disruption and its change
 });
 
 test('chromium 390 px: scene invmap on a phone - the picture scrolls in its frame, the cards stack, nothing writes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { width: 390, height: 844, path: `/hubs/${HUB.id}/inventory/map`, role: 'VIEWER' });
   t.after(() => context.close());
 

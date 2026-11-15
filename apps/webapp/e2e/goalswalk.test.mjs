@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, HUB, OTHER } from './fixture.mjs';
@@ -100,8 +100,7 @@ function goalsBackend({ seed } = {}) {
 }
 
 test('chromium: goals from nothing - a period, a goal, a check-in, a change, a dashboard - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend() });
   t.after(walk.close);
   const { page } = walk;
@@ -214,8 +213,7 @@ const GOALS = [
 
 for (const width of [1280, 375]) {
   test(`chromium: ${width} px - each goal is a card with its key results as bars and numbers, the head says what needs a look`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { periods: [PERIOD], goals: GOALS } }), width, height: 900 });
     t.after(walk.close);
     const { page } = walk;
@@ -241,8 +239,7 @@ for (const width of [1280, 375]) {
 }
 
 test('chromium: a widget with nothing to show names why, by its source', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = (n, title, source, extra = {}) => ({
     id: `01a0e2e0-0000-7000-8000-00000000a30${n}`, title, chart: 'BAR', source, view_id: null, query: null, goal_ids: [], compare: null, cumulative: false, x: (n - 1) * 4, y: 0, w: 4, h: 3, ...extra,
   });
@@ -266,8 +263,7 @@ test('chromium: a widget with nothing to show names why, by its source', async (
 // user-experience.md §5.6 and §5.10: a widget's groups are named, its periods are the reader's
 // dates, a bar chart has its axes and a line of one week is drawn as a dot.
 test('chromium: a widget names its groups and periods, and every chart draws something', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = (n, title, chart, query) => ({
     id: `01a0e2e0-0000-7000-8000-00000000a31${n}`, title, chart, source: 'QUERY', view_id: null, query, goal_ids: [], compare: null, cumulative: false, x: (n - 1) * 6, y: 0, w: 6, h: 4,
   });
@@ -318,8 +314,7 @@ test('chromium: a widget names its groups and periods, and every chart draws som
 // UC-GOL-04 check 8: a widget grouped by a person names the person, beside a widget whose groups
 // are no accounts - the server refuses a batch read naming one, as it does here.
 test('chromium: a widget grouped by person names the people beside one grouped by state', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = (n, title, chart, group) => ({
     id: `01a0e2e0-0000-7000-8000-00000000a71${n}`, title, chart, source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT', group_by: group } },
     goal_ids: [], compare: null, cumulative: false, x: (n - 1) * 6, y: 0, w: 6, h: 4,
@@ -359,8 +354,7 @@ test('chromium: a widget grouped by person names the people beside one grouped b
 
 // UC-GOL-04 check 8: a widget grouped by status names each status as its workflow names it.
 test('chromium: a widget grouped by status names the statuses as the workflows do', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const byStatus = {
     id: '01a0e2e0-0000-7000-8000-00000000a731', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT', group_by: 'status' } },
     goal_ids: [], compare: null, cumulative: false, x: 0, y: 0, w: 6, h: 4,
@@ -399,8 +393,7 @@ test('chromium: a widget grouped by status names the statuses as the workflows d
 // A table longer than its widget scrolls inside the widget, so its head sticks to the widget's own
 // top - not as far down as the app bar is tall, over the first row.
 test('chromium: a table widget longer than its box starts with its head at the box\'s top and its first row in view', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const long = {
     id: '01a0e2e0-0000-7000-8000-00000000a741', title: 'Open per group', chart: 'TABLE', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT', group_by: 'priority' } },
     goal_ids: [], compare: null, cumulative: false, x: 0, y: 0, w: 6, h: 3,
@@ -430,8 +423,7 @@ test('chromium: a table widget longer than its box starts with its head at the b
 });
 
 test('chromium: 375 px - a portfolio names its projects\' days in words and stacks them; an empty one says what fills it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const folio = (n, items) => ({ id: `01a0e2e0-0000-7000-8000-00000000a50${n}`, parent_id: null, name: `Programme ${n}`, description: '', owner_id: ACCOUNT.id, status: 'NONE', items, progress: null, version: 1 });
   const full = folio(1, [{ container_id: COLLECTION.id, kind: 'COLLECTION', name: 'Kitchen', archived: false, start_on: '2027-01-04', end_on: '2027-03-26', status: 'AT_RISK', entries: 12, done: 5, progress: 0.42 }]);
   const empty = folio(2, []);
@@ -473,8 +465,7 @@ test('chromium: 375 px - a portfolio names its projects\' days in words and stac
 // UX-5: an address after /goals/ that names no goal - not an id, or one the server does not know -
 // says so with a way back to Goals; a malformed id is not even asked for.
 test('chromium: an address naming no goal is a not-found state with a way back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const asked = [];
   const answer = goalsBackend();
   const walk = await productWalk(browser, {
@@ -504,8 +495,7 @@ test('chromium: an address naming no goal is a not-found state with a way back',
 // UC-WRK-43 check 6 (Q-2): the dashboard's line names its keys in the reader's language, though
 // its chips were cut before the German words arrived.
 test('chromium: in German the dashboard\'s line names its keys in German', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const board = { id: '01a0e2e0-0000-7000-8000-00000000a742', name: 'Desk', hub_id: null, owner_id: ACCOUNT.id, sharing: 'PRIVATE', group_ids: [], filter: 'is: open due: <today', version: 1, widgets: [] };
   const backend = goalsBackend({ seed: { dashboards: [board] } });
   const walk = await productWalk(browser, {
@@ -526,8 +516,7 @@ test('chromium: in German the dashboard\'s line names its keys in German', async
 });
 
 test('chromium: in German a goal\'s head names its place in a sentence that reads', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const workspaceGoal = seeded(1, 'Kundinnen lösen ihr Anliegen selbst', { status: 'ON_TRACK' });
   const hubGoal = seeded(2, 'Das Haus ist bezogen', { hub_id: HUB.id, status: 'AT_RISK' });
   const backend = goalsBackend({ seed: { periods: [PERIOD], goals: [workspaceGoal, hubGoal] } });
@@ -561,8 +550,7 @@ async function headStatusIsTheButtonShape(page, word) {
 }
 
 test('chromium: a goal\'s and a portfolio\'s head draw their status in the status button\'s shape', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const goal = seeded(1, 'Customers renew', { status: 'AT_RISK' });
   const folio = { id: '01a0e2e0-0000-7000-8000-00000000a509', parent_id: null, name: 'Programme', description: '', owner_id: ACCOUNT.id, status: 'ON_TRACK', items: [], progress: null, version: 1 };
   const walk = await productWalk(browser, { modules: ['GOALS'], answer: goalsBackend({ seed: { periods: [PERIOD], goals: [goal], portfolios: [folio] } }) });
@@ -578,8 +566,7 @@ test('chromium: a goal\'s and a portfolio\'s head draw their status in the statu
 // A project's row act says what it does for that project, and at 1280 nothing of the row is cut
 // off - the act and its ⋯ included (finding of the family 3.1 review).
 test('chromium: 1280 px - a portfolio\'s project rows change the project, and nothing of a row is clipped', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const project = (name, status, progress) => ({ container_id: COLLECTION.id, kind: 'COLLECTION', name, archived: false, start_on: '2026-08-15', end_on: '2027-01-12', status, entries: 44, done: 9, progress });
   const folio = {
     id: '01a0e2e0-0000-7000-8000-00000000a50a', parent_id: null, name: 'Strategic projects 2026', description: '', owner_id: ACCOUNT.id, status: 'AT_RISK', progress: null, version: 1,
@@ -632,8 +619,7 @@ test('chromium: 1280 px - a portfolio\'s project rows change the project, and no
 // UC-GOL-04 check 20: the layout is edited by handle and corner, with the keyboard as well (WCAG
 // 2.5.7), undone step by step, and the library offers the nine kinds previewed with one's own data.
 test('chromium: a dashboard is laid out by its handles and the keyboard, undone, and grows from a library of nine kinds', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = (n, title, x) => ({
     id: `01a0e2e0-0000-7000-8000-00000000a61${n}`, title, chart: 'NUMBER', source: 'QUERY', view_id: null, query: { aggregate: { function: 'COUNT' } }, goal_ids: [], compare: null, cumulative: false, text: '', column: '', released: [], x, y: 0, w: 3, h: 2,
   });
@@ -705,8 +691,7 @@ test('chromium: a dashboard is laid out by its handles and the keyboard, undone,
 // UC-GOL-04 check 22: *Als Liste öffnen* opens the counted collection with the widget's line - the
 // dashboard's filter and its own - as a changed, unsaved view, and the line never enters the address.
 test('chromium: a widget opens its collection\'s list with its line, which stays out of the address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = {
     id: '01a0e2e0-0000-7000-8000-00000000a631', title: 'New this month', chart: 'NUMBER', source: 'QUERY', view_id: null,
     query: { scope: { container_id: COLLECTION.id }, filter: { field: 'created_at', op: 'GTE', value: '@today-P6W' }, aggregate: { function: 'COUNT' } },
@@ -732,8 +717,7 @@ test('chromium: a widget opens its collection\'s list with its line, which stays
 // UC-GOL-04 check 21: the editor shows the dashboard's conditions as inherited chips, each released
 // by a press, and names its groupings by the words a person reads, never a field's key.
 test('chromium: the widget editor releases an inherited filter and names its fields in words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = {
     id: '01a0e2e0-0000-7000-8000-00000000a641', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null,
     query: { scope: { workspace: true }, aggregate: { function: 'COUNT', group_by: 'status' } },
@@ -763,8 +747,7 @@ test('chromium: the widget editor releases an inherited filter and names its fie
 });
 
 test('chromium 390 phone: the widget editor stands above the grid, the phone\'s width', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = {
     id: '01a0e2e0-0000-7000-8000-00000000a661', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null,
     query: { scope: { workspace: true }, aggregate: { function: 'COUNT', group_by: 'status' } },
@@ -793,8 +776,7 @@ test('chromium 390 phone: the widget editor stands above the grid, the phone\'s 
 // UC-GOL-04 check 23: the widget being edited stands large and live over the dimmed grid - its
 // chart and line computed by the server as they are typed - and nothing is saved before Apply.
 test('chromium: the widget editor draws the edited widget live, and its line is the chips of every list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = {
     id: '01a0e2e0-0000-7000-8000-00000000a651', title: 'By status', chart: 'BAR', source: 'QUERY', view_id: null,
     query: { scope: { workspace: true }, aggregate: { function: 'COUNT' } },
@@ -840,8 +822,7 @@ test('chromium: the widget editor draws the edited widget live, and its line is 
 // UC-GOL-04 check 22: a widget counting the whole workspace opens the search with its line, handed
 // over in memory as the bar hands its words - never in the address.
 test('chromium: a widget counting the workspace opens the search with its line, which stays out of the address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const widget = {
     id: '01a0e2e0-0000-7000-8000-00000000a661', title: 'Everything open', chart: 'NUMBER', source: 'QUERY', view_id: null,
     query: { scope: { workspace: true }, filter: { field: 'title', op: 'CONTAINS', value: 'milk' }, aggregate: { function: 'COUNT' } },

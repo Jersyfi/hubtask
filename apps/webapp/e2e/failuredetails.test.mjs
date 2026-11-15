@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -20,8 +20,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: a refusal names the permission and folds its reference', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -61,8 +60,7 @@ test('chromium: a refusal names the permission and folds its reference', async (
 // A list that could not be read draws the same fold (FailureState): the reason, *Try again*, and
 // the reference and the code behind *Details for support*, never the bare reference line.
 test('chromium: a list that could not be read folds its reference the same way, and asks again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   let asked = 0;

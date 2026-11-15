@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { chooseInRow, pressHead, rowMenu } from './rowmenu.mjs';
 
@@ -70,8 +70,7 @@ async function operatorsScreen(browser, register, viewport = { width: 1280, heig
 }
 
 test('chromium: the register names its operators and marks the reader', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 }]) {
     const { context, page } = await operatorsScreen(browser, [ME, ADA], viewport);
@@ -92,8 +91,7 @@ test('chromium: the register names its operators and marks the reader', async (t
 });
 
 test('chromium: the first addition says it adds the reader too, and a service account is chosen by name', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent } = await operatorsScreen(browser, []);
 
   await pressHead(page, 'Make a service account an operator');
@@ -106,8 +104,7 @@ test('chromium: the first addition says it adds the reader too, and a service ac
 });
 
 test('chromium: removing somebody asks once; removing oneself asks twice; the last has no Remove', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent } = await operatorsScreen(browser, [ME, ADA]);
   await page.getByRole('table').getByText('Ada Lovelace').first().waitFor();
 
@@ -156,8 +153,7 @@ async function assertEventually(condition, timeoutMs = 5_000) {
 // UC-INS-05 check 2: adding by workspace and address, and an address that matches no account there
 // refused with one sentence - the screen says it and adds nobody.
 test('chromium: an operator is added by workspace and address, and an unknown address is one sentence', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent } = await operatorsScreen(browser, [ME]);
 
   await pressHead(page, 'Add an operator');

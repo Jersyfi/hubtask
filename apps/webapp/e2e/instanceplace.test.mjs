@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -49,8 +49,7 @@ async function menuRows(page) {
 }
 
 test('chromium: on a private installation the installation is the administration\'s last group', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const desktop = { width: 1280, height: 900 };
   const { context, page } = await administration(browser, 'single', desktop);
@@ -72,8 +71,7 @@ test('chromium: on a private installation the installation is the administration
 });
 
 test('chromium: at 375 px the administration carries the installation too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const { context, page } = await administration(browser, 'single', { width: 375, height: 812 });
   // On a phone the area's groups are a step of the Browse stack (§9): the row is one line with an

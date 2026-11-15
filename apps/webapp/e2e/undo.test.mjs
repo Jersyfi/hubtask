@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { CHILDREN, COLLECTION, ITEMS, LABELS, signedIn, stub, openSettings } from './fixture.mjs';
@@ -70,8 +70,7 @@ async function settle(page) {
 }
 
 test('chromium: 1280 px — the trash and the archive from an entry\'s menu take effect at once and offer Undo', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written, unstubbed } = await list(browser);
   t.after(() => context.close());
   const entry = ITEMS[2];
@@ -93,8 +92,7 @@ test('chromium: 1280 px — the trash and the archive from an entry\'s menu take
 });
 
 test('chromium: 1280 px — a label taken off an entry and a label deleted from the collection come back by Undo', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await list(browser);
   t.after(() => context.close());
   const tagged = ITEMS[0];
@@ -133,8 +131,7 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
 });
 
 test('chromium: 1280 px — *Settings → Labels* lists a deleted label with the way back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await list(browser);
   t.after(() => context.close());
   const gone = { id: '01a0e2e0-0000-7000-8000-0000000000e9', collection_id: COLLECTION.id, name: 'Waiting', color_token: 'amber', description: null, version: 2, deleted_at: '2026-10-20T09:00:00Z' };
@@ -150,8 +147,7 @@ test('chromium: 1280 px — *Settings → Labels* lists a deleted label with the
 });
 
 test('chromium: 1280 px — a selection moved to the trash comes back as one atomic bulk, the parent before its child', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await list(browser);
   t.after(() => context.close());
   const parent = ITEMS[0];
@@ -177,8 +173,7 @@ test('chromium: 1280 px — a selection moved to the trash comes back as one ato
 });
 
 test('chromium: 1280 px — offline, Undo is shown and says it waits for the network', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await list(browser);
   t.after(() => context.close());
   const entry = ITEMS[3];

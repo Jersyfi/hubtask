@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { chooseInRow } from './rowmenu.mjs';
 
@@ -72,8 +72,7 @@ async function open(browser, { tenancy = 'multi', level = LEVEL } = {}) {
 }
 
 test('chromium: an operator offers a model, and withdraws one knowing what it costs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -117,8 +116,7 @@ test('chromium: an operator offers a model, and withdraws one knowing what it co
 // UX-18 (§E8): one model form for the workspace and the installation - the same fields in the same
 // order, the installation adding only the name and processor before them.
 test('chromium: a model is offered in the one model form a workspace uses too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -138,8 +136,7 @@ test('chromium: a model is offered in the one model form a workspace uses too', 
 });
 
 test('chromium: the defaults say in words which AI workspaces may use', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -155,8 +152,7 @@ test('chromium: the defaults say in words which AI workspaces may use', async (t
 // An offer *Workspaces may use* leaves out reaches no workspace, and the screen says so with the
 // way to the setting (P-05); where the setting lets workspaces use it, nothing is said.
 test('chromium: an offered model no workspace may choose is said to be unreachable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const reachable = await open(browser);
   t.after(reachable.close);
@@ -181,8 +177,7 @@ test('chromium: an offered model no workspace may choose is said to be unreachab
 // UC-AI-06 check 8: a private installation (one workspace) has no model to offer, so neither the
 // installation's navigation nor its defaults speak of an offered one.
 test('chromium: a single-workspace installation draws no offered AI', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { tenancy: 'single' });
   t.after(close);
 

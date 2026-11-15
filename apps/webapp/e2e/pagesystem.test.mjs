@@ -32,7 +32,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, HUB, MANIFEST, OTHER, OWNER_GRANTS, SERVICE_ACCOUNT, stub } from './fixture.mjs';
@@ -267,8 +267,7 @@ for (const size of [DESKTOP, PHONE]) {
   const at = `${size.width}×${size.height}`;
 
   test(`chromium ${at}: every administration screen is exactly one page kind (UC-WRK-42 check 1)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     for (const [path, kind] of SCREENS) {
@@ -280,8 +279,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: People narrows, counts and acts by row; nothing else is open on arrival (UC-WRK-41 checks 1-5)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size, { isNine: true });
     t.after(() => context.close());
     await visit(page, '/administration/people');
@@ -325,8 +323,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: the head's primary opens a dialog of its size, a row its record page, revoking sits in the row's menu (UC-WRK-42 checks 2-5)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     await visit(page, '/administration/people');
@@ -375,8 +372,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: Sign-in shows its sections with their state and opens one at its address (UC-WRK-40 checks 1-5)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
 
@@ -419,8 +415,7 @@ for (const size of [DESKTOP, PHONE]) {
     assert.deepEqual(failures, []);
   });
   test(`chromium ${at}: Types, Rules and Rule runs narrow, count and continue; nothing else is open on arrival (UC-WRK-41 checks 1-4)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     for (const [path, search, rows, hasChips] of [
@@ -455,8 +450,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: New type and New workflow open a Dialog M, a type opens its record page, its delete sits in the row's menu (UC-WRK-42 checks 2-5)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
 
@@ -489,8 +483,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: a workflow opens at its address, a status as a Dialog M, a step as a Dialog L, a change in the draft bar (page-system §7.4)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
 
@@ -523,8 +516,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: the workspace's sections are listed with their state and each opens at its address (UC-WRK-40 checks 1-2)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
 
@@ -547,8 +539,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: Connections and data's lists and logs narrow and count, nothing open on arrival (UC-WRK-41 checks 1-2)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     for (const [path, search] of [
@@ -574,8 +565,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: Connections and data's create and export acts open a dialog of their size (UC-WRK-42 checks 2-3)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     for (const [path, act, title, wanted] of [
@@ -595,8 +585,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: Connections and data's settings pages list their sections in the first viewport (UC-WRK-40 check 1)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     for (const path of ['/administration/mail', '/administration/voice', '/administration/backup', '/administration/retention', '/administration/ai']) {
@@ -611,8 +600,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: Your settings are one page kind each, their lists narrow and count, Name and language lists its sections (UC-WRK-40 check 1, UC-WRK-41 checks 1-2, UC-WRK-42 check 1)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     for (const [path, kind] of [
@@ -651,8 +639,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: every installation screen is one page kind, its lists and logs narrow and count, nothing open on arrival (UC-WRK-42 check 1, UC-WRK-41 checks 1-2)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size, { isInstallation: true });
     t.after(() => context.close());
     for (const [path, kind, search] of [
@@ -691,8 +678,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: the installation's create acts open their rung, the defaults list their sections in the first viewport (UC-WRK-42 checks 2-3, UC-WRK-40 check 1)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size, { isInstallation: true });
     t.after(() => context.close());
 
@@ -721,8 +707,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: the agents are a list page, their settings a settings page, an agent its record page, old addresses land (UC-WRK-42 checks 1 and 4-5, UC-WRK-40 check 2)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size, { isAgents: true });
     t.after(() => context.close());
     for (const [path, kind] of [
@@ -765,8 +750,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: a rule is a create page or its record page, a mailbox its record page from its row (page-system §9.1, §9.3)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     const main = page.getByRole('main');
@@ -816,8 +800,7 @@ for (const size of [DESKTOP, PHONE]) {
   });
 
   test(`chromium ${at}: a hub's and a collection's settings are a settings page, a section at a time and none too tall (page-system §9.6, UC-WRK-40)`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await open(browser, size);
     t.after(() => context.close());
     const main = page.getByRole('main');

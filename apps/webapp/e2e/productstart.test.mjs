@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, OTHER, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -37,8 +37,7 @@ const planned = {
 };
 
 test('chromium: an empty product home offers its templates, and one makes the hub with its parts at one press', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -128,8 +127,7 @@ test('chromium: an empty product home offers its templates, and one makes the hu
 // UC-SVC-05, §4: a service template taken by the workspace leaves its collections as they were, so
 // the desk has hubs but no desk - and offers the templates that start one, not only *Create hub*.
 test('chromium: the desk without a desk offers its templates though hubs exist', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -180,8 +178,7 @@ test('chromium: the desk without a desk offers its templates though hubs exist',
 // §4: a product switched on at the workspace is on in its hubs at once, so the first visit is
 // decided by whether anything of it exists - an existing hub without a page still starts Pages.
 test('chromium: a product on in a hub that holds nothing of it offers its create act and its templates', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -228,8 +225,7 @@ test('chromium: a product on in a hub that holds nothing of it offers its create
 // Scene homeplans 4 (work-surface §6.4): the plans' first use has a project file as its side way -
 // the plan's own import, opened from the home into the collection the create act leads to first.
 test('chromium: the plans\' first use brings a project file in from the home', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -293,8 +289,7 @@ test('chromium: the plans\' first use brings a project file in from the home', a
 // S-6 (scene phome, pnew): the pages' home's *start with a template* makes the page at once,
 // with the template's words; no dialog asks first.
 test('chromium: a page started from a template is made at once with its words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -351,8 +346,7 @@ test('chromium: a page started from a template is made at once with its words', 
 // §5.2: a hub takes its part once the workspace took the template's own. Whoever may change the
 // workspace is shown the workspace's part first in the same dialog, then the hub's - no refusal.
 test('chromium: a template the workspace has not taken is planned for the workspace first, then for the hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -414,8 +408,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
 
 // The list says the workspace has not taken the template: no refusal is asked for first.
 test('chromium: a template the workspace has not taken is planned for the workspace first, as the list says, before any refusal', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -478,8 +471,7 @@ test('chromium: a template the workspace has not taken is planned for the worksp
 // §5.2: a hub's owner who may not change the workspace is told before choosing that the workspace
 // takes the template first, and by whom - no take is offered, so no refusal follows a choice.
 test('chromium: a template the workspace has not taken names its administrators to a hub owner who may not take it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();
@@ -540,8 +532,7 @@ test('chromium: a template the workspace has not taken names its administrators 
 // the product's switched-off page - and a product no template starts still goes to its home,
 // whose switch then says what the product still needs (§2.8).
 test('chromium: Try it opens the hub dialog on the product\'s template', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();

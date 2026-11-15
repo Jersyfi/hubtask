@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { FIGURE_HUB, FIGURES, HUB_FIGURE_OPEN, showFigures, signedIn, openSettings } from './fixture.mjs';
@@ -46,8 +46,7 @@ const headText = (page) => page.locator('[data-figure] .text').first().textConte
 for (const width of [390, 700, 1280]) {
   // UC-WRK-25 check 7: a list summing a field heads with its open count and the sum, no percentage.
   test(`chromium: ${width} px — every figure in the head, and no percentage but progress's`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     for (const [collection, head] of EXPECTED) {
       const { page, context, failures } = await open(browser, width, collection);
       if (head === undefined) {
@@ -71,8 +70,7 @@ for (const width of [390, 700, 1280]) {
 }
 
 test('chromium: 1280 px — each row says its figure as part of its name, light and dark', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const colorScheme of ['light', 'dark']) {
     const { page, context } = await open(browser, 1280, FIGURES.none);
     await page.emulateMedia({ colorScheme });
@@ -88,8 +86,7 @@ test('chromium: 1280 px — each row says its figure as part of its name, light 
 });
 
 test('chromium: 390 and 1280 px — the hub draws its collections as cards, each with its figure as its head says it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const width of [390, 1280]) {
     const { page, context, failures, unstubbed } = await signedIn(browser, width, 900);
     await page.goto(`${served.origin}/hubs/${FIGURE_HUB.id}`);
@@ -117,8 +114,7 @@ test('chromium: 390 and 1280 px — the hub draws its collections as cards, each
 // collection of open entries uses. Its row in the sidebar carries › to its level instead (the
 // navigation concept, §2.3).
 test("chromium: 390 and 1280 px — the hub's head says its open entries", async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const width of [390, 1280]) {
     const { page, context, failures } = await signedIn(browser, width, 900);
     await page.goto(`${served.origin}/hubs/${FIGURE_HUB.id}`);
@@ -131,8 +127,7 @@ test("chromium: 390 and 1280 px — the hub's head says its open entries", async
 });
 
 test('chromium: 1280 px — a figure moves neither the title nor the row it stands in', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const measure = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
     if (collection !== FIGURES.none) await page.locator('[data-figure]').first().waitFor({ timeout: 5_000 });
@@ -159,8 +154,7 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
 });
 
 test('chromium: 1280 px — the control offers what the structure allows, and writes the choice', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const choicesOf = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
     // What counts is one setting of the settings page's *Views* (UC-WRK-23).
@@ -196,8 +190,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
 });
 
 test('chromium: 1280 px — offline, the replica answers and no figure is drawn', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await open(browser, 1280, FIGURES.sum);
   await page.locator('[data-figure]').first().waitFor({ timeout: 5_000 });
   // The server goes away: every read of a container fails to reach it.

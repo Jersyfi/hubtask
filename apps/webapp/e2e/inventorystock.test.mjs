@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { chooseInRow, rowOffers } from './rowmenu.mjs';
 import { serve } from './serve.mjs';
@@ -149,8 +149,7 @@ async function typeLine(page, text) {
 const ALL_BUT_DISPOSED = ['Portal-API', 'Kundenportal', 'db-01.hh.intern', 'app-01.hh.intern', 'NB-0417', 'NB-0422', 'RZ Hamburg'];
 
 test('chromium: the inventory is five tabs, the firing alerts counted, the figure from the health', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
   t.after(() => context.close());
 
@@ -185,8 +184,7 @@ test('chromium: the inventory is five tabs, the firing alerts counted, the figur
 });
 
 test('chromium: the former sub-pages\' addresses land on their tabs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory/runs` });
   t.after(() => context.close());
 
@@ -222,8 +220,7 @@ test('chromium: the former sub-pages\' addresses land on their tabs', async (t) 
 // An object's page links here: its trail's object type opens the stock with that type's line, and
 // a saved group in its rail opens the stock with the group's line (scene `ci`).
 test('chromium: the stock opens with the line or the saved group its address names', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory?line=${encodeURIComponent('asset.class: laptop')}` });
   t.after(() => context.close());
 
@@ -237,8 +234,7 @@ test('chromium: the stock opens with the line or the saved group its address nam
 });
 
 test('chromium: the line narrows by object type, stage, owner none and words; a saved group fills it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
   t.after(() => context.close());
 
@@ -274,8 +270,7 @@ test('chromium: the line narrows by object type, stage, owner none and words; a 
 });
 
 test('chromium: the object-type tree counts the types beneath within the line, and a type narrows', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
   t.after(() => context.close());
 
@@ -298,8 +293,7 @@ test('chromium: the object-type tree counts the types beneath within the line, a
 });
 
 test('chromium: the table\'s columns - type, stage, owner, location, protection and the open entries', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 1600, path: `/hubs/${HUB.id}/inventory` });
   // Wide enough for all seven (scene invlist is drawn at 1440 without the app's own margins).
   t.after(() => context.close());
@@ -345,8 +339,7 @@ test('chromium: the table\'s columns - type, stage, owner, location, protection 
 });
 
 test('chromium: a line is saved as a group, and a line a group cannot hold says why', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
   t.after(() => context.close());
 
@@ -378,8 +371,7 @@ test('chromium: a line is saved as a group, and a line a group cannot hold says 
 });
 
 test('chromium: a saved group\'s row menu deletes it after a small dialog naming it, and the open group\'s line goes back to the default', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser, { path: `/hubs/${HUB.id}/inventory` });
   t.after(() => context.close());
 
@@ -410,8 +402,7 @@ test('chromium: a saved group\'s row menu deletes it after a small dialog naming
 });
 
 test('chromium: a reader is offered no create, no import and no group to save', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/inventory`, role: 'VIEWER' });
   t.after(() => context.close());
 
@@ -429,8 +420,7 @@ test('chromium: a reader is offered no create, no import and no group to save', 
 });
 
 test('chromium 390 px: rows stack with their meta line, and nothing writes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 390, height: 844, path: `/hubs/${HUB.id}/inventory` });
   t.after(() => context.close());
 

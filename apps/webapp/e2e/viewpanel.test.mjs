@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, ITEMS, signedIn } from './fixture.mjs';
@@ -65,8 +65,7 @@ const until = async (page, condition) => {
 };
 
 test('chromium 1280: one panel holds layout, the query line, order, fields, board and saving; the changed tab carries a dot (UC-WRK-17 check 13, UC-WRK-43 check 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, queried, saved } = await open(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -151,8 +150,7 @@ test('chromium 1280: one panel holds layout, the query line, order, fields, boar
 });
 
 test('chromium 1280: the panel stands beside the list, which stays usable and shows each change at once; Escape closes it and gives focus back (scene viewcfg)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await open(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -186,8 +184,7 @@ test('chromium 1280: the panel stands beside the list, which stays usable and sh
 });
 
 test('chromium 1280: the calendar places the entries on the days of the date the view names, saved as grouping.date_field (UC-WRK-17 check 14)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, saved } = await open(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -213,8 +210,7 @@ test('chromium 1280: the calendar places the entries on the days of the date the
 });
 
 test('chromium 1280: a board in lanes by a custom field, each lane a row of the same columns with its count, the empty lane last, saved as grouping.lanes_by (UC-WRK-05 check 12)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, saved } = await open(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -253,8 +249,7 @@ test('chromium 1280: a board in lanes by a custom field, each lane a row of the 
 });
 
 test('chromium 390: the panel is a sheet whose sections are pages of their own (UC-WRK-17 check 13)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await open(browser, 390, 844);
   t.after(() => context.close());
 
@@ -283,8 +278,7 @@ test('chromium 390: the panel is a sheet whose sections are pages of their own (
 });
 
 test('chromium 390 phone: a board in lanes keeps the phone\'s width, one column a lane', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const longTitle = 'Offline mode: orders placed without a connection are queued and sent once the phone is back online';
   const { context, page, failures } = await open(browser, 390, 844, { isMobile: true, longTitle });
   t.after(() => context.close());
@@ -306,8 +300,7 @@ test('chromium 390 phone: a board in lanes keeps the phone\'s width, one column 
 });
 
 test('chromium 390: the query line over the list is a strip with "+n" and a filter sheet, Reset and Show n entries (scene qline 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await open(browser, 390, 844);
   t.after(() => context.close());
 

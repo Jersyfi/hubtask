@@ -15,7 +15,7 @@ import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 
@@ -108,8 +108,7 @@ async function open(browser, { rules = RULES, complete } = {}) {
 }
 
 test('chromium: Sign in with a passkey asks the device and sends the server its assertion', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, failures } = await open(browser);
   const button = page.getByRole('button', { name: 'Sign in with a passkey' });
   await button.click();
@@ -133,8 +132,7 @@ test('chromium: Sign in with a passkey asks the device and sends the server its 
 // Check 1: the address field offers this workspace's passkeys once it has focus, with options fetched
 // then - not at page load.
 test('chromium: the address field offers passkeys when it gains focus, and not before', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, failures } = await open(browser);
   assert.equal(sent.options, 0, 'options were fetched before anybody asked');
   await page.locator('input[type="email"]').focus();
@@ -145,8 +143,7 @@ test('chromium: the address field offers passkeys when it gains focus, and not b
 
 // Check 4, P-11: a prompt the person closes says nothing and leaves focus on the button.
 test('chromium: a closed device prompt says nothing and leaves focus on the button', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, failures } = await open(browser);
   await page.evaluate(() => {
     navigator.credentials.get = () => Promise.reject(new DOMException('The operation was cancelled.', 'NotAllowedError'));
@@ -160,8 +157,7 @@ test('chromium: a closed device prompt says nothing and leaves focus on the butt
 
 // Check 4: a refused passkey reads as a wrong password does.
 test('chromium: a refused passkey is the wrong password’s sentence', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures } = await open(browser, {
     complete: (route) => route.fulfill({
       status: 401,
@@ -175,8 +171,7 @@ test('chromium: a refused passkey is the wrong password’s sentence', async (t)
 
 // Check 9: the button is reached from the keyboard and named, and the wait is said once.
 test('chromium: the passkey button is reached by keyboard and the wait is said', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures } = await open(browser);
   let held;
   await page.evaluate(() => {
@@ -195,8 +190,7 @@ test('chromium: the passkey button is reached by keyboard and the wait is said',
 
 // Check 1: where the rules name no passkey, the card offers none.
 test('chromium: no passkey in the rules, no passkey button', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, failures } = await open(browser, { rules: { ...RULES, methods: ['PASSWORD'] } });
   assert.equal(await page.getByRole('button', { name: 'Sign in with a passkey' }).count(), 0);
   await page.locator('input[type="email"]').focus();

@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
@@ -29,8 +29,7 @@ const SHOTS = process.env.SHOTS;
 const flat = (text) => text.replace(/\s+/gu, ' ').trim();
 
 test('chromium: scene invcare - six figures, the to-dos with one act each, the round, the duplicates, the sources', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // The day of the seed's runs: the last and the next said as the reader says them.
   const { page, context, failures, written } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/care`, now: '2026-11-14T12:00:00Z' });
   t.after(() => context.close());
@@ -124,8 +123,7 @@ test('chromium: scene invcare - six figures, the to-dos with one act each, the r
 });
 
 test('chromium: the former sub-pages draw their part alone under Back to upkeep', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/runs` });
   t.after(() => context.close());
 
@@ -143,8 +141,7 @@ test('chromium: the former sub-pages draw their part alone under Back to upkeep'
 });
 
 test('chromium: the round\'s part page reminds the owners it waits for', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/campaigns` });
   t.after(() => context.close());
 
@@ -162,8 +159,7 @@ test('chromium: the round\'s part page reminds the owners it waits for', async (
 });
 
 test('chromium: a reader is shown no Upkeep, and its address shows Stock', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { path: `/hubs/${HUB.id}/inventory/care`, role: 'VIEWER' });
   t.after(() => context.close());
 
@@ -175,8 +171,7 @@ test('chromium: a reader is shown no Upkeep, and its address shows Stock', async
 });
 
 test('chromium 390 px: scene invcare on a phone reads - figures, to-dos and sources without a write', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { width: 390, height: 844, path: `/hubs/${HUB.id}/inventory/care` });
   t.after(() => context.close());
 

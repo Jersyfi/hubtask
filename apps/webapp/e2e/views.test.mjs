@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, signedIn } from './fixture.mjs';
@@ -37,8 +37,7 @@ const OPEN_WORK = {
 const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim() ?? ''));
 
 test('chromium: 1280 px — a saved view is a tab; the View panel exports the filtered list, manages and subscribes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 

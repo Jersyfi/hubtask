@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -118,8 +118,7 @@ async function open(browser, { level = LEVEL, refuse = undefined, width = 1280 }
 }
 
 test('chromium: every value is named in words, and the lock says what a workspace may still do', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -151,8 +150,7 @@ test('chromium: every value is named in words, and the lock says what a workspac
 // value in place; the draft keeps what was changed in another section, and the save bar counts
 // every area's changes because the save replaces the whole level.
 test('chromium: the defaults are a section per area, and the draft keeps every section\'s changes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -180,8 +178,7 @@ test('chromium: the defaults are a section per area, and the draft keeps every s
 });
 
 test('chromium: an undecided value is saved as its kind, every kind from its own control', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -220,8 +217,7 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
 // The terms' version sits beside its link, and its lock - which is the link's - reads the link's
 // while the form is open, not the one the server last answered.
 test("chromium: the terms' version follows its link, in place and in its lock", async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const replace = { kind: 'LINK', workspace_may: 'REPLACE' };
   const level = {
     ...LEVEL,
@@ -252,8 +248,7 @@ test("chromium: the terms' version follows its link, in place and in its lock", 
 });
 
 test('chromium: a refusal lands at the value it is about', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, {
     refuse: {
       type: 'about:blank', title: 'validation_failed', status: 422, code: 'validation_failed',
@@ -277,8 +272,7 @@ test('chromium: a refusal lands at the value it is about', async (t) => {
 // UC-INS-09 check 8: the save is made on the version the screen read, and when somebody else saved
 // first the screen says so - and keeps what this operator typed, so nothing of theirs vanishes.
 test('chromium: a save on values somebody else saved since says so and keeps the draft', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, preconditions, close } = await open(browser, {
     level: { ...LEVEL, version: 4 },
     refuse: {
@@ -300,8 +294,7 @@ test('chromium: a save on values somebody else saved since says so and keeps the
 });
 
 test('chromium: a level a file enforces is shown with its path and no control', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, {
     // UC-INS-02 check 2: while a file enforces the level, the screen names it and offers no control.
     level: { ...LEVEL, is_enforced_from_file: true, source: '/etc/hubtask/instance.json' },
@@ -314,8 +307,7 @@ test('chromium: a level a file enforces is shown with its path and no control', 
 });
 
 test('chromium: at 375 px the form keeps every value and its lock inside the screen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { width: 375 });
   t.after(close);
 
@@ -326,8 +318,7 @@ test('chromium: at 375 px the form keeps every value and its lock inside the scr
 // P-12: a language is named, not its tag, and stored files are a size - in the table and at the
 // field that takes the bytes.
 test('chromium: a language is named and stored files are a size', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const level = {
     ...LEVEL,
     quotas: { ...LEVEL.quotas, media_bytes: { set: true, value: 10737418240, locked: false, kind: 'COUNT', minimum: 0, workspace_may: 'RAISE' } },
@@ -359,8 +350,7 @@ test('chromium: a language is named and stored files are a size', async (t) => {
 // The provider's account link among the legal links (UC-INS-13 check 11): in multi mode its lock says
 // what plans may, and a level without plans - single mode - answers no lock, so none is offered.
 test('chromium: the account link is drawn with what plans may, and without a lock where there are none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const multi = {
     ...LEVEL,
     legal: { ...LEVEL.legal, account_url: { set: true, value: 'https://shop.example/account', locked: false, kind: 'LINK', workspace_may: 'PLAN_REPLACE' } },

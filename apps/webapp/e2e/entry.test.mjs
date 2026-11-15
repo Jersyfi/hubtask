@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
@@ -90,8 +90,7 @@ async function captureInPlace(page, title, kind) {
 }
 
 test('chromium: 1280 px — the trail, the head in place, the details rows, the subtree, the tabs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const { page, failures, close, unstubbed } = await openEntry(browser, 1280, written);
   t.after(close);
@@ -295,8 +294,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
 });
 
 test('chromium: 375 px — the key in the bar, the details behind All properties, a row opens a drawer', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await openEntry(browser, 375);
   t.after(close);
 
@@ -331,8 +329,7 @@ test('chromium: 375 px — the key in the bar, the details behind All properties
 
 // UC-WRK-10 check 1: Responsible and Also on it, two questions; an activity has the first alone.
 test('chromium: 1280 px — assignment is two named questions, and the policy is offered only where there is one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   /** Opens the entry's assignee editor with the collection served as given, and reads the panel. */
   const panelWith = async (policies, itemId = ENTRY.id) => {
@@ -407,8 +404,7 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
 });
 
 test('chromium: 1280 px — the details column is the capability matrix, and nothing the type refuses is offered', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, close, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(close);
 
@@ -457,8 +453,7 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 });
 
 test('chromium: 1280 px — the cover row offers both kinds, and no cover takes no room above the title', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const { page, failures, close, unstubbed } = await openEntry(browser, 1280, written);
   t.after(close);
@@ -502,8 +497,7 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
 });
 
 test('chromium: the history announces a page only after the reader asked for it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
 
@@ -548,8 +542,7 @@ test('chromium: the history announces a page only after the reader asked for it'
 });
 
 test('chromium: the attachments announce a page only after the reader asked for it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
 
@@ -597,8 +590,7 @@ test('chromium: the attachments announce a page only after the reader asked for 
 // ET-4: the files as a grid of cards or a list, the reader's choice kept on the device; a file
 // dropped anywhere on the entry is attached, the button under *Files* the way without a drag.
 test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhere is attached', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   const uploads = [];
@@ -671,8 +663,7 @@ test('chromium: 1280 px — files as a grid or a list, and a file dropped anywhe
 // ET-1: a folded rail section says how many it holds - code, goals, approvals - read from the
 // section's own list.
 test('chromium: 1280 px — folded rail sections carry their counts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');
@@ -694,8 +685,7 @@ test('chromium: 1280 px — folded rail sections carry their counts', async (t) 
 
 // ET-3: from twenty files on the section is a list cut to its first twenty, *Show all* the rest.
 test('chromium: 1280 px — more than twenty files fold to a list of twenty', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   const many = Array.from({ length: 25 }, (_, n) => ({ id: `01a0e2e0-0000-7000-8000-${String(n + 1).padStart(12, '0')}`, file_name: `scan-${n + 1}.pdf`, content_type: 'application/pdf', size: 2048, status: 'READY', created_at: '2026-10-01T08:00:00Z' }));
@@ -724,8 +714,7 @@ test('chromium: 1280 px — more than twenty files fold to a list of twenty', as
 // E-3, ET-5: a comment is written in the pages' editor - a mark from the bar, Ctrl+Enter sends -
 // and is stored as Markdown; `/` at the start opens what can be inserted.
 test('chromium: 1280 px — a comment is written in the pages\' editor and sent as Markdown', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   const posted = [];
@@ -761,8 +750,7 @@ test('chromium: 1280 px — a comment is written in the pages\' editor and sent 
 });
 
 test('chromium: a page of history that did not arrive is said beside the button, and the button is the retry', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
 
@@ -823,8 +811,7 @@ test('chromium: a page of history that did not arrive is said beside the button,
 // The subtree on an entry's page has no bulk bar, so nothing there starts selecting: a Ctrl-click
 // (⌘ on a Mac) on a row of it follows the row and draws no checkbox nothing would act on.
 test('chromium: 1280 px — the subtree on an entry\'s page does not select', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await openEntry(browser, 1280);
   t.after(close);
 
@@ -842,8 +829,7 @@ test('chromium: 1280 px — the subtree on an entry\'s page does not select', as
 // with a chooser of the two kinds the manifest permits, named in the catalogue's words rather than
 // the contract's, and what is chosen is what is created.
 test('chromium: 1280 px — the ＋ inside a task offers a work package and an activity by name', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
@@ -878,8 +864,7 @@ test('chromium: 1280 px — the ＋ inside a task offers a work package and an a
 // The description is never drawn empty on its way in: an entry with notes shows them, or nothing
 // while they load - not the placeholder for a frame first.
 test('chromium: 1280 px — the description does not flash empty while the entry loads', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await context.addInitScript(() => {
@@ -911,8 +896,7 @@ test('chromium: 1280 px — the description does not flash empty while the entry
 // package's count, and every work package of the first eight shown - the fold counts work
 // packages, not the activities under the open ones.
 test('chromium: 1280 px — the parts show their first eight work packages under a column head, each with a bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   const id = (n) => `01a0e2e0-0000-7000-8000-0000000009${String(n).padStart(2, '0')}`;

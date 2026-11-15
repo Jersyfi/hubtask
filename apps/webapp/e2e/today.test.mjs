@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import {
@@ -50,8 +50,7 @@ async function sent(page, count) {
 
 // The two walks without the day come first: `showToday` holds for the rest of the process.
 test('chromium: nothing on the reader is a sentence, and an empty workspace is one action', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The shared fixture without the day: nothing is on the reader, but its hub holds entries - an
   // owner of a busy workspace. Not the first steps, which would ask for the hub that exists, but
@@ -97,8 +96,7 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
 });
 
 test('chromium: what was opened is remembered on this device, and only here', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 
@@ -119,8 +117,7 @@ test('chromium: what was opened is remembered on this device, and only here', as
 
 test('chromium: Today lists what is due on the reader, plainly, and ticks it off there', async (t) => {
   showToday();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, unstubbed, searches } = await open(browser);
   t.after(() => context.close());
 
@@ -240,8 +237,7 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
 
 test('chromium: a project\'s step ticked off on Today gives way to the next', async (t) => {
   showToday();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 390);
   t.after(() => context.close());
 
@@ -261,8 +257,7 @@ test('chromium: a project\'s step ticked off on Today gives way to the next', as
 // row, each card with its one act.
 test('chromium: the day at a glance - a greeting by the hour, cards that lead to their search, the overdue among them (check 7)', async (t) => {
   showToday();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -294,8 +289,7 @@ test('chromium: the day at a glance - a greeting by the hour, cards that lead to
 // draws the same; a card the person's modules do not give is not offered at all (P-17).
 test('chromium: Sections hides and orders Today\'s cards and tiles, on the account', async (t) => {
   showToday();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
   const written = [];
@@ -336,8 +330,7 @@ test('chromium: Sections hides and orders Today\'s cards and tiles, on the accou
 // UC-WRK-20 check 8: the phone's cards are one row it swipes, and it switches between your day and the overview.
 test('chromium 390 px: the phone swipes the cards and switches between your day and the overview', async (t) => {
   showToday();
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 390);
   t.after(() => context.close());
   const glance = region(page, 'Your day at a glance');

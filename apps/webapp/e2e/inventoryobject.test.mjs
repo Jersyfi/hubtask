@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, CREATED_ID, HUB, MANIFEST, OTHER, PAGE, signedIn, stub } from './fixture.mjs';
@@ -199,8 +199,7 @@ async function waitFor(page, written, call) {
 }
 
 test('chromium: the head says the stage as a step bar, and a writer changes it through the compliance write', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -231,8 +230,7 @@ test('chromium: the head says the stage as a step bar, and a writer changes it t
 });
 
 test('chromium: the head\'s primary act confirms the object beside its review day', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -249,8 +247,7 @@ test('chromium: the head\'s primary act confirms the object beside its review da
 });
 
 test('chromium: the owning person confirms their object without write; the meta line reads the confirmation', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // Just now: the line names the day as the reader says it, as the scene's "bestätigt heute 09:25".
   const confirmedAt = new Date(Date.now() - 1_000).toISOString();
   LAPTOP.confirmed_at = confirmedAt;
@@ -266,8 +263,7 @@ test('chromium: the owning person confirms their object without write; the meta 
 });
 
 test('chromium: the head\'s divider never stands alone at a line\'s end or start, whatever the bar wraps to', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 820, height: 900 });
   t.after(() => context.close());
 
@@ -291,8 +287,7 @@ test('chromium: the head\'s divider never stands alone at a line\'s end or start
 });
 
 test('chromium: the attributes say their source, two to a row, and count the recommended ones missing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -313,8 +308,7 @@ test('chromium: the attributes say their source, two to a row, and count the rec
 });
 
 test('chromium: the relations are a picture or a list, never both, the choice kept', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -354,8 +348,7 @@ test('chromium: the relations are a picture or a list, never both, the choice ke
 });
 
 test('chromium: the impact reads both ways, each object with its type, steps, need and owner', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -373,8 +366,7 @@ test('chromium: the impact reads both ways, each object with its type, steps, ne
 });
 
 test('chromium: the work on it stands with its reasons, and an incident reported names the object', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -407,8 +399,7 @@ test('chromium: the work on it stands with its reasons, and an incident reported
 });
 
 test('chromium: the rail says who answers for it, its protection with its origin, its sources and its groups', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -436,8 +427,7 @@ test('chromium: the rail says who answers for it, its protection with its origin
 });
 
 test('chromium: the register record shows the device\'s life with each move', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/cis/${LAPTOP.id}` });
   t.after(() => context.close());
 
@@ -454,8 +444,7 @@ test('chromium: the register record shows the device\'s life with each move', as
 });
 
 test('chromium: an object without a register record says what one is for, in a dashed line', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
 
@@ -467,8 +456,7 @@ test('chromium: an object without a register record says what one is for, in a d
 });
 
 test('chromium: at 390 px the object is read only - the step bar scrolls, the marks switch, nothing writes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 390, height: 844 });
   t.after(() => context.close());
 
@@ -490,8 +478,7 @@ test('chromium: at 390 px the object is read only - the step bar scrolls, the ma
 });
 
 test('chromium: a reader without write sees no write anywhere', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { role: 'VIEWER' });
   t.after(() => context.close());
 
@@ -511,8 +498,7 @@ test('chromium: a reader without write sees no write anywhere', async (t) => {
 // UC-AST-01 checks 12 and 13: the files as a grid opened in the one viewer, taken off by a writer;
 // the history newest first, each step a sentence with what moved.
 test('chromium: the files and the history follow the register as the scene marks them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser);
   t.after(() => context.close());
 
@@ -554,8 +540,7 @@ test('chromium: the files and the history follow the register as the scene marks
 
 // UC-AST-01 check 13: on a phone the files and the history are read and nothing is written.
 test('chromium: on a phone the files and the history are read, nothing is put on or taken off', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 390, height: 844 });
   t.after(() => context.close());
 

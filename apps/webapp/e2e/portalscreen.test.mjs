@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -83,8 +83,7 @@ async function noSidewaysScroll(page, label) {
 
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the portal offers its kinds as tiles and the form below the chosen one`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, raised, close } = await portal(browser, { width, scheme, kinds: KINDS });
     t.after(close);
     const tiles = page.getByRole('list', { name: 'Kind of request' });
@@ -110,8 +109,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 }
 
 test('chromium 375 px, light: a portal that offers nothing says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await portal(browser, { width: 375, scheme: 'light', kinds: [] });
   t.after(close);
   await page.getByText('Nothing can be asked here yet').waitFor({ timeout: 15_000 });
@@ -122,8 +120,7 @@ test('chromium 375 px, light: a portal that offers nothing says so', async (t) =
 
 // UC-SVC-05: the desk's team opening its portal is led to invite its first requester.
 test('chromium: the desk\'s team sees its portal as the team, with the way to invite requesters', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, asked, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], team: true });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
@@ -138,8 +135,7 @@ test('chromium: the desk\'s team sees its portal as the team, with the way to in
 // UC-SVC-05 check 9: where a server refuses the team the requester catalogue, its head is drawn from
 // the collection - not left empty. The logo is set in the desk's settings, not here (scene portal).
 test('chromium: the team that shapes the desk sees its name at the portal, and no logo upload', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], refusedTeam: true, permissions: ['READ', 'STRUCTURE'], logo: null });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });

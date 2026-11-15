@@ -23,7 +23,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, MANIFEST, stub } from './fixture.mjs';
@@ -53,8 +53,7 @@ const problem = (status, code) => ({
 const markOf = (page) => page.getByRole('banner', { name: 'Application bar' }).locator('.notice-mark');
 
 test('chromium: the manifest never answers — the entry says so, and the bar can ask again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The read fails until the walk says otherwise, which is what the retry is measured against.
   let answers = false;
@@ -129,8 +128,7 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
 });
 
 test('chromium: a manifest that declares no profile for the type says so, once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
   t.after(() => context.close());
@@ -163,8 +161,7 @@ test('chromium: a manifest that declares no profile for the type says so, once',
 });
 
 test('chromium: a stale bearer signs the reader out, and the sign-in reads the manifest as that actor', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const GOOD = 'e2e-fresh-bearer';
   const context = await browser.newContext({ viewport: { width: 1280, height: 1000 } });

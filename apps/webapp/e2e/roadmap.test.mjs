@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, HUB, signedIn, stub } from './fixture.mjs';
@@ -53,8 +53,7 @@ async function open(browser, roadmap) {
 }
 
 test('chromium: 1280 px — the roadmap says its reach and its projects at risk, and opens on all of it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await open(browser, FULL);
   t.after(close);
 
@@ -73,8 +72,7 @@ test('chromium: 1280 px — the roadmap says its reach and its projects at risk,
 });
 
 test('chromium: 1280 px — a roadmap without projects says what fills it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await open(browser, EMPTY);
   t.after(close);
 

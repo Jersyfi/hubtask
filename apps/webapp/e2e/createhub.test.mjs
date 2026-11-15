@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { HUB, MANIFEST, PERMISSIONS, WORKSPACE, chooseNew, newRows, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -65,8 +65,7 @@ async function offered(page) {
 }
 
 test('chromium: a member is offered a private hub of their own and no shared hub, and the dialog makes it private', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.MEMBER, offered: true });
   t.after(() => context.close());
 
@@ -90,8 +89,7 @@ test('chromium: a member is offered a private hub of their own and no shared hub
 });
 
 test('chromium: where private hubs are not offered, a viewer is offered no hub at all', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await as(browser, { permissions: PERMISSIONS.VIEWER, offered: false, allowed: false });
   t.after(() => context.close());
 
@@ -101,8 +99,7 @@ test('chromium: where private hubs are not offered, a viewer is offered no hub a
 });
 
 test('chromium: whoever shapes the workspace where private hubs are switched off is offered a shared hub only', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
   t.after(() => context.close());
 
@@ -126,8 +123,7 @@ test('chromium: whoever shapes the workspace where private hubs are switched off
 // The navigation concept's grammar (§5): ＋ on a section head creates at its top level - on the hub
 // level's *Collections*, a collection in that hub.
 test('chromium: inside a hub, ＋ on Collections makes a collection in that hub, with its preset (ux-inventory.md §E1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
   t.after(() => context.close());
 
@@ -155,8 +151,7 @@ test('chromium: inside a hub, ＋ on Collections makes a collection in that hub,
 // cards side by side - and folds the description, colour and symbol below it, so the templates are
 // in view when the dialog opens.
 test('chromium: the hub dialog shows the gallery under the name, filtered by family, the look folded', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
   t.after(() => context.close());
   const template = (key) => ({

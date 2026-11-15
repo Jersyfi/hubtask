@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -84,8 +84,7 @@ async function open(browser) {
 }
 
 test('chromium: an operator opens the password for one workspace, sees it on the row, and closes it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -132,8 +131,7 @@ test('chromium: an operator opens the password for one workspace, sees it on the
 // in force and offers no *Delete*; a workspace pending deletion under a hold says its deletion
 // waits. Neither says which hold - that stays the workspace's (P-01).
 test('chromium: a workspace under a legal hold is marked and offers no deletion', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const rows = [
@@ -221,8 +219,7 @@ const lifecycleRows = () => [
 // second press. The operator's own workspace is marked, and its dialogs say that the operator's
 // own session ends - the deletion's too.
 test('chromium: suspending asks first, and the own workspace is marked and warned about', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await operatorConsole(browser, { mode: 'multi', rows: lifecycleRows() });
   t.after(close);
 
@@ -268,8 +265,7 @@ test('chromium: suspending asks first, and the own workspace is marked and warne
 // its deadline; one press calls it off. Once the removal has begun the row says so and offers
 // nothing, which the server would refuse.
 test('chromium: a pending deletion is called off with one press, until the removal begins', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const rows = [
     { ...workspace(), display_name: 'Leaving', status: 'PENDING_DELETION', purge_after: '2026-09-20T00:00:00Z', legal_hold: true },
     { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a4', slug: 'going', display_name: 'Going',
@@ -295,8 +291,7 @@ test('chromium: a pending deletion is called off with one press, until the remov
 // server refuses there. In multi mode all three are
 // there; *Resume* and *Cancel deletion* are the way back in both.
 test('chromium: single mode offers no new workspace, no suspension and no deletion', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const suspended = { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a5', slug: 'paused', display_name: 'Paused', status: 'SUSPENDED' };
 
   const single = await operatorConsole(browser, { mode: 'single', rows: [workspace(), suspended] });
@@ -321,8 +316,7 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
 // UC-INS-07 check 2: a short name the installation reserves for itself is refused at the field of
 // *New workspace*, with its own sentence, and the dialog stays for another.
 test('chromium: a reserved short name is refused at the field of New workspace', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];
@@ -374,8 +368,7 @@ test('chromium: a reserved short name is refused at the field of New workspace',
 // queued for their address and shows no token; where it does not, the token is shown once.
 for (const delivery of ['MAIL', 'LINK']) {
   test(`chromium: a new workspace's owner is reached by ${delivery === 'MAIL' ? 'mail, with no token shown' : 'the token shown once'}`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     t.after(() => context.close());
     await context.route('**/api/v1/**', async (route) => {
@@ -426,8 +419,7 @@ for (const delivery of ['MAIL', 'LINK']) {
 // installation's own answer of which workspaces stand at 90% or more; the limits dialog says what
 // is in use beside the field and warns, before saving, where a ceiling is typed below it.
 test('chromium: a workspace near or at a limit is marked, and its limits say what is in use', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const rows = [
     { ...workspace(), display_name: 'Acme' },
     { ...workspace(), id: '01936f2a-7c1e-7000-8000-0000000034a2', slug: 'beta', display_name: 'Beta' },
@@ -480,8 +472,7 @@ test('chromium: a workspace near or at a limit is marked, and its limits say wha
 // UC-INS-07 check 2: a short name the list did not know as taken - another operator took it a
 // moment ago - is the server's refusal, said at the field of *New workspace*, and the dialog stays.
 test('chromium: a short name taken meanwhile is refused at the field of New workspace', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];
@@ -535,8 +526,7 @@ test('chromium: a short name taken meanwhile is refused at the field of New work
 // asks for the short name as before, and no longer says it cannot be changed; no host is asked
 // (UC-INS-20 check 6).
 test('chromium: New workspace asks for the host where the installation assigns hosts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];
@@ -641,8 +631,7 @@ test('chromium: New workspace asks for the host where the installation assigns h
 // before anything is changed; a lockout is refused in the dialog before a proof is asked; the proof
 // is the password, with the note why a passkey is not offered.
 test('chromium: Change address names the new address and its costs, and is confirmed by the password', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];

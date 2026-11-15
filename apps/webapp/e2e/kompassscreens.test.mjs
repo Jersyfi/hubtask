@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ALL, DESK, IT, PD, PD_PAGES, QUEUES, WEB, id, open, served, side, texts } from './kompassstub.mjs';
 import { MANIFEST, PERMISSIONS, PRESETS, ROLES, kindChoice, openNewCollection } from './fixture.mjs';
@@ -46,8 +46,7 @@ const main = (page) => page.getByRole('main');
 const at = (page, path) => page.waitForFunction((want) => location.pathname + location.search === want, path, { timeout: 10_000 });
 
 test('UC-WRK-36 check 10: the hub\'s overview has no tabs - its tools\' lines and the collection cards', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await walk(browser, `/hubs/${PD.id}`);
   t.after(close);
   const lines = main(page).getByRole('list', { name: 'What the products say here' });
@@ -64,8 +63,7 @@ test('UC-WRK-36 check 10: the hub\'s overview has no tabs - its tools\' lines an
 });
 
 test('UC-WRK-36 check 9: each hub tool draws one view bar of its own tabs, never a second strip', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await walk(browser, `/hubs/${PD.id}/plan`);
   t.after(close);
   const bar = main(page).getByRole('navigation', { name: PD.name });
@@ -104,8 +102,7 @@ test('UC-WRK-36 check 9: each hub tool draws one view bar of its own tabs, never
 });
 
 test('UC-SVC-03 check 10: a queue in the sidebar opens its table over the hub\'s desks; the desk\'s old address takes the first', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await walk(browser, `/hubs/${IT.id}/desk`);
   t.after(close);
   // The former tab's address takes the hub's first queue (§8).
@@ -124,8 +121,7 @@ test('UC-SVC-03 check 10: a queue in the sidebar opens its table over the hub\'s
 });
 
 test('UC-WRK-36 check 9: a collection draws one view bar - board, the running sprint, backlog, list, timeline, time - and its old plan is the timeline', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await walk(browser, `/collections/${WEB.id}`);
   t.after(close);
   const bar = main(page).getByRole('navigation', { name: WEB.name });
@@ -153,8 +149,7 @@ test('UC-WRK-36 check 9: a collection draws one view bar - board, the running sp
 });
 
 test('UC-WRK-36 check 12: the former hub tabs\' addresses open the places that took their role', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await walk(browser, `/hubs/${PD.id}/actuals`);
   t.after(close);
   await at(page, `/hubs/${PD.id}/time`);
@@ -174,8 +169,7 @@ test('UC-WRK-36 check 12: the former hub tabs\' addresses open the places that t
 });
 
 test('UC-DOC-01 check 6, UC-CNV-10 check 6: a page has its trail and no tree of its own; ＋ on a page offers a whiteboard under it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const onboarding = PD_PAGES.find((each) => each.title === 'How we plan');
   const { page, failures, close } = await walk(browser, `/pages/${onboarding.id}`);
   t.after(close);
@@ -198,8 +192,7 @@ test('UC-DOC-01 check 6, UC-CNV-10 check 6: a page has its trail and no tree of 
 });
 
 test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keeps the narrowing as a queue of the hub', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const asked = [];
   const saved = [];
   const SAVED = { id: id(520), key: 'printers', name: 'Printers', scope_type: 'HUB', scope_id: IT.id, owner_id: id(1), layout: 'LIST_COLLAPSED', grouping: {}, visible_fields: [], sharing: 'SCOPE', queue: true, queue_position: 4, version: 1 };
@@ -252,8 +245,7 @@ test('UC-SVC-03 check 11: the queue\'s Filter narrows it, and Save as queue keep
 });
 
 test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub has a portal type, and the desk offers it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const MADE = { id: id(230), type: 'COLLECTION', parent_id: PD.id, name: 'Help', order_key: 'a9', version: 1 };
   const making = async (route, request, url) => {
@@ -290,8 +282,7 @@ test('UC-WRK-36 check 18: a new collection offers the Desk kind where the hub ha
 });
 
 test('UC-WRK-36 check 18: without a portal type in the hub the Desk kind says what it needs and cannot be chosen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const noPortal = async (route, request, url) => {
     const path = url.pathname;
     if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS }).then(() => true);
@@ -309,8 +300,7 @@ test('UC-WRK-36 check 18: without a portal type in the hub the Desk kind says wh
 });
 
 test('a new collection of the kind Scrum starts from Project and opens on its sprint view', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const MADE = { id: id(231), type: 'COLLECTION', parent_id: PD.id, name: 'Platform', order_key: 'a9', version: 1 };
   const making = async (route, request, url) => {

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, PAGE, WORKSPACE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -24,8 +24,7 @@ const FRESH = { ...ACCOUNT, id: '01a0e2e0-0000-7000-8000-0000000032b1', onboardi
 
 for (const [width, height] of [[1440, 900]]) {
   test(`chromium: the tour waits for the starter at ${width}x${height}`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width, height } });
     t.after(() => context.close());
     forgetUnstubbed();
@@ -64,8 +63,7 @@ for (const [width, height] of [[1440, 900]]) {
 // The tour walks what the starter made (§3.1): its collection steps point at the new hub's
 // collection, not at the workspace's default hub listed first.
 test('chromium: after the starter the tour walks the hub it made', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();

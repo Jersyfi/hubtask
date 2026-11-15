@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT } from './fixture.mjs';
 import { ALL, PD_PAGES, open, pageRead, served } from './kompassstub.mjs';
@@ -60,8 +60,7 @@ async function opened(browser, t) {
 }
 
 test('a version brought back stands in the live document, and the next save keeps it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, body, failures, seen } = await opened(browser, t);
 
   await page.getByRole('button', { name: 'More for this page' }).click();
@@ -90,8 +89,7 @@ test('a version brought back stands in the live document, and the next save keep
 });
 
 test('the history lists the versions with person, time and name, and compares one side by side or by its changes (phist)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, body, failures } = await opened(browser, t);
 
   await page.getByRole('button', { name: 'More for this page' }).click();

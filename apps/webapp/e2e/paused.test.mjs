@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -67,8 +67,7 @@ async function signInTo(browser, answer, verify) {
 }
 
 test('chromium: an owner signing in to a paused workspace is told so, with the provider\'s account page', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signInTo(browser, paused({ account_url: ACCOUNT_PAGE }));
   t.after(() => context.close());
 
@@ -81,8 +80,7 @@ test('chromium: an owner signing in to a paused workspace is told so, with the p
 });
 
 test('chromium: after the second step, the paused notice replaces the code form', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const owed = { status: 202, json: { pending_token: 'p1', methods: ['TOTP', 'RECOVERY'], expires_at: '2099-01-01T00:00:00Z' } };
   const { page, context } = await signInTo(browser, owed, paused({ account_url: ACCOUNT_PAGE }));
   t.after(() => context.close());
@@ -92,8 +90,7 @@ test('chromium: after the second step, the paused notice replaces the code form'
 });
 
 test('chromium: anybody else is told the workspace is paused, without a link', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signInTo(browser, paused());
   t.after(() => context.close());
 
@@ -102,8 +99,7 @@ test('chromium: anybody else is told the workspace is paused, without a link', a
 });
 
 test('chromium: a workspace paused under a session signs the person out to the same notice', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 

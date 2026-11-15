@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -88,8 +88,7 @@ async function as(browser, permissions, { verifyOk = true } = {}) {
 const cardText = async (page, id) => ((await page.locator(`[data-card="${id}"]`).textContent()) ?? '').replace(/\s+/g, ' ').trim();
 
 test('chromium: the administration opens on an overview of what needs attention, each linked to its page', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const owner = await as(browser, PERMISSIONS.OWNER);
   t.after(() => owner.context.close());
   const { page } = owner;
@@ -151,8 +150,7 @@ test('chromium: the administration opens on an overview of what needs attention,
 });
 
 test('chromium: a backup that did not open says so and comes first among the cards that need somebody', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const owner = await as(browser, PERMISSIONS.OWNER, { verifyOk: false });
   t.after(() => owner.context.close());
   await owner.page.goto(`${served.origin}/administration`);
@@ -161,8 +159,7 @@ test('chromium: a backup that did not open says so and comes first among the car
 });
 
 test('chromium: an auditor reads the overview with nothing to change and no register they may not read', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const auditor = await as(browser, PERMISSIONS.AUDITOR);
   t.after(() => auditor.context.close());
   const { page } = auditor;
@@ -181,8 +178,7 @@ test('chromium: an auditor reads the overview with nothing to change and no regi
 });
 
 test('chromium: the first steps tick what is done, link what is not, and stay hidden once hidden', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const owner = await as(browser, PERMISSIONS.OWNER);
   t.after(() => owner.context.close());
   const { page } = owner;

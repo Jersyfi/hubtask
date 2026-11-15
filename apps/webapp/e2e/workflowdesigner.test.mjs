@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, PERMISSIONS, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -32,8 +32,7 @@ const FROM_TEMPLATE = { key: 'itil_incident', system: false, name: 'Incident', p
 const SHIPPED = { key: 'default', system: true, name: null, published: shape, draft: null, published_at: null, version: 1 };
 
 test('chromium: the designer opens a workflow a template brought', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   forgetUnstubbed();

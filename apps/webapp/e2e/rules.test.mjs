@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -205,8 +205,7 @@ async function open(browser, written, viewport, tested) {
 }
 
 test('chromium: a card moves by keyboard and by drag, and the write carries the new order', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 900 });
 
@@ -239,8 +238,7 @@ test('chromium: a card moves by keyboard and by drag, and the write carries the 
 });
 
 test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowhere else', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 900 });
 
@@ -259,8 +257,7 @@ test('chromium: the guardrails are the head\'s chip and the Rule tab, and nowher
 });
 
 test('chromium: at the narrowest width beside the panel a selected card keeps its ring, and the background deselects', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   // Just above the expanded breakpoint: the canvas and the panel side by side with the least
   // room between them, which is where a content-box card overhung its column (design-system.md §6).
@@ -302,8 +299,7 @@ test('chromium: at the narrowest width beside the panel a selected card keeps it
 });
 
 test('chromium: a deep link into the editor reads each resource once, and only what the first paint needs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
   const seen = [];
   const stub = stubFor([]);
@@ -353,8 +349,7 @@ test('chromium: a deep link into the editor reads each resource once, and only w
 });
 
 test('chromium: a step\'s form shows what a rule can decide: no plumbing, the run\'s fields in one line, a date as a date', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 1400, height: 1000 });
   await page.locator('[data-card="1/then/0"]').click();
   const inspector = page.locator('aside.inspector');
@@ -367,8 +362,7 @@ test('chromium: a step\'s form shows what a rule can decide: no plumbing, the ru
 });
 
 test('chromium: a card moves by drag into a branch below it, arms and all', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 1400, height: 1200 });
   const cards = async () => page.locator('[data-canvas] [data-card]').evaluateAll((els) => els.map((el) => el.getAttribute('data-card')));
 
@@ -397,8 +391,7 @@ test('chromium: a card moves by drag into a branch below it, arms and all', asyn
 });
 
 test('chromium: every building block carries its icon, and a kind outside the groups is found by typing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 1400, height: 900 });
 
   // The Blocks tab of the panel (automation.md §1.5): an icon in every item; the curated groups on the
@@ -425,8 +418,7 @@ test('chromium: every building block carries its icon, and a kind outside the gr
 });
 
 test('chromium: End the run belongs at the end of an arm, a branch ending on every path ends the chain, and + Else if adds a rung', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 1400, height: 1200 });
   const titles = async () => page.locator('[data-canvas] [data-card="0"] .title, [data-canvas] [data-card="1"] .title, [data-canvas] [data-card="2"] .title, [data-canvas] [data-card="3"] .title').allTextContents();
 
@@ -476,8 +468,7 @@ test('chromium: End the run belongs at the end of an arm, a branch ending on eve
 });
 
 test('chromium: a condition is composed as a tree in the gate and in a branch, and the write carries the CEL', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 1200 });
   const inspector = page.locator('aside.inspector');
@@ -517,8 +508,7 @@ test('chromium: a condition is composed as a tree in the gate and in a branch, a
 });
 
 test('chromium: the gate is edited as one thing, a group is offered from the first sentence, and a rung has a trash', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 1200 });
   const inspector = page.locator('aside.inspector');
@@ -575,8 +565,7 @@ test('chromium: the gate is edited as one thing, a group is offered from the fir
 });
 
 test('chromium: a trigger let go on a gap is refused with its sentence, and the trigger stays', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 1400, height: 900 });
 
   // While the piece is lifted: the hint on its own line, whole; the trigger card's strip inside
@@ -618,8 +607,7 @@ test('chromium: a trigger let go on a gap is refused with its sentence, and the 
 });
 
 test('chromium: at phone width the details come as a sheet and a branch shows one arm at a time', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 375, height: 812 });
 
   // The branch: one arm shown, the switch naming both with their counts.
@@ -642,8 +630,7 @@ test('chromium: at phone width the details come as a sheet and a branch shows on
 });
 
 test('chromium: the sheet keeps its head, is sized by the reader, and keeps that size', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const page = await open(browser, [], { width: 375, height: 812 });
 
   await page.locator('[data-card="0"]').click();
@@ -708,8 +695,7 @@ test('chromium: the sheet keeps its head, is sized by the reader, and keeps that
 });
 
 test('chromium: the panel ends where the region ends, and the Runs as warning leads to the field', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
   await context.route('**/api/v1/**', stubFor([], undefined));
   await context.addInitScript(() => {
@@ -769,8 +755,7 @@ test('chromium: the panel ends where the region ends, and the Runs as warning le
 });
 
 test('chromium: the editor says what is missing before the probe is pressed', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1400, height: 1100 } });
   await context.route('**/api/v1/**', stubFor([], undefined));
   await context.addInitScript(() => {
@@ -812,8 +797,7 @@ test('chromium: the editor says what is missing before the probe is pressed', as
 });
 
 test('chromium: the probe runs the canvas\'s definition through the dry run and draws the answer', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 1200 });
 
@@ -841,8 +825,7 @@ test('chromium: the probe runs the canvas\'s definition through the dry run and 
 });
 
 test('chromium: a sample the gate refuses stops at the gate, and a recorded run is drawn from its log', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 1200 }, TEST_NOT_HELD);
 
@@ -869,8 +852,7 @@ test('chromium: a sample the gate refuses stops at the gate, and a recorded run 
 });
 
 test('chromium: the list checks the rules when it opens and says what the check found', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
   await context.route('**/api/v1/**', stubFor(written));
@@ -915,8 +897,7 @@ test('chromium: the list checks the rules when it opens and says what the check 
 });
 
 test('chromium: a step naming a deleted label says it is gone, never its identifier', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
   await context.route('**/api/v1/**', stubFor([]));
   await context.addInitScript(() => {
@@ -939,8 +920,7 @@ test('chromium: a step naming a deleted label says it is gone, never its identif
 });
 
 test('chromium: the runs page opens prefiltered on a rule and narrows to a window', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
   await context.route('**/api/v1/**', stubFor(written));
@@ -979,8 +959,7 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
 // *Start now* is in every rule's editor (ux-inventory.md §E9): a rule somebody starts is started
 // from there, and any other rule says why it is not, as the server would (UC-AUT-03 check 4).
 test('chromium: every rule\'s editor has Start now, and only a rule somebody starts is started', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
   await context.route('**/api/v1/**', stubFor(written, TEST_HELD, [RULE, STALE, MANUAL]));
@@ -1020,8 +999,7 @@ test('chromium: every rule\'s editor has Start now, and only a rule somebody sta
 // list; a name nobody bears is refused by name, and the write carries the line with its names as
 // identifiers.
 test('chromium: the trigger chooses its entries with one query line, names resolved before the write', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const written = [];
   const page = await open(browser, written, { width: 1400, height: 900 });
 

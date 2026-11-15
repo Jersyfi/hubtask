@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -158,8 +158,7 @@ async function common(page, width) {
 }
 
 test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, the account behind the avatar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 375);
   t.after(close);
   await common(page, 375);
@@ -248,8 +247,7 @@ test('chromium: 375 px — the bottom bar with Browse, the levels as a stack, th
 });
 
 test('chromium: 600 px — the drawer holds both groups, the avatar is in the bar, no bottom bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 600);
   t.after(close);
   await common(page, 600);
@@ -284,8 +282,7 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
 });
 
 test('chromium: 600 px — the drawer closed and opened again at once stays open', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, 600);
   t.after(close);
 
@@ -314,8 +311,7 @@ test('chromium: 600 px — the drawer closed and opened again at once stays open
 
 for (const width of [905, 1280]) {
   test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar alone in the bar`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures, close } = await open(browser, width);
     t.after(close);
     await common(page, width);
@@ -478,8 +474,7 @@ const EMPTY_HUB = { id: '01a0e2e0-0000-7000-8000-00000000000e', type: 'HUB', par
 test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and is still a place', async (t) => {
   // A hub's row carries no twist (the navigation concept, §2.3): it opens the hub's level, which
   // is where a collection is made - so an empty hub promises nothing it cannot keep.
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', (route) => {
@@ -526,8 +521,7 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
 // the foot of the sign-in screen while there is not - a barrier at the door is the one that
 // nothing behind the door makes up for.
 test('chromium: the accessibility statement is reachable signed in, and signed out only as the operator sets it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
@@ -571,8 +565,7 @@ test('chromium: the accessibility statement is reachable signed in, and signed o
 // drawn for a session, and the reservation was not conditioned on one. Signed out the screen
 // therefore ended 56 px above the bottom with nothing in the gap, and scrolled into it.
 test('chromium: 375 px — signed out, nothing is reserved for a bar that is not drawn', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 375, { signedIn: false });
   t.after(close);
 

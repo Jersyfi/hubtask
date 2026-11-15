@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ARCHIVED, COLLECTION, signedIn, viewLink, chooseView } from './fixture.mjs';
@@ -23,8 +23,7 @@ test.after(() => served.close());
 const chosen = (page) => page.locator('[data-tour="layouts"] [aria-current="page"]').first().textContent();
 
 test('chromium: 1280 px — a chosen layout survives a reload, per collection, on this device only', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
 

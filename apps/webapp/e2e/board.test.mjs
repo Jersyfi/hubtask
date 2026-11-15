@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, ITEMS, signedIn, stub, chooseView } from './fixture.mjs';
@@ -67,8 +67,7 @@ async function carry(page, from, to, { steps = 12, hold = 0 } = {}) {
 }
 
 test('chromium: a card is carried from anywhere on it, and the click that ends the carry opens nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await board(browser);
   t.after(close);
 
@@ -95,8 +94,7 @@ test('chromium: a card is carried from anywhere on it, and the click that ends t
 });
 
 test('chromium: a carried card is held above every column, and the cards it passes open a gap rather than lie under it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await board(browser);
   t.after(close);
 
@@ -149,8 +147,7 @@ test('chromium: a carried card is held above every column, and the cards it pass
 });
 
 test('chromium: a press that does not travel is still the click it always was', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await board(browser);
   t.after(close);
 
@@ -171,8 +168,7 @@ test('chromium: a press that does not travel is still the click it always was', 
 });
 
 test('chromium: a finger that moves at once is scrolling, and one that waits is carrying', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written, close, unstubbed } = await board(browser, { hasTouch: true });
   t.after(close);
   assert.equal(await page.evaluate(() => navigator.maxTouchPoints > 0), true, 'the page met no touch screen');
@@ -203,8 +199,7 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
 });
 
 test('chromium: a board opened at its own address draws its cards, though the manifest arrives after it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, close } = await board(browser);
   t.after(close);
 
@@ -222,8 +217,7 @@ test('chromium: a board opened at its own address draws its cards, though the ma
 });
 
 test('chromium: a card says what it holds - its parts, comments and files - and a title alone takes no more room', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await board(browser);
   t.after(close);
 
@@ -242,8 +236,7 @@ test('chromium: a card says what it holds - its parts, comments and files - and 
 // build-plan §5: completion and the done column are kept together by the server through every
 // door - a card marked as done sends the completion only, never a column move of the client's own.
 test('chromium: a card marked as done from its menu sends the completion alone', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await board(browser);
   t.after(close);
 

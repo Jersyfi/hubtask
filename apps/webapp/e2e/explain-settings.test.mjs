@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, MANIFEST, signedIn } from './fixture.mjs';
@@ -22,8 +22,7 @@ test.after(() => served.close());
 
 for (const width of [375, 768, 1280]) {
   test(`chromium: ${width} px — the profile shows a save bar with its changes, sends only them, and confirms`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await signedIn(browser, width, 900);
     const sent = [];
     await context.route(`**/api/v1/accounts/${ACCOUNT.id}/preferences`, (route) => {
@@ -78,8 +77,7 @@ async function withNotifications(context) {
 
 for (const width of [375, 768, 1280]) {
   test(`chromium: ${width} px — the always-on row says it once, and its box does not flip`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await signedIn(browser, width, 900);
     await withNotifications(context);
     await page.goto(`${served.origin}/profile/notifications`);
@@ -98,8 +96,7 @@ for (const width of [375, 768, 1280]) {
   });
 
   test(`chromium: ${width} px — tokens and passkeys mark what is missing when pressed`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await signedIn(browser, width, 900);
     const sent = [];
     context.on('request', (request) => {
@@ -132,8 +129,7 @@ for (const width of [375, 768, 1280]) {
   });
 
   test(`chromium: ${width} px — a switch saves busy in place, and a toast confirms above the bars`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await signedIn(browser, width, 900);
     let release;
     const held = new Promise((resolve) => (release = resolve));

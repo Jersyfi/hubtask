@@ -17,7 +17,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { COLLECTION as KITCHEN, PERMISSIONS, fallback, signedIn, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -105,8 +105,7 @@ const ROUTES = [
 ];
 
 test('chromium: 375 px — every page hands its title to the bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -131,8 +130,7 @@ test('chromium: 375 px — every page hands its title to the bar', async (t) => 
 });
 
 test('chromium: the administration is a section, and the tree is not in it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -190,8 +188,7 @@ const SECTION = [
 ];
 
 test('chromium: every screen of the section says where it is and leads back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -238,8 +235,7 @@ test('chromium: every screen of the section says where it is and leads back', as
 });
 
 test('chromium: 375 px — the area is a level of the Browse stack, under the same bottom bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -267,8 +263,7 @@ test('chromium: 375 px — the area is a level of the Browse stack, under the sa
 });
 
 test('chromium: 375 px — the page menu is in the bar, and it is the head\'s own list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // The shared fixture's owner: a place's own menu holds only what may be done to it, and this
   // walk's own reader holds no role that may do anything to a place.
   const { page, failures, context } = await signedIn(browser, 375, 812);
@@ -312,8 +307,7 @@ test('chromium: 375 px — the page menu is in the bar, and it is the head\'s ow
 });
 
 test('chromium: 375 px — a long title ends in an ellipsis on one line, never over the way up or the buttons', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
   const long = { ...COLLECTION, name: 'Plan for the new logistics centre in Hamburg-Billbrook, second stage' };

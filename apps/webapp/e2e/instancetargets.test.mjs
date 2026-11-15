@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -78,8 +78,7 @@ async function open(browser) {
 }
 
 test('chromium: an operator adds a target of the installation behind a fresh proof', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -115,8 +114,7 @@ test('chromium: an operator adds a target of the installation behind a fresh pro
 });
 
 test('chromium: the export offers the installation\'s target by name, never where it points', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 

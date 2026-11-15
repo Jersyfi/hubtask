@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ALL, GOALS, PD, PD_BOARDS, PD_PAGES, WORKSPACE_GOAL, open, served, side } from './kompassstub.mjs';
 
@@ -44,8 +44,7 @@ async function drawn(page, title, path) {
 }
 
 test('R-18: page → whiteboard → page from Contents keeps the hub\'s level standing and draws no boundary', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: ALL, hubModules: ON, owner: true });
   t.after(close);
   const contents = side(page).getByRole('region', { name: PD.name }).getByRole('tree', { name: `Contents of ${PD.name}` });
@@ -63,8 +62,7 @@ test('R-18: page → whiteboard → page from Contents keeps the hub\'s level st
 });
 
 test('R-18 on a touch tablet: page → whiteboard → page from the drawer, each time at the hub\'s level, no boundary', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}`, width: 820, height: 1180, hasTouch: true, modulesOn: ALL, hubModules: ON, owner: true });
   t.after(close);
   for (const [title, path] of WALK()) {
@@ -80,8 +78,7 @@ test('R-18 on a touch tablet: page → whiteboard → page from the drawer, each
 });
 
 test('R-19: a goal of a hub stays at the hub level with Goals current; a workspace goal is at the workspace level', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { path: `/hubs/${PD.id}/goals`, modulesOn: ALL, hubModules: ON, owner: true });
   t.after(close);
   const level = side(page).getByRole('region', { name: PD.name });

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, PERMISSIONS, ROLES, fallback } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -247,8 +247,7 @@ async function noSidewaysScroll(page, label) {
 // The colour scheme changes no row or box here: one scheme per width.
 for (const scheme of ['light']) {
   test(`chromium 1280 px, ${scheme}: the products section, in one order, and a product's home with its hubs`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, { width: 1280, scheme, modulesOn: ['TIME', 'SERVICE_DESK', 'KNOWLEDGE'] });
     t.after(close);
     const side = page.locator('aside.sidenav');
@@ -296,8 +295,7 @@ for (const scheme of ['light']) {
 }
 
 test('chromium 1280 px: a product no hub uses says so and offers a hub; with nothing on there is no band', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const narrowed = await open(browser, { width: 1280, path: '/whiteboards', modulesOn: ['WHITEBOARD'], hubModules: [] });
   t.after(narrowed.close);
   await narrowed.page.getByText('No hub uses Whiteboards yet').waitFor({ timeout: 10_000 });
@@ -316,8 +314,7 @@ test('chromium 1280 px: a product no hub uses says so and offers a hub; with not
 
 for (const scheme of ['dark']) {
   test(`chromium 375 px, ${scheme}: Browse lists the products, the hub and the foot`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, { width: 375, scheme, modulesOn: ['SERVICE_DESK', 'ASSETS'] });
     t.after(close);
     // Today with *More in Hubtask* fits the phone; on a phone it stands in the overview half.
@@ -344,8 +341,7 @@ for (const scheme of ['dark']) {
 // user-experience.md §3.3: *More in Hubtask* offers the products that are off to whoever may switch
 // one on, each with what it does; *Try it* opens its home with the switch; it can be hidden for good.
 test('chromium 1280 px: Today offers the products that are off, and hides them for good', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, modulesOn: ['KNOWLEDGE'] });
   t.after(close);
   const more = page.getByRole('region', { name: 'More in Hubtask' });
@@ -368,8 +364,7 @@ test('chromium 1280 px: Today offers the products that are off, and hides them f
 // §2.2: the whiteboards' home lists the boards themselves, recent first, as cards.
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the whiteboards' home shows the boards, the last changed first`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, { width, scheme, path: '/whiteboards', modulesOn: ['WHITEBOARD'] });
     t.after(close);
     const recent = page.getByRole('region', { name: 'Recently changed boards' });
@@ -385,8 +380,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 // §7.8, page-system §9.5: the agents' home is their list, live first and a retired one last, each
 // row counting the acts waiting on it; the runs are a tab, the newest first.
 test('chromium 1280 px: the agents\' home lists the agents, their held acts and runs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: '/agents', modulesOn: ['AGENTS'] });
   t.after(close);
   const names = page.locator('[data-agent-row]');
@@ -417,8 +411,7 @@ test('chromium 1280 px: the agents\' home lists the agents, their held acts and 
 // The assets' home opens with the inventory's health across hubs.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   test(`chromium ${width} px, ${scheme}: the pages' home shows what waits for review and what changed`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, { width, scheme, path: '/pages', modulesOn: ['KNOWLEDGE'], role: 'OWNER' });
     t.after(close);
     const review = page.getByRole('region', { name: 'Due for your review · 1' });
@@ -456,8 +449,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   });
 
   test(`chromium ${width} px, ${scheme}: the assets' home opens with the inventory's health`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, { width, scheme, path: '/assets', modulesOn: ['ASSETS'] });
     t.after(close);
     const inventory = page.getByRole('region', { name: 'Inventory across your hubs' });
@@ -481,8 +473,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 // hub's desk collections only, with their counts, what breaks first on top (UC-SVC-03).
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the desk's home and the hub's Queues draw the queues`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     queries.length = 0;
     const { page, failures, close } = await open(browser, { width, scheme, path: '/desk', modulesOn: ['WORKFLOWS', 'SERVICE_DESK'] });
     t.after(close);
@@ -591,8 +582,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 
 // UX-5, §5.5: a hub with no desk yet offers whoever shapes it the ITIL desk's plan at its *Templates and presets*.
 test('chromium 1280 px: a hub with no desk offers the ITIL desk to whoever shapes it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}/desk`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskless: true, role: 'OWNER' });
   t.after(close);
   await page.getByText('This hub has no desk yet').waitFor({ timeout: 10_000 });
@@ -604,8 +594,7 @@ test('chromium 1280 px: a hub with no desk offers the ITIL desk to whoever shape
 // A handler with nothing of their own opens on the first queue that holds a request, not on an
 // empty *Mine* while requests wait unassigned.
 test('chromium 1280 px: the desk opens on the first queue that holds a request', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const mine = QUEUES.mine;
   QUEUES.mine = [];
   t.after(() => { QUEUES.mine = mine; });
@@ -627,8 +616,7 @@ test('chromium 1280 px: the desk opens on the first queue that holds a request',
 // UC-SVC-03 check 12 (scene queue): a desk collection's own list is its queue - the key leading
 // each row and its head, the queue's columns, grouped by status, each group ending in the desk's add.
 test('chromium 1280 px: a desk collection\'s own list is its queue, grouped by status with the key first', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: `/collections/${DESK.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskFlow: true, role: 'OWNER' });
   t.after(close);
   const table = page.locator('[data-desk][data-table]');
@@ -658,8 +646,7 @@ test('chromium 1280 px: a desk collection\'s own list is its queue, grouped by s
 // status and priority, one SLA bar and the person at the end of the title's line - no line of
 // its own for labels or ⋯, whose menu a swipe or a long press opens.
 test('chromium 390 px: a desk collection\'s phone row is title, one meta line, one SLA bar and the person', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 390, path: `/collections/${DESK.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK'], deskFlow: true, role: 'OWNER' });
   t.after(close);
   const row = page.locator('[data-row][data-phone]').filter({ hasText: 'VPN drops at noon' }).first();
@@ -694,8 +681,7 @@ test('chromium 390 px: a desk collection\'s phone row is title, one meta line, o
 
 // §2.2: the plans' home lists the releases still to go out, the soonest first.
 test('chromium 375 px, dark: the plans\' home lists the releases to come', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 375, scheme: 'dark', path: '/plans', modulesOn: ['PLANNING'] });
   t.after(close);
   // *For you* (scene homeplans): the releases to come as a card, the soonest first.
@@ -712,8 +698,7 @@ test('chromium 375 px, dark: the plans\' home lists the releases to come', async
 // §2.2, §7.9: the plans' home lists the sprints running in the hubs' collections, with where and
 // how long, and a hub's row names its running sprint.
 test('chromium 1280 px: the plans\' home lists the sprints running and says each hub\'s', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING'] });
   t.after(close);
   // *For you* (scene homeplans): the sprint that ends first as a card - its days left, what is done
@@ -737,8 +722,7 @@ test('chromium 1280 px: the plans\' home lists the sprints running and says each
 // §7.9: a hub's overview says one line per product on there - the running sprint and the next
 // release, the pages changed this week, the inventory - each leading to where it is about.
 test('chromium 1280 px: a hub\'s overview says one line per product on there', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['PLANNING', 'KNOWLEDGE', 'ASSETS', 'WHITEBOARD'] });
   t.after(close);
   // One boxed line per tool, then one for the content tree (the navigation concept §2.4): what it
@@ -761,8 +745,7 @@ test('chromium 1280 px: a hub\'s overview says one line per product on there', a
 // §7.9: the desk's, time's and goals' lines, and the hub's recent activity - the entries of its
 // collections changed last - each leading to where it is about.
 test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what changed last', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: `/hubs/${HUB.id}`, modulesOn: ['WORKFLOWS', 'SERVICE_DESK', 'TIME', 'GOALS', 'WHITEBOARD'] });
   t.after(close);
   const lines = page.getByRole('list', { name: 'What the products say here' });
@@ -801,8 +784,7 @@ test('chromium 1280 px: a hub\'s overview says the desk, time and goals and what
 // §5.1/§5.2: the plans' head carries its primary create act, as every product home does: *Plan a
 // sprint* leads to a collection's sprints, the other collections in its menu.
 test('chromium 1280 px: the plans\' home leads its create act to a collection\'s sprints', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING'] });
   t.after(close);
   const plan = page.getByRole('button', { name: 'Plan a sprint', exact: true });
@@ -822,8 +804,7 @@ test('chromium 1280 px: the plans\' home leads its create act to a collection\'s
 // kinds as facets with counts; with no entry matching, the screen does not say nothing matches.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   test(`chromium ${width} px, ${scheme}: the search finds pages and boards beside entries, a facet per kind`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, close } = await open(browser, { width, scheme, path: '/search', modulesOn: ['KNOWLEDGE', 'WHITEBOARD'] });
     t.after(close);
     // A phone's line waits in its filter sheet; wider, it stands over the hits.
@@ -856,8 +837,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 // opacity and transform only - and nothing moves where the system or the product asks for less.
 // Counted at `Element.animate`, because an arrival is over before a poll could see it.
 test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced motion', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const watch = () => {
     window.__arrivals = [];
     const animate = Element.prototype.animate;
@@ -899,8 +879,7 @@ test('chromium 1280 px: a home\'s rows arrive, and nothing moves under reduced m
 // §6.11, UC-WRK-18 check 9: goals, configuration items and dashboards are found by the search page
 // and by the header search, from the one search over every kind, each hit opening where it lives.
 test('chromium 1280 px: the search and the palette find goals, configuration items and dashboards', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['WHITEBOARD', 'GOALS', 'ASSETS'] });
   t.after(close);
   for (const [words, kind, href] of [
@@ -930,8 +909,7 @@ test('chromium 1280 px: the search and the palette find goals, configuration ite
 // UC-WRK-18 check 9: portfolios, releases and sprints are found by both searches, each with its
 // facet, saying its kind, and opening where its product draws it.
 test('chromium 1280 px: the search and the palette find portfolios, releases and sprints', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: '/search', modulesOn: ['GOALS', 'PLANNING'] });
   t.after(close);
   const cases = [
@@ -960,8 +938,7 @@ test('chromium 1280 px: the search and the palette find portfolios, releases and
 // §2.2: a home's hub rows say each hub's state, not its name alone - the plans' its next release,
 // the assets' its inventory - with the hub's own figure where it counts one.
 test('chromium 1280 px: the plans\' and the assets\' hub rows say each hub\'s state', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, path: '/plans', modulesOn: ['PLANNING', 'ASSETS'] });
   t.after(close);
   // The plans in the reader's hubs: the phase now, the sprint and the release, the delay in its

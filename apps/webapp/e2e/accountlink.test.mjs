@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, PAGE, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -42,8 +42,7 @@ async function withManifest(browser, answer, extra = () => undefined) {
 }
 
 test('chromium: an owner finds the provider\'s account page beside "Not included in your plan"', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await withManifest(browser, { not_included: ['AUTOMATION_RULES'], account_link: ACCOUNT_PAGE });
   t.after(() => context.close());
 
@@ -56,8 +55,7 @@ test('chromium: an owner finds the provider\'s account page beside "Not included
 });
 
 test('chromium: where no link is answered, the notice stands alone', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await withManifest(browser, { not_included: ['AUTOMATION_RULES'] });
   t.after(() => context.close());
 
@@ -76,8 +74,7 @@ const STANDINGS = [
 ];
 
 test('chromium: a reached limit says what still works, with the provider\'s account page for an owner', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const quotas = (route, _request, path) => (path === '/quotas' ? route.fulfill({ json: STANDINGS }) : undefined);
   const { page, failures, context } = await withManifest(browser, { account_link: ACCOUNT_PAGE }, quotas);
   t.after(() => context.close());

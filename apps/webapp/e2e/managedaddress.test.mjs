@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -71,8 +71,7 @@ async function open(browser, { me = LENA, signedIn = true, confirm = 204, method
 }
 
 test('a managed person adds an address on the profile, and a link goes to it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -86,8 +85,7 @@ test('a managed person adds an address on the profile, and a link goes to it', a
 });
 
 test('where the password is not a way in, the profile says why instead of offering an address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { methods: ['OIDC'] });
   t.after(close);
 
@@ -98,8 +96,7 @@ test('where the password is not a way in, the profile says why instead of offeri
 });
 
 test('where only the password is a way in, the profile offers the address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { methods: ['PASSWORD'] });
   t.after(close);
 
@@ -108,8 +105,7 @@ test('where only the password is a way in, the profile offers the address', asyn
 });
 
 test('a person with an address is offered none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { me: ACCOUNT });
   t.after(close);
 
@@ -121,8 +117,7 @@ test('a person with an address is offered none', async (t) => {
 });
 
 test('the mailed link confirms on a press, with the token out of the address first', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, { signedIn: false });
   t.after(close);
 
@@ -137,8 +132,7 @@ test('the mailed link confirms on a press, with the token out of the address fir
 });
 
 test('a link that cannot confirm says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { signedIn: false, confirm: 401 });
   t.after(close);
 

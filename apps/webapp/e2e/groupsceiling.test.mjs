@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -83,8 +83,7 @@ async function menuOf(page, row, name) {
 }
 
 test('an administrator is not offered to revoke an owner', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -98,8 +97,7 @@ test('an administrator is not offered to revoke an owner', async (t) => {
 });
 
 test('a group above the reader keeps its name editable and nothing else, and says why', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ids, productWalk } from './productwalk.mjs';
@@ -151,8 +151,7 @@ for (const [name, key, shows] of [
   ['Goal period', 'goals_period', []],
 ]) {
   test(`chromium: an empty workspace takes ${name} from the goals' empty state, and the quarter shows it`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const world = backend();
     const walk = await productWalk(browser, { modules: ['GOALS'], answer: world.answer });
     t.after(walk.close);
@@ -182,8 +181,7 @@ for (const [name, titled, key, shows, hasKinds] of [
   ['Billable', 'Consulting', 'time_consulting', ['Consulting', 'Implementation', 'Travel', 'Internal work', 'Sales and offers'], false],
 ]) {
   test(`chromium: an empty workspace takes ${titled} from time's empty state, and its kinds of work are there`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const world = backend();
     if (hasKinds) world.kinds.push({ key: 'development', name: 'Development', billable: false, archived: false, position: 1, version: 1 });
     const walk = await productWalk(browser, { modules: ['TIME'], answer: world.answer });
@@ -220,8 +218,7 @@ for (const [name, titled, key, shows, hasKinds] of [
 // Time's card says its way to record, Billable; its dialog names the template it takes.
 for (const [module, path, name, key, titled] of [['GOALS', '/goals', 'Team health', 'goals_team_health', 'Team health'], ['TIME', '/time', 'Billable', 'time_consulting', 'Consulting']]) {
   test(`chromium: with ${module} switched off, its first empty state offers the templates beside the switch`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const world = backend();
     const walk = await productWalk(browser, { modules: [], answer: world.answer });
     t.after(walk.close);

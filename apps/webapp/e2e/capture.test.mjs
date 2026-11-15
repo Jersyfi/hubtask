@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, CREATED_ID, GROCERIES, HUB, ITEMS, JUMBLED, LABELS, MANIFEST, OTHER, PAGE, PERMISSIONS, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -107,8 +107,7 @@ async function as(browser, permissions, hubRole, width = 1280) {
 }
 
 test('chromium: Q and the bar’s Create open Create, whose line is the capture field (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   const create = () => page.getByRole('banner').getByRole('button', { name: 'Create' });
@@ -140,8 +139,7 @@ test('chromium: Q and the bar’s Create open Create, whose line is the capture 
 });
 
 test('chromium: 375 px — the bottom bar’s ＋ opens Create, and its line the field (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 375, 800, { hasTouch: true });
   t.after(() => context.close());
 
@@ -159,8 +157,7 @@ test('chromium: 375 px — the bottom bar’s ＋ opens Create, and its line the
 });
 
 test('chromium: the story — chips, the entry in the right place on the person’s tomorrow, Open and Undo (checks 2, 4, 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900, { timezoneId: ZONE });
   t.after(() => context.close());
   await context.clock.setFixedTime(NEAR_MIDNIGHT);
@@ -214,8 +211,7 @@ test('chromium: the story — chips, the entry in the right place on the person�
 // the text, kept as typed. At a phone's width through the bottom bar's ＋, wider through the bar's.
 for (const width of [390, 1280]) {
   test(`chromium: ${width} px — from the jumble, the first line is the subject and the rest its text`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await signedIn(browser, width);
     t.after(() => context.close());
     const writes = recordWrites(page);
@@ -234,8 +230,7 @@ for (const width of [390, 1280]) {
 }
 
 test('chromium: without a collection the jumble, and its Undo dismisses (check 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   const writes = recordWrites(page);
@@ -258,8 +253,7 @@ test('chromium: without a collection the jumble, and its Undo dismisses (check 4
 });
 
 test('chromium: a list takes no date, person or label, and makes one entry per line; Undo is one bulk (check 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   await context.route('**/api/v1/containers**', async (route) => {
@@ -297,8 +291,7 @@ test('chromium: a list takes no date, person or label, and makes one entry per l
 });
 
 test('chromium: a list reads amounts and lines - the amount chip, taken back keeps the number (checks 2, 3)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   await context.route('**/api/v1/containers**', async (route) => {
@@ -357,8 +350,7 @@ test('chromium: a list reads amounts and lines - the amount chip, taken back kee
 });
 
 test('chromium: a reader who may create nowhere has no capture at all (check 1, P-05)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const width of [1280, 375]) {
     const { context, page, failures } = await as(browser, PERMISSIONS.VIEWER, 'VIEWER', width);
     await land(page, `/collections/${COLLECTION.id}`);
@@ -373,8 +365,7 @@ test('chromium: a reader who may create nowhere has no capture at all (check 1, 
 });
 
 test('chromium: a child with one hub and no workspace role captures into their own collection (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, PERMISSIONS.BELOW, 'MEMBER');
   t.after(() => context.close());
   const writes = recordWrites(page);
@@ -402,8 +393,7 @@ test('chromium: a child with one hub and no workspace role captures into their o
 });
 
 test('chromium: by keyboard alone, and said to a screen reader (check 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   const writes = recordWrites(page);
@@ -445,8 +435,7 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
 });
 
 test('chromium: every add opens capture pointed at its place - the chip, suggestions, the modes and keep capturing (check 7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280);
   t.after(() => context.close());
   await context.route('**/api/v1/containers**', async (route) => {

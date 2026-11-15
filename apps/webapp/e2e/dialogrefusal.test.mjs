@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB, signedIn, stub } from './fixture.mjs';
@@ -23,8 +23,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: a refused new whiteboard leaves the reader where they were with the reason in words (scene wnew)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');
@@ -55,8 +54,7 @@ const SERVER_CLASS = {
 };
 
 test('chromium: a refused new configuration item says why inside its dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');
@@ -91,8 +89,7 @@ const REFUSED = {
 };
 
 test('chromium: a refused new forge keeps its dialog open with the name and the reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await signedIn(browser, 1280, 1000);
   t.after(() => context.close());
   await context.route(`**/api/v1/hubs/${HUB.id}/code-hooks`, (route) =>
@@ -109,8 +106,7 @@ test('chromium: a refused new forge keeps its dialog open with the name and the 
 });
 
 test('chromium: a refused new model says why inside its dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, {
     modules: ['AGENTS'],
     answer: (method, path) => {

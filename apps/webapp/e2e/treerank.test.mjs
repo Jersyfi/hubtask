@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, PAGE, signedIn } from './fixture.mjs';
@@ -89,8 +89,7 @@ async function workspace(page, { role = 'OWNER' } = {}) {
 const said = (page) => page.locator('.announcement[role="status"]');
 
 test('chromium: Alt+arrows rank a hub, the focus stays with it, and the move is said', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const { tree, writes, order } = await workspace(page);
@@ -116,8 +115,7 @@ test('chromium: Alt+arrows rank a hub, the focus stays with it, and the move is 
 });
 
 test('chromium: a hub dragged by its row lands where it is let go, and letting go opens nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const { tree, writes, order } = await workspace(page);
@@ -151,8 +149,7 @@ test('chromium: a hub dragged by its row lands where it is let go, and letting g
 });
 
 test('chromium: a collection ranks among its hub’s collections by the same move the page menu sends', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const { tree, writes, order } = await workspace(page);
@@ -182,8 +179,7 @@ test('chromium: a collection ranks among its hub’s collections by the same mov
 });
 
 test('chromium: a reader whose role may not shape the workspace has no grip and no rank key (P-05)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const { tree, writes } = await workspace(page, { role: 'VIEWER' });

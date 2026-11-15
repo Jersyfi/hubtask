@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, signedIn, stub } from './fixture.mjs';
@@ -57,8 +57,7 @@ const inside = (inner, outer) =>
   inner.x >= outer.x - 1 && inner.y >= outer.y - 1 && inner.x + inner.width <= outer.x + outer.width + 1 && inner.y + inner.height <= outer.y + outer.height + 1;
 
 test('chromium: the board has no head; islands in the four corners and the dock at the foot cover under 8 % (W-1), and a sheet moves neither the canvas nor hides the dock', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 1280, 860, `/whiteboards/${BOARD_ID}`);
   t.after(() => context.close());
   const canvas = page.getByRole('application');
@@ -102,8 +101,7 @@ test('chromium: the board has no head; islands in the four corners and the dock 
 });
 
 test('chromium: on a phone the tools are at the foot of the board, all on the screen, and nothing scrolls sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 375, 812, `/whiteboards/${BOARD_ID}`);
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -122,8 +120,7 @@ test('chromium: on a phone the tools are at the foot of the board, all on the sc
 });
 
 test('chromium: on a phone the name and star stand once, and the list, the history and moderation are rows of the board menu (§7, WCAG 2.5.7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, 390, 844, `/whiteboards/${BOARD_ID}`);
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -146,8 +143,7 @@ test('chromium: on a phone the name and star stand once, and the list, the histo
 });
 
 test('chromium: an empty hub starts a board from a template in one press, named and drawn from it, with no dialog between (UC-CNV-01 check 12)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const posted = [];
   const { page, context, failures } = await open(browser, 1280, 860, `/hubs/${HUB.id}/whiteboards`, { posted });
   t.after(() => context.close());

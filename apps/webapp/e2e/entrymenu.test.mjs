@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ARCHIVED, CHILDREN, COLLECTION, GROCERIES, ITEMS, signedIn, stub, viewLink, chooseView } from './fixture.mjs';
@@ -105,8 +105,7 @@ async function everyWayIn(page, row, title) {
 }
 
 test('chromium: 1280 px — the list, the board, the timeline, the subtree and search offer one menu', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The list.
   const list = await open(browser, `/collections/${COLLECTION.id}`);
@@ -175,8 +174,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
 });
 
 test('chromium: 1280 px — the entry\'s own page carries the same menu in its head, without Open (UC-WRK-28 check 2)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const entry = await open(browser, `/items/${DATED.id}`);
   t.after(() => entry.context.close());
   await entry.page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
@@ -209,8 +207,7 @@ test('chromium: 1280 px — the entry\'s own page carries the same menu in its h
 });
 
 test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboard is, its chips always', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const list = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => list.context.close());
   const row = list.page.locator(`[data-row="${ITEMS[0].id}"]`);
@@ -246,8 +243,7 @@ test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboar
 });
 
 test('chromium: 390 px with a touch screen — a still long press opens the menu, Select first, and Select picks', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width: 390, hasTouch: true });
   t.after(() => context.close());
   const row = page.locator(`[data-row="${DATED.id}"] .title`).first();
@@ -277,8 +273,7 @@ test('chromium: 390 px with a touch screen — a still long press opens the menu
 });
 
 test('chromium: 375 × 812 — the menu of the last row on screen opens as a sheet on screen, every item reachable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width: 375, height: 812 });
   t.after(() => context.close());
   await page.locator('[data-row] a').first().waitFor({ timeout: 15_000 });
@@ -322,8 +317,7 @@ test('chromium: 375 × 812 — the menu of the last row on screen opens as a she
 // UC-WRK-28 check 4: Ctrl or ⌘-click selects in the list and on the board; on touch, the still
 // hold's Select does (the 390 px test above).
 test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it picks a row in the list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const row = page.locator(`[data-row="${DATED.id}"] .title`).first();
@@ -350,8 +344,7 @@ test('chromium: 1280 px — Ctrl or ⌘-click picks a card on the board, as it p
 });
 
 test('chromium: the pane opens from a card and a timeline row at 1280 px, and the page below large', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [width, beside] of [[1280, true], [1024, false]]) {
     const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width });
     t.after(() => context.close());
@@ -376,8 +369,7 @@ test('chromium: the pane opens from a card and a timeline row at 1280 px, and th
 });
 
 test('chromium: 1280 px — Move to another collection and Duplicate ask first and write nothing until confirmed', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const trigger = page.getByRole('button', { name: `Actions for ${ITEMS[2].title}`, exact: true }).first();
@@ -397,8 +389,7 @@ test('chromium: 1280 px — Move to another collection and Duplicate ask first a
 // see that are neither archived nor the current one, and what the destination could not keep is
 // listed by kind once the move is answered.
 test('chromium: 1280 px — a move elsewhere offers the other open collections and lists what it left behind by kind', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const entry = ITEMS[2];
@@ -443,8 +434,7 @@ test('chromium: 1280 px — a move elsewhere offers the other open collections a
 // UC-WRK-07 checks 2 and 5: *Duplicate* offers a title (the original's when left empty), the
 // subtree, and the collections of the same hub; what the destination cannot hold is listed by kind.
 test('chromium: 1280 px — Duplicate offers a title, the subtree and the hub\'s collections, and lists what it left behind by kind', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`);
   t.after(() => context.close());
   const entry = ITEMS[2];

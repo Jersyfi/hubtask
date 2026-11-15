@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -87,8 +87,7 @@ async function open(browser, { width, outsider, path, approvals = [APPROVAL] }) 
 
 // UC-SVC-05 checks 11 and 12, UC-SVC-09 check 5, UC-DOC-13 check 5.
 test('chromium 1280 px: an outsider gets the portal frame alone, approvals on top and counted, spaces in knowledge', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, asked, close } = await open(browser, { width: 1280, outsider: true, path: '/' });
   t.after(close);
   // Today is no outsider's place: they land in a portal.
@@ -144,8 +143,7 @@ test('chromium 1280 px: an outsider gets the portal frame alone, approvals on to
 });
 
 test('chromium 375 px: on a phone the outsider has four portal tabs at the foot', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 375, outsider: true, path: `/portal/${IT}` });
   t.after(close);
   const bar = page.getByRole('navigation', { name: 'Portal' });
@@ -166,8 +164,7 @@ test('chromium 375 px: on a phone the outsider has four portal tabs at the foot'
 
 // UC-SVC-05 check 13 (PO-5): one link, the right view for each.
 test('chromium: a request\'s link opens the portal request for its requester and the entry for the team', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const outsider = await open(browser, { width: 1280, outsider: true, path: `/items/${MINE}` });
   t.after(outsider.close);
   await outsider.page.waitForURL(`**/portal/requests/${MINE}`, { timeout: 15_000 });
@@ -182,8 +179,7 @@ test('chromium: a request\'s link opens the portal request for its requester and
 
 // UC-SVC-14/1, UC-SVC-14/2, UC-SVC-14/3, UC-SVC-14/4.
 test('chromium 1280 px: a member reaches every department through Erstellen, searches them all and sees their requests everywhere', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, outsider: false, path: `/portal/${IT}` });
   t.after(close);
   await page.locator('[data-portal-all-departments]').waitFor({ timeout: 15_000 });
@@ -210,8 +206,7 @@ test('chromium 1280 px: a member reaches every department through Erstellen, sea
 // P-12: a request's notes, the team's replies and an article read as formatted text - no `**`, no
 // `##` - and an HTML tag in the text is neither drawn nor run.
 test('chromium 1280 px: the portal reads notes, replies and articles formatted, never as Markdown', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, outsider: true, path: `/portal/requests/${MINE}` });
   t.after(close);
   const notes = page.locator('[data-portal-notes]');

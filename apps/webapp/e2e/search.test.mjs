@@ -22,7 +22,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { fallback, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -166,8 +166,7 @@ const waitForLine = (page, wanted) =>
 
 // UC-WRK-18 check 4.
 test('chromium: the bar leads to the search, and the words are not in the address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
   everything.length = 0;
@@ -200,8 +199,7 @@ test('chromium: the bar leads to the search, and the words are not in the addres
 
 // UC-WRK-18 check 4.
 test('chromium: a reload keeps the words, and the address never held them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -235,8 +233,7 @@ test('chromium: a reload keeps the words, and the address never held them', asyn
 
 // UC-WRK-18 check 4.
 test('chromium: a link carries the narrowing and none of the words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -265,8 +262,7 @@ test('chromium: a link carries the narrowing and none of the words', async (t) =
 });
 
 test('chromium: a narrowing is in the address, and a narrowing with no words is a search', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -299,8 +295,7 @@ test('chromium: a narrowing is in the address, and a narrowing with no words is 
 });
 
 test('chromium: a narrowing pressed in the bar reaches a screen already standing on one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
   asked.length = 0;
@@ -334,8 +329,7 @@ test('chromium: a narrowing pressed in the bar reaches a screen already standing
 });
 
 test('chromium: Enter with nothing typed does what the menu says it does', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
 
@@ -355,8 +349,7 @@ test('chromium: a hit found by meaning is marked, and hits are picked and acted 
   t.after(() => {
     answer = { ...PAGE, data: [HIT] };
   });
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, 1280);
   t.after(close);
   asked.length = 0;

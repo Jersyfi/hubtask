@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, MANIFEST, ITEMS, signedIn, stub } from './fixture.mjs';
@@ -138,8 +138,7 @@ const middleOf = async (locator) => {
 const rowOf = (page, item) => page.locator(`.timeline .rows [data-row="${item.id}"]`);
 
 test('chromium: 1280 px — a bar carried moves both dates, an end carried moves one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // The whole bar, two days later: the start as a scalar, the due as an all-day date.
   {
@@ -179,8 +178,7 @@ test('chromium: 1280 px — a bar carried moves both dates, an end carried moves
 });
 
 test('chromium: 1280 px — a knob drawn onto another row makes that row wait', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -210,8 +208,7 @@ test('chromium: 1280 px — a knob drawn onto another row makes that row wait', 
 });
 
 test('chromium: 1280 px — the table writes what the chart draws, from the keyboard', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -265,8 +262,7 @@ test('chromium: 1280 px — the table writes what the chart draws, from the keyb
 });
 
 test('chromium: 1280 px — a dependency is added and removed without a pointer (SC 2.1.1, 2.5.7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -305,8 +301,7 @@ test('chromium: 1280 px — a dependency is added and removed without a pointer 
 
 // E-16, E-20 (UC-PLN-02 check 7): one schedule, two presentations; the view panel saved as a view.
 test('chromium: 1280 px — the Gantt and the light timeline are one tab, and the plan\'s view is saved as a view', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -344,8 +339,7 @@ test('chromium: 1280 px — the Gantt and the light timeline are one tab, and th
 // Scene plandeps 2: what the plan cannot hold stands on top, the broken chip is marked, and *Free
 // the date* hands the entry kept by hand back to the scheduler.
 test('chromium: 1280 px — what the plan cannot hold is on top, and its date is freed', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const kept = SCHEDULE.entries.map((each) => (each.item_id === SECOND.id ? { ...each, mode: 'MANUAL' } : each));
   const broken = { ...SCHEDULE, entries: kept, conflicts: [{ predecessor_id: FIRST.id, successor_id: SECOND.id, dependency_kind: 'FS', earliest: addDays(today, 6) }] };
   const { page, failures, written, close, unstubbed } = await plan(browser, 1280, broken);
@@ -371,8 +365,7 @@ test('chromium: 1280 px — what the plan cannot hold is on top, and its date is
 // entry without dates waits in the tray with *Give it dates*, and a baseline is deleted behind
 // *Undo* - nothing is sent until the message leaves without it.
 test('chromium: 1280 px — the plan fits, names its critical chain, trays the undated and deletes a baseline softly', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await plan(browser);
   t.after(close);
 
@@ -426,8 +419,7 @@ test('chromium: 1280 px — the plan fits, names its critical chain, trays the u
 // §7.5 on a phone, the chart first: each title stands above its bar as wide as the screen and
 // stays in view while the chart scrolls within itself; the bars start at the screen's start.
 test('chromium: 375 px — the chart takes the width and its titles stand above the bars', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await plan(browser, 375);
   t.after(close);
   const at = await page.evaluate(() => {
@@ -463,8 +455,7 @@ test('chromium: 375 px — the chart takes the width and its titles stand above 
 // (and a row's menu shows under the pointer only)
 // beside the plan, which stays usable; between 600 and 904 a drawer over it.
 test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is a drawer at 800 px', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const wide = await plan(browser);
   t.after(wide.close);
   const { page } = wide;
@@ -511,8 +502,7 @@ test('chromium: the plan\'s view panel stands beside the plan at 1280 px and is 
 // §6.11 Q-2, ADR-0102 (scene planview): a view saved with a release's id shows the release's name
 // on its chip and in the panel, sends the id, and groups the rows by release.
 test('chromium: 1280 px — the plan\'s query line says the release by name over the chart, and the rows group by release', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const SPRING = '01a0e2e0-0000-7000-8000-0000000f1d01';
   const VIEW = '01a0e2e0-0000-7000-8000-0000000f1d02';
   const released = { ...SCHEDULE, entries: SCHEDULE.entries.map((each) => (each.item_id === THIRD.id ? { ...each, release_id: SPRING } : { ...each, release_id: null })) };
@@ -551,8 +541,7 @@ test('chromium: 1280 px — the plan\'s query line says the release by name over
 });
 
 test('chromium: 390 px — a dependency\'s menu is a sheet at the foot; adding one is the whole screen (D-1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await plan(browser, 390);
   t.after(close);
   // On a phone a dependency's row is reached by its ⋯, a sheet as every menu of the page is.

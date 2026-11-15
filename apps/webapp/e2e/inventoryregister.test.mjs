@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
@@ -31,8 +31,7 @@ const flat = (text) => text.replace(/\s+/gu, ' ').trim();
 const REGISTER = `/hubs/${HUB.id}/inventory/register`;
 
 test('chromium: scene invreg - the register table, a device\'s life beside it and the moves its state allows', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, written } = await openInventory(browser, served.origin, { path: REGISTER, now: NOW });
   t.after(() => context.close());
 
@@ -103,8 +102,7 @@ test('chromium: scene invreg - the register table, a device\'s life beside it an
 });
 
 test('chromium: a reader opens a device and its life, and is offered no move', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { path: `${REGISTER}?asset=${CIS.nb0422.id}`, role: 'VIEWER', now: NOW });
   t.after(() => context.close());
 
@@ -117,8 +115,7 @@ test('chromium: a reader opens a device and its life, and is offered no move', a
 });
 
 test('chromium 390 px: scene invreg on a phone - the device opens as a sheet that reads', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await openInventory(browser, served.origin, { width: 390, height: 844, path: REGISTER, now: NOW });
   t.after(() => context.close());
 

@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, HUB, showToday, signedIn } from './fixture.mjs';
@@ -33,8 +33,7 @@ const ROUTES = [
 for (const width of [390, 800, 1280, 1600]) {
   test(`chromium: ${width} px — every screen keeps the grammar`, async (t) => {
     showToday();
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context } = await signedIn(browser, width, 900, { timezoneId: 'UTC' });
     t.after(() => context.close());
     const findings = [];

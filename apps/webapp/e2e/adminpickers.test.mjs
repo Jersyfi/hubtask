@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, OTHER, PAGE, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -67,8 +67,7 @@ async function pick(page, label, name) {
 }
 
 test('chromium: the trail\'s actor is picked from the workspace\'s people and those in the trail', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const owner = await as(browser, PERMISSIONS.OWNER);
   t.after(() => owner.context.close());
   const { page, sent } = owner;
@@ -91,8 +90,7 @@ test('chromium: the trail\'s actor is picked from the workspace\'s people and th
 });
 
 test('chromium: a request\'s subject is picked by name and sent as the account', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const owner = await as(browser, PERMISSIONS.OWNER);
   t.after(() => owner.context.close());
   const { page, sent } = owner;
@@ -119,8 +117,7 @@ test('chromium: a request\'s subject is picked by name and sent as the account',
 });
 
 test('chromium: an auditor\'s trail picker offers only whom the trail named, and reads no one else', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const auditor = await as(browser, PERMISSIONS.AUDITOR);
   t.after(() => auditor.context.close());
   const { page, sent } = auditor;

@@ -10,7 +10,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ALL, PD_BOARDS, PD_PAGES, open, served } from './kompassstub.mjs';
 
@@ -32,8 +32,7 @@ const LINE_END = MAC ? 'Meta+ArrowRight' : 'End';
 const SELECT_TO_LINE_START = MAC ? 'Shift+Meta+ArrowLeft' : 'Shift+Home';
 
 test('the first writer opens a page without saving it; typing saves', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const handbook = PD_PAGES[0];
   const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true });
   t.after(close);
@@ -65,8 +64,7 @@ test('the first writer opens a page without saving it; typing saves', async (t) 
 });
 
 test('leaving a page right after typing saves the last words and throws nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const handbook = PD_PAGES[0];
   const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true });
   t.after(close);
@@ -99,8 +97,7 @@ test('leaving a page right after typing saves the last words and throws nothing'
 });
 
 test('a page shows its writing tools only while writing; "/" on an empty line offers the blocks (S-1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const handbook = PD_PAGES[0];
   const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true });
   t.after(close);
@@ -241,8 +238,7 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
 });
 
 test('390 px: writing a page draws one compact row of tools at the foot, above the keyboard (§7, pwrite)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const handbook = PD_PAGES[0];
   const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true, width: 390, height: 844, hasTouch: true });
   t.after(close);
@@ -270,8 +266,7 @@ test('390 px: writing a page draws one compact row of tools at the foot, above t
 });
 
 test('the first writer opens and leaves a whiteboard without saving it; removing a sticky saves', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const retro = PD_BOARDS.find((each) => each.title === 'Retro board');
   const { page, failures, close } = await open(browser, { modulesOn: ALL, owner: true });
   t.after(close);

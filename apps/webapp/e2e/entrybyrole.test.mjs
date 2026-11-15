@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub, chooseView, newInHead } from './fixture.mjs';
 
@@ -97,8 +97,7 @@ const EXPECTED = {
 
 for (const [role, expected] of Object.entries(EXPECTED)) {
   test(`chromium: ${role} is offered on an entry exactly what the role lets them do`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, role);
     t.after(() => context.close());
 
@@ -109,8 +108,7 @@ for (const [role, expected] of Object.entries(EXPECTED)) {
 }
 
 test('chromium: a contributor changes and comments on the entry assigned to them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'CONTRIBUTOR', { assigned: true });
   t.after(() => context.close());
 
@@ -125,8 +123,7 @@ test('chromium: a contributor changes and comments on the entry assigned to them
 // A search result is ticked off by the same rule as a row of its list: a role that only reads does
 // not complete it from the results either.
 test('chromium: a viewer cannot tick off a search result', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
   const sent = [];
@@ -161,8 +158,7 @@ async function pageMenu(page, name) {
 // for a role that may shape it. A member works in the collection and is offered none of it.
 for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
   test(`chromium: ${role} is ${shapes ? '' : 'not '}offered what changes the shape of a hub and a collection`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, role);
     t.after(() => context.close());
 
@@ -221,8 +217,7 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
 }
 
 test('chromium: a viewer reads the collection with no control that changes an entry, and nothing to add', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
 
@@ -238,8 +233,7 @@ test('chromium: a viewer reads the collection with no control that changes an en
 // An entry's details card is drawn only when it holds a row (P-05, P-11): a value that is set, or a
 // row the reader may fill in. An empty frame would read as something that failed to load.
 test('chromium: a viewer sees no details card on an entry with nothing set, and the card where something is', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
 
@@ -257,8 +251,7 @@ test('chromium: a viewer sees no details card on an entry with nothing set, and 
 });
 
 test('chromium: a member sees the details card on an entry with nothing set, because every row can be filled in', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
@@ -274,8 +267,7 @@ test('chromium: a member sees the details card on an entry with nothing set, bec
 
 // An entry with nothing under it says so of the entry: the collection it sits in is not empty.
 test('chromium: an entry with nothing under it says that of the entry, not of the collection', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
@@ -288,8 +280,7 @@ test('chromium: an entry with nothing under it says that of the entry, not of th
 // A row the reader may only read is a plain element rather than a button, and stays inside the card
 // as the button does: its padding is within its width, not added to it.
 test('chromium: a read-only details row stays inside its card', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'VIEWER');
   t.after(() => context.close());
 

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { signedIn } from './fixture.mjs';
@@ -22,8 +22,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: 1280 px — a screen from an older release reloads once, then says Hubtask was updated', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await signedIn(browser, 1280, 1000);
   t.after(close);
 

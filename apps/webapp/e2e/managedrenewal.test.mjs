@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, OTHER, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -110,8 +110,7 @@ async function menuOf(page, row, name) {
 }
 
 test('a managed person gets a new start password after a confirmation and a step-up, shown once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -143,8 +142,7 @@ test('a managed person gets a new start password after a confirmation and a step
 });
 
 test('an address for a managed person sends a link and says so', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -161,8 +159,7 @@ test('an address for a managed person sends a link and says so', async (t) => {
 });
 
 test('where the password is not a way in, no address is offered and the reason stands under the table', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { methods: ['OIDC'] });
   t.after(close);
 
@@ -177,8 +174,7 @@ test('where the password is not a way in, no address is offered and the reason s
 // neither a start password nor an address for a managed owner, and both for a managed contributor;
 // an owner is offered both for a managed owner.
 test('a managed owner is offered no new way in to an administrator', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [reader, lenaRole, offered] of [['ADMIN', 'OWNER', false], ['ADMIN', 'CONTRIBUTOR', true], ['OWNER', 'OWNER', true]]) {
     const { page, close } = await open(browser, { reader, lenaRole });
     t.after(close);

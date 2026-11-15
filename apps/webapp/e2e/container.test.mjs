@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, HUB, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
@@ -38,8 +38,7 @@ async function openCollection(browser, width) {
 }
 
 test('chromium: 1280 px — the head, the menu in three groups, and every dialog from it with its focus return', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
   t.after(close);
 
@@ -134,8 +133,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
 });
 
 test('chromium: 1280 px — *Settings…* opens the settings as a page, a section each at its own address', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await openCollection(browser, 1280);
   t.after(close);
 
@@ -170,8 +168,7 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
 // UC-SVC-05 check 9: a desk's logo is part of its look - set in the collection's *General*, not
 // on the portal it is drawn on (scene portal draws no upload there).
 test('chromium: 1280 px — a desk sets its portal logo in its settings\' General', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const desk = { ...COLLECTION, structure: { ...COLLECTION.structure, settings: { ...COLLECTION.structure.settings, entry_types: { TASK: ['incident'] } } } };
@@ -200,8 +197,7 @@ test('chromium: 1280 px — a desk sets its portal logo in its settings\' Genera
 });
 
 test('chromium: 375 px — the folded head, the panel as a sheet of pages, the board one column with a strip, the bulk bar above the bottom bar', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await openCollection(browser, 375);
   t.after(close);
 
@@ -301,8 +297,7 @@ test('chromium: 375 px — the folded head, the panel as a sheet of pages, the b
 });
 
 test('chromium: 1280 px — the hub: create a collection primary, import beside it, the shorter menu', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
@@ -349,8 +344,7 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
   // A card's hidden checkbox input is absolutely positioned, and an absolute box inside an
   // unpositioned scroller overflows the scroller's ancestor - the page grows by four hundred
   // pixels on a tablet. The board is positioned; this holds the page to its viewport.
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await openCollection(browser, 768);
   t.after(close);
   await chooseView(page, 'Board');
@@ -367,8 +361,7 @@ test('chromium: 768 px — the board scrolls inside itself and does not widen th
 // UC-WRK-17 check 12: the filter as a line - typed, it becomes the conditions and the order the
 // query sends; built from the controls, the line says them back.
 test('chromium: 1280 px — the line in the panel is read into the query and the order, and spelled back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
   t.after(close);
   const sent = [];

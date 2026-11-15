@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 import { values } from '@hubtask/design-system';
 
 import { signedIn } from './fixture.mjs';
@@ -38,8 +38,7 @@ const rgb = (hex) => {
 for (const scheme of ['light', 'dark']) {
   for (const width of [768, 1280]) {
     test(`chromium: ${width} px, ${scheme} — the bar carries the mark and the name, leading home`, async (t) => {
-      const browser = await chromium.launch();
-      t.after(() => browser.close());
+      const browser = await sharedChromium(t);
       const { context, page, failures } = await signedIn(browser, width);
       await page.emulateMedia({ colorScheme: scheme });
       await page.goto(`${served.origin}/`);
@@ -63,8 +62,7 @@ for (const scheme of ['light', 'dark']) {
   }
 
   test(`chromium: ${scheme} — the tab icon is the reduced mark in the ${scheme} form, under the policy`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page } = await signedIn(browser, 1280);
     await page.emulateMedia({ colorScheme: scheme });
     const blocked = [];

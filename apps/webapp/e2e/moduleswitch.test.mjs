@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { productWalk } from './productwalk.mjs';
@@ -43,8 +43,7 @@ function modulesBackend(off) {
 }
 
 test('chromium: a module switched on is drawn on without a reload', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['PLANNING', 'TIME', 'SERVICE_DESK']) });
   t.after(walk.close);
   const { page } = walk;
@@ -77,8 +76,7 @@ test('chromium: a module switched on is drawn on without a reload', async (t) =>
 // §2.8: the card's *Start with…* is the templates that need the module, one press each - at the
 // workspace the press opens *Create hub* with that template chosen.
 test('chromium: a module switched on starts with the templates that need it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['SERVICE_DESK']) });
   t.after(walk.close);
   const { page } = walk;
@@ -98,8 +96,7 @@ test('chromium: a module switched on starts with the templates that need it', as
 });
 
 test('chromium: the service desk page with the module off says so, reads nothing and offers the switch', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['SERVICE_DESK']) });
   t.after(walk.close);
   const { page } = walk;
@@ -121,8 +118,7 @@ test('chromium: the service desk page with the module off says so, reads nothing
 // Scenes homeplans/homeassets/homeagents, UC-WRK-36 check 22: a product switched off is drawn as its first empty state -
 // its tile in its colour, its sentence, the switch, and that nothing kept for it is lost.
 test('chromium: a product\'s home with its module off is drawn as its empty state with the switch', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['PLANNING']) });
   t.after(walk.close);
   const { page } = walk;
@@ -142,8 +138,7 @@ test('chromium: a product\'s home with its module off is drawn as its empty stat
 // template as the main way, *Start empty* beside it, and the templates as cards; the main way makes
 // the hub from the template, which switches the product on.
 test('chromium: a switched-off desk starts from a template, with start empty beside it and the templates as cards', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: [], answer: modulesBackend(['SERVICE_DESK']) });
   t.after(walk.close);
   const { page } = walk;

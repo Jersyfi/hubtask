@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -46,8 +46,7 @@ const SANDBOX = {
 };
 
 test('chromium: a proposal is previewed with its reach and applied only once acknowledged', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const planned = [];
@@ -116,8 +115,7 @@ test('chromium: a proposal is previewed with its reach and applied only once ack
 });
 
 test('chromium: with nothing waiting the page says so in one line and keeps the expert\'s parts in its head', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB } from './fixture.mjs';
@@ -47,8 +47,7 @@ function calendarsBackend() {
 }
 
 test('chromium: a hub keeps its own version of an installation calendar from its settings - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = calendarsBackend();
   const walk = await productWalk(browser, { modules: ['SERVICE_DESK'], answer: backend.answer });
   t.after(walk.close);

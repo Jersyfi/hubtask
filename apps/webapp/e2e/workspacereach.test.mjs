@@ -18,7 +18,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -66,8 +66,7 @@ async function menuRows(page) {
 
 for (const role of ['MEMBER', 'CONTRIBUTOR', 'VIEWER', 'BELOW']) {
   test(`chromium: ${role} is offered no administration, asks for no quota or health, and a typed address reaches nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, asked, failures } = await as(browser, PERMISSIONS[role]);
     t.after(() => context.close());
 
@@ -96,8 +95,7 @@ for (const role of ['MEMBER', 'CONTRIBUTOR', 'VIEWER', 'BELOW']) {
 
 for (const role of ['OWNER', 'AUDITOR']) {
   test(`chromium: ${role} is offered the administration and the frame reads the health report`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, asked, failures } = await as(browser, PERMISSIONS[role]);
     t.after(() => context.close());
 
@@ -144,8 +142,7 @@ const JUMBLE = {
 
 for (const [role, expected] of Object.entries(JUMBLE)) {
   test(`chromium: ${role} sees the jumble with exactly the controls the server accepts from them`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, PERMISSIONS[role]);
     t.after(() => context.close());
 
@@ -169,8 +166,7 @@ for (const [role, expected] of Object.entries(JUMBLE)) {
 
 for (const role of ['AUDITOR', 'BELOW']) {
   test(`chromium: ${role} has no jumble - no row, no panel, no read, and its address reaches nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, asked, failures } = await as(browser, PERMISSIONS[role]);
     t.after(() => context.close());
 
@@ -193,8 +189,7 @@ for (const role of ['AUDITOR', 'BELOW']) {
 // entry in the trail. The trash itself is everybody's.
 for (const [role, mayRead] of [['MEMBER', false], ['VIEWER', false], ['OWNER', true], ['AUDITOR', true]]) {
   test(`chromium: ${role}'s trash ${mayRead ? 'reads' : 'does not read'} the retention policies`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, asked, failures } = await as(browser, PERMISSIONS[role]);
     t.after(() => context.close());
 

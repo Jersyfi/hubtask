@@ -9,7 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import {
   id, ACCOUNT, hub, IT, PD, HOME, collection, WEB, sprint, GOALS, VPN, served, open, ALL, side, texts, heads,
@@ -20,8 +20,7 @@ const SHOTS = process.env.SHOTS;
 test.after(() => served.close());
 
 test('UC-WRK-36 check 1: the workspace level from the top, the foot pinned', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { modulesOn: ALL, hubModules: { [HOME.id]: [] }, stars: [{ kind: 'HUB', id: IT.id }] });
   t.after(close);
   await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
@@ -41,8 +40,7 @@ test('UC-WRK-36 check 1: the workspace level from the top, the foot pinned', asy
 });
 
 test('UC-WRK-36 check 1: no star, no Starred; no administration without the right; no product while none is on', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { modulesOn: [], administration: false });
   t.after(close);
   await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
@@ -52,8 +50,7 @@ test('UC-WRK-36 check 1: no star, no Starred; no administration without the righ
 });
 
 test('UC-WRK-36 checks 2-6: a hub\'s level - head, tools in order, queues, collections, one content tree', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // Planning is off at the hub: no Plan; the desk collection brings Queues.
   const { page, failures, close } = await open(browser, {
     path: `/hubs/${IT.id}`,
@@ -94,8 +91,7 @@ test('UC-WRK-36 checks 2-6: a hub\'s level - head, tools in order, queues, colle
 });
 
 test('UC-WRK-36 check 2: a collection, a page and a tool show their hub\'s level; focus lands on All hubs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { path: '/', modulesOn: ALL, hubModules: { [PD.id]: ['PLANNING', 'TIME', 'GOALS'] } });
   t.after(close);
   await side(page).getByRole('treeitem', { name: /Product development/ }).click();
@@ -119,8 +115,7 @@ test('UC-WRK-36 check 2: a collection, a page and a tool show their hub\'s level
 });
 
 test('UC-WRK-36 check 7: the quick switch keeps the tool where the other hub has it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, {
     path: `/hubs/${PD.id}/plan`, modulesOn: ALL,
     hubModules: { [PD.id]: ['PLANNING'], [IT.id]: ['PLANNING'], [HOME.id]: [] },
@@ -140,8 +135,7 @@ test('UC-WRK-36 check 7: the quick switch keeps the tool where the other hub has
 });
 
 test('UC-WRK-36 check 17: a workspace with no module on shows no tool and no Contents in a hub (D1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { path: `/hubs/${HOME.id}`, modulesOn: [] });
   t.after(close);
   const level = side(page).getByRole('region', { name: 'Household' });
@@ -153,8 +147,7 @@ test('UC-WRK-36 check 17: a workspace with no module on shows no tool and no Con
 });
 
 test('UC-WRK-37 check 5: a starred queue stands under Starred with its hub, its count and its queue page', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { modulesOn: ALL, stars: [{ kind: 'VIEW', id: id(500) }] });
   t.after(close);
   const row = side(page).locator('section', { hasText: 'Starred' }).getByRole('treeitem', { name: /^About to breach · IT operations/ });
@@ -167,8 +160,7 @@ test('UC-WRK-37 check 5: a starred queue stands under Starred with its hub, its 
 });
 
 test('UC-WRK-37 check 5: ☆ in the hub\'s head stars it, and it stands under Starred', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { path: `/hubs/${PD.id}`, modulesOn: [] });
   t.after(close);
   const star = side(page).getByRole('button', { name: 'Star Product development' });
@@ -182,8 +174,7 @@ test('UC-WRK-37 check 5: ☆ in the hub\'s head stars it, and it stands under St
 });
 
 test('UC-WRK-37 check 5: S stars the place on screen and unstars it again; in a field it types', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { path: `/collections/${WEB.id}`, modulesOn: ALL });
   t.after(close);
   const head = page.locator('main').getByRole('button', { name: 'Star Web app' });
@@ -199,8 +190,7 @@ test('UC-WRK-37 check 5: S stars the place on screen and unstars it again; in a 
 });
 
 test('UC-WRK-36 check 5: the contents mode is the person\'s, written to their preferences', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close } = await open(browser, { path: `/hubs/${IT.id}`, modulesOn: ALL, hubModules: { [IT.id]: ['KNOWLEDGE', 'WHITEBOARD'] } });
   t.after(close);
   const contents = side(page).getByRole('tree', { name: 'Contents of IT operations' });
@@ -215,8 +205,7 @@ test('UC-WRK-36 check 5: the contents mode is the person\'s, written to their pr
 });
 
 test('UC-WRK-36 check 8: the width is dragged and kept, Ctrl+[ folds to the rail, hovering it peeks', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { modulesOn: ['PLANNING'], storage: { 'hubtask.nav.width': '320' } });
   t.after(close);
   await side(page).getByRole('treeitem', { name: /IT operations/ }).first().waitFor({ timeout: 10_000 });
@@ -247,8 +236,7 @@ test('UC-WRK-36 check 8: the width is dragged and kept, Ctrl+[ folds to the rail
 const figureOf = async (row) => (await row.innerText()).split('\n').map((each) => each.trim()).filter(Boolean).slice(1).join(' ');
 
 test('UC-WRK-36 checks 1-6: the rows carry their figures, the hub head its ⋯, the hub its contents', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const recent = JSON.stringify(Array.from({ length: 20 }, (_, i) => ({ kind: 'collection', id: id(1000 + i), title: `Place ${i + 1}`, at: Date.now() - i * 60_000, placeId: PD.id })));
   const { page, failures, close } = await open(browser, {
     height: 1300,

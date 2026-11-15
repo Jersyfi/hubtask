@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings, viewLink, openNewCollection, kindChoice } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -104,8 +104,7 @@ async function openPanel(page, name, section = 'Templates and presets') {
 // page. And on *Labels* each colour is named by its colour, not by the name field's label.
 for (const width of [390, 1280]) {
   test(`chromium: ${width} px - every section of the settings is in sight, and a label's colours are named`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, 'OWNER', width);
     t.after(() => context.close());
 
@@ -139,8 +138,7 @@ for (const width of [390, 1280]) {
 }
 
 test('chromium: the owner - a list offers what a list offers, and its panel says where each value comes from (checks 1, 3, 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -220,8 +218,7 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
 });
 
 test('chromium: the owner - a narrowing first shows what it would stop showing, Hide by default, Flatten on choice (UC-WRK-24 checks 2, 4, 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -258,8 +255,7 @@ test('chromium: the owner - a narrowing first shows what it would stop showing, 
 });
 
 test('chromium: the owner - a hub that narrows names the collections keeping their own value (UC-WRK-24 check 7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -281,8 +277,7 @@ test('chromium: the owner - a hub that narrows names the collections keeping the
 });
 
 test('chromium: the owner - a level is named by the name given to it, and by its type without one (check 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'OWNER');
   t.after(() => context.close());
 
@@ -311,8 +306,7 @@ test('chromium: the owner - a level is named by the name given to it, and by its
 });
 
 test('chromium: the owner - creating a collection offers the presets, and the one chosen is sent (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
@@ -338,8 +332,7 @@ test('chromium: the owner - creating a collection offers the presets, and the on
 });
 
 test('chromium: the owner - the hub\'s Edit changes its name, description and look, and its default preset (check 1)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'OWNER');
   t.after(() => context.close());
   const renamed = [];
@@ -383,8 +376,7 @@ test('chromium: the owner - the hub\'s Edit changes its name, description and lo
 });
 
 test('chromium: an administrator - a lock shows its value and who set it, and cannot be changed (check 7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures, written } = await as(browser, 'ADMIN');
   t.after(() => context.close());
 
@@ -426,8 +418,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
 });
 
 test('chromium: a member - the list as its settings make it, and no settings page (check 9)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 'MEMBER');
   t.after(() => context.close());
 
@@ -474,8 +465,7 @@ for (const place of [
   { kind: 'collection', path: () => `/collections/${SHAPES.list.id}`, name: () => SHAPES.list.name },
 ]) {
   test(`chromium: a ${place.kind}'s settings have the shell's sections, save bar and leave guard`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, 'OWNER');
     t.after(() => context.close());
 

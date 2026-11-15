@@ -20,7 +20,7 @@ import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, PASSKEYS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -157,8 +157,7 @@ async function open(browser, { list = PASSKEYS, complete, account, onRemoved, af
 }
 
 test('chromium: a passkey is added with a fresh proof, then the device, named, and the codes shown once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent, failures } = await open(browser);
   t.after(() => context.close());
   const panel = page.getByTestId('passkeys');
@@ -207,8 +206,7 @@ test('chromium: a passkey is added with a fresh proof, then the device, named, a
 
 // Check 3: at ten, no button, and the reason in its place.
 test('chromium: at ten passkeys none is offered, and the profile says why', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const ten = Array.from({ length: 10 }, (_, index) => ({
     id: `01936f2a-7c1e-7000-8000-0000000000${String(index).padStart(2, '0')}`, name: `Key ${index + 1}`,
     created_at: '2026-10-01T09:00:00Z', last_used_at: index === 0 ? '2026-10-15T09:00:00Z' : null,
@@ -228,8 +226,7 @@ test('chromium: at ten passkeys none is offered, and the profile says why', asyn
 
 // P-11: a device prompt the person closes says nothing, and focus stays on the button.
 test('chromium: a closed device prompt shows nothing and leaves focus on Add a passkey', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent, failures } = await open(browser);
   t.after(() => context.close());
   await page.evaluate(() => {
@@ -249,8 +246,7 @@ test('chromium: a closed device prompt shows nothing and leaves focus on Add a p
 
 // D14: a challenge that ran out is said, and the session survives - a 409, never a 401.
 test('chromium: a challenge that ran out is refused with its sentence and the person stays signed in', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await open(browser, {
     complete: (route) => route.fulfill({
       status: 409,
@@ -281,8 +277,7 @@ async function proveWithPassword(page) {
 // Check 2 and 4: a name changed with the session alone, and a passkey removed behind a fresh proof,
 // gone from the list at once.
 test('chromium: a passkey is renamed with the session alone, and another removed behind a fresh proof', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent, failures } = await open(browser, {
     list: { passkeys: [LAPTOP, DRAWER], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' },
   });
@@ -321,8 +316,7 @@ test('chromium: a passkey is renamed with the session alone, and another removed
 // Check 5: where the workspace requires a second factor and this is the last one, no *Remove* - the
 // sentence stands in its place; a passkey of another address is no factor and goes.
 test('chromium: the last factor the workspace requires is not offered for removal, and the profile says why', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const stale = { ...DRAWER, rp_id: 'old.example' };
   const { context, page, failures } = await open(browser, {
     list: {
@@ -347,8 +341,7 @@ test('chromium: the last factor the workspace requires is not offered for remova
 // A key alone: the codes are the key's, counted and renewable; the app is offered to set up, and the
 // profile does not say there is no second factor.
 test('chromium: with a key alone, the recovery codes are counted and renewable, and the app can still be set up', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await open(browser, {
     list: { passkeys: [LAPTOP], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' },
     account: {
@@ -370,8 +363,7 @@ test('chromium: with a key alone, the recovery codes are counted and renewable, 
 // UC-ID-03 check 5 beside a key: under a rule the app may go while a key remains - and once it has,
 // the last key shows the sentence instead of *Remove*, because the list was read again.
 test('chromium: beside a key the app may be turned off under a rule, and then the last key stays', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const account = {
     has_password: true, has_second_factor: true, has_authenticator_app: true,
     authenticator_app_removable: true, recovery_codes_remaining: 10, second_factor_required: true,

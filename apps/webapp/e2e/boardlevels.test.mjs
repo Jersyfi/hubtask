@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, ITEMS, MANIFEST, PERMISSIONS, signedIn, stub, chooseView } from './fixture.mjs';
@@ -89,8 +89,7 @@ async function at(browser, level, { width = 1280, view = 'List', drop, workflows
 }
 
 test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing a column drops it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'COLUMNS');
   t.after(() => context.close());
   const row = page.locator(`[data-row="${ITEMS[0].id}"]`);
@@ -110,8 +109,7 @@ test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing 
 
 // UC-WRK-31 check 5: under a workflow each column names its statuses, the rest fold into Ohne Spalte.
 test('chromium: L2 - the status chip lists the steps; the board names its statuses and folds Ohne Spalte', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context } = await at(browser, 'WORKFLOW');
   t.after(() => context.close());
   const chip = page.locator(`[data-row="${ITEMS[0].id}"] [data-state-chip]`);
@@ -137,8 +135,7 @@ test('chromium: L2 - the status chip lists the steps; the board names its status
 
 for (const width of [1280, 820]) {
   test(`chromium: L2 - folded Ohne Spalte keeps its width beside the column before it at ${width}`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context } = await at(browser, 'WORKFLOW', { width, view: 'Board' });
     t.after(() => context.close());
     const unmapped = page.locator('[data-column-zone="none"]');
@@ -157,8 +154,7 @@ for (const width of [1280, 820]) {
 
 // UC-FLW-03 check 8: a drop several steps reach offers them and writes nothing until one is chosen.
 test('chromium: L2 - a drop several steps reach asks which, and sends the one chosen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const drop = (body, entries) => {
     const item = entries.find((each) => each.id === ITEMS[0].id);
     return body.step
@@ -181,8 +177,7 @@ test('chromium: L2 - a drop several steps reach asks which, and sends the one ch
 });
 
 test('chromium: L1 - Alt and an arrow carry a card into the next column by keyboard (WCAG 2.5.7)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'COLUMNS', { view: 'Board' });
   t.after(() => context.close());
   const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
@@ -201,8 +196,7 @@ async function fromPlaceMenu(page, item) {
 }
 
 test('chromium: L0 - "Show as board" previews the server\'s dry run, then switches', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'NONE');
   t.after(() => context.close());
   await page.locator(`[data-row="${ITEMS[0].id}"]`).waitFor({ timeout: 15_000 });
@@ -220,8 +214,7 @@ test('chromium: L0 - "Show as board" previews the server\'s dry run, then switch
 
 // UC-FLW-02 check 10: *Workflow from these columns* previews the server's dry run, then makes it.
 test('chromium: L1 - "Back to the list" and "Workflow from these columns" each preview first', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'COLUMNS', { workflowsOn: true });
   t.after(() => context.close());
   await page.locator(`[data-row="${ITEMS[0].id}"] [data-state-chip]`).waitFor({ timeout: 15_000 });
@@ -240,8 +233,7 @@ test('chromium: L1 - "Back to the list" and "Workflow from these columns" each p
 });
 
 test('chromium: L1 - deleting the done column asks which column means done, the server\'s suggestion chosen', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, written, context } = await at(browser, 'COLUMNS', { view: 'Board' });
   t.after(() => context.close());
   const done = page.locator(`[data-column-zone="${BUCKETS[2].id}"]`);

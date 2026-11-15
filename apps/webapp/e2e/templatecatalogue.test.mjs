@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, DEFAULT_STRUCTURE, MANIFEST, PAGE, PERMISSIONS, PRESETS, WORKSPACE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -46,8 +46,7 @@ const CATALOGUE = [
 
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: each template says what it does, and the catalogue filters by family`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
     t.after(() => context.close());
     forgetUnstubbed();

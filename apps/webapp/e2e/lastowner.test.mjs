@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -80,8 +80,7 @@ async function open(browser, { details } = {}) {
 const rowOf = (page, name) => page.getByRole('row').filter({ has: page.getByRole('link', { name, exact: true }) });
 
 test('the only owner is not offered to revoke their own Owner, and is told why', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -103,8 +102,7 @@ test('the only owner is not offered to revoke their own Owner, and is told why',
 });
 
 test('taking somebody out of a group that holds Owner asks for the proof and sends it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -131,8 +129,7 @@ test('taking somebody out of a group that holds Owner asks for the proof and sen
 // UX-4: a person's row shows what is needed now - *View as* and *Revoke* - and folds the rarer
 // acts, their screens and a second factor's reset, under the row's *More*.
 test('a person\'s row folds the rarer acts under More', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { details: [{ account_id: OTHER.id, email: 'other@example.com', authenticator_app: true }] });
   t.after(close);
 
@@ -156,8 +153,7 @@ test('a person\'s row folds the rarer acts under More', async (t) => {
 // An administrator sees each person's address in its own column, and *Reset second factor* only
 // where an authenticator app stands; a managed person reads *No address*.
 test('the people list shows the address and offers a reset only where an app stands', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, { details: [
     { account_id: OTHER.id, email: null, authenticator_app: false },
     { account_id: ACCOUNT.id, email: 'me@example.com', authenticator_app: true },

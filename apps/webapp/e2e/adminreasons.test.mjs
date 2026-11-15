@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ROUTES } from '../src/lib/routes.ts';
 import { MANIFEST, PERMISSIONS, stub } from './fixture.mjs';
@@ -120,8 +120,7 @@ async function walk(page, paths) {
 for (const width of WIDTHS) {
   for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
     test(`chromium: ${width} px — every administration page explains without breaking, for ${who}`, async (t) => {
-      const browser = await chromium.launch();
-      t.after(() => browser.close());
+      const browser = await sharedChromium(t);
       const { context, page, failures } = await as(browser, width, permissions);
       t.after(() => context.close());
       assert.ok(ADMINISTRATION.length >= 20, `only ${ADMINISTRATION.length} administration routes were found`);
@@ -131,8 +130,7 @@ for (const width of WIDTHS) {
   }
 
   test(`chromium: ${width} px — every installation page explains without breaking`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { context, page, failures } = await as(browser, width, PERMISSIONS.OWNER);
     t.after(() => context.close());
     assert.ok(INSTALLATION.length >= 10, `only ${INSTALLATION.length} installation routes were found`);
@@ -142,8 +140,7 @@ for (const width of WIDTHS) {
 }
 
 test('chromium: 768 px, dark — the administration and the installation explain without breaking', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, failures } = await as(browser, 768, PERMISSIONS.AUDITOR, 'dark');
   t.after(() => context.close());
   assert.deepEqual(await walk(page, [...ADMINISTRATION, ...INSTALLATION]), []);

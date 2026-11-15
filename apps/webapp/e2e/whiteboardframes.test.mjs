@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB, signedIn, stub } from './fixture.mjs';
@@ -51,8 +51,7 @@ function largestBoard() {
 }
 
 test('chromium: panning and zooming a board of 5,000 objects keeps its frames coming', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1440, 900);
   t.after(() => context.close());
   const board = largestBoard();

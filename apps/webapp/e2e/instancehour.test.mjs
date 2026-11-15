@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -72,8 +72,7 @@ async function signedIn(browser, answer) {
 
 // UC-INS-04 check 2: the hour shows as a countdown.
 test('chromium: a refresh and a reload keep the hour, and ask for nothing again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const until = new Date(Date.now() + 40 * 60_000).toISOString();
   const { context, sent } = await signedIn(browser, (route) => route.fulfill({ json: { elevated_until: until } }));
   const page = await context.newPage();
@@ -101,8 +100,7 @@ test('chromium: a refresh and a reload keep the hour, and ask for nothing again'
 });
 
 test('chromium: a tab that lost its copy adopts the running hour instead of starting another', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const until = new Date(Date.now() + 25 * 60_000).toISOString();
   const { context, sent } = await signedIn(browser, (route) => route.fulfill({
     status: 409,

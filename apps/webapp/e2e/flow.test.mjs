@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, FIGURES, ITEMS, showFigures, signedIn, stub, openSettings, viewLink } from './fixture.mjs';
@@ -65,8 +65,7 @@ async function moveByMenu(page, card, column) {
 }
 
 test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the columns with a limit and a done column', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, written } = await flow(browser, 1280);
   t.after(() => context.close());
   // No layout was chosen: the board is the collection's default.
@@ -92,8 +91,7 @@ test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the 
 });
 
 test('chromium: UC-WRK-31 checks 2 and 3 — a refusal names the field; a move into a full column goes ahead and is said', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, written } = await flow(browser, 1280);
   t.after(() => context.close());
   await page.locator(`[data-card="${REFUSED.id}"]`).waitFor({ timeout: 10_000 });
@@ -116,8 +114,7 @@ test('chromium: UC-WRK-31 checks 2 and 3 — a refusal names the field; a move i
 });
 
 test('chromium: UC-WRK-31 check 2 — the Rules section says the flow keeps its required fields and where a new task starts, and switches them', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, written } = await flow(browser, 1280);
   t.after(() => context.close());
   await openSettings(page, FLOW.name);
@@ -143,8 +140,7 @@ test('chromium: UC-WRK-31 check 2 — the Rules section says the flow keeps its 
 
 for (const width of [390, 700, 1280]) {
   test(`chromium: ${width} px — UC-WRK-31 checks 3 and 4: the flow figure and the full column in the head and the row, light and dark`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     for (const colorScheme of ['light', 'dark']) {
       const { page, failures, context } = await flow(browser, width, colorScheme);
       const figure = page.locator('[data-figure="FLOW"]').first();

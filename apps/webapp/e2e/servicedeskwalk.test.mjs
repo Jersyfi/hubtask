@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, DEFAULT_STRUCTURE, HUB, ITEMS, OTHER, PAGE, WORKSPACE } from './fixture.mjs';
@@ -109,8 +109,7 @@ function deskBackend() {
 }
 
 test('chromium: service desk - a calendar and a policy defined, a request\'s promised times read, approvals decided - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = deskBackend();
   const walk = await productWalk(browser, { modules: ['SERVICE_DESK', 'WORKFLOWS'], answer: backend });
   t.after(walk.close);
@@ -218,8 +217,7 @@ test('chromium: service desk - a calendar and a policy defined, a request\'s pro
 // user-experience.md §5.12: on a phone a requester's other request with a long title wraps
 // inside the panel rather than widening the page.
 test('chromium: service desk - 390 px, a requester\'s long other request scrolls nothing sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const desk = deskBackend();
   const long = { ...OTHER_REQUEST, title: 'Drucker im zweiten Obergeschoss druckt seit Montag nur noch leere Seiten und meldet einen Papierstau im Fach drei' };
   const answer = (method, path, query, body) => (path === '/search' && method === 'POST' && JSON.stringify(body?.filter ?? {}).includes('created_by')
@@ -248,8 +246,7 @@ test('chromium: service desk - 390 px, a requester\'s long other request scrolls
 });
 
 test('chromium: service desk - an empty section starts from the ITIL defaults through the template\'s plan', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = deskBackend();
   const itil = {
     key: 'itil_service_desk', version: 6, name: 'itil_service_desk', origin: 'HUBTASK', provenance: 'itil_service_desk@6', created_at: '2026-09-01T00:00:00Z',
@@ -286,8 +283,7 @@ test('chromium: service desk - an empty section starts from the ITIL defaults th
 // as *Classification*, not folded among the details; no done checkbox where its workflow decides
 // completion; who raised it in the rail after the details.
 test('chromium: service desk - a request shows its triage under the head, no done checkbox, the requester before its parts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const desk = deskBackend();
   const form = {
     sections: [{ key: 'request', name: 'Request' }, { key: 'triage', name: 'Triage' }],
@@ -335,8 +331,7 @@ test('chromium: service desk - a request shows its triage under the head, no don
 // UC-SVC-06 (ET-7): the reply offers the desk's snippets - by its button and by "/" - and its macros, each saying what it
 // does; a snippet is rendered for the ticket and inserted, a macro presses the rule with the trigger *by hand*.
 test('chromium: service desk - the reply inserts a snippet by its button and by /, and presses a macro that says what it does', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const desk = deskBackend();
   const runner = '01a0e2e0-0000-7000-8000-000000002901';
   const macro = {
@@ -404,8 +399,7 @@ test('chromium: service desk - the reply inserts a snippet by its button and by 
 // for whoever may read the entry, and each deadline by what is left or how long it is overdue, its
 // policy and its group by name, its urgency in a word and a mark beside the colour.
 test('chromium: service desk - a ticket\'s rail names its triage and deadlines in the reader\'s words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const desk = deskBackend();
   const MINUTE = 60_000;
   const at = (offset) => new Date(Date.now() + offset).toISOString();

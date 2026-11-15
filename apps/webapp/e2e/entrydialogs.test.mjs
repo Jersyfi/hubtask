@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 import { serve } from './serve.mjs';
 import { ITEMS, signedIn, stub } from './fixture.mjs';
 
@@ -52,8 +52,7 @@ async function shapeOf(page) {
 
 for (const [width, height] of [[1280, 800], [390, 844]]) {
   test(`chromium ${width}×${height}: the entry's dialogs take their rung of the ladder`, { timeout: 120_000 }, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await signedIn(browser, width, height);
     t.after(() => context.close());
     await context.unroute('**/api/v1/**');
@@ -99,8 +98,7 @@ test('chromium 390×844: the dates dialog clears the due date and the start in o
   // The fixture's entry, with a start for this walk only: the shared fixture answers every read of it.
   DATED.start_at = DATED.due_at.replace(/T.*/, 'T07:00:00Z');
   t.after(() => { delete DATED.start_at; });
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 390, 844);
   t.after(() => context.close());
   await context.unroute('**/api/v1/**');

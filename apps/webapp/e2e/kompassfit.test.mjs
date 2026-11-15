@@ -13,6 +13,8 @@ import assert from 'node:assert/strict';
 
 import { chromium } from 'playwright';
 
+import { sharedChromium } from './browser.mjs';
+
 import { ALL, HOME, IT, MOBILE, PD, open, served, side } from './kompassstub.mjs';
 
 test.after(() => served.close());
@@ -45,8 +47,7 @@ async function dropsFromHead(page, scope) {
 const background = (locator) => locator.evaluate((node) => getComputedStyle(node).backgroundColor);
 
 test('R-6: the quick switch drops from the hub head; Recently visited is a head of the panel, aligned with the search, folding nothing', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const theme of ['light', 'dark']) {
     const { page, failures, close } = await go(browser, { path: `/hubs/${IT.id}`, storage: { 'hubtask.theme': theme } });
     t.after(close);
@@ -64,8 +65,7 @@ test('R-6: the quick switch drops from the hub head; Recently visited is a head 
 });
 
 test('R-6 on a touch tablet: the drawer\'s quick switch drops from its head; its section heads are the drawer\'s surface and fold', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const theme of ['light', 'dark']) {
     const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, storage: { 'hubtask.theme': theme }, ...tablet });
     t.after(close);
@@ -87,8 +87,7 @@ test('R-6 on a touch tablet: the drawer\'s quick switch drops from its head; its
 });
 
 test('R-6 on a phone: the Browse step\'s section heads are quiet labels - no band, no chevron', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await go(browser, { path: `/browse/hubs/${PD.id}`, ...phone });
   t.after(close);
   const step = page.locator('[data-browse-step]');
@@ -104,8 +103,7 @@ test('R-6 on a phone: the Browse step\'s section heads are quiet labels - no ban
 const glyph = (locator) => locator.locator('svg').first().innerHTML();
 
 test('R-6: Switch hub and Change position draw different marks, and no menu of the sidebar repeats one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await go(browser, { path: '/' });
   t.after(close);
   const hubs = side(page).getByRole('tree', { name: 'Hubs' });
@@ -145,8 +143,7 @@ test('R-6: Switch hub and Change position draw different marks, and no menu of t
 });
 
 test('R-8: the rail\'s peek is drawn above the view tabs and the board; a touch tablet\'s drawer above the page\'s bars', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const path = `/collections/${MOBILE.id}?layout=board`;
   {
     const { page, failures, close } = await go(browser, { path, storage: { 'hubtask.nav': 'rail' } });
@@ -259,8 +256,7 @@ async function fits(page, scope) {
 }
 
 test('the narrowest sidebar: the hub head and every row fit, the Plan row keeps its name beside the sprint', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, storage: { 'hubtask.nav.width': '200' } });
   t.after(close);
   const level = side(page).getByRole('region', { name: PD.name });
@@ -287,8 +283,7 @@ test('the narrowest sidebar: the hub head and every row fit, the Plan row keeps 
 });
 
 test('the touch tablet\'s drawer and the phone\'s hub step: every row keeps its name beside its figure', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   {
     const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}`, ...tablet });
     t.after(close);
@@ -309,8 +304,7 @@ test('the touch tablet\'s drawer and the phone\'s hub step: every row keeps its 
 });
 
 test('R-6: with nothing starred or visited yet, the quick switch still lists the other hubs, in the sidebar\'s order', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await go(browser, { path: `/hubs/${PD.id}` });
   t.after(close);
   await page.getByRole('region', { name: PD.name }).first().waitFor();

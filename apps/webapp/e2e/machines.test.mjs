@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { signedIn, stub } from './fixture.mjs';
@@ -24,8 +24,7 @@ test.after(() => served.close());
 const MACHINE = { id: '01a0e2e0-0000-7000-8000-00000000c602', display_name: 'Nightly export', kind: 'SERVICE' };
 
 test('chromium: the head counts a service account without a role, and adds one through its dialog', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   const created = [];
@@ -56,8 +55,7 @@ test('chromium: the head counts a service account without a role, and adds one t
 });
 
 test('chromium: with no app registered the tab says what one is for and offers the add', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 375, 812);
   t.after(() => context.close());
 

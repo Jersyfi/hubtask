@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -83,8 +83,7 @@ const SECTION = [
 ];
 
 test('chromium: 1280 px — the settings are a section, and every screen says where it is', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -133,8 +132,7 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
 // sent nowhere; a changed one is the one write `PATCH /accounts/me`, and the preferences are left.
 for (const width of [375, 1280]) {
   test(`chromium: ${width} px — You: the name is changed under the save bar and the avatar follows`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const context = await browser.newContext({ viewport: { width, height: 900 } });
     t.after(() => context.close());
     let held = ACCOUNT;
@@ -192,8 +190,7 @@ for (const width of [375, 1280]) {
 // steps as usage AVATAR and set on `me`, drawn from the download URL the server answers - in place
 // of the initials, beside the name and in the bar - and removed again, leaving the initials.
 test('chromium: 1280 px — You: a picture of one’s own is uploaded, shown and removed', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const PICTURE = '01a0e2e0-0000-7000-8000-0000000017c1';
@@ -270,8 +267,7 @@ test('chromium: 1280 px — You: a picture of one’s own is uploaded, shown and
 // (ux-inventory.md §E7): the device screen keeps the theme and motion alone, and the switch on
 // *You* writes the account's preference.
 test('chromium: 1280 px — the moments are switched on You, and On this device keeps the device', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
   const written = [];
@@ -294,8 +290,7 @@ test('chromium: 1280 px — the moments are switched on You, and On this device 
 });
 
 test('chromium: 1280 px — what you are told about is a row per category, and every row’s switches line up', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -325,8 +320,7 @@ test('chromium: 1280 px — what you are told about is a row per category, and e
 });
 
 test('chromium: 1280 px — the two lists are tables, this device first and the newest after it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
 
@@ -359,8 +353,7 @@ test('chromium: 1280 px — the two lists are tables, this device first and the 
 // UC-ID-03 checks 5 and 6: where the workspace requires a second factor of this person, the profile
 // says so and offers no way to turn it off; where nothing requires it, turning it off is offered.
 test('chromium: 1280 px — the profile does not offer to turn off a factor the workspace requires', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const required of [true, false]) {
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await context.route('**/api/v1/**', async (route) => {
@@ -393,8 +386,7 @@ test('chromium: 1280 px — the profile does not offer to turn off a factor the 
 // UC-ID-12 check 1: who needs a second factor is set in one place, the sign-in screen. The
 // Workspace screen had its own switch for it, stored apart from the rule and able to disagree.
 test('chromium: 1280 px — the workspace screen has no second-factor switch of its own', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -420,8 +412,7 @@ test('chromium: 1280 px — the workspace screen has no second-factor switch of 
 // UC-ID-03 checks 1 and 2 on the profile: the same walk the forced setup during sign-in takes, and
 // *Continue* ends it with the factor on and the codes gone from the screen.
 test('chromium: 375 px — setting up a second factor on the profile confirms in the code field and shows the codes once', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 375, height: 812 }, permissions: ['clipboard-read', 'clipboard-write'] });
   t.after(() => context.close());
   const sent = {};
@@ -477,8 +468,7 @@ test('chromium: 375 px — setting up a second factor on the profile confirms in
 // offers no password change, and no proof it is asked for is a password - a step-up names nothing
 // it could give and the dialog says so instead of drawing a field.
 test('chromium: 1280 px — a provider-only account is offered no password and asked for none', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -520,8 +510,7 @@ test('chromium: 1280 px — a provider-only account is offered no password and a
 // profile offers it where nothing requires the factor, asks for no password, and the step-up takes
 // the authenticator's code - the account's own way, named by the refusal.
 test('chromium: 1280 px — a provider-only member turns the factor off with a code', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   let armed = true;
@@ -576,8 +565,7 @@ test('chromium: 1280 px — a provider-only member turns the factor off with a c
 // the rules list ticks under the one field; after saving the screen says every other session was
 // signed out.
 test('chromium: 1280 px — the password is changed with one proof, the rules ticking, and the sessions said', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const changes = [];
@@ -658,8 +646,7 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
 // to turn it off but does offer to replace the authenticator - behind the step-up, confirmed with the
 // new app, and ending in ten new codes shown once.
 test('chromium: 1280 px — under a requiring rule the authenticator is replaced, never turned off', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const steps = [];
@@ -723,8 +710,7 @@ test('chromium: 1280 px — under a requiring rule the authenticator is replaced
 // marked. UC-ID-06 check 3: once the session is ended, its next request fails and the card says
 // "Your session ended." rather than a refusal.
 test('chromium: every session is listed, this one marked, and an ended one says so on its next request', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   let ended = false;
@@ -759,8 +745,7 @@ test('chromium: every session is listed, this one marked, and an ended one says 
 
 // UC-ID-06 check 2: every session says how it was opened, in words, and the provider by its name.
 test('chromium: 1280 px — every session says how it was opened', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const opened = [
@@ -798,8 +783,7 @@ test('chromium: 1280 px — every session says how it was opened', async (t) => 
 // UC-ID-06 check 4: *Sign out everywhere else* ends every other session and leaves this one -
 // the reader stays on the screen, signed in, and the list shows only this device.
 test('chromium: signing out everywhere else keeps this session and shows it alone', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   let listed = SESSIONS;
@@ -857,8 +841,7 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
 // on the server brings them back - so each is a final act that asks in a dialog first
 // (ux-inventory.md §E0, §E7). The dialog names what ends; *Cancel* sends nothing.
 test('chromium: 1280 px — ending a session, an app and a token each asks first', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const GRANT = { id: '01a0e2e0-0000-7000-8000-00000000f701', client_id: 'c-1', client_name: 'Calendar bridge', scopes: ['items:read'], granted_at: '2026-09-01T08:00:00Z' };
@@ -925,8 +908,7 @@ test('chromium: 1280 px — ending a session, an app and a token each asks first
 // UC-INS-09 checks 4 and 5: the workspace screen says the installation's language and zone beside
 // its own, and offers a week start of its own whose empty choice names the installation's day.
 test('chromium: 1280 px — the workspace screen names the installation\'s defaults and takes its own week start', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];
@@ -977,8 +959,7 @@ test('chromium: 1280 px — the workspace screen names the installation\'s defau
 });
 
 test('chromium: 1280 px — in a German session the settings menu is German throughout', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', (route) => {
@@ -1003,8 +984,7 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
 });
 
 test('chromium: 1280 px — You: leaving a choice to the workspace names the workspace\'s value (user-experience.md §8.8)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser);
   t.after(close);
   await page.goto(`${served.origin}/profile/you/language`);
@@ -1021,8 +1001,7 @@ test('chromium: 1280 px — You: leaving a choice to the workspace names the wor
 // UC-ID-03 check 3: the profile counts the recovery codes left, and none left is said in words -
 // a sentence in a banner, not only a red number.
 test('chromium: 1280 px — the security page says in words that no recovery code is left', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   let left = 0;

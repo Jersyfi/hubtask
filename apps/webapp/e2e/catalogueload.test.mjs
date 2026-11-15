@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { readFileSync } from 'node:fs';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -40,8 +40,7 @@ async function door(browser, locale) {
 }
 
 test('chromium: a German browser loads the German catalogue and not the English one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, catalogues } = await door(browser, 'de-DE');
   t.after(() => context.close());
   assert.deepEqual(catalogues, ['de']);
@@ -50,8 +49,7 @@ test('chromium: a German browser loads the German catalogue and not the English 
 });
 
 test('chromium: an English browser loads the English catalogue', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, catalogues } = await door(browser, 'en-US');
   t.after(() => context.close());
   assert.deepEqual(catalogues, ['en']);

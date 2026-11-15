@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ITEMS, OTHER } from './fixture.mjs';
@@ -93,8 +93,7 @@ function agentsBackend({ empty = false } = {}) {
 }
 
 test('chromium: agents - a model registered, an agent added from a role, a draft put live, its held act approved from its card, its run read - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['AGENTS'], answer: agentsBackend(), manifest: { token_scopes: ['items:read', 'items:write', 'admin:tenants'] } });
   t.after(walk.close);
   const { page } = walk;
@@ -170,8 +169,7 @@ test('chromium: agents - a model registered, an agent added from a role, a draft
 });
 
 test('chromium: agents - an empty workspace offers the shipped roles, on a phone too', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['AGENTS'], answer: agentsBackend({ empty: true }), width: 375, height: 812 });
   t.after(walk.close);
   const { page } = walk;
@@ -203,8 +201,7 @@ test('chromium: agents - an empty workspace offers the shipped roles, on a phone
 // An agent's page opens on the head every object has (WB-1): its standing drawn in the status
 // button's shape and height with its glyph - read only, since presses change it.
 test('chromium: an approved agent\'s head draws its standing as the status button does', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = agentsBackend();
   let shown;
   const walk = await productWalk(browser, {

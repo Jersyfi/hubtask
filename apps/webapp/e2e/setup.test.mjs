@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -93,8 +93,7 @@ async function fill(page, { code, slug } = {}) {
 }
 
 test('chromium: a fresh installation shows the setup card, refuses a wrong code at its field, and signs the owner in', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser);
   t.after(close);
 
@@ -128,8 +127,7 @@ test('chromium: a fresh installation shows the setup card, refuses a wrong code 
 });
 
 test('chromium: multi mode asks for the short name and says the address it becomes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, { tenancy: 'multi' });
   t.after(close);
 
@@ -143,8 +141,7 @@ test('chromium: multi mode asks for the short name and says the address it becom
 });
 
 test('chromium: the card at 375 px', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { viewport: { width: 375, height: 812 } });
   t.after(close);
 
@@ -155,8 +152,7 @@ test('chromium: the card at 375 px', async (t) => {
 });
 
 test('chromium: an installation that is set up shows the sign-in card', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, { setupOpen: false });
   t.after(close);
 

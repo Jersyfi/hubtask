@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, COLLECTION, HUB, ITEMS, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -37,8 +37,7 @@ const object = (status) => ({
 });
 
 test('chromium: Import a file, from capture in a collection, lands the file there and reads its entries again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];

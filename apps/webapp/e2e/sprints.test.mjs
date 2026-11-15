@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
@@ -118,8 +118,7 @@ const wrote = (written, method, path) => written.find((each) => each.method === 
 const settle = (page) => page.waitForTimeout(300);
 
 test('chromium: 1280 px — the running sprint\'s bar, the filter line, its columns with their points, cards with key and points chip, and a close', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprints`);
   t.after(close);
 
@@ -202,8 +201,7 @@ test('chromium: 1280 px — the running sprint\'s bar, the filter line, its colu
 });
 
 test('chromium: 1280 px — the backlog tab: the running sprint folded, the planned one against the velocity, a ranking to plan from and a line to type', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/backlog`);
   t.after(close);
 
@@ -279,8 +277,7 @@ test('chromium: 1280 px — the backlog tab: the running sprint folded, the plan
 });
 
 test('chromium: 390 px — the sprint as a card over a strip of its columns, one column shown; the backlog without sideways scroll', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprint`, 390);
   t.after(close);
 
@@ -314,8 +311,7 @@ test('chromium: 390 px — the sprint as a card over a strip of its columns, one
 });
 
 test('chromium: 1280 px — a sprint planned with a goal and a time box', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await open(browser, `/collections/${COLLECTION.id}/sprints`);
   t.after(close);
 
@@ -340,8 +336,7 @@ test('chromium: 1280 px — a sprint planned with a goal and a time box', async 
 });
 
 test('chromium: 1280 px — a release takes an entry of the hub and goes out with its notes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, reads, close, unstubbed } = await open(browser, `/hubs/${HUB.id}/releases`);
   t.after(close);
 
@@ -416,8 +411,7 @@ test('chromium: 1280 px — a release takes an entry of the hub and goes out wit
 
 // Scene plansprints (UC-PLN-02 check 10): the hub's Sprints tab gathers every collection's sprints.
 test('chromium: 1280 px — the hub\'s sprints: running with its burndown, planned against the velocity, closed committed against done', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await open(browser, `/hubs/${HUB.id}/plan/sprints`);
   t.after(close);
 

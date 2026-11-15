@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, MANIFEST, OTHER, signedIn, stub } from './fixture.mjs';
@@ -98,8 +98,7 @@ const toolOf = (page, tool) => page.locator(`[data-tool=${tool}]`);
 const pressed = async (page, tool) => (await toolOf(page, tool).getAttribute('aria-pressed')) === 'true';
 
 test('chromium: a chosen note carries the bar above it in its order, and the card shows key, person, status and tick (UC-CNV-04 check 6, UC-CNV-02 check 9)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
   const canvas = page.getByRole('application');
@@ -132,8 +131,7 @@ test('chromium: a chosen note carries the bar above it in its order, and the car
 // A click on a connector inside a frame chose the frame behind it, so its route and its removal
 // were out of reach.
 test('chromium: a connector inside a frame is chosen by a click, its bar offers its routes and its removal', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const elements = [
     ...ELEMENTS.filter((e) => e.kind !== 'CARD'),
     { id: 's3', kind: 'STICKY', x: 260, y: 260, width: 140, height: 140, text: 'Retro earlier', color_token: 'amber' },
@@ -161,8 +159,7 @@ test('chromium: a connector inside a frame is chosen by a click, its bar offers 
 });
 
 test('chromium: the dock answers its keys, a placing tool springs back, a double click holds it and the pen stays, a note names who put it there (UC-CNV-01 checks 11, 14)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
   const canvas = page.getByRole('application');
@@ -226,8 +223,7 @@ test('chromium: the dock answers its keys, a placing tool springs back, a double
 });
 
 test('chromium: the board reads as a list by frame in reading order (UC-CNV-01 check 13)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -243,8 +239,7 @@ test('chromium: the board reads as a list by frame in reading order (UC-CNV-01 c
 });
 
 test('chromium: a timer started from Moderate is one bar at the top centre, level with the islands, with a minute more (UC-CNV-05 check 4)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -287,8 +282,7 @@ test('chromium: a timer started from Moderate is one bar at the top centre, leve
 });
 
 test('chromium: a board just made opens with its templates as a sheet and the first-use keys; a card puts its template (UC-CNV-01 check 12)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures, saved } = await open(browser, { elements: [], path: `/whiteboards/${BOARD_ID}?new=1` });
   t.after(() => context.close());
   const sheet = page.locator('[data-board-begin]');
@@ -305,8 +299,7 @@ test('chromium: a board just made opens with its templates as a sheet and the fi
 });
 
 test('chromium: the home lists the boards with their people, the templates row and the open comments to you (UC-CNV-10 check 8, UC-CNV-09 check 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const comments = [{
     id: '01a0e2e0-0000-7000-8000-00000000c0f1', whiteboard_id: BOARD_ID, parent_id: null, author_id: OTHER.id,
     body: `[@Jérôme Winkel](hubtask:person/${ACCOUNT.id}) can you book the room?`, element_id: 's1', x: 0, y: 0,
@@ -333,8 +326,7 @@ test('chromium: the home lists the boards with their people, the templates row a
 });
 
 test('chromium: the home draws the boards opened on this device first, else the last changed (UC-CNV-10 check 8)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const newer = board([], { id: '01a0e2e0-0000-7000-8000-00000000b0f2', title: 'Plan', updated_at: '2026-11-12T09:00:00Z' });
   const { page, context, failures } = await open(browser, { path: '/whiteboards', boards: [newer, board(ELEMENTS)] });
   t.after(() => context.close());
@@ -353,8 +345,7 @@ test('chromium: the home draws the boards opened on this device first, else the 
 });
 
 test('chromium: a picture or file from the insert menu opens the platform\'s chooser, no file control drawn on the board', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser);
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -367,8 +358,7 @@ test('chromium: a picture or file from the insert menu opens the platform\'s cho
 });
 
 test('chromium 820 px: on a tablet the board reaches the window\'s foot, the corner stands above the dock and Insert is in reach', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 820, height: 1180, hasTouch: true });
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -391,8 +381,7 @@ test('chromium 820 px: on a tablet the board reaches the window\'s foot, the cor
 });
 
 test('chromium 390 px: on a phone the board reaches the window\'s foot, no bottom bar under it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 390, height: 844, hasTouch: true });
   t.after(() => context.close());
   await page.getByRole('application').locator('g.object').first().waitFor({ timeout: 20_000 });
@@ -402,8 +391,7 @@ test('chromium 390 px: on a phone the board reaches the window\'s foot, no botto
 });
 
 test('chromium: on a tablet a finger moves the board and a pen draws (UC-CNV-04 check 7, as far as touch emulation reaches)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { width: 1024, height: 768, hasTouch: true });
   t.after(() => context.close());
   const canvas = page.getByRole('application');

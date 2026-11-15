@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -23,8 +23,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: a locked limit is set by the installation, an open one is its default', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -81,8 +80,7 @@ async function openLimits(browser, standings, { tenancy = 'single' } = {}) {
 
 // P-12: the attachment storage is a size, not a count of bytes; every other limit stays a count.
 test('chromium: attachment storage reads as a size', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openLimits(browser, [
     { quota: 'media_bytes', limit: 10737418240, used: 2500000, ratio: 0.0002, configured: false, locked: false },
     { quota: 'items', limit: 5000, used: 12, configured: false, locked: false },
@@ -100,8 +98,7 @@ test('chromium: attachment storage reads as a size', async (t) => {
 // operator, and says where a limit is changed - or whom to ask, for a reader who cannot go there.
 // An installation of many keeps its own sentences.
 test('chromium: a single installation is told where a limit changes without the operator', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const standings = [
     { quota: 'items', limit: 5000, used: 12, configured: false, locked: false },
     // The workspace's own ceiling, as a server that names the level answers it: no operator either.
@@ -124,8 +121,7 @@ test('chromium: a single installation is told where a limit changes without the 
 // UC-INS-10 check 1, UC-INS-13 check 3: on a plan, *Limits* names it and every row says who set it -
 // the plan, its lock, the installation, or the operator's exception.
 test('chromium: a workspace on a plan names it, and each limit says who set it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   await context.route('**/api/v1/**', async (route) => {
@@ -171,8 +167,7 @@ test('chromium: a workspace on a plan names it, and each limit says who set it',
 // UC-INS-10 check 5: the people limit is a row like any other; reached, the screen says nobody new
 // comes in and nobody here goes, and what is counted.
 test('chromium: a reached people limit says nobody new comes in and nobody here goes', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const reached = await openLimits(browser, [
     { quota: 'items', limit: 5000, used: 12, configured: false, locked: false, source: 'PLAN', lock: null },
     { quota: 'accounts', limit: 6, used: 6, ratio: 1, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
@@ -197,8 +192,7 @@ test('chromium: a reached people limit says nobody new comes in and nobody here 
 // ux-inventory.md §E8: a limit is also shown beside the feature it bounds, with the same chip as
 // on *Limits* - the hour's runs under the runs' strip, set by the plan and locked there.
 test('chromium: a limit beside its feature says who set it, as Limits does', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await openLimits(browser, [
     { quota: 'automation_runs_per_hour', limit: 500, used: 34, ratio: 0.068, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
   ], { tenancy: 'multi' });

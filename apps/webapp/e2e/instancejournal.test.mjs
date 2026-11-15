@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -47,8 +47,7 @@ async function journalOf(browser, tenancy) {
 }
 
 test('chromium: a single installation reads its journal without suspension, deletion or an operator', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const single = await journalOf(browser, 'single');
   assert.doesNotMatch(single, /provisioned|suspended|deleted|operator/i, single);
   assert.match(single, /every workspace you create/, single);
@@ -60,8 +59,7 @@ test('chromium: a single installation reads its journal without suspension, dele
 // ux-inventory §E8: the journal is narrowed at the server - by what happened and by the workspace's
 // address - and read a page at a time with *Show older entries*, which walks on under the narrowing.
 test('chromium: the journal is narrowed by what happened and by workspace, and read on a page at a time', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const asked = [];

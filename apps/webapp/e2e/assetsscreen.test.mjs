@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, HUB, MANIFEST, PAGE, signedIn, stub } from './fixture.mjs';
@@ -118,8 +118,7 @@ async function noSidewaysScroll(page, what) {
 }
 
 test('chromium: Stock comes first under its figure, the operator\'s sections under Upkeep', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets` });
   t.after(() => context.close());
 
@@ -156,8 +155,7 @@ test('chromium: Stock comes first under its figure, the operator\'s sections und
 });
 
 test('chromium: a reader is shown neither Upkeep nor a create, and an upkeep address shows Stock', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets/connectors`, role: 'VIEWER' });
   t.after(() => context.close());
 
@@ -177,8 +175,7 @@ test('chromium: a reader is shown neither Upkeep nor a create, and an upkeep add
 });
 
 test('chromium: New connector in the head\'s list opens the connector dialog on its part of Upkeep', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets` });
   t.after(() => context.close());
 
@@ -199,8 +196,7 @@ test('chromium: New connector in the head\'s list opens the connector dialog on 
 });
 
 test('chromium: a connector card has one act and the rest in its menu, its failure in words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await open(browser, { path: `/hubs/${HUB.id}/assets/connectors` });
   t.after(() => context.close());
 
@@ -216,8 +212,7 @@ test('chromium: a connector card has one act and the rest in its menu, its failu
 
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: empty alerts say where alerts come from and offer an intake`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await open(browser, { width, height: 812, scheme, path: `/hubs/${HUB.id}/assets/alerts`, full: false });
     t.after(() => context.close());
 
@@ -234,8 +229,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   });
 
   test(`chromium ${width} px, ${scheme}: a full inventory, connectors and alerts never scroll sideways`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await open(browser, { width, height: 812, scheme, path: `/hubs/${HUB.id}/assets` });
     t.after(() => context.close());
 
@@ -261,8 +255,7 @@ const RELATED = {
 
 for (const width of [1280, 375]) {
   test(`chromium ${width} px: an object's relations are a small picture or the list, one at a time`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await open(browser, { width, height: 900, path: `/cis/${RELATED.id}` });
     t.after(() => context.close());
     await context.route(`**/api/v1/cis/${RELATED.id}`, (route) => route.fulfill({ json: RELATED }));
@@ -293,8 +286,7 @@ for (const width of [1280, 375]) {
 // in place of the home's tabs, the home's create act not shown, *Assets* in the trail; the class
 // tree shows its families with each deeper branch folded until opened.
 test('chromium: the assets settings are a settings page without the home\'s act, and fold the class tree', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const shipped = (key, name, lineage) => ({ ...SERVER_CLASS, key, name, parent: lineage[1] ?? '', system: true, lineage });
   const classes = [
     shipped('ci', 'Configuration item', ['ci']),
@@ -326,8 +318,7 @@ test('chromium: the assets settings are a settings page without the home\'s act,
 // relation types that join it, from the two lists the classes' screen reads; *Change* a Dialog L
 // from the head, archiving in the danger zone behind a Dialog S.
 test('chromium: a class opens its record page, changed from its head and archived in its danger zone', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const attribute = (key, kind) => ({ key, kind, need: 'OPTIONAL', identifier: false });
   const classes = [
     { ...SERVER_CLASS, key: 'ci', name: 'Configuration item', parent: '', system: true, lineage: ['ci'], all_attributes: [attribute('owner', 'ACCOUNT')] },

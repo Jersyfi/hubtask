@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { ACCOUNT, MANIFEST, PAGE, forgetUnstubbed, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -45,8 +45,7 @@ async function requester(browser, portals) {
 }
 
 test('chromium: a requester with one portal starts in it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await requester(browser, [DESK]);
   t.after(() => context.close());
 
@@ -56,8 +55,7 @@ test('chromium: a requester with one portal starts in it', async (t) => {
 });
 
 test('chromium: a requester with several portals starts in the first and chooses the others at the top', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await requester(browser, [DESK, FACILITIES]);
   t.after(() => context.close());
   await page.goto(`${served.origin}/`);

@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, HUB, ITEMS, OTHER } from './fixture.mjs';
@@ -105,8 +105,7 @@ function timeBackend({ running, kinds, rates, absences, capacities } = {}) {
 }
 
 test('chromium: time - a timer on an entry, the week handed in, a colleague\'s week approved - without an error', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // Eight hours a weekday: the week's figure and each day measure against them (UC-TIM-01).
   const capacities = [{ account_id: ACCOUNT.id, from: '2020-01-06', week_minutes: [480, 480, 480, 480, 480, 0, 0], version: 1 }];
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ capacities }) });
@@ -156,8 +155,7 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
 // UC-TIM-03 check 7: the approver is shown the queue of weeks to decide - whose, which week and
 // how long - opens one whole and sends it back with a reason, after which the queue holds nothing.
 test('chromium: time - a colleague\'s week is opened from the queue and sent back with a reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend() });
   t.after(walk.close);
   const { page } = walk;
@@ -184,8 +182,7 @@ test('chromium: time - a colleague\'s week is opened from the queue and sent bac
 });
 
 test('chromium: time - a timer left running past a day is recorded until a time on its start\'s day', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // Started two days ago at 09:00 UTC (the walk's zone): a stop now would be refused.
   const started = `${new Date(Date.now() - 2 * DAY).toISOString().slice(0, 10)}T09:00:00.000Z`;
   const running = { running: true, entry_id: null, work_type: 'work', note: '', billable: true, started_at: started, elapsed_minutes: 2880 };
@@ -215,8 +212,7 @@ test('chromium: time - a timer left running past a day is recorded until a time 
 });
 
 test('chromium: time - 375 px, an empty week says what to do and nothing scrolls sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   // The reader away on the 3rd of this month, so the absence calendar draws a person's month.
   const thisMonth = new Date().toISOString().slice(0, 7);
   const away = { id: '01a0e2e0-0000-7000-8000-00000000ab01', account_id: ACCOUNT.id, from: `${thisMonth}-03`, to: `${thisMonth}-03`, kind: 'LEAVE', half: false, version: 1 };
@@ -272,8 +268,7 @@ test('chromium: time - 375 px, an empty week says what to do and nothing scrolls
 
 // The strip is the phone's (scene time, UC-TIM-02 check 9); a locked day is measured as well as an open one.
 for (const isLocked of [false, true]) test(`chromium: time - 390 px, each ${isLocked ? 'locked' : 'open'} day of the strip keeps inside its own cell and the content edge`, async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const backend = timeBackend();
   const answer = (method, path, query, body) => {
     const answered = backend(method, path, query, body);
@@ -302,8 +297,7 @@ for (const isLocked of [false, true]) test(`chromium: time - 390 px, each ${isLo
 // §4: a workspace's kinds of work are there on first use - the first reader who may write them
 // gets the usual ones, in their words - so the timer starts and a day records.
 test('chromium: time - a workspace without a kind of work starts on its start page, is given the usual ones by the first record, and the timer starts', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }) });
   t.after(walk.close);
   const { page } = walk;
@@ -349,8 +343,7 @@ test('chromium: time - a workspace without a kind of work starts on its start pa
 // user-experience.md §5.12: on a phone the running timer, a long entry title among it, wraps
 // rather than widening the page.
 test('chromium: time - 390 px, the start page draws no day strip and no hand-in, as emptytime', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ kinds: [] }), width: 390, height: 844 });
   t.after(walk.close);
   const { page } = walk;
@@ -362,8 +355,7 @@ test('chromium: time - 390 px, the start page draws no day strip and no hand-in,
 });
 
 test('chromium: time - 390 px, a running timer on a long title scrolls nothing sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const title = 'Als Kundin möchte ich meine offenen Rechnungen im Portal sehen und einzeln herunterladen können';
   const running = { running: true, entry_id: ENTRY.id, entry_title: title, work_type: 'work', note: '', billable: true, started_at: new Date(Date.now() - 25 * 60_000).toISOString(), elapsed_minutes: 25 };
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }), width: 390, height: 844 });
@@ -380,8 +372,7 @@ test('chromium: time - 390 px, a running timer on a long title scrolls nothing s
 
 // user-experience.md §5.10: a rate's days are the reader's dates, never ISO text.
 test('chromium: time - the cost rates name their days in words', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const rate = { id: '01a0e2e0-0000-7000-8000-00000000b701', account_id: null, role: 'MEMBER', hour_minor: 9000, currency: 'EUR', from: '2025-11-05', to: '2026-03-31', version: 1 };
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ rates: [rate] }) });
   t.after(walk.close);
@@ -400,8 +391,7 @@ test('chromium: time - the cost rates name their days in words', async (t) => {
 
 // The time head names the entry the timer runs on (user-experience.md §7.6), and the name opens it.
 test('chromium: time - the running timer names its entry in the head and opens it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const started = new Date(Date.now() - 25 * 60_000).toISOString();
   const running = { running: true, entry_id: ENTRY.id, entry_title: ENTRY.title, work_type: 'work', note: '', billable: true, started_at: started, elapsed_minutes: 25 };
   const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ running }) });
@@ -420,8 +410,7 @@ test('chromium: time - the running timer names its entry in the head and opens i
 // The product's first mark keeps the width of its words where its target ends the head: it turns to
 // end at the create act instead of squeezing into the strip beside it (user-experience.md §3.4).
 test('chromium: time - the first visit\'s mark at the head\'s create act keeps its width', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { products_seen: _seen, ...newcomer } = ACCOUNT;
   const backend = timeBackend();
   const answer = (method, path, query, body) =>

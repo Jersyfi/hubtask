@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { AI_SOURCE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -48,8 +48,7 @@ async function open(browser, routes = {}) {
 
 // UC-AI-02 check 4: the provider's declaration is shown where the workspace consents.
 test('chromium: the consent names who receives the content and where', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -90,8 +89,7 @@ function sourceRoutes(answer) {
 // D1 (UC-AI-06 check 8): nothing offered, nothing decided - today's screen, and no word of an
 // offered model, a lock or a minimum.
 test('chromium: a private installation sees only its own model, as always', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -105,8 +103,7 @@ test('chromium: a private installation sees only its own model, as always', asyn
 // that broke: nothing answers, said in the head and counted on the column's *AI* row
 // (user-experience.md §7.10).
 test('chromium: a withdrawn offered model is said in the head and counted in the column', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser, sourceRoutes(sourceUnder('OFFERED', { source: 'OFFERED' })));
   t.after(close);
 
@@ -122,8 +119,7 @@ test('chromium: a withdrawn offered model is said in the head and counted in the
 // D5 (UC-AI-05 checks 1, 2; UC-AI-02 check 5): the offered model locked - one card, one switch,
 // processor and where in words, and no own form. Switching it on is the consent, one request.
 test('chromium: a consumer switches on the offered model with one control', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, sourceRoutes(sourceUnder('OFFERED', { sources_lock: 'INSTANCE' })));
   t.after(close);
 
@@ -152,8 +148,7 @@ test('chromium: a consumer switches on the offered model with one control', asyn
 // UC-AI-05 check 6: where the installation offers several models, the workspace picks one by name -
 // each named with its processor and where, and the choice sends that model and no other.
 test('chromium: of several offered models the workspace picks one by name', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const SMALL = { id: '01a0e2e0-0000-7000-8000-0000000006a2', display_name: 'Small (DE)', processor: 'Beispiel KI GmbH', jurisdiction: 'SELF_HOSTED' };
   const { page, sent, close } = await open(browser, sourceRoutes(sourceUnder('OFFERED', { sources_lock: 'INSTANCE', offered: [LARGE, SMALL] })));
   t.after(close);
@@ -177,8 +172,7 @@ test('chromium: of several offered models the workspace picks one by name', asyn
 // D6 (UC-AI-05 check 7, UC-AI-06 check 4): either source on one screen, the own form kept, and the
 // minimum said with who set it.
 test('chromium: a company chooses between the offered model and its own', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, sent, close } = await open(browser, sourceRoutes(sourceUnder('EITHER', {
     min_jurisdiction: 'EEA', min_jurisdiction_origin: 'INSTANCE',
   })));
@@ -208,8 +202,7 @@ test('chromium: a company chooses between the offered model and its own', async 
 // UC-AI-07 checks 2 and 4, UC-AI-06 check 6: either source allowed - each source's use and cap side
 // by side, and the workspace sets its own model's budget here, an empty field being no budget.
 test('chromium: each source shows its own budget, and the workspace sets its own', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const budgets = [];
   const routes = sourceRoutes(sourceUnder('EITHER'));
   // Who set each budget, as *Limits* says it: beside the budget too (ux-inventory.md §E8).
@@ -256,8 +249,7 @@ test('chromium: each source shows its own budget, and the workspace sets its own
 // press opens the section at its own address with the keyboard on its heading, and a consent
 // flipped but not saved is held by the leave guard.
 test('chromium: the AI sections open at their address and an unsaved consent is asked about before leaving', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, close } = await open(browser);
   t.after(close);
 
@@ -298,8 +290,7 @@ test('chromium: the AI sections open at their address and an unsaved consent is 
 // key never comes back - the field stays empty and says a key is stored - and a change that does not
 // retype the key sends none, so the sealed one is kept.
 test('chromium: the provider is changed and removed on the screen, and its key is never shown', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const writes = [];
   const { page, close } = await open(browser, {
     '/ai-provider': (route, request) => {

@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { BUCKETS, COLLECTION, ITEMS, signedIn } from './fixture.mjs';
@@ -19,8 +19,7 @@ const served = await serve(join(dirname(fileURLToPath(import.meta.url)), '..', '
 test.after(() => served.close());
 
 test('chromium: 1280 px - fields stand in columns, the panel groups by column, done goes to the end, and it is kept', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
@@ -63,8 +62,7 @@ test('chromium: 1280 px - fields stand in columns, the panel groups by column, d
 });
 
 test('chromium: 1280 px - the density switch makes the rows compact, and this device keeps it (E-5, UC-WRK-45 check 4, UC-WRK-41 check 6)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);

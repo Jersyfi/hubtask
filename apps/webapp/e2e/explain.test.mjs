@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, COLLECTION, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn, viewBar, openNewCollection } from './fixture.mjs';
@@ -54,8 +54,7 @@ const description = (locator) =>
 
 for (const width of WIDTHS) {
   test(`chromium: ${width} px — an archived collection says why once, and its rows say nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
     await page.goto(`${served.origin}/collections/${ARCHIVED.id}`);
     const note = page.locator('main [role="note"]');
@@ -91,8 +90,7 @@ for (const width of WIDTHS) {
   });
 
   test(`chromium: ${width} px — a member reads whom to ask, and under an archived hub every reason names the hub`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'MEMBER');
     await page.goto(`${served.origin}/collections/${ARCHIVED.id}`);
     const note = page.locator('main [role="note"]');
@@ -115,8 +113,7 @@ for (const width of WIDTHS) {
 }
 
 test('chromium: 1280 px — the page menu of a collection under an archived hub names the hub in every reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures } = await as(browser, 1280, 'OWNER');
   await page.goto(`${served.origin}/collections/${UNDER_ARCHIVED.id}`);
   await page.locator('main [role="note"]').waitFor({ timeout: 15_000 });
@@ -133,8 +130,7 @@ test('chromium: 1280 px — the page menu of a collection under an archived hub 
 
 for (const width of WIDTHS) {
   test(`chromium: ${width} px — an archived entry says why once; its children stay writable`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
     await withNotes(page, ARCHIVED_ENTRY);
     await page.goto(`${served.origin}/items/${ARCHIVED_ENTRY.id}`);
@@ -168,8 +164,7 @@ for (const width of WIDTHS) {
   });
 
   test(`chromium: ${width} px — an entry in an archived collection says the collection's reason, and a viewer reads its role's`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures } = await as(browser, width, 'OWNER');
     await withNotes(page, IN_ARCHIVED);
     await page.goto(`${served.origin}/items/${IN_ARCHIVED.id}`);
@@ -261,8 +256,7 @@ async function openPart(page, tab, mayShape) {
 
 for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { use: true, shape: false }], ['VIEWER', { use: false, shape: false }]]) {
   test(`chromium: 1280 px — templates and fields offer a ${role.toLowerCase()} only what the role allows, with no reason for the rest`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await as(browser, 1280, role);
     await context.route('**/api/v1/templates**', (route) => route.fulfill({ json: { data: TEMPLATES, page: { next_cursor: null, has_more: false } } }));
 
@@ -321,8 +315,7 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
 }
 
 test('chromium: 1280 px — a saved view offers sharing only to who may share, and a way it cannot take says why in the list', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   for (const [role, mayShare] of [['OWNER', true], ['MEMBER', false]]) {
     const { page, context, failures } = await as(browser, 1280, role);
     await context.route('**/api/v1/**/views**', (route) => route.fulfill({ json: VIEWS }));
@@ -356,8 +349,7 @@ function writes(context) {
 
 for (const width of WIDTHS) {
   test(`chromium: ${width} px — a bulk Apply without its value marks the field and sends nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await as(browser, width, 'OWNER');
     const sent = writes(context);
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
@@ -378,8 +370,7 @@ for (const width of WIDTHS) {
   });
 
   test(`chromium: ${width} px — creating a collection without a name marks the name and sends nothing`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, context, failures } = await as(browser, width, 'OWNER');
     const sent = writes(context);
     await page.goto(`${served.origin}/hubs/${COLLECTION.parent_id}`);
@@ -394,8 +385,7 @@ for (const width of WIDTHS) {
 }
 
 test('chromium: 1280 px — a reminder counted from a due date the entry lacks is marked on save, and a fixed time stays reachable', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await as(browser, 1280, 'OWNER');
   const sent = writes(context);
   const undated = ITEMS.find((each) => !each.due_at) ?? ITEMS[0];
@@ -421,8 +411,7 @@ test('chromium: 1280 px — a reminder counted from a due date the entry lacks i
 });
 
 test('chromium: 1280 px — Ask is absent for an arrival with nothing to ask about', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures } = await as(browser, 1280, 'OWNER');
   await page.goto(`${served.origin}/jumble`);
   await page.locator('main').waitFor({ timeout: 15_000 });

@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -93,8 +93,7 @@ async function open(browser, initial, width = 1280) {
 }
 
 test('chromium: where the installation does not allow own domains, the panel is absent', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await open(browser, address({ own_domains_allowed: false }));
   t.after(() => context.close());
   await page.getByText('acme.tasks.example.net').waitFor();
@@ -102,8 +101,7 @@ test('chromium: where the installation does not allow own domains, the panel is 
 });
 
 test('chromium: the owner types a domain, is refused at the field, then gets the two records to copy', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent } = await open(browser, address());
   t.after(() => context.close());
 
@@ -137,8 +135,7 @@ test('chromium: the owner types a domain, is refused at the field, then gets the
 });
 
 test('chromium: each state the check reaches is drawn as approved', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const cases = [
     [own('VERIFIED', { records: records(true, true) }), ['Verified', 'Certificate on its way', 'Both records are found.'], false],
     [own('ACTIVE', { records: records(true, true) }), ['Active', 'The main address is still acme.tasks.example.net'], true],
@@ -160,8 +157,7 @@ test('chromium: each state the check reaches is drawn as approved', async (t) =>
 });
 
 test('chromium: 375 px — the records stack without the page scrolling sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page } = await open(browser, address({ own_domain: own('PENDING') }), 375);
   t.after(() => context.close());
   await page.getByText('Waiting for DNS').waitFor();
@@ -170,8 +166,7 @@ test('chromium: 375 px — the records stack without the page scrolling sideways
 });
 
 test('chromium: the operator sees every own domain and blocks one with a reason', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   t.after(() => context.close());
   const sent = [];

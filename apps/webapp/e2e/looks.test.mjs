@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { HUB, LOOK_COLLECTION, LOOK_HUB, LOOK_PRIVATE_HUB, PLAIN_COLLECTION, showLooks, signedIn } from './fixture.mjs';
@@ -45,8 +45,7 @@ async function at(browser, width, path) {
 }
 
 test('chromium: 1280 px — the navigation draws each place in its own colour, and one nobody chose for on the default tile', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await at(browser, 1280, `/collections/${LOOK_COLLECTION.id}`);
   t.after(() => context.close());
 
@@ -76,8 +75,7 @@ test('chromium: 1280 px — the navigation draws each place in its own colour, a
 });
 
 test('chromium: 1280 px — creating a hub offers the ten colours and the symbols by name, and sends the choice', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await at(browser, 1280, '/');
   t.after(() => context.close());
 
@@ -121,8 +119,7 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
 });
 
 test('chromium: 1280 px — editing changes the colour and the symbol, and "none" clears the colour', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await at(browser, 1280, `/hubs/${LOOK_HUB.id}`);
   t.after(() => context.close());
   await page.getByRole('heading', { name: LOOK_HUB.name, level: 1 }).waitFor({ timeout: 10_000 });
@@ -157,8 +154,7 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
 });
 
 test('chromium: 1280 px — Today and search say where each entry lives, in the place’s colour', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, context, failures } = await at(browser, 1280, '/');
   t.after(() => context.close());
 

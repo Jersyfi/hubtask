@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 import { createServer } from 'vite';
 
 import { signedIn } from './fixture.mjs';
@@ -34,8 +34,7 @@ async function warningsOn(page, path) {
 }
 
 test('chromium: the dev build signs in and opens Today without a Svelte warning', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const out = await browser.newContext();
   t.after(() => out.close());

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { COLLECTION, ITEMS, signedIn } from './fixture.mjs';
@@ -24,8 +24,7 @@ const served = await serve(DIST);
 test.after(() => served.close());
 
 test('chromium: 1280 px — a row opens beside the list, stays current and focused; Escape closes; the page is a link away', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
@@ -94,8 +93,7 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
 });
 
 test('chromium: 905 px — the same address is a redirect to the entry’s page, and the back button skips it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context, unstubbed } = await signedIn(browser, 905, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
@@ -117,8 +115,7 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
 });
 
 test('chromium: 1280 px — the panel lies over the list, is as wide as the person drags it, and can make every entry open whole (UC-WRK-28 check 5)', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, context } = await signedIn(browser, 1280, 900);
   t.after(() => context.close());
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);

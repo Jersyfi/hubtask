@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, COLLECTION, ITEMS, OWNER_GRANTS, PAGE, signedIn, stub, chooseView } from './fixture.mjs';
@@ -99,8 +99,7 @@ async function axisOf(page) {
 }
 
 test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray that folds', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await timeline(browser);
   t.after(close);
 
@@ -159,8 +158,7 @@ test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray t
 });
 
 test('chromium: 1280 px — a point dragged moves the one date it has, and invents no other', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await timeline(browser);
   t.after(close);
 
@@ -194,8 +192,7 @@ test('chromium: 1280 px — a point dragged moves the one date it has, and inven
 
 // UC-WRK-13 check 7: a bar moves both dates, an end one.
 test('chromium: 1280 px — a bar moves both dates and an end moves one', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const today = new Date().toISOString().slice(0, 10);
   const span = { start: addDays(today, 1), due: addDays(today, 4) };
@@ -235,8 +232,7 @@ test('chromium: 1280 px — a bar moves both dates and an end moves one', async 
 });
 
 test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends to take', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   /** The handles a row of these dates draws, at each scale, as `width x height`. */
   const handlesOf = async (clock, start, due) => {
@@ -288,8 +284,7 @@ test('chromium: 1280 px — a bar end is a target, and a one-day bar has no ends
 
 // UC-WRK-13 check 7: an undated entry dragged out of the tray gets its first dates.
 test('chromium: 1280 px — a tray entry carried across the axis is given its first dates', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, written, close, unstubbed } = await timeline(browser);
   t.after(close);
 
@@ -335,8 +330,7 @@ async function carryFrom(page, from, to, { steps = 12 } = {}) {
 }
 
 test('chromium: 1280 px — a collection whose work is a season away opens on it', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   // Far enough out that no window around today reaches it: an entry outside the window is said,
   // never left out with nothing saying so.
@@ -362,8 +356,7 @@ test('chromium: 1280 px — a collection whose work is a season away opens on it
 });
 
 test('chromium: 375 px — the scale is reachable and the axis shows a usable range', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close, unstubbed } = await timeline(browser, { width: 375 });
   t.after(close);
 
@@ -384,8 +377,7 @@ test('chromium: 375 px — the scale is reachable and the axis shows a usable ra
 });
 
 test('chromium: 1280 px — a reader who may not change an entry cannot drag it, on the axis or from the tray', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
 
   const today = new Date().toISOString().slice(0, 10);
   const mine = { ...ITEMS[0], assignee_id: ACCOUNT.id, start_at: `${addDays(today, 1)}T09:00:00Z`, due_at: `${addDays(today, 4)}T09:00:00Z` };

@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { PERMISSIONS, fallback } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -158,8 +158,7 @@ async function open(browser, { width, scheme = 'light', modulesOn, twoHubs = fal
 // The scheme changes no row or box asserted here: each width once, in one of them.
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: the desk's and time's bands stand on Today where they are on`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, decided, close } = await open(browser, { width, scheme, modulesOn: ['SERVICE_DESK', 'TIME'] });
     t.after(close);
 
@@ -194,8 +193,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 }
 
 test('chromium 1280 px: with the products off, Today draws no product band and asks no product read', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, asked, close } = await open(browser, { width: 1280, modulesOn: ['GOALS'] });
   t.after(close);
   await page.waitForLoadState('networkidle');
@@ -210,8 +208,7 @@ test('chromium 1280 px: with the products off, Today draws no product band and a
 // approved only where its preview is read, so its row offers Decline alone.
 for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
   test(`chromium ${width} px, ${scheme}: an agent's held acts wait for the reader's yes on Today`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, decided, close } = await open(browser, { width, scheme, modulesOn: ['AGENTS'] });
     t.after(close);
     const yes = page.getByRole('region', { name: 'Needs you' });
@@ -237,8 +234,7 @@ for (const [width, scheme] of [[1280, 'dark'], [375, 'light']]) {
 // The scheme changes no row or box asserted here: each width once, in one of them.
 for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
   test(`chromium ${width} px, ${scheme}: Needs your answer, a page review and the Sprint stand on Today`, async (t) => {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
+    const browser = await sharedChromium(t);
     const { page, failures, asked, close } = await open(browser, { width, scheme, modulesOn: ['SERVICE_DESK', 'KNOWLEDGE', 'PLANNING'] });
     t.after(close);
 
@@ -285,8 +281,7 @@ for (const [width, scheme] of [[1280, 'light'], [375, 'dark']]) {
 // §3.3: *Needs your answer* across hubs is nearest first - the second hub's entry, due sooner, stands
 // above the first hub's, although the navigation draws the first hub first.
 test('chromium 1280 px: Needs your answer puts the entry due soonest first across hubs', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { page, failures, close } = await open(browser, { width: 1280, modulesOn: ['SERVICE_DESK'], twoHubs: true });
   t.after(close);
   const desk = page.getByRole('region', { name: 'Needs you' });

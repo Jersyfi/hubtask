@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 
-import { chromium } from 'playwright';
+import { sharedChromium } from './browser.mjs';
 
 import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
@@ -96,8 +96,7 @@ async function addressScreen(browser, current, width = 1280) {
 }
 
 test('chromium: the owner makes the active domain the main address, told what it costs, with the password', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const { context, page, sent, arrived } = await addressScreen(browser, address());
   t.after(() => context.close());
 
@@ -127,8 +126,7 @@ test('chromium: the owner makes the active domain the main address, told what it
 });
 
 test('chromium: the own domain is the main address; the subdomain beside it is the way back, at the same cost', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const main = address({ host: OWN, address_host: SUB, own_domain: own({ is_main: true }) });
   const { context, page, sent, arrived } = await addressScreen(browser, main);
   t.after(() => context.close());
@@ -159,8 +157,7 @@ test('chromium: the own domain is the main address; the subdomain beside it is t
 });
 
 test('chromium: 375 px — the main own domain and its way back fit without the page scrolling sideways', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const main = address({ host: OWN, address_host: SUB, own_domain: own({ is_main: true }) });
   const { context, page } = await addressScreen(browser, main, 375);
   t.after(() => context.close());
@@ -170,8 +167,7 @@ test('chromium: 375 px — the main own domain and its way back fit without the 
 });
 
 test('chromium: after a break the workspace administration warns until the domain is main again', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const cases = [
     [own({ state: 'BROKEN', fell_back_at: FELL }), 'broken',
       `Its proof record could no longer be found on October 27, 2026 at`, `so ${SUB} became the main address again by itself. Everybody signs in there for now. Put the record back, then make the domain the main address again.`],
@@ -210,8 +206,7 @@ test('chromium: after a break the workspace administration warns until the domai
 });
 
 test('chromium: the installation overview warns of a fallen-back domain, and the block of a main one says it falls back', async (t) => {
-  const browser = await chromium.launch();
-  t.after(() => browser.close());
+  const browser = await sharedChromium(t);
   const domains = [
     { domain: OWN, tenant_id: TENANT, tenant_name: 'Acme Ltd', state: 'ACTIVE', since: '2026-10-20T08:00:00Z', is_main: true, address_host: SUB },
     { domain: 'tasks.meier-familie.de', tenant_id: TENANT, tenant_name: 'Meier family', state: 'BROKEN', since: FELL, is_main: false, fell_back_at: FELL, address_host: 'meier.tasks.example.net' },
