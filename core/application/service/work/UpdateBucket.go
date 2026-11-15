@@ -65,13 +65,9 @@ type BucketWriter struct {
 	Activity ActivityJournal
 }
 
-const (
-	// causeDoneMoved is the history's why of an entry completed because the done mark moved onto
-	// the column it stands in.
-	causeDoneMoved = "DONE_COLUMN_MOVED"
-	// causeBoardRepair is the history's why of an entry the board repair completed.
-	causeBoardRepair = "BOARD_REPAIR"
-)
+// causeDoneMoved is the history's why of an entry completed because the done mark moved onto the
+// column it stands in.
+const causeDoneMoved = "DONE_COLUMN_MOVED"
 
 // settleDone keeps column and completion together once the done mark moved from one column to
 // another (domain-model.md §3.5a): the completed entries of the old done column go with the mark,

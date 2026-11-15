@@ -248,12 +248,6 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `board.switched` | SwitchBoard | `container` | INFO | Every time |
 
-## Boards
-
-| Action | Use case | Target | Severity | Recorded |
-|---|---|---|---|---|
-| `boards.repaired` | RepairBoards | `workspace` | NOTICE | Every time |
-
 ## Business_calendar
 
 | Action | Use case | Target | Severity | Recorded |

@@ -25,7 +25,7 @@ func TestAListBecomesABoardAndBack(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
 	administrator := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenantA, AccountID: authorA}
-	columns := boardRepair(ctx, t).Columns
+	columns := boardColumns(ctx, t)
 	switcher := work.SwitchBoard{Columns: columns, Workflow: work.WorkflowGate{Workflows: postgres.NewWorkflowRepository()}}
 
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)

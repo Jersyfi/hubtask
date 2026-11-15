@@ -3679,8 +3679,6 @@ func run() error {
 			Index: postgres.NewSearchIndexRepository(), Jobs: jobs, Authorizer: authorizer,
 			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
-		// Every board brought to one model once, at an administrator's request (domain-model.md §3.5a).
-		work.RepairBoards{Boards: boards, Workflow: workflowGate, Structure: structures, Columns: bucketWriter, Types: entryTypes}.Descriptor(),
 		work.SwitchBoard{
 			Columns: bucketWriter, Workflow: workflowGate,
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), Renderer: renderer,

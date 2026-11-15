@@ -28,6 +28,9 @@ const (
 	BoardSwitchedAction audit.Action = "board.switched"
 )
 
+// errDryRun rolls a dry run's transaction back once it has counted.
+var errDryRun = errors.New("board switch: dry run")
+
 // SwitchBoard moves a collection's tasks between a list and a board without a workflow (L0 ↔ L1,
 // domain-model.md §3.5a): a board starts with an open and a done column, the completed entries in
 // the done one; back to a list keeps completion and takes the columns off, the done column last.

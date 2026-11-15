@@ -22,9 +22,8 @@ import (
 )
 
 // A board whose entry types run their own workflows (domain-model.md §3.5a): its columns show the
-// statuses of every workflow on it, a status key in one column at most. The repair maps such a
-// board and a change of the scheme for one type takes its columns - against a real database,
-// another workspace untouched.
+// statuses of every workflow on it, a status key in one column at most. A change of the scheme for
+// one type takes its columns - against a real database, another workspace untouched.
 
 // perTypeBoard is a hub running one workflow for one type and another for a second, and a
 // collection whose columns were made before the mapping: they name statuses but show none.
@@ -124,83 +123,6 @@ func seedPerTypeBoard(ctx context.Context, t *testing.T, tenant, author shared.I
 	b.storyDoing = seedTyped(ctx, t, tenant, author, b.collection, b.story, "doing")
 	b.bugTriage = seedTyped(ctx, t, tenant, author, b.collection, b.bug, "triage")
 	return b
-}
-
-func TestTheRepairMapsABoardWhoseTypesRunTheirOwnWorkflows(t *testing.T) {
-	ctx := context.Background()
-	seedContainerTenants(ctx, t)
-	administrator := appshared.ActorContext{Kind: appshared.ActorUser, TenantID: tenantA, AccountID: authorA}
-	repair := boardRepair(ctx, t)
-	repair.Types = postgres.NewEntryTypeRepository()
-
-	board := seedPerTypeBoard(ctx, t, tenantA, authorA)
-	elsewhere := seedPerTypeBoard(ctx, t, tenantB, authorB)
-
-	dry, err := repair.Execute(ctx, administrator, true)
-	if err != nil {
-		t.Fatalf("the dry run: %v", err)
-	}
-	if dry.StatusesMapped < 3 || dry.ColumnsAdded < 1 {
-		t.Fatalf("the dry run counted %+v", dry)
-	}
-	if mapping := readMapping(ctx, t, tenantA, board.collection); len(mapping) != 0 {
-		t.Fatalf("the dry run wrote %v", mapping)
-	}
-
-	if _, err := repair.Execute(ctx, administrator, false); err != nil {
-		t.Fatalf("the repair: %v", err)
-	}
-	columns := liveColumns(ctx, t, tenantA, board.collection)
-	mapping := readMapping(ctx, t, tenantA, board.collection)
-
-	t.Run("the columns of the same name show the statuses of both workflows, each once", func(t *testing.T) {
-		for _, row := range []domain.ColumnStatus{
-			{BucketID: board.todo.ID, Status: "todo"}, {BucketID: board.doing.ID, Status: "doing"}, {BucketID: board.done.ID, Status: "done"},
-		} {
-			if !slices.Contains(mapping, row) {
-				t.Errorf("mapping %v lacks %v", mapping, row)
-			}
-		}
-		seen := map[string]bool{}
-		for _, row := range mapping {
-			if seen[row.Status] {
-				t.Errorf("status %q in two columns: %v", row.Status, mapping)
-			}
-			seen[row.Status] = true
-		}
-	})
-	t.Run("the second type's own status gets a column of its own", func(t *testing.T) {
-		if len(columns) != 4 || !slices.Contains(mapping, domain.ColumnStatus{BucketID: columns[3].ID, Status: "triage"}) {
-			t.Errorf("columns %d, mapping %v", len(columns), mapping)
-		}
-	})
-	t.Run("every card stands in the column of its status", func(t *testing.T) {
-		if entry := readEntry(ctx, t, tenantA, board.storyDoing); entry.BucketID != board.doing.ID {
-			t.Errorf("the entry in doing stands in %s", entry.BucketID)
-		}
-		if len(columns) == 4 {
-			if entry := readEntry(ctx, t, tenantA, board.bugTriage); entry.BucketID != columns[3].ID {
-				t.Errorf("the entry in triage stands in %s", entry.BucketID)
-			}
-		}
-	})
-	t.Run("another workspace's board is untouched", func(t *testing.T) {
-		if mapping := readMapping(ctx, t, tenantB, elsewhere.collection); len(mapping) != 0 {
-			t.Errorf("tenant B's board was mapped by tenant A's repair: %v", mapping)
-		}
-		if entry := readEntry(ctx, t, tenantB, elsewhere.bugTriage); !entry.BucketID.IsZero() {
-			t.Errorf("tenant B's entry was placed in %s", entry.BucketID)
-		}
-	})
-	t.Run("a second run finds nothing to do", func(t *testing.T) {
-		again, err := repair.Execute(ctx, administrator, false)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if again.StatusesMapped+again.ColumnsAdded+again.PlacedByStatus != 0 {
-			t.Errorf("the second run did %+v", again)
-		}
-	})
 }
 
 func TestASchemeChangeForOneTypeTakesTheBoardsColumns(t *testing.T) {

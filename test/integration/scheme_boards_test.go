@@ -29,7 +29,7 @@ import (
 
 func schemeDesk(ctx context.Context, t *testing.T) workflowservice.Desk {
 	t.Helper()
-	columns := boardRepair(ctx, t).Columns
+	columns := boardColumns(ctx, t)
 	workflows := postgres.NewWorkflowRepository()
 	journal := work.ActivityJournal{Entries: historyRepo(), IDs: columns.IDs}
 	return workflowservice.Desk{
@@ -75,9 +75,9 @@ func TestASchemeChangeCarriesTheBoard(t *testing.T) {
 	key := seedSchemeWorkflow(ctx, t, tenantA, authorA)
 
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
-	todo := seedRepairColumn(ctx, t, tenantA, collection, "a0", false)
-	doing := seedRepairColumn(ctx, t, tenantA, collection, "a1", false)
-	done := seedRepairColumn(ctx, t, tenantA, collection, "a2", true)
+	todo := seedBoardColumn(ctx, t, tenantA, collection, "a0", false)
+	doing := seedBoardColumn(ctx, t, tenantA, collection, "a1", false)
+	done := seedBoardColumn(ctx, t, tenantA, collection, "a2", true)
 	inDoing := seedOnBoard(ctx, t, tenantA, authorA, collection, doing.ID, false, "")
 	loose := seedOnBoard(ctx, t, tenantA, authorA, collection, "", true, "")
 	inDone := seedOnBoard(ctx, t, tenantA, authorA, collection, done.ID, true, "")
@@ -177,9 +177,9 @@ func TestAWorkflowIsMadeFromABoardsColumns(t *testing.T) {
 	maker := workflowservice.MakeBoardWorkflow{Desk: desk}
 
 	_, collection := hubWithCollection(ctx, t, tenantA, authorA)
-	todo := seedRepairColumn(ctx, t, tenantA, collection, "a0", false)
-	doing := seedRepairColumn(ctx, t, tenantA, collection, "a1", false)
-	done := seedRepairColumn(ctx, t, tenantA, collection, "a2", true)
+	todo := seedBoardColumn(ctx, t, tenantA, collection, "a0", false)
+	doing := seedBoardColumn(ctx, t, tenantA, collection, "a1", false)
+	done := seedBoardColumn(ctx, t, tenantA, collection, "a2", true)
 	inDoing := seedOnBoard(ctx, t, tenantA, authorA, collection, doing.ID, false, "")
 	loose := seedOnBoard(ctx, t, tenantA, authorA, collection, "", true, "")
 

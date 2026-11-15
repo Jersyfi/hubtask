@@ -553,7 +553,6 @@ func Descriptors() []usecase.Descriptor {
 		work.AggregateView{}.Descriptor(),
 		work.SearchItems{}.Descriptor(),
 		work.ReindexSearch{}.Descriptor(),
-		work.RepairBoards{}.Descriptor(),
 		work.SwitchBoard{}.Descriptor(),
 		work.ListActivity{}.Descriptor(),
 		work.CompleteWorkItem{}.Descriptor(),
