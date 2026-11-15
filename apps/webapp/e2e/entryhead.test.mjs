@@ -518,7 +518,8 @@ test('chromium 1280: links are tight rows by relation, each far end in its own s
   }
 });
 
-test('chromium 390: Link is reached through its jump mark, nothing covers it, and its dialog fits the phone (§6.9 links)', { timeout: 60_000 }, async () => {
+// On a phone the links stand under the description, so *Description* is the mark that leads to them.
+test('chromium 390: Link is reached through the jump mark of the description, nothing covers it, and its dialog fits the phone (§6.9 links)', { timeout: 60_000 }, async () => {
   const blocks = { key: 'blocks', system: true, name: null, inverse_name: null, direction: 'DIRECTED', cardinality: 'MANY', cycles: 'FORBIDDEN', waits: 'NONE', position: 1, archived: false, version: 1 };
   const far = (n) => ({ kind: 'ENTRY', id: `01a0e2e0-0000-7000-8000-0000000003f${n}`, anchor: null, available: true, title: `Far end ${n}`, key: `TAMA-${n}`, level: 'TASK', entry_type: 'task', completed: false, archived: false, collection_id: ENTRY.collection_id });
   const answer = {
@@ -530,7 +531,7 @@ test('chromium 390: Link is reached through its jump mark, nothing covers it, an
     extra: (read, method) => (method !== 'GET' ? undefined : read === '/link-types' ? { data: [blocks] } : read === `/items/${ENTRY.id}/links` ? answer : undefined),
   });
   try {
-    await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Links/ }).click();
+    await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Description/ }).click();
     const button = page.locator('[data-links]').getByRole('button', { name: 'Link', exact: true });
     await button.waitFor({ state: 'visible', timeout: 10_000 });
     await button.scrollIntoViewIfNeeded();
