@@ -300,6 +300,8 @@
   .plot { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--sp-050); row-gap: var(--sp-025); }
   .area { grid-column: 2; grid-row: 1; min-width: 0; }
   .chart { inline-size: 100%; block-size: var(--sp-1600); overflow: visible; }
+  /* The top grid line and the line's peak stand a step below the widget's head (W-3). */
+  .plot[data-chart='LINE'] { padding-block-start: var(--sp-200); }
   .chart polyline { fill: none; stroke: var(--series); stroke-width: var(--bw-thick); vector-effect: non-scaling-stroke; }
   .chart .dots { fill: none; stroke: var(--series); stroke-width: var(--sp-050); stroke-linecap: round; vector-effect: non-scaling-stroke; }
   .chart polyline.second { stroke-dasharray: var(--sp-100) var(--sp-050); }

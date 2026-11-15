@@ -221,6 +221,12 @@ test('the agents band counts by the cards\' own states (N37)', () => {
   assert.match(view, /\.\.\.\(approved > 0 \? \[t\('app\.agents\.figure_approved', \{ count: String\(approved\) \}\)\] : \[\]\)/u);
 });
 
+// W-3: a line chart stands a step below its widget's head, its top line not flush against it.
+test('a line chart keeps its inner space under the widget head (W-3)', () => {
+  const chart = sources.find(({ path }) => path === 'lib/goals/WidgetChart.svelte')?.text ?? '';
+  assert.match(chart, /\.plot\[data-chart='LINE'\] \{ padding-block-start: var\(--sp-200\); \}/u);
+});
+
 test('a page says nothing before its first sentence: no published hint, the live line under the text (M-2, §2.1)', () => {
   const view = sources.find(({ path }) => path === 'views/PagesView.svelte')?.text ?? '';
   assert.doesNotMatch(view, /app\.pages\.published_hint/u);
