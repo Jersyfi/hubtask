@@ -220,6 +220,7 @@ var notThePersons = map[string]string{
 	"page_media":              "which media object a page holds - the file itself is in media_objects, filtered by who uploaded it",
 	"cmdb_ci_media":           "which media object an inventory object holds - the file itself is in media_objects, filtered by who uploaded it",
 	"page_label":              "a page's labels name no writer; the page they belong to is filtered by its author",
+	"post":                    "a post's date, audience and settings name no writer; its words are its page's, filtered by its author",
 	"cmdb_class":              "the workspace's own classes of configuration items",
 	"cmdb_relation_type":      "the workspace's vocabulary of relations between configuration items",
 	"cmdb_source":             "a source of the inventory is an integration of the workspace's, not a person",
