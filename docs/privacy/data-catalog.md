@@ -261,6 +261,7 @@ individually switchable, and enumerated here in full:
 | External search index | Search | Indexed content | **off** |
 | Webhook targets | Automation, integration | Event metadata and references | Configured by the tenant, with an allowlist in provider operation |
 | CalDAV/ICS subscribers | Calendar integration | Titles, dates | Created by the user, revocable |
+| An openly licensed image library (`HUBTASK_COVER_IMAGES_URL`) | A cover picture searched for and taken (UC-DOC-16 check 5) | The words searched for and the chosen picture's identifier, from the server; nobody's name | **off**; a workspace's administration chooses it |
 | **The vendor / the project** | — | **none** | No telemetry exists |
 
 ---
