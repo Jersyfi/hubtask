@@ -55,8 +55,8 @@ again. Hubtask edits no file itself, and must not become a renderer of what some
 
 ## Further alternatives
 
-* *A converter on the server* (LibreOffice headless). A new dependency in the image; asked of the
-  owner separately.
+* *A converter on the server* (LibreOffice headless). A new dependency in the image; the owner
+  declined it on 2026-11-14: without a document server there is no conversion.
 * *Storing the tokens.* Revocable, but a write per open and a secret table; a two-hour signed
   token bounded to one file was preferred.
 * *A new object per save, the references moved.* Every entry, page and board would have to follow
