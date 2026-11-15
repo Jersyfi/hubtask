@@ -7,8 +7,8 @@ import { test } from 'node:test';
 import { keyCode, lineOf } from './queryline.ts';
 
 const keys = [
-  { key: 'type', value: 'kind', objects: ['task'], examples: ['type: task'], values: ['task', 'ticket'] },
-  { key: 'desk.sla', value: 'choice', objects: ['ticket'], examples: ['desk.sla: breached'], values: [] },
+  { key: 'type', value: 'kind', kinds: ['task'], examples: ['type: task'], values: ['task', 'ticket'] },
+  { key: 'desk.sla', value: 'choice', kinds: ['ticket'], examples: ['desk.sla: breached'], values: [] },
 ];
 const names: Record<string, string> = { 'app.qkey.type': 'Art' };
 const t = (code: string) => names[code] ?? code;

@@ -70486,7 +70486,7 @@
         "required": [
           "key",
           "value",
-          "objects",
+          "kinds",
           "examples",
           "values"
         ],
@@ -70524,7 +70524,7 @@
             "type": "string",
             "description": "The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`, `goal`, `cf`); absent for the keys of every kind.\n"
           },
-          "objects": {
+          "kinds": {
             "type": "array",
             "description": "The kinds of object the key asks about.",
             "items": {

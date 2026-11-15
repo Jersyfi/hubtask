@@ -121,7 +121,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 	queryKeys := make([]openapi.QueryKey, 0, len(source.QueryKeys))
 	for _, key := range source.QueryKeys {
 		rendered := openapi.QueryKey{
-			Key: key.Key, Value: openapi.QueryKeyValue(key.Value), Objects: key.Objects,
+			Key: key.Key, Value: openapi.QueryKeyValue(key.Value), Kinds: key.Objects,
 			Examples: nonNil(key.Examples), Values: nonNil(key.Values),
 		}
 		if key.Field != "" {

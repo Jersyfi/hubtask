@@ -42887,7 +42887,7 @@ components:
 
     QueryKey:
       type: object
-      required: [key, value, objects, examples, values]
+      required: [key, value, kinds, examples, values]
       description: >
         One key of the Hubtask query's `field: value` spelling.
       properties:
@@ -42912,7 +42912,7 @@ components:
           description: >
             The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`,
             `goal`, `cf`); absent for the keys of every kind.
-        objects:
+        kinds:
           type: array
           description: The kinds of object the key asks about.
           items: { type: string }

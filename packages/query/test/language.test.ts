@@ -25,8 +25,8 @@ test('a line is cut into chips and the rest', () => {
 });
 
 const keys: QueryKey[] = [
-  { key: 'who', field: 'assignee_id', value: 'person', objects: ['task'], examples: ['who: me'], values: ['me', 'none'] },
-  { key: 'due', field: 'due_at', value: 'time', objects: ['task'], examples: ['due: <today'], values: [] },
+  { key: 'who', field: 'assignee_id', value: 'person', kinds: ['task'], examples: ['who: me'], values: ['me', 'none'] },
+  { key: 'due', field: 'due_at', value: 'time', kinds: ['task'], examples: ['due: <today'], values: [] },
 ];
 
 // UC-WRK-43 check 5 (Q-3, Q-4): the catalogue offers the server's keys, a key's own words before

@@ -5934,7 +5934,7 @@ class QueryKey(TypedDict, total=False):
     field: str
     value: Required[Literal["state", "kind", "person", "place", "label", "time", "number", "text", "words", "choice", "flag", "relation", "sort", "custom"]]
     product: str
-    objects: Required[list[str]]
+    kinds: Required[list[str]]
     examples: Required[list[str]]
     values: Required[list[str]]
 

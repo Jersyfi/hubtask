@@ -24519,8 +24519,8 @@ type QueryKey struct {
 	// Key What is typed before the colon: `who`, `desk.standing`; `cf.` is the prefix of the custom fields, followed by a custom field's key.
 	Key string `json:"key"`
 
-	// Objects The kinds of object the key asks about.
-	Objects []string `json:"objects"`
+	// Kinds The kinds of object the key asks about.
+	Kinds []string `json:"kinds"`
 
 	// Product The product the key's prefix belongs to (`desk`, `plan`, `time`, `asset`, `page`, `goal`, `cf`); absent for the keys of every kind.
 	Product *string `json:"product,omitempty"`

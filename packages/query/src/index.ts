@@ -18,7 +18,7 @@ export interface QueryKey {
   readonly field?: string;
   readonly value: string;
   readonly product?: string;
-  readonly objects: readonly string[];
+  readonly kinds: readonly string[];
   readonly examples: readonly string[];
   readonly values: readonly string[];
 }
