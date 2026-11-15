@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import type { PlacedTimeRecord } from '@hubtask/sync-engine';
 
 import {
-  ranTooLong, usualEnd, dayCapacities,
+  ranTooLong, usualEnd, dayCapacities, isWeekLogged,
   absenceGrid, actualsTree, addDays, addMonths, burnShare, elapsedMinutes, exportCsv, heatOf, heatmap, isChangeable, keyLabel, groupKey,
   hoursClockText, minorOf, minutesOf, minutesOfHours, minutesText, moneyText, monthDays, weekDays, weekGrid, weekStartOf, weekText,
 } from './time.ts';
@@ -210,4 +210,15 @@ test('a day\'s capacity is the latest one in force by the week\'s Monday, the pe
   assert.deepEqual(dayCapacities(list, 'me', '2026-11-09'), [480, 480, 240, 0, 0, 0, 0]);
   assert.deepEqual(dayCapacities(list, 'me', '2026-10-05'), [480, 480, 480, 480, 480, 0, 0]);
   assert.equal(dayCapacities(list, 'nobody', '2026-11-09'), undefined);
+});
+
+// HOME-time-week: handing the week in is the view's one primary act once every working day holds
+// time - the days the reader's capacity counts, Monday to Friday where none is recorded.
+test('a week is logged once every working day holds time', () => {
+  assert.equal(isWeekLogged([480, 480, 480, 480, 0, 0, 0], undefined), false);
+  assert.equal(isWeekLogged([480, 480, 480, 480, 60, 0, 0], undefined), true);
+  assert.equal(isWeekLogged([480, 480, 240, 0, 0, 0, 0], [480, 480, 240, 0, 0, 0, 0]), true);
+  assert.equal(isWeekLogged([480, 480, 0, 0, 0, 0, 0], [480, 480, 240, 0, 0, 0, 0]), false);
+  assert.equal(isWeekLogged([0, 0, 0, 0, 0, 0, 120], [0, 0, 0, 0, 0, 0, 0]), false);
+  assert.equal(isWeekLogged([], undefined), false);
 });

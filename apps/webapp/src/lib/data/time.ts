@@ -377,6 +377,15 @@ export function minutesOfHours(text: string, separator: string): number | null |
 }
 
 /**
+ * Whether every working day of a week holds time (HOME-time-week): the days the person's capacity
+ * counts, Monday to Friday where it counts none. `minutes` and `capacity` run Monday first.
+ */
+export function isWeekLogged(minutes: readonly number[], capacity: readonly number[] | undefined): boolean {
+  const working = capacity?.some((each) => each > 0) ? capacity.map((each) => each > 0) : [true, true, true, true, true, false, false];
+  return working.every((isWorking, day) => !isWorking || (minutes[day] ?? 0) > 0);
+}
+
+/**
  * A person's capacity for each day of the week from `monday` (UC-TIM-01): the latest capacity in
  * force by then, Monday first; none where nothing is recorded for them.
  */

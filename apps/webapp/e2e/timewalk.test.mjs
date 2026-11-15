@@ -34,11 +34,11 @@ const LAST_MONDAY = new Date(Date.parse(`${MONDAY}T00:00:00Z`) - 7 * DAY).toISOS
 const [ENTRY] = ITEMS;
 
 /** The time module's routes, kept in memory as the server would keep them. */
-function timeBackend({ running, kinds, rates, absences, capacities } = {}) {
+function timeBackend({ running, kinds, rates, absences, capacities, held } = {}) {
   const id = ids('00000b');
   const defined = kinds ?? [{ key: 'work', name: 'Work', billable: true, archived: false, position: 0, version: 1 }];
   let timer = running ?? { running: false };
-  const records = [];
+  const records = [...(held ?? [])];
   const sheet = (account, week, state) => ({
     account_id: account, week_start: week, state, submitted_minutes: 0, submitted_at: null, decided_at: null, decided_by: null, reason: '', version: 1,
   });
@@ -150,6 +150,34 @@ test('chromium: time - a timer on an entry, the week handed in, a colleague\'s w
   assert.equal(start.body.entry_id, ENTRY.id);
   assert.deepEqual(walk.errors(), []);
   assert.deepEqual(walk.unstubbed(), []);
+});
+
+// HOME-time-week: one primary per view. *Record time* leads until every working day holds time;
+// then *Hand in the week* does, and recording steps back to a secondary act in the head.
+test('chromium: time - handing the week in becomes the primary once every working day holds time', async (t) => {
+  const browser = await sharedChromium(t);
+  const booked = (days) => days.map((offset, i) => ({
+    id: `00000c00-0000-4000-8000-00000000000${i}`, account_id: ACCOUNT.id, entry_id: ENTRY.id, work_type: 'work',
+    day: new Date(Date.parse(`${MONDAY}T00:00:00Z`) + offset * DAY).toISOString().slice(0, 10), started_at: null, minutes: 480,
+    note: '', billable: true, source: 'MANUAL', corrects: null, created_at: `${MONDAY}T09:00:00Z`, updated_at: `${MONDAY}T09:00:00Z`, version: 1,
+    collection_id: COLLECTION.id, hub_id: HUB.id, entry_title: ENTRY.title,
+  }));
+  const tones = async (page) => {
+    await page.locator('[data-hand-in]').waitFor({ timeout: 5_000 });
+    return {
+      handIn: await page.getByRole('button', { name: 'Hand in the week' }).getAttribute('data-tone'),
+      record: await page.locator('header').getByRole('button', { name: 'Record time', exact: true }).getAttribute('data-tone'),
+      primaries: await page.locator('main .button[data-tone=primary]:visible').count(),
+    };
+  };
+  for (const [days, want] of [[[0, 1, 2, 3], { handIn: 'secondary', record: 'primary' }], [[0, 1, 2, 3, 4], { handIn: 'primary', record: 'secondary' }]]) {
+    const walk = await productWalk(browser, { modules: ['TIME'], answer: timeBackend({ held: booked(days) }) });
+    const { page } = walk;
+    await page.goto(`${served.origin}/time`);
+    assert.deepEqual(await tones(page), { ...want, primaries: 1 }, `${days.length} of five weekdays recorded`);
+    assert.deepEqual(walk.errors(), []);
+    await walk.close();
+  }
 });
 
 // UC-TIM-03 check 7: the approver is shown the queue of weeks to decide - whose, which week and

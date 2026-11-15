@@ -3,7 +3,8 @@
 <script lang="ts">
   // *Time* (M7, user-experience.md §7.6): the reader's week, the weeks waiting for their decision,
   // and where the time went, under one head - the week's total and state as its figure, the one
-  // timer beside the acts, *Record time* the primary - and its views as the home's view bar (the
+  // timer beside the acts, *Record time* the primary until every working day holds time, then *Hand in
+  // the week* (HOME-time-week) - and its views as the home's view bar (the
   // navigation concept §3). Its settings are a page of their own, the bar's last tab.
   //
   // **My week** (UC-TIM-02 check 8): the week from Monday as a grid of entries by day, the records
@@ -40,7 +41,7 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import {
-    CAPACITIES, DIMENSIONS, WORK_TYPES, addDays, dayCapacities, dayHeading, exportCsv, groupKey, isChangeable, keyLabel, minutesOf, minutesText, queuePath, time,
+    CAPACITIES, DIMENSIONS, WORK_TYPES, addDays, dayCapacities, dayHeading, exportCsv, groupKey, isChangeable, isWeekLogged, keyLabel, minutesOf, minutesText, queuePath, time,
     weekDays, weekGrid, weekPath, weekStartOf, type RecordFields,
   } from '../lib/data/time.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -311,6 +312,9 @@
   const mayRecord = $derived(isOpen && offeredKinds.length > 0);
   const longDay = (day: string) => new Intl.DateTimeFormat(locale, { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }).format(Date.parse(`${day}T00:00:00Z`));
   const recordPrimary = $derived(mayRecord ? { label: t('app.time.add'), icon: 'plus' as const, onclick: () => openRecord(undefined) } : undefined);
+  // One primary per view (HOME-time-week): recording, until every working day holds time; then
+  // handing the week in, and recording steps back to a secondary act in the head.
+  const isHandInFirst = $derived(isOpen && !!sheet && isWeekLogged(strip.map((each) => each.minutes), capacity));
 
   function goWeek(by: number) {
     const next = addDays(monday, by * 7);
@@ -532,7 +536,7 @@
              Not on the start page, where nothing has been recorded yet (emptytime). -->
         <div class="hand-in" data-hand-in>
           <p>{t('app.time.hand_in_next')}</p>
-          <Button tone="primary" icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
+          <Button tone={isHandInFirst ? 'primary' : 'secondary'} icon="send" disabledReason={sheet.minutes <= 0 ? t('timesheets.empty') : undefined}
             onclick={() => void act(() => time.submit(monday), t('app.time.handed_in', { minutes: minutesText(sheet?.minutes ?? 0) }))}>{t('app.time.hand_in_week')}</Button>
         </div>
       {/if}
@@ -652,7 +656,8 @@
   <div class="top" data-head="time">
     <ProductBand product="time" icon="clock" name={current === 'week' ? t('app.time.tab_week') : t('app.time.title')} figures={bandFigures}
       state={sheet && current === 'week' ? { label: t(`app.time.state_${sheet.state}`), vocabulary: 'timesheet', state: sheetState(sheet.state) } : undefined}
-      primary={current === 'week' ? recordPrimary : undefined}
+      primary={current === 'week' && !isHandInFirst ? recordPrimary : undefined}
+      secondary={current === 'week' && isHandInFirst && recordPrimary ? [recordPrimary] : []}
       breadcrumb={{
         trail: [
           { id: 'products', label: t('app.nav.products') },
