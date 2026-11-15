@@ -153,6 +153,9 @@ concept's §2.4 has the tables):
    children; templates are offered in the create dialog, not in the tree. From 30 entries a filter
    (*All · Pages · Whiteboards*); modes *Tree*, *Recently changed*, *A–Z*, personal; *All contents*
    opens the table.
+5. ***Posts*** at the foot (the work-surface concept's one exception to the navigation, B-2): the
+   three newest published posts, an unread one with its dot, then *All posts*; shown where the hub
+   has a published post or the reader may write one (§7.12).
 
 A part appears only where its product is on at the hub; an empty part only for whoever may create
 in it, as one quiet row (*Create the first page*). **One view bar per object**: a collection, a tool
@@ -332,6 +335,16 @@ strip of the switched-off products, each with a one-line value and *Try it*, whi
 matching template through §3.2's dialog (*Pages* takes the *Team wiki*, *Inventory* the
 *Inventory objects*) — for holders of `STRUCTURE` only; nobody else sees a
 product they cannot switch on. The strip can be dismissed for good.
+
+As built with the work surface (`TodayView.svelte`, `lib/today.ts`): the greeting by the time of the
+person's day, then **one row of cards** - overdue, due today, and where their products are on *Needs
+your reply*, *Time today* and *Waiting for your yes* -, each with one act leading to its entries; the
+entries below in two columns by level; **tiles** for the collections shown as themselves, the inbox
+and what was recently opened; *New for you*, the published posts the reader has not seen across the
+hubs they read, where Knowledge is on. ***Sections*** hides and orders the cards and tiles; the
+arrangement is the account's (`account.today_sections`, `today_sections_hidden`), so it follows the
+person to another device, and a card their roles or modules do not give is neither shown nor offered
+(UC-WRK-34 checks 7-9).
 
 ### 3.4 Tours
 
@@ -527,6 +540,13 @@ Every product home and every hub tool has one anatomy (mockup: `shell.html`, *Pr
   hits of the same fan-out, and *Go to <product>* and *Go to <hub> › <tab>* commands. The settings
   catalogue is a source too, each setting with its level and its synonyms, filtered by what the
   reader may reach (A7). A test asserts that every module that is on contributes a source.
+* **As built with the work surface**: the header search and the search page draw from one read,
+  `POST /search:all` - entries and tickets, pages, whiteboards, goals, dashboards, objects, people,
+  file names, comments, portfolios, releases, sprints and posts -, grouped by kind with each kind's
+  count on the left; the line travels whole in the request's body and is a Hubtask query
+  (api-guidelines.md §3.1), so a key of one kind keeps the search to that kind. Where a list or
+  a view filters, it is the same query line as chips with the count while typing (UC-WRK-43); a
+  `word:` that names no field is searched as words and says so at its chip.
 
 ### 5.4 Configure
 
@@ -584,6 +604,14 @@ refuses a `*.empty` or `*_none` message code rendered outside `EmptyState` in `v
 * **One key format everywhere**: a short prefix the template or a person sets (*INC*, *ATL*),
   `PREFIX-n`, drawn identically in a list, a panel, a board card and a mail. A prefix derived from
   a name is at most five letters, transliterated, never the collection's whole name.
+* **As built with the work surface** (UC-WRK-44): an entry, a ticket, an inventory object, a goal, a
+  release, an agent and a portfolio start with one head (`ObjectHead`) over the full width - key or
+  tile, type, title, the state as one button saying where it can go next (UC-FLW-06), the next step
+  as the primary act -, then jump marks to the sections (with their counts), the content and the
+  properties in a rail beside it (`PropertyRail`); on a phone the jump marks switch between
+  sections and the properties open as a sheet. The conversation opens on *All*, the history as
+  quiet rows between the comments. Blocked steps are a line of information under the allowed ones,
+  never disabled controls (P-05).
 
 ### 5.7 A place's settings
 
@@ -965,8 +993,23 @@ changes - its whole workspace part, since its policies measure the types, priori
 that part brings and would measure nothing alone. A desk entry's SLA chips lead its main column, above the
 notes; the triage fields stay in the fields beside it. The portal draws its kinds as
 `TemplateCard`s with their mark and sentence and *Ask for this*; the form follows only once one is
-chosen, focus moving to it, with the articles beside it from the expanded width. A request's
-status is still its key where the workflow named it: the portal answers no status name.
+chosen, focus moving to it, with the articles beside it from the expanded width. A request
+shows its status by the name the desk's workflow gives it (`status_name`), else in the words of its
+category, never by its key, with when the team last answered in public and the next moment the
+desk promised (`last_reply_at`, `next_due_at`; UC-SVC-05).
+
+With the work surface (scene `deskhome`, `deskentry`): the desk home carries one card ***My
+deadlines kept*** - a short row per kind of deadline that ended in the window over the handler's own
+tickets (first reply, next reply, resolution, each team's OLA by its group), its share and a bar,
+worst first, at most three and then *+ n more* opening the whole table; a phone draws only the worst
+(`GET /deadlines-kept`, any member, always the caller's own, so no report permission; UC-SVC-02
+check 15). A ticket's rail starts with its deadlines, most urgent first, each by what is left or how
+long it is overdue, its policy and group by name, its urgency in a word and a mark beside the colour;
+*All deadlines as a table* opens the matrix on demand. The composer has two tabs, *Reply to …* and
+*Internal note* (drawn apart, its button *Save note*), with the desk's snippets and macros, each
+macro saying what it does; the conversation's tabs count the replies and the notes apart. The ITIL
+desk template sets the priority from impact × urgency by an automation rule an administrator edits
+or switches off (configuration.md, `itil_service_desk@17`), never by a computation of its own.
 
 ### 7.5 Plans, sprints and boards
 
@@ -985,6 +1028,14 @@ status is still its key where the workflow named it: the portal answers no statu
 * **The board**: a template sets where new entries land (the first column) and makes completion
   and the done column one (a ticked card moves to the done column; a card dropped there
   completes), as D-02 says for workflow collections; a column cut at the edge shows a scroll hint.
+  As built with the work surface, the server keeps column and completion together at every level
+  (domain-model.md §3.5a): an entry's state is one control - a checkbox in a list (L0), the column
+  chip on a board without a workflow (L1), the status chip under one (L2) - the same on the list
+  row, the card and the entry head; a board under a workflow names each column's statuses and folds
+  the unmapped ones into *Ohne Spalte*, a drop target; every drop goes through `POST
+  /items/{id}:drop`, a choice among several steps opens a picker and a refusal says its reason at
+  the card. *Show as board*, *Back to the list* and *Workflow from these columns* sit in the
+  collection's ⋯ and preview the server's dry run first.
 * **The default view comes from the template** per collection kind: Kanban opens on the board, a
   classic project on its plan, a desk on its queue, Scrum on the sprint board.
 
@@ -1184,6 +1235,20 @@ changes -, and the report with *See the plan* or *Open the inventory*. Mockup: `
 *An import*.
 
 ---
+
+### 7.12 Posts
+
+A post is a page with a date (domain-model.md §3.8; UC-DOC-17, UC-DOC-18), written in the pages'
+editor and read in the pages' reading layout, so it needs no editor or reader of its own. A hub's
+posts are its *Posts* (`/hubs/{id}/posts`): the featured ones first, then newest first, each with
+its cover, excerpt, writer, date and reading time, narrowed by *All · Unread · By me · Scheduled*
+(*Scheduled* only for its writers). Writing starts from *Blank* or a post template; *Publish* asks
+when (now or a day and time ahead), for whom (the hub, or some of its groups), how long it stays on
+top, whether it is discussed, whether followers are told and whether readers are asked to confirm
+by a day. A reader asked to confirm sees a band with *Read and understood*; the writers alone see
+who has seen it and who confirmed, and may remind the rest. The discussion is replies one level
+deep with four fixed reactions. The hub column's foot lists the newest (§2.4) and *Today* the
+unread ones (§3.3); a person follows a hub's posts from its *Posts*.
 
 ## 8. The administration and the installation
 
