@@ -331,6 +331,9 @@ test('no text is set at a size off the type scale: a page\'s headings, a side se
   assert.match(pages, /h3\.heading \{ margin: 0; font-size: var\(--fs-100\);/u);
   const chart = sources.find(({ path }) => path === 'lib/goals/WidgetChart.svelte')?.text ?? '';
   assert.doesNotMatch(chart, /font-size="\d/u, 'a chart sets text in its drawing\'s units');
+  // A heading read only by a screen reader is still set on the scale, not at the browser's own size.
+  const gallery = readFileSync(fileURLToPath(new URL('../../../../packages/design-system/src/TemplateGallery.svelte', import.meta.url)), 'utf8');
+  assert.doesNotMatch(gallery, /<h3 \{id\}>/u, 'a template gallery\'s hidden heading keeps the browser\'s size');
 });
 
 test('the controls the press walk still found short reach a thumb\'s target on a phone (§7)', () => {

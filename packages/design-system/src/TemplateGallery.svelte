@@ -24,7 +24,7 @@
 </script>
 
 <div class="gallery">
-  {#if isLabelHidden}<VisuallyHidden><h3 {id}>{label}</h3></VisuallyHidden>{:else}<h3 class="label" {id}>{label}</h3>{/if}
+  {#if isLabelHidden}<VisuallyHidden><h3 class="label" {id}>{label}</h3></VisuallyHidden>{:else}<h3 class="label" {id}>{label}</h3>{/if}
   <ul class="cards" aria-labelledby={id}>{@render children()}</ul>
 </div>
 
