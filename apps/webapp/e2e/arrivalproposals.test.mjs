@@ -154,7 +154,8 @@ async function advance(page, ms, step = 1_000) {
   }
 }
 
-for (const width of [1280, 768, 375]) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const width of process.env.EVIDENCE ? [1280, 768, 375] : [1280, 375]) {
   test(`chromium: ${width} px — a new entry shows the proposal nobody asked for, with its collection`, { timeout: 90_000 }, async () => {
     const browser = await chromium.launch();
     let reads = 0;

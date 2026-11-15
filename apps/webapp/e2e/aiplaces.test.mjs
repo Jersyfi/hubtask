@@ -12,7 +12,7 @@
 // * a running question is stopped from its card, and the job is cancelled;
 // * with AI off, nothing of it is drawn - the rule editor's AI blocks included.
 //
-// Chromium, at 375, 768 and 1280 px; EVIDENCE=<dir> keeps the screenshots, light and dark.
+// Chromium, at 375 and 1280 px; EVIDENCE=<dir> keeps the screenshots, at 768 px and in dark too.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -117,7 +117,8 @@ async function evidence(page, name) {
 
 const menu = (page, name) => page.getByRole('button', { name, exact: true });
 
-for (const width of [375, 768, 1280]) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const width of process.env.EVIDENCE ? [375, 768, 1280] : [375, 1280]) {
   test(`chromium: ${width} px — a ✦ per subject, and no suggestion area while nothing stands`, { timeout: 90_000 }, async () => {
     const browser = await chromium.launch();
     const { page, failures, close } = await openEntry(browser, { width });

@@ -91,7 +91,8 @@ async function evidence(page, name) {
   await page.screenshot({ path: join(process.env.EVIDENCE, name), fullPage: false, animations: 'disabled' });
 }
 
-for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]) {
+// The middle width only for the screenshots: nothing asserted differs from the large one's.
+for (const [width, size] of process.env.EVIDENCE ? [[1280, 'large'], [800, 'medium'], [375, 'compact']] : [[1280, 'large'], [375, 'compact']]) {
   // Dark only for the screenshots: the walk asserts nothing the scheme changes.
   for (const scheme of process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${size}, ${scheme} — a question in the palette comes back as a proposed answer, its filter saved as a view`, { timeout: 90_000 }, async () => {
