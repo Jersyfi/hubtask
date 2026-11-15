@@ -1172,6 +1172,11 @@
   /* Icon and title stand under the cover's picture, never on it (E-18); the icon reaches into its edge. */
   .covered .icon { position: relative; margin-block-start: calc(-1 * var(--sp-600)); }
   .page-adds { display: flex; gap: var(--sp-050); margin-block-end: var(--sp-050); }
+  /* While reading (scene pread) nothing to make stands above the first words: with a pointer the add
+     shows where the head is pointed at or reached by the keyboard; a touch screen always shows it. */
+  @media (hover: hover) {
+    .column:not(:hover) .page-adds:not(:focus-within) { opacity: 0; }
+  }
 
   /* A thumb's target (§7): where the pointer is coarse or the window a phone's, the control's press
      reaches layout.target, by its own height or beyond its drawn box. */

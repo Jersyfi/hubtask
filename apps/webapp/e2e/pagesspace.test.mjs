@@ -314,6 +314,39 @@ test('a cover takes a picture from the image library the workspace offers (UC-DO
   }
 });
 
+// Scene pread: while reading, nothing to make stands above the page's first words - *Add a cover*
+// and the cover's own acts show where the pointer is over them or the keyboard reaches them.
+test('a page read with a pointer shows its cover acts only when they are pointed at', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await opened(browser, FULL, 1440);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto(`${served.origin}/pages/${HOME.id}`);
+    const add = page.locator('[data-page-cover-add]');
+    await add.waitFor({ timeout: 15_000 });
+    const shown = (locator) => locator.evaluate((element) => getComputedStyle(element.closest('.page-adds, .acts')).opacity);
+    await page.mouse.move(2, 880);
+    assert.equal(await shown(add), '0', 'Add a cover stands over the page while reading');
+    await page.locator('article.column').hover({ position: { x: 40, y: 40 } });
+    assert.equal(await shown(add), '1', 'Add a cover is not shown when the head is pointed at');
+    await add.click();
+    const change = page.locator('[data-page-cover-change]');
+    await change.waitFor({ timeout: 10_000 });
+    // Closed and left: the reader moves on, the keyboard elsewhere.
+    if (await page.locator('[data-page-cover-picker]').count() > 0) await change.click();
+    await page.locator('[data-page-cover-picker]').waitFor({ state: 'detached', timeout: 5_000 });
+    await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+    await page.mouse.move(2, 880);
+    assert.equal(await shown(change), '0', 'the cover acts stand on the picture while reading');
+    await page.locator('[data-page-cover] .picture').hover();
+    assert.equal(await shown(change), '1', 'the cover acts are not shown when the cover is pointed at');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
 // E-18, UC-DOC-16 checks 1 and 2 (scene pcover): a cover over the content's width, the icon and title under the
 // picture; picked from the design system's gradients, the gallery or an upload, and taken away.
 test('a page takes a cover over its width, picked in tabs, the title under it (UC-DOC-16)', async () => {

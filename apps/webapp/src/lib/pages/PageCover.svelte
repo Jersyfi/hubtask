@@ -121,7 +121,7 @@
   }
 </script>
 
-<div class="cover" class:moving={isMoving} data-page-cover={`${cover.source}:${cover.key}`}>
+<div class="cover" class:moving={isMoving} class:picking={isPicking} data-page-cover={`${cover.source}:${cover.key}`}>
   <!-- While moving, the picture is a vertical slider of its position; otherwise an image. -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
   <div
@@ -215,6 +215,11 @@
   @media (width >= 600px) { .picture { block-size: calc(var(--sp-1600) * 1.25); } }
   .moving .picture { cursor: grab; outline: var(--bw-ring) dashed var(--focus-ring); touch-action: none; }
   .acts { position: absolute; inset-block-start: var(--sp-150); inset-inline-end: var(--sp-150); display: flex; align-items: center; gap: var(--sp-050); }
+  /* While reading (scene pread) the acts do not stand on the picture: with a pointer they show where
+     the cover is pointed at, reached by the keyboard, picked or moved; a touch screen always shows them. */
+  @media (hover: hover) {
+    .cover:not(:hover, :focus-within, .moving, .picking) .acts { opacity: 0; }
+  }
   .hint { padding: var(--sp-050) var(--sp-100); border-radius: var(--r-md); background: var(--bg-raised); font-size: var(--fs-075); }
   .picker {
     position: absolute; z-index: 2; inset-block-start: calc(100% - var(--sp-600)); inset-inline-end: 0;
