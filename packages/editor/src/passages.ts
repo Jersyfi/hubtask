@@ -30,11 +30,19 @@ export interface PassageRange {
   readonly to: number;
 }
 
-/** The text of a node with the document position of every character. */
-function indexed(node: PMNode, start: number): { text: string; at: number[] } {
+/**
+ * The text of a node with the document position of every character. `apart` puts a space between
+ * text blocks - a table's cells, a list's items - as `blockWords` quotes them; without it the words
+ * run together, as quotes written before did.
+ */
+function indexed(node: PMNode, start: number, apart: boolean): { text: string; at: number[] } {
   let text = '';
   const at: number[] = [];
   node.descendants((child, offset) => {
+    if (apart && child.isTextblock && text !== '' && !/\s$/u.test(text)) {
+      text += ' ';
+      at.push(start + offset);
+    }
     if (!child.isText || !child.text) return true;
     for (let i = 0; i < child.text.length; i += 1) at.push(start + offset + i);
     text += child.text;
@@ -44,12 +52,20 @@ function indexed(node: PMNode, start: number): { text: string; at: number[] } {
 }
 
 function within(node: PMNode, start: number, quote: string): PassageRange | undefined {
-  const { text, at } = indexed(node, start);
-  const index = text.indexOf(quote);
-  if (index < 0) return undefined;
-  const from = at[index];
-  const last = at[index + quote.length - 1];
-  return from === undefined || last === undefined ? undefined : { from, to: last + 1 };
+  for (const apart of [true, false]) {
+    const { text, at } = indexed(node, start, apart);
+    const index = text.indexOf(quote);
+    if (index < 0) continue;
+    const from = at[index];
+    const last = at[index + quote.length - 1];
+    return from === undefined || last === undefined ? undefined : { from, to: last + 1 };
+  }
+  return undefined;
+}
+
+/** A block's words as a comment quotes them: its text blocks - a table's cells - kept apart. */
+export function blockWords(node: PMNode): string {
+  return node.textBetween(0, node.content.size, ' ').trim();
 }
 
 /**

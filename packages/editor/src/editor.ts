@@ -25,7 +25,7 @@ import { CALLOUT_TONES, STATUS_TONES, embeddable, fromMarkdown, texOf, toMarkdow
 import { CodeBlocks, type DiagramColours } from './code.ts';
 import { EmojiShortcodes } from './emoji.ts';
 import { MathBlock } from './math.ts';
-import { CommentPassages, passagesKey, selectedWords, type Passage } from './passages.ts';
+import { CommentPassages, blockWords, passagesKey, selectedWords, type Passage } from './passages.ts';
 import { lineBelow, lineStart, moveLine, removeLine } from './lines.ts';
 import { caretLabels } from './carets.ts';
 import { placeholder } from './placeholder.ts';
@@ -534,7 +534,7 @@ export function createPageEditor(options: PageEditorOptions): Editor {
       const top = $from.depth > 0 ? $from.node(1) : undefined;
       const id = top?.attrs['blockId'] as string | null | undefined;
       const selected = selectedWords(current.state.doc, from, to)?.slice(0, 500);
-      options.onBlock?.(top && id ? { id, text: top.textContent.slice(0, 500), ...(selected ? { selected } : {}) } : undefined);
+      options.onBlock?.(top && id ? { id, text: blockWords(top).slice(0, 500), ...(selected ? { selected } : {}) } : undefined);
     },
   });
   made = editor;

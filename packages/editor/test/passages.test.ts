@@ -6,7 +6,7 @@ import { test } from 'node:test';
 
 import { Schema } from '@tiptap/pm/model';
 
-import { findPassage, selectedWords } from '../src/passages.ts';
+import { blockWords, findPassage, selectedWords } from '../src/passages.ts';
 
 const schema = new Schema({
   nodes: {
@@ -46,4 +46,34 @@ test('the words selected inside one block are what a comment quotes; across bloc
   assert.equal(selectedWords(page, 5, 11), 'budget');
   assert.equal(selectedWords(page, 5, 5), undefined);
   assert.equal(selectedWords(page, 5, page.child(0).nodeSize + 4), undefined);
+});
+
+const tables = new Schema({
+  nodes: {
+    doc: { content: 'block+' },
+    paragraph: { group: 'block', content: 'inline*', attrs: { blockId: { default: null } } },
+    table: { group: 'block', content: 'row+', attrs: { blockId: { default: null } } },
+    row: { content: 'cell+' },
+    cell: { content: 'paragraph+' },
+    text: { group: 'inline' },
+  },
+});
+const cell = (words: string) => tables.node('cell', null, [tables.node('paragraph', null, words ? [tables.text(words)] : [])]);
+const grid = tables.node('doc', null, [
+  tables.node('table', { blockId: 'roles' }, [
+    tables.node('row', null, [cell('Baustein'), cell('Verantwortung')]),
+    tables.node('row', null, [cell('Team'), cell('App')]),
+  ]),
+]);
+
+// A comment on a table quotes its cells apart, and the passage is found again by those words; a
+// quote written before, with the cells glued, is still found.
+test('a table block is quoted cell by cell and found again', () => {
+  const table = grid.child(0);
+  assert.equal(blockWords(table), 'Baustein Verantwortung Team App');
+  const found = findPassage(grid, { id: 'c4', anchor: 'roles', quote: 'Verantwortung Team' });
+  assert.ok(found, 'the words across two cells are found');
+  assert.equal(grid.textBetween(found.from, found.to, ' '), 'Verantwortung Team');
+  assert.equal(selectedWords(grid, found.from, found.to), 'Verantwortung Team');
+  assert.ok(findPassage(grid, { id: 'c5', anchor: 'roles', quote: 'BausteinVerantwortung' }), 'a glued quote of before');
 });
