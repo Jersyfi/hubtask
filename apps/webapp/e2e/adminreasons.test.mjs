@@ -133,21 +133,15 @@ describe('the administration and the installation explain without breaking', { c
       });
     }
 
-    test(`chromium: ${width} px — every installation page explains without breaking`, async (t) => {
-      const browser = await sharedChromium(t);
-      const { context, page, failures } = await as(browser, width, PERMISSIONS.OWNER);
-      t.after(() => context.close());
-      assert.ok(INSTALLATION.length >= 10, `only ${INSTALLATION.length} installation routes were found`);
-      assert.deepEqual(await walk(page, INSTALLATION), []);
-      assert.deepEqual(failures, []);
-    });
+    for (const [who, permissions] of [['an owner', PERMISSIONS.OWNER], ['an auditor', PERMISSIONS.AUDITOR]]) {
+      test(`chromium: ${width} px — every installation page explains without breaking, for ${who}`, async (t) => {
+        const browser = await sharedChromium(t);
+        const { context, page, failures } = await as(browser, width, permissions);
+        t.after(() => context.close());
+        assert.ok(INSTALLATION.length >= 10, `only ${INSTALLATION.length} installation routes were found`);
+        assert.deepEqual(await walk(page, INSTALLATION), []);
+        assert.deepEqual(failures, []);
+      });
+    }
   }
-
-  test('chromium: 768 px, dark — the administration and the installation explain without breaking', async (t) => {
-    const browser = await sharedChromium(t);
-    const { context, page, failures } = await as(browser, 768, PERMISSIONS.AUDITOR, 'dark');
-    t.after(() => context.close());
-    assert.deepEqual(await walk(page, [...ADMINISTRATION, ...INSTALLATION]), []);
-    assert.deepEqual(failures, []);
-  });
 });
