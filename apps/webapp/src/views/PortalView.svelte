@@ -32,7 +32,6 @@
   import { renderProblem } from '../lib/problem.ts';
   import ApprovalCard from '../lib/servicedesk/ApprovalCard.svelte';
   import PublicFormPanel from '../lib/servicedesk/PublicFormPanel.svelte';
-  import DeskLogoPanel from '../lib/servicedesk/DeskLogoPanel.svelte';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
 
   const { collectionId, onnavigate }: { collectionId: string; onnavigate?: (path: string) => void } = $props();
@@ -295,7 +294,6 @@
   {#if holdsHere('MANAGE_MEMBERS') === true && catalogue.state.status !== 'idle' && catalogue.state.status !== 'loading'}
     <PublicFormPanel {collectionId} hasForm={catalogue.state.status === 'ready' ? catalogue.state.data.has_public_form : undefined} />
   {/if}
-  {#if holdsHere('STRUCTURE') === true && desk}<DeskLogoPanel {collectionId} hasLogo={deskLogoOf(desk) !== undefined} />{/if}
 </div>
 </WorkPage>
 

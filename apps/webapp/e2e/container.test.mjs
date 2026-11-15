@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, HUB, LABELS, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
+import { BUCKETS, COLLECTION, HUB, LABELS, MANIFEST, PAGE, signedIn, openSettings, viewBar, chooseView, newInHead, openNewCollection } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -164,6 +164,38 @@ test('chromium: 1280 px — *Settings…* opens the settings as a page, a sectio
   await page.getByRole('region', { name: 'People' }).waitFor({ timeout: 10_000 });
   await page.getByRole('navigation', { name: 'Where you are' }).getByRole('link', { name: COLLECTION.name }).click();
   await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}$`, 'u'), { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+// UC-SVC-05 check 9: a desk's logo is part of its look - set in the collection's *General*, not
+// on the portal it is drawn on (scene portal draws no upload there).
+test('chromium: 1280 px — a desk sets its portal logo in its settings\' General', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  const desk = { ...COLLECTION, structure: { ...COLLECTION.structure, settings: { ...COLLECTION.structure.settings, entry_types: { TASK: ['incident'] } } } };
+  const incident = { key: 'incident', name: 'Incident', level: 'TASK', system: false, position: 0, archived: false, hub_id: null, form: { channels: [{ channel: 'PORTAL' }] } };
+  await context.route('**/api/v1/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    // The fixture's copy of the collection is no desk; this one offers a type open to the portal.
+    if (path === '/sync:snapshot') {
+      const records = [HUB, desk].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+      return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+    }
+    if (route.request().method() !== 'GET') return route.fallback();
+    if (path === '/containers' && new URL(route.request().url()).searchParams.get('parent_id') === HUB.id) return route.fulfill({ json: { ...PAGE, data: [desk] } });
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, modules_on: ['SERVICE_DESK', 'WORKFLOWS'] } });
+    if (path === `/containers/${COLLECTION.id}/modules` || path === `/containers/${HUB.id}/modules`) return route.fulfill({ json: { modules_on: ['SERVICE_DESK', 'WORKFLOWS'] } });
+    if (path === `/containers/${COLLECTION.id}`) return route.fulfill({ json: desk });
+    if (path === '/entry-types') return route.fulfill({ json: { data: [incident] } });
+    if (path === `/containers/${COLLECTION.id}/desk-logo`) return route.fulfill({ json: { collection_id: COLLECTION.id, logo_media_id: null } });
+    return route.fallback();
+  });
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}/settings/general`);
+  await page.locator('[data-place-general]').getByRole('textbox', { name: 'Collection name' }).waitFor({ timeout: 15_000 });
+  await page.getByText('Logo in the portal').first().waitFor({ timeout: 10_000 });
+  assert.ok(await page.getByText('Choose a logo').count() > 0, 'the logo is offered in General');
   assert.deepEqual(failures, []);
 });
 

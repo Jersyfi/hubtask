@@ -135,17 +135,17 @@ test('chromium: the desk\'s team sees its portal as the team, with the way to in
   assert.deepEqual(failures, []);
 });
 
-// UC-SVC-05 check 9: where a server refuses the team the requester catalogue, its head and the logo
-// panel are drawn from the collection and the logo read the team holds - not left empty.
-test('chromium: the team that shapes the desk sees its name and sets its logo at the portal', async (t) => {
+// UC-SVC-05 check 9: where a server refuses the team the requester catalogue, its head is drawn from
+// the collection - not left empty. The logo is set in the desk's settings, not here (scene portal).
+test('chromium: the team that shapes the desk sees its name at the portal, and no logo upload', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await portal(browser, { width: 1280, scheme: 'light', kinds: [], refusedTeam: true, permissions: ['READ', 'STRUCTURE'], logo: null });
   t.after(close);
   await page.getByText('You see this portal as the desk\'s team').waitFor({ timeout: 15_000 });
   await page.locator('[data-portal-start] .eyebrow', { hasText: 'IT help' }).waitFor({ timeout: 10_000 });
-  await page.getByText('Logo of this service').first().waitFor({ timeout: 10_000 });
-  assert.equal(await page.getByText('Choose a logo').count() > 0, true, 'the logo panel offers a choice');
+  await page.waitForLoadState('networkidle');
+  assert.equal(await page.getByText('Choose a logo').count(), 0, 'the portal offers an upload the scene does not draw');
   assert.equal(await page.getByText(/is below/).count(), 0, 'nothing promises a panel below');
   assert.deepEqual(failures, []);
 });
