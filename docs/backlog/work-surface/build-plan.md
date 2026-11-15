@@ -114,7 +114,8 @@ asks among several, refuses none with a reason; the list shows the status chip. 
 previews (column ↔ status, *Workflow aus diesen Spalten*, back to a list keeps completion). One control in
 the same place on the list row, the card, the entry head and the phone sheet. Owner's answers: open entries
 standing in a done column are completed by the repair; unmapped statuses are shown folded, never hidden;
-the L2 list chip shows the status; unused *Projekt* starting columns go (soft delete); every L1 board has
+the L2 list chip shows the status; unused *Projekt* starting columns go (soft delete) - unused means the collection holds no entry
+at all, since an entry without a column stands in the first one; every L1 board has
 exactly one done column. The repair is a one-off, idempotent job with a dry run, run by an administrator.
 
 ## 6. Progress
