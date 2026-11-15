@@ -159,5 +159,7 @@
   .side { display: grid; align-content: start; gap: var(--sp-050); min-inline-size: 0; }
   .label { font-size: var(--fs-090); font-weight: var(--fw-semibold); color: var(--text-subtle); margin-block-end: var(--sp-100); }
   .runs { display: grid; gap: var(--sp-200); }
+  /* A table wider than its column scrolls inside it, read whole rather than cut (N35). */
+  .side, .run { overflow-x: auto; }
   .run + .run { border-block-start: var(--bw-hairline) solid var(--border-subtle); padding-block-start: var(--sp-200); }
 </style>

@@ -25,3 +25,11 @@ test('two versions count each place that changed once, blocks out and in togethe
   assert.deepEqual(runs[1]!.map((block) => `${block.kind}:${block.text.trim()}`), ['removed:Old rule', 'added:Passkeys first', 'added:Buffered orders']);
   assert.deepEqual(changeRuns(compareBlocks('same', 'same').blocks), []);
 });
+
+// N35: a version's text holds tables wider than its column; the column scrolls inside, so the
+// table is read whole rather than cut at the column's edge.
+test('a history column scrolls a wide table inside itself (N35)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./PageHistory.svelte', import.meta.url), 'utf8');
+  assert.match(source, /\.side, \.run \{ overflow-x: auto; \}/u);
+});
