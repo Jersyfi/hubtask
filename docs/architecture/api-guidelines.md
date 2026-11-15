@@ -320,6 +320,16 @@ whole workspace, the system acting as nobody - refuses the key (`query.key_needs
 `query.key_needs_reader`, `query.key_not_here`) rather than answering it as nobody. The browser's twin (`packages/query`) is held to the parser by
 `test/querylanguage/lines.json`; the server reads every text again.
 
+**Keys of one kind** (`asset.class`, `asset.stage`, `asset.owner`, `asset.location`, `asset.tag`,
+`page.verified`, `page.owner`, `goal.state`) are read by the same parser but compiled by no entry
+query: `POST /items:query` refuses them (`query.kind_not_here`). `POST /search:all` reads its `q` as
+a Hubtask query over every kind - free words searched, keys narrowing, a key of one kind keeping the
+search to that kind -, and `Query.KindFilter` turns such keys into the bound parameters of that
+kind's own search query (`SearchKinds.sql`, `SearchPages`), never into text: a key once
+(`query.key_twice`), values or'ed by a comma, no brackets across keys (`query.kind_filter_grouped`),
+no mixing of kinds (`query.kinds_mixed`). Every kind's hits still pass that product's read rule in
+the application layer (rule 2).
+
 ## 4. Pagination, sorting, partial responses
 
 * **Cursor pagination** (an opaque, signed cursor with the sort key plus `id`). No offsets.
