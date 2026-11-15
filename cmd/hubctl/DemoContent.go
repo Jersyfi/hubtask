@@ -1150,7 +1150,7 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 	appGoal, appFresh := d.goal(ctx, "company.app", map[string]any{"period_id": period, "title": "App-Bewertung von 4,6 Sternen oder besser in beiden Stores",
 		"owner_id": amelia, "parent_id": company, "status": "AT_RISK", "hub_id": scrum.hub,
 		"key_results": []any{map[string]any{"title": "Sitzungen ohne Absturz", "kind": "PERCENT", "start": 97.1, "target": 99.5, "current": 98.2, "unit": "%"}}})
-	d.goal(ctx, "company.desk", map[string]any{"period_id": period, "title": "Keine P1-Störung länger als vier Stunden offen",
+	deskGoal, _ := d.goal(ctx, "company.desk", map[string]any{"period_id": period, "title": "Keine P1-Störung länger als vier Stunden offen",
 		"owner_id": mehmet, "parent_id": company, "status": "ON_TRACK", "hub_id": desk.hub})
 	build, buildFresh := d.goal(ctx, "build", map[string]any{"period_id": period, "title": "Logistikzentrum im Zeit- und Kostenrahmen (± 5 %)",
 		"owner_id": priya, "status": "OFF_TRACK", "hub_id": classic.hub})
@@ -1215,6 +1215,7 @@ func (d *demo) goals(ctx context.Context, scrum, kanban, classic, desk demoHub) 
 				"aggregate": map[string]any{"function": "COUNT", "group_by": "custom_fields.priority"}}})
 	}
 	d.object(ctx, "dashboard.board", "DASHBOARD", "dashboards", "/dashboards", map[string]any{"name": "Geschäftsführung – Wochenüberblick", "sharing": "SCOPE", "widgets": widgets})
+	d.deskDashboard(ctx, desk.hub, company, deskGoal)
 	if scrum.hub != "" {
 		d.object(ctx, "dashboard.atlas", "DASHBOARD", "dashboards", "/dashboards", map[string]any{"name": "Team Atlas", "sharing": "SCOPE", "hub_id": scrum.hub,
 			"widgets": []any{map[string]any{"title": "Offene Stories", "chart": "NUMBER", "source": "QUERY", "x": 0, "y": 0, "w": 4, "h": 2,
@@ -1251,3 +1252,73 @@ func (d *demo) period(ctx context.Context, name, start, end string) string {
 	return str(made["id"])
 }
 
+// deskDashboard is the desk's week at a glance, every widget kind once or more, all of them
+// inheriting the dashboard's filter: the desk's hub over the last six weeks.
+func (d *demo) deskDashboard(ctx context.Context, hub, company, deskGoal string) {
+	if hub == "" {
+		return
+	}
+	workspace := map[string]any{"workspace": true}
+	count := func(q string, bucket map[string]any, groupBy string) map[string]any {
+		aggregate := map[string]any{"function": "COUNT"}
+		if bucket != nil {
+			aggregate["bucket"] = bucket
+		}
+		if groupBy != "" {
+			aggregate["group_by"] = groupBy
+		}
+		query := map[string]any{"scope": workspace, "aggregate": aggregate}
+		if q != "" {
+			query["q"] = q
+		}
+		return query
+	}
+	average := func(field, q string) map[string]any {
+		query := map[string]any{"scope": workspace, "aggregate": map[string]any{"function": "AVG", "field": field,
+			"bucket": map[string]any{"field": "completed_at", "period": "week"}}}
+		if q != "" {
+			query["q"] = q
+		}
+		return query
+	}
+	created, completed := map[string]any{"field": "created_at", "period": "week"}, map[string]any{"field": "completed_at", "period": "week"}
+	widgets := []any{
+		map[string]any{"title": "Offene Tickets", "chart": "NUMBER", "source": "QUERY", "x": 0, "y": 0, "w": 3, "h": 2, "target": 30, "warn_at": 40,
+			"query": count("is: open", created, "")},
+		map[string]any{"title": "Gelöst je Woche", "chart": "NUMBER", "source": "QUERY", "x": 3, "y": 0, "w": 3, "h": 2, "query": count("is: done", completed, "")},
+		map[string]any{"title": "Ø Lösungszeit", "chart": "NUMBER", "source": "QUERY", "x": 6, "y": 0, "w": 3, "h": 2, "query": average("lead_time", "is: done")},
+		map[string]any{"title": "Zufriedenheit", "chart": "NUMBER", "source": "QUERY", "x": 9, "y": 0, "w": 3, "h": 2, "query": average("satisfaction", "")},
+		map[string]any{"title": "Erstellt und gelöst je Woche", "chart": "LINE", "source": "QUERY", "x": 0, "y": 2, "w": 6, "h": 3, "cumulative": true,
+			"query": count("", created, ""), "compare": map[string]any{"first_title": "erstellt", "title": "gelöst", "query": count("", completed, "")}},
+		map[string]any{"title": "Offen und erledigt", "chart": "PIE", "source": "QUERY", "x": 6, "y": 2, "w": 3, "h": 3, "query": count("", nil, "is_completed")},
+		map[string]any{"title": "Kurz vor Verletzung", "chart": "LIST", "source": "QUERY", "x": 9, "y": 2, "w": 3, "h": 3, "column": "due_at",
+			"query": map[string]any{"scope_container_id": hub, "include_descendants": true,
+				"filter": map[string]any{"op": "EQ", "field": "is_completed", "value": false}, "sort": []any{map[string]any{"field": "due_at", "dir": "ASC"}}}},
+		map[string]any{"title": "Offen je Person", "chart": "TABLE", "source": "QUERY", "x": 0, "y": 5, "w": 4, "h": 3, "query": count("is: open", nil, "assignee_id")},
+		map[string]any{"title": "Tickets nach Status", "chart": "BAR", "source": "QUERY", "x": 4, "y": 5, "w": 4, "h": 3, "query": count("", nil, "status")},
+		map[string]any{"title": "Häufung nach Typ", "chart": "MATRIX", "source": "QUERY", "x": 8, "y": 5, "w": 4, "h": 3, "query": count("", created, "type")},
+	}
+	if goals := compactIDs(deskGoal, company); len(goals) > 0 {
+		widgets = append(widgets, map[string]any{"title": "Ziele des Desks", "chart": "PROGRESS", "source": "GOALS", "x": 0, "y": 8, "w": 6, "h": 2, "goal_ids": goals})
+	}
+	note := "Diese Woche zählt: **VPN-Störung** zuerst. Ab Montag gilt der neue Bereitschaftsplan."
+	if kb := d.held["page.desk.knowledge"]; kb != "" {
+		note += " Lösungen stehen in der [Wissensdatenbank](/pages/" + kb + ")."
+	}
+	widgets = append(widgets, map[string]any{"title": "Hinweis der Leitung", "chart": "TEXT", "source": "TEXT", "x": 6, "y": 8, "w": 6, "h": 2, "text": note})
+	if id, fresh := d.object(ctx, "dashboard.desk", "DASHBOARD", "dashboards", "/dashboards", map[string]any{"name": "Servicedesk – Wochenüberblick",
+		"sharing": "SCOPE", "hub_id": hub, "filter": "hub: " + hub + " created: -6w..", "widgets": widgets}); fresh {
+		d.write(ctx, "dashboard digest", "PUT", "/dashboards/"+id+"/digest", map[string]any{"cadence": "WEEKLY", "weekday": 1, "hour": 8, "time_zone": "Europe/Berlin"})
+	}
+}
+
+// compactIDs answers the identifiers that are not empty, in order.
+func compactIDs(ids ...string) []string {
+	out := []string{}
+	for _, id := range ids {
+		if id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
+}

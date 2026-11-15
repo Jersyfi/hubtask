@@ -166,7 +166,7 @@ func TestTheShowcaseMarksWhatItMakesAndMakesItOnce(t *testing.T) {
 		kinds[m["kind"].(string)]++
 	}
 	for kind, least := range map[string]int{"CONTAINER": 12, "ENTRY": 59, "PAGE": 10, "WHITEBOARD": 3, "GOAL": 4,
-		"PORTFOLIO": 2, "DASHBOARD": 2, "TIME_RECORD": 15} {
+		"PORTFOLIO": 2, "DASHBOARD": 3, "TIME_RECORD": 15} {
 		if kinds[kind] < least {
 			t.Errorf("%d marks of %s, want at least %d (%v)", kinds[kind], kind, least, kinds)
 		}
@@ -355,6 +355,59 @@ func TestTheShowcasesDeskOpensWithArticlesARunAndAWaitingChange(t *testing.T) {
 	// The CAB decides one; the other approval stays waiting.
 	if articles < 2 || !pressed || asked < 2 {
 		t.Errorf("%d articles on the portal, macro pressed on the request %v, %d changes asking the CAB", articles, pressed, asked)
+	}
+}
+
+// The desk's dashboard the work surface's scenes open (Servicedesk – Wochenüberblick) is made in the
+// desk's hub with every widget kind, inheriting the hub's filter; the showcase speaks German in a
+// German workspace, so neither a widget nor the desk's collection carries an English name.
+func TestTheShowcasesDeskDashboardShowsEveryKindInGerman(t *testing.T) {
+	s := serveShowcase(t)
+	if code, out, errOut := invoke(t, s.env(), "", "workspace", "demo", "--workspace", "nordlicht"); code != exitOK {
+		t.Fatalf("exit %d: %s %s", code, out, errOut)
+	}
+	desk, collections, dashboard := "", map[string]bool{}, map[string]any(nil)
+	titles := []string{}
+	for _, w := range s.bodies {
+		if w.path == "/containers" && w.body["type"] == "HUB" && w.body["name"] == "IT-Service-Desk" {
+			desk = w.id
+		}
+	}
+	for _, w := range s.bodies {
+		if w.path == "/containers" && w.body["parent_id"] == desk {
+			collections[str(w.body["name"])] = true
+		}
+		if w.path != "/dashboards" {
+			continue
+		}
+		widgets, _ := w.body["widgets"].([]any)
+		for _, raw := range widgets {
+			titles = append(titles, str(raw.(map[string]any)["title"]))
+		}
+		if w.body["name"] == "Servicedesk – Wochenüberblick" {
+			dashboard = w.body
+		}
+	}
+	if !collections["Änderungen"] || collections["Changes"] {
+		t.Errorf("the desk's collections: %v", collections)
+	}
+	if dashboard == nil {
+		t.Fatal("the desk's dashboard was not made")
+	}
+	kinds := map[string]bool{}
+	widgets, _ := dashboard["widgets"].([]any)
+	for _, raw := range widgets {
+		kinds[str(raw.(map[string]any)["chart"])] = true
+	}
+	if dashboard["hub_id"] != desk || !strings.Contains(str(dashboard["filter"]), "hub: "+desk) || len(kinds) != 9 {
+		t.Errorf("the desk's dashboard: hub %v, filter %q, kinds %v", dashboard["hub_id"], dashboard["filter"], kinds)
+	}
+	for _, title := range titles {
+		for _, word := range []string{"Entries", "Incidents", "Open ", "per week", "by "} {
+			if strings.Contains(title, word) {
+				t.Errorf("an English widget title: %q", title)
+			}
+		}
 	}
 }
 
