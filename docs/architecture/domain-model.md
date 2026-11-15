@@ -750,7 +750,7 @@ stateDiagram-v2
 | `Reminder` | `itemId`, `offsetSpec` (`REL:-PT1H` / `ABS:<ts>`), `channels[]`, `recipients[]`, `state` | Predefined (relative presets) and custom |
 | `RecurrenceRule` | `rrule` (RFC 5545), `timeZone`, `mode` (`ON_SCHEDULE`\|`ON_COMPLETION`), `horizonDays`, `endSpec` | See [arc42.md](./arc42.md) §6.3 |
 | `Template` | `scope`, `name`, `rootType`, `nodes[]` (titles, notes, a relative due date as an ISO-8601 duration such as `P3D`, a fixed `assigneeId` per node) | Instantiation produces an item tree. The tree is validated against the capability profiles when defined, not when instantiated, and holds at most `max_template_nodes` nodes |
-| `SavedView` | `scope`, `name`, `layout` (`LIST_COLLAPSED`,`LIST_EXPANDED`,`KANBAN`,`TIMELINE`), `query`, `grouping`, `visibleFields`, `sharing` | `layout` is a hint; the server does not interpret it |
+| `SavedView` | `scope`, `name`, `layout` (`LIST_COLLAPSED`,`LIST_EXPANDED`,`KANBAN`,`TIMELINE`,`CALENDAR`), `query`, `grouping`, `visibleFields`, `sharing` | `layout` is a hint; the server does not interpret it. `grouping` may also name `lanes_by`, a board's lanes as a second grouping held to the first's rule, and `date_field`, the date a calendar places entries by, refused unless it is a date (`views.date_field_not_a_date`); a saved search is its query line, read by `POST /search:all` over every kind |
 | `JumbleEntry` | `tenantId`, `channel` (`EMAIL`,`WEBHOOK`,`QUICK_CAPTURE`,`API`), `rawSubject`, `rawBody`, `attachments[]`, `sender`, `status` (`NEW`,`PROCESSED`,`DISMISSED`), `suggestion` (JSONB) | Conversion produces a `WorkItem` and sets `PROCESSED` |
 | `AutoAssignPolicy` | `scope`, `strategy`, `candidates[]` (accounts/groups), `state` (for round robin), `enabled` | See §3.6 |
 | `AutomationRule` | See [automation.md](./automation.md) | |
@@ -1067,6 +1067,26 @@ the space goes back to the live document once no draft waits. A template's subpa
 when a page is started from it with them, and a tree of at most 100 pages is written in one write
 (UC-DOC-05 checks 5 and 6), so a space template is a page with pages under it.
 
+A page may carry a **cover** (`page.cover`, UC-DOC-16): a gradient or a gallery picture named by a
+key the clients draw - the domain holds only its shape, so an unknown key draws as no cover -, or an
+uploaded picture with how far down it is shown (0 to 100) and, for a picture from an image library,
+who made it. The library is the workspace's choice (`knowledge.cover_images`, off by default; the
+installation and a plan may set and lock it), asked by the server alone (security.md, the outbound
+rules).
+
+A **`Post`** is a page with a date (`post`, UC-DOC-17, UC-DOC-18): the page holds its words, cover,
+icon and labels; the post adds a template (announcement, release note, monthly review, welcome),
+when it goes out, how long it stays on top, an audience and whether it is discussed, followers are
+told and readers asked to confirm by a day. It stands as a draft (no moment, its writers only),
+scheduled (a moment ahead, its writers only; a `POST_PUBLISH` durable timer publishes it) or
+published. The audience only narrows: the hub's readers, or those of them in up to twenty groups -
+nobody reads a post who may not read its hub (`Post.Sees`). Who has seen a post (`post_read`) and who
+confirmed it (`post_confirmation`) are kept with the post and shown to its writers alone; a writer
+may remind those who have not confirmed while some have not. The discussion is replies one level
+deep (`post_reply`) with four fixed reactions (`post_reaction`); a person follows a hub's posts
+(`post_follow`) to be told when one that asks for it is published for them. Seeing, confirming and reacting write no audit
+entry (rule 10).
+
 ### 3.9 Whiteboards (context: Whiteboard, M4)
 
 A hub holds `Board`s (at most 1,000 outside the trash), judged at the hub as its pages are: READ to
@@ -1171,6 +1191,14 @@ stage follows, and disposal needs its method and a certificate's reference (UC-A
 counted by its folded publisher and product, a workspace's **alias** naming what folding misses
 (UC-AST-13).
 
+An object keeps its **history** (`cmdb_ci_history`, UC-AST-01): one step per change - created, an
+attribute changed, its stage, a relation made or ended, confirmed or attested, merged (on the
+survivor too), its register record moved to another object, a file attached or removed - with who
+did it (a person, a service account, an automation, an agent or the system) and when; of a field it
+keeps the values where they are the object's own vocabulary or an identifier, and of an attribute
+only that it changed. It holds **files**
+(`cmdb_ci_media`) judged at its hub, read by whoever reads the object and kept with it.
+
 ### 3.11 Goals, portfolios and dashboards (context: Goal, M8)
 
 A **`Period`** is a cycle goals are set for - a quarter, a year, at most two years - open until it is
@@ -1199,7 +1227,11 @@ grid run a saved summary view, a stored `POST /items:aggregate` document or goal
 their numbers are computed when read, for the reader, never stored. A bar, line or table widget
 may carry a second summary (`Compare`, resolved beside created) and draw each period as its running
 total of a `COUNT` or `SUM` (`Cumulative`); with both, the figures answer what is left between
-them, exactly (`goal.RunningTotals`, `goal.Remaining`).
+them, exactly (`goal.RunningTotals`, `goal.Remaining`). Beside the seven charts a widget may be a
+`LIST` - a query's first ten hits as entries - or a `TEXT` of at most 2,000 characters that runs
+nothing. A dashboard's **filter** is a Hubtask query (api-guidelines.md §3.1) every query widget
+inherits: its top-level conditions are AND-ed with the widget's own, except on the fields a widget
+releases, and the result is read by the one parser and bound like any filter (`goal.inherited`).
 
 ---
 
