@@ -24,6 +24,8 @@
     /** *14 open*, *1 close to breach*, *6 unassigned*: resolved, the first is the headline. */
     figures?: readonly string[];
     primary?: PageAction;
+    /** Acts that stand before the primary, or in its place when the view's one primary is lower down. */
+    secondary?: readonly [] | readonly [PageAction] | readonly [PageAction, PageAction];
     menu?: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void };
     breadcrumb?: { trail: readonly Crumb[]; label: string; expandLabel: string; onnavigate?: (id: string) => void };
     /** The product's `ViewBar`, under the band. */
@@ -37,11 +39,11 @@
     state?: { label: string; vocabulary: LozengeVocabulary; state: string };
   }
 
-  const { product, icon, name, figures = [], primary, menu, breadcrumb, views, aside, state }: Props = $props();
+  const { product, icon, name, figures = [], primary, secondary, menu, breadcrumb, views, aside, state }: Props = $props();
 </script>
 
 <div class="band" data-product={product}>
-  <PageHeader title={name} {primary} {menu} {breadcrumb} {views} {aside} mark={tile} figure={figures.length > 0 || state ? line : undefined} isFigureBelow />
+  <PageHeader title={name} {primary} {secondary} {menu} {breadcrumb} {views} {aside} mark={tile} figure={figures.length > 0 || state ? line : undefined} isFigureBelow />
 </div>
 
 {#snippet tile()}
