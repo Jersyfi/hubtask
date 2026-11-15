@@ -223,8 +223,8 @@ type CompleteWorkItemsInColumnRow struct {
 	Version int32
 }
 
-// The board repair (domain-model.md §3.5a): open top-level tasks without a status standing in a
-// board's done column are completed - the owner's answer for entries the coupling did not hold.
+// Open top-level tasks without a status standing in a board's done column are completed - the
+// done mark moved onto their column (domain-model.md §3.5a).
 func (q *Queries) CompleteWorkItemsInColumn(ctx context.Context, arg CompleteWorkItemsInColumnParams) ([]CompleteWorkItemsInColumnRow, error) {
 	rows, err := q.db.Query(ctx, completeWorkItemsInColumn,
 		arg.At,
@@ -291,21 +291,6 @@ func (q *Queries) CountBoardCells(ctx context.Context, collectionID pgtype.UUID)
 		return nil, err
 	}
 	return items, nil
-}
-
-const countWorkItemsOnBoard = `-- name: CountWorkItemsOnBoard :one
-SELECT count(*) FROM work_item wi
-WHERE wi.tenant_id = current_tenant_id() AND wi.collection_id = $1::uuid
-`
-
-// How many entries a collection holds, trashed ones included and whether or not they carry a
-// column: an entry without one stands in the board's first column, so only a collection without
-// any entry leaves its board unused.
-func (q *Queries) CountWorkItemsOnBoard(ctx context.Context, collectionID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countWorkItemsOnBoard, collectionID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
 }
 
 const findBucket = `-- name: FindBucket :one
@@ -518,33 +503,6 @@ func (q *Queries) LastBucketOrderKey(ctx context.Context, collectionID pgtype.UU
 	var order_key string
 	err := row.Scan(&order_key)
 	return order_key, err
-}
-
-const listBoardCollections = `-- name: ListBoardCollections :many
-SELECT DISTINCT b.collection_id FROM bucket b
-WHERE b.tenant_id = current_tenant_id() AND b.deleted_at IS NULL
-ORDER BY b.collection_id
-`
-
-// The collections whose board has a live column, for the board repair.
-func (q *Queries) ListBoardCollections(ctx context.Context) ([]pgtype.UUID, error) {
-	rows, err := q.db.Query(ctx, listBoardCollections)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []pgtype.UUID{}
-	for rows.Next() {
-		var collection_id pgtype.UUID
-		if err := rows.Scan(&collection_id); err != nil {
-			return nil, err
-		}
-		items = append(items, collection_id)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listBucketStatuses = `-- name: ListBucketStatuses :many

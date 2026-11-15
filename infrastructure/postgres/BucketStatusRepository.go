@@ -157,28 +157,6 @@ func placedEntries(n int, row func(int) (pgtype.UUID, int32)) ([]repository.Move
 	return out, nil
 }
 
-// Collections answers the collections whose board has a live column.
-func (r BucketStatusRepository) Collections(ctx context.Context) ([]shared.ID, error) {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return nil, err
-	}
-	rows, err := queries.ListBoardCollections(ctx)
-	if err != nil {
-		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("listing the boards: %w", err))
-	}
-	out := make([]shared.ID, 0, len(rows))
-	for _, row := range rows {
-		id, err := idFrom(row)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, nil
-}
-
 // CompleteInColumn completes the open top-level tasks without a status in a column.
 func (r BucketStatusRepository) CompleteInColumn(
 	ctx context.Context, collectionID, column, by shared.ID, at time.Time,
@@ -199,24 +177,6 @@ func (r BucketStatusRepository) CompleteInColumn(
 			WithCause(fmt.Errorf("completing the done column's entries: %w", err))
 	}
 	return placedEntries(len(rows), func(i int) (pgtype.UUID, int32) { return rows[i].ID, rows[i].Version })
-}
-
-// EntriesOnBoard counts a collection's entries, those in no column included.
-func (r BucketStatusRepository) EntriesOnBoard(ctx context.Context, collectionID shared.ID) (int, error) {
-	queries, err := queriesFrom(ctx)
-	if err != nil {
-		return 0, err
-	}
-	collection, err := uuidOf(collectionID)
-	if err != nil {
-		return 0, err
-	}
-	count, err := queries.CountWorkItemsOnBoard(ctx, collection)
-	if err != nil {
-		return 0, shared.ErrUnavailable.WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("counting the board's entries: %w", err))
-	}
-	return int(count), nil
 }
 
 // PlaceUnplaced puts a collection's top-level tasks without a status and without a column, of one
