@@ -65,6 +65,6 @@ test('the whiteboard\'s plus presses a circle of layout.target under the edge ha
   assert.ok(canvas.slice(plus, canvas.indexOf('</g>', plus)).includes('class="plus-hit"'));
 });
 
-test('a description\'s task box keeps its whole press inside a folded section at a phone\'s width (N20)', () => {
-  assert.match(read('./entries/RichText.svelte'), /@media \(pointer: coarse\), \(width < \d+px\) \{\s*\/\*[^*]*\*\/\s*\.rich :global\(\.page-body ul\[data-type='taskList'\]\) \{ padding-inline-start: var\(--sp-200\); \}\s*\.rich :global\(\.page-body ul\[data-type='taskList'\] li > label\) \{ position: relative; \}/u);
+test('a description\'s task box keeps its whole press inside a folded section and its item at a phone\'s width (N20)', () => {
+  assert.match(read('./entries/RichText.svelte'), /@media \(pointer: coarse\), \(width < \d+px\) \{\s*\/\*[^*]*\*\/\s*\.rich :global\(\.page-body ul\[data-type='taskList'\]\) \{ padding-inline-start: var\(--sp-200\); \}\s*\/\*[^*]*\*\/\s*\.rich :global\(\.page-body ul\[data-type='taskList'\] li\) \{ padding-block: max\(0%, calc\(\(var\(--layout-target\) - 1lh\) \/ 2\)\); \}\s*\.rich :global\(\.page-body ul\[data-type='taskList'\] li > label\) \{ position: relative; z-index: var\(--z-raised\); \}/u);
 });

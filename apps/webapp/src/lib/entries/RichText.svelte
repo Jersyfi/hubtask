@@ -253,7 +253,9 @@
   @media (pointer: coarse), (width < 600px) {
     /* Room at the start for the press: a folded section clips what stands past its edge. */
     .rich :global(.page-body ul[data-type='taskList']) { padding-inline-start: var(--sp-200); }
-    .rich :global(.page-body ul[data-type='taskList'] li > label) { position: relative; }
+    /* Each item as tall as the press, so the boxes of two items do not take each other's. */
+    .rich :global(.page-body ul[data-type='taskList'] li) { padding-block: max(0%, calc((var(--layout-target) - 1lh) / 2)); }
+    .rich :global(.page-body ul[data-type='taskList'] li > label) { position: relative; z-index: var(--z-raised); }
     .rich :global(.page-body ul[data-type='taskList'] li > label::after) { content: ''; position: absolute; inset-block: min(0%, calc((100% - var(--layout-target)) / 2)); inset-inline: min(0%, calc((100% - var(--layout-target)) / 2)); }
   }
 </style>

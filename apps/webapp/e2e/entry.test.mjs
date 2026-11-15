@@ -15,6 +15,7 @@ import { sharedChromium } from './browser.mjs';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
+import { pressArea } from './press.mjs';
 import { reveal, unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -922,5 +923,27 @@ test('chromium: 1280 px — the parts show their first eight work packages under
   assert.ok(await parts.locator(`[data-row="${steps[1].id}"]`).isVisible(), 'the first work package does not open on its activities');
   assert.ok(await parts.locator('.fields-head').getByText('Title').isVisible(), 'no column head over the parts');
   assert.ok(await parts.locator(`[data-row="${id(1)}"] progress`).isVisible(), 'no bar beside a work package\'s count');
+  assert.deepEqual(failures, []);
+});
+
+// A thumb's target (user-experience.md §7): on a phone each box of a task list in the description
+// takes a press across layout.target (44 px) each way, the box beside it included.
+test('chromium: 375 px — a task list in the description gives each box a 44 px press', async (t) => {
+  const browser = await sharedChromium(t);
+  const { page, context, failures } = await signedIn(browser, 375, 812);
+  t.after(() => context.close());
+  const entry = ITEMS[0];
+  await page.route(new RegExp(`/api/v1/items/${entry.id}(\\?.*)?$`), (route) => route.request().method() === 'GET'
+    ? route.fulfill({ json: { ...entry, notes: '- [ ] Buy the tiles\n- [x] Measure the wall' } })
+    : route.fallback());
+  await page.goto(`${served.origin}/items/${entry.id}`);
+  await page.getByRole('navigation', { name: /^Sections of/ }).getByRole('link', { name: /^Description/ }).click();
+  const boxes = page.locator('ul[data-type="taskList"] li > label');
+  await boxes.first().waitFor({ timeout: 10_000 });
+  assert.equal(await boxes.count(), 2);
+  for (const box of await boxes.all()) {
+    const area = await pressArea(box);
+    assert.ok(area.width >= 44 && area.height >= 44, `a task box takes ${JSON.stringify(area)}`);
+  }
   assert.deepEqual(failures, []);
 });
