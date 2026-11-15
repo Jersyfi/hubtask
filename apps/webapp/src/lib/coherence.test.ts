@@ -215,6 +215,12 @@ test('a goal\'s linked entries show their status as the workflow names it (N15)'
   assert.match(goal, /\{@const state = referenceState\(\{ completed: entry\.completed, status_name: entry\.status_name, status_category: entry\.status_category \}, t\)\}<StateLozenge size="sm" vocabulary="category" state=\{state\.state\} label=\{state\.label\} \/>/u);
 });
 
+// N37: the agents band counts in the words the cards say - Live, Freigegeben, Entwurf.
+test('the agents band counts by the cards\' own states (N37)', () => {
+  const view = sources.find(({ path }) => path === 'views/AgentsView.svelte')?.text ?? '';
+  assert.match(view, /\.\.\.\(approved > 0 \? \[t\('app\.agents\.figure_approved', \{ count: String\(approved\) \}\)\] : \[\]\)/u);
+});
+
 test('a page says nothing before its first sentence: no published hint, the live line under the text (M-2, §2.1)', () => {
   const view = sources.find(({ path }) => path === 'views/PagesView.svelte')?.text ?? '';
   assert.doesNotMatch(view, /app\.pages\.published_hint/u);

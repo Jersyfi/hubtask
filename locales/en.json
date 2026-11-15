@@ -4965,6 +4965,7 @@
   "app.agents.role_purpose.KNOWLEDGE_DRAFT": "Proposes a knowledge page from a resolved ticket; a person approves it.",
   "app.agents.role_purpose.EXTERNAL": "An agent built elsewhere that calls Hubtask over MCP or the API.",
   "app.agents.figure_live": "{count} live",
+  "app.agents.figure_approved": "{count} approved",
   "app.agents.figure_drafts": "{count, plural, one {# draft} other {# drafts}}",
   "app.agents.figure_held": "{count} waiting for a person",
   "app.agents.held_count": "{count} waiting",

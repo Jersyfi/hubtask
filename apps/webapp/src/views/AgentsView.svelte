@@ -239,8 +239,11 @@
     if (agentsRead.state.status !== 'ready' || all.length === 0) return [];
     const live = all.filter((each) => each.status === 'ACTIVE').length;
     const drafts = all.filter((each) => each.status === 'DRAFT').length;
+    const approved = all.filter((each) => each.status === 'APPROVED').length;
+    // In the cards' own words (N37): an approved agent is not yet live, and says so.
     return [
       t('app.agents.figure_live', { count: String(live) }),
+      ...(approved > 0 ? [t('app.agents.figure_approved', { count: String(approved) })] : []),
       ...(drafts > 0 ? [t('app.agents.figure_drafts', { count: drafts })] : []),
       ...(pending.length > 0 ? [t('app.agents.figure_held', { count: String(pending.length) })] : []),
     ];
