@@ -346,7 +346,8 @@ func TestTakingAStepAnswersTheEntry(t *testing.T) {
 	}
 }
 
-// A drop answers what it did and the entry; a choice carries the steps (UC-WRK-05, UC-FLW-06).
+// A drop answers what it did and the entry; a choice carries the steps (UC-WRK-05, UC-FLW-06,
+// UC-FLW-03 check 8).
 func TestADropAnswersTheOutcomeAndTheEntry(t *testing.T) {
 	item := "0192f000-0000-7000-8000-000000000011"
 	column := "0192f000-0000-7000-8000-000000000012"

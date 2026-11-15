@@ -60,6 +60,7 @@ func TestANewCollectionStartsWithTheColumnsItsBoardNeeds(t *testing.T) {
 	}
 }
 
+// UC-WRK-31 check 5: a collection created under a workflow starts with one column per status.
 func TestACollectionUnderAWorkflowStartsWithAColumnPerStatus(t *testing.T) {
 	cases := []struct {
 		name  string

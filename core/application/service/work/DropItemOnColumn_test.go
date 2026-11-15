@@ -50,7 +50,7 @@ func workflowBoard(t *testing.T, role identity.Role) (*completionHarness, DropIt
 }
 
 // Under a workflow a drop takes the one step, offers several and writes nothing then, and refuses
-// none with a reason (UC-FLW-06, UC-WRK-05).
+// none with a reason (UC-FLW-06, UC-WRK-05, UC-FLW-03 check 8).
 func TestADropUnderAWorkflowTakesChoosesOrRefuses(t *testing.T) {
 	t.Run("one step is taken", func(t *testing.T) {
 		h, drop := workflowBoard(t, identity.RoleMember)

@@ -5,9 +5,9 @@ context: workflow
 actors: [PE-member, PE-guest, PE-agent, PE-integrator, PE-scripter]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12, P-13]
-state: partial
+state: verified
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/application/service/work/BulkUpdateWorkItems_test.go, infrastructure/postgres/query/Status_test.go, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/e2e/boardlevels.test.mjs]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/application/service/work/BulkUpdateWorkItems_test.go, infrastructure/postgres/query/Status_test.go, apps/webapp/e2e/entryhead.test.mjs, apps/webapp/e2e/boardlevels.test.mjs, core/application/service/work/DropItemOnColumn_test.go, presentation/rest/Door_test.go]
 ---
 
 # Move an entry on, and be told what it still needs
@@ -50,7 +50,3 @@ entry was reassigned meanwhile; the app tells him why and leaves the card where 
 * No step is taken by time passing; a rule does that (automation).
 * No undo of a step beyond taking a step back that the workflow offers.
 * Where no workflow runs there are no steps: completing the entry reaches done (UC-FLW-06).
-
-## Today
-
-* Check 8: met — the server answers the drop (`POST /items/{id}:drop`, `core/application/service/work/DropOnColumn_test.go`); the web board opens the step picker on `CHOOSE` and sends the chosen step (`apps/webapp/e2e/boardlevels.test.mjs`), dims a refusing column with its reason (`boardlevel.test.ts`).

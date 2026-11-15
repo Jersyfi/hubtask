@@ -167,7 +167,7 @@ func TestASchemeChangeCarriesTheBoard(t *testing.T) {
 	})
 }
 
-// Workflow aus diesen Spalten (domain-model.md §3.5a): a status per column, run for the tasks,
+// Workflow aus diesen Spalten (domain-model.md §3.5a, UC-FLW-02 check 10): a status per column, run for the tasks,
 // each column showing its own, every entry taking its column's status; a dry run writes nothing.
 func TestAWorkflowIsMadeFromABoardsColumns(t *testing.T) {
 	ctx := context.Background()

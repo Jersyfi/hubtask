@@ -108,6 +108,7 @@ test('chromium: L1 - a task row shows its column chip, not a checkbox; choosing 
   assert.equal(written.filter((each) => each.path.endsWith(':complete')).length, 0, 'the client completed it itself');
 });
 
+// UC-WRK-31 check 5: under a workflow each column names its statuses, the rest fold into Ohne Spalte.
 test('chromium: L2 - the status chip lists the steps; the board names its statuses and folds Ohne Spalte', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -154,6 +155,7 @@ for (const width of [1280, 820]) {
   });
 }
 
+// UC-FLW-03 check 8: a drop several steps reach offers them and writes nothing until one is chosen.
 test('chromium: L2 - a drop several steps reach asks which, and sends the one chosen', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -216,6 +218,7 @@ test('chromium: L0 - "Show as board" previews the server\'s dry run, then switch
   assert.deepEqual(switches().at(-1), { to: 'COLUMNS', dry_run: false });
 });
 
+// UC-FLW-02 check 10: *Workflow from these columns* previews the server's dry run, then makes it.
 test('chromium: L1 - "Back to the list" and "Workflow from these columns" each preview first', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

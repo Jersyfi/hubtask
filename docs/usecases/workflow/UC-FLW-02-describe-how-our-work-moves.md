@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-05, P-06, P-11, P-13, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/WorkflowHub_test.go, core/application/service/workflow/WorkflowHub_test.go, core/application/service/work/WorkflowHubGate_test.go, core/application/service/sync/InitialSyncHubBlocks_test.go, test/integration/workflow_hub_test.go, core/application/service/workflow/WorkflowDoors_test.go, apps/webapp/e2e/boardlevels.test.mjs]
+checked_by: [core/domain/model/work/Workflow_test.go, core/application/service/work/TakeStep_test.go, core/application/service/workflow/Workflows_test.go, core/application/service/sync/Patch_test.go, test/integration/workflow_test.go, apps/webapp/src/lib/data/workflows.test.ts, core/domain/model/work/WorkflowHub_test.go, core/application/service/workflow/WorkflowHub_test.go, core/application/service/work/WorkflowHubGate_test.go, core/application/service/sync/InitialSyncHubBlocks_test.go, test/integration/workflow_hub_test.go, core/application/service/workflow/WorkflowDoors_test.go, apps/webapp/e2e/boardlevels.test.mjs, test/integration/scheme_boards_test.go]
 ---
 
 # Describe how our work moves, and switch it on
@@ -66,4 +66,3 @@ publishes; the board now shows one column per status.
 ## Today
 
 * Check 4: partly met — the server answers the preview's `boards` and the set takes `columns`; the scheme panel's preview lists each board's statuses with their column, changeable per status, and sends them as `columns` (`apps/webapp/src/lib/entries/boardlevel.test.ts`); not yet walked on screen.
-* Check 10: met — *Workflow from these columns* previews the server's dry run, a status per column, and makes it on confirmation (`apps/webapp/e2e/boardlevels.test.mjs`).
