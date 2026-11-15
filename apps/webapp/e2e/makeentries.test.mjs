@@ -13,7 +13,7 @@
 // * check 4 is the server's (the material carries nobody's content who keeps it out), proved by
 //   `core/application/service/suggestion/MakeEntries_test.go`.
 //
-// Chromium only, as the other walks; compact and large, light and dark.
+// Chromium only, as the other walks; compact and large, and dark too where EVIDENCE keeps screenshots.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -118,7 +118,8 @@ async function open(browser, width, { ai, scheme = 'light' }) {
 const callsOf = (writes, call) => writes.filter((each) => each.call === call);
 
 for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
-  for (const scheme of ['light', 'dark']) {
+  // Dark only for the screenshots: the walk asserts nothing the scheme changes.
+  for (const scheme of process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${size}, ${scheme} — pasted lines become a proposal; one taken, then all, nothing before`, { timeout: 90_000 }, async () => {
       const browser = await chromium.launch();
       const { page, failures, writes, close } = await open(browser, width, { ai: true, scheme });

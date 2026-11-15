@@ -139,7 +139,8 @@ for (const width of [375, 768, 1280]) {
     }
   });
 
-  for (const scheme of width === 1280 ? ['light', 'dark'] : ['light']) {
+  // Dark only for the screenshots: the walk asserts nothing the scheme changes.
+  for (const scheme of width === 1280 && process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${width} px ${scheme} — each proposal stands under its subject, look-alikes by title`, { timeout: 90_000 }, async () => {
       const browser = await chromium.launch();
       const { page, failures, close } = await openEntry(browser, { width, standing: STANDING, scheme });

@@ -44,7 +44,8 @@ async function evidence(page, name) {
 }
 
 for (const [width, size] of [[1280, 'large'], [800, 'medium'], [375, 'compact']]) {
-  for (const scheme of ['light', 'dark']) {
+  // Dark only for the screenshots: the walk asserts nothing the scheme changes.
+  for (const scheme of process.env.EVIDENCE ? ['light', 'dark'] : ['light']) {
     test(`chromium: ${size}, ${scheme} — a sentence becomes a rule on the canvas, saved switched off`, { timeout: 90_000 }, async () => {
       const browser = await chromium.launch();
       const { page, failures, accepted, close } = await openEditor(browser, width, { ai: true, scheme });
