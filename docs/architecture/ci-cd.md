@@ -157,6 +157,13 @@ tracked file is claimed by a filter or listed among the paths that deliberately 
 and every pattern matches something that exists. A filter by file pattern (`**/*.go`) would leave
 the fixtures a Go test reads outside it, and `ci-required` counts that skip as a pass.
 
+**Performance is measured, not gated.** A test whose verdict is a time or a frame rate runs in no
+job of the pull request's path and in no local gate (`make check`, `make e2e`): an end-to-end walk
+proves that a thing works, and a shared runner or a laptop beside other work measures itself, not
+the product. Such a test runs from time to time - today on demand
+(`pnpm --filter @hubtask/webapp test:performance`, the board of 5 000 objects), in the long run on
+the integration server. The owner's decision of 2026-11-16.
+
 ### 3.2 `ci-required` is the only required status check
 
 (Both sections numbered 3.2 are cited, so neither is renumbered.)
