@@ -186,7 +186,8 @@ test('chromium: the plan editor draws the installation\'s levels, and a save nam
   t.after(close);
 
   await page.goto(`${served.origin}/instance/plans/family`);
-  await page.getByRole('heading', { name: 'Family', level: 1 }).waitFor({ timeout: 10_000 });
+  // Exact: until the plan is read, the head names it by its short name, `family`.
+  await page.getByRole('heading', { name: 'Family', exact: true, level: 1 }).waitFor({ timeout: 10_000 });
   assert.match(await page.locator('main').innerText(), /412 workspaces/);
 
   // The installation locks the request rate: its value with the chip that says whose it is
