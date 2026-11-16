@@ -25,7 +25,9 @@ func TestARequestsPaceIsTheTeamsReplyAndTheRequestersDeadline(t *testing.T) {
 	paces := postgres.NewServiceDeskRepository().Paces()
 	request := seedWorkItemForRules(ctx, t, tenantA) // raised by authorA
 	quiet := seedWorkItemForRules(ctx, t, tenantA)
-	base := time.Date(2026, 11, 2, 8, 0, 0, 0, time.UTC)
+	// A day of its own: the database is shared, and the SLA report of another test counts every goal
+	// armed in the hour around its 2 November.
+	base := time.Date(2026, 9, 14, 8, 0, 0, 0, time.UTC)
 	exec := func(what, sql string, args ...any) {
 		t.Helper()
 		if _, err := admin.Exec(ctx, sql, args...); err != nil {
