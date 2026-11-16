@@ -290,7 +290,9 @@ async function walk(server, browser) {
   await session.click(PLACE, COLLECTION);
 
   step('create an entry');
-  const add = await until('an add control', async () => (await session.find('main button', 'Add an entry')) ?? (await session.find('nav button', 'Capture')));
+  // The list's add, named by its place ("Entry in “…”", L-6) and so found by its opener; an empty
+  // collection draws it on every width, the phone's included.
+  const add = await session.wait('main button[data-opener="add-entry"]');
   await add.click();
   const field = await session.wait('input, textarea', 'What do you want to remember?', { exact: false });
   await field.type(ENTRY + ENTER);
