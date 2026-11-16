@@ -269,3 +269,40 @@ func TestDevicesAreInvisibleFromAnotherTenant(t *testing.T) {
 		}
 	})
 }
+
+// Two first contacts of one device at once - a push and a stream opened together - both land:
+// the second waits for the first registration and records its contact on it, rather than reading
+// the device it could not yet see as somebody else's.
+func TestTwoFirstContactsOfOneDeviceBothLand(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := seedAccount(ctx, t, tenantA)
+	id := freshID(t)
+
+	registered := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		first <- write(ctx, t, tenantA, func(ctx context.Context) error {
+			_, err := deviceRepo().Touch(ctx, syncdomain.Contact{DeviceID: id, AccountID: account, Now: created})
+			close(registered)
+			if err != nil {
+				return err
+			}
+			time.Sleep(300 * time.Millisecond)
+			return nil
+		})
+	}()
+	<-registered
+	second, err := touch(ctx, t, tenantA, syncdomain.Contact{
+		DeviceID: id, AccountID: account, Platform: "hubctl", Now: created.Add(time.Minute),
+	})
+	if err := <-first; err != nil {
+		t.Fatalf("the first contact: %v", err)
+	}
+	if err != nil {
+		t.Fatalf("the second contact answered %v", err)
+	}
+	if second.ID != id || second.Platform != "hubctl" || !second.LastSeenAt.Equal(created.Add(time.Minute)) {
+		t.Errorf("the second contact recorded %+v", second)
+	}
+}

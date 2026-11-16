@@ -3678,25 +3678,40 @@ func (q *Queries) StampFieldClock(ctx context.Context, arg StampFieldClockParams
 
 const touchDevice = `-- name: TouchDevice :one
 
-INSERT INTO sync_device (
-  id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, credential_id,
-  created_at
-) VALUES (
-  $1, current_tenant_id(), $2,
-  $3, $4, $5,
-  $6, $7, $6
+WITH registered AS (
+  INSERT INTO sync_device (
+    id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, credential_id,
+    created_at
+  ) VALUES (
+    $1, current_tenant_id(), $2,
+    $3, $4, $5,
+    $6, $7, $6
+  )
+  ON CONFLICT (id) DO NOTHING
+  RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+            created_at, credential_id
+), contacted AS (
+  UPDATE sync_device SET
+    platform      = coalesce($3, sync_device.platform),
+    display_name  = coalesce($4, sync_device.display_name),
+    last_cursor   = greatest($5, sync_device.last_cursor),
+    last_seen_at  = $6,
+    credential_id = coalesce($7, sync_device.credential_id)
+  WHERE sync_device.id = $1
+    AND sync_device.tenant_id = current_tenant_id()
+    AND sync_device.account_id = $2
+    AND NOT sync_device.blocked
+    AND NOT EXISTS (SELECT 1 FROM registered)
+  RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+            created_at, credential_id
 )
-ON CONFLICT (id) DO UPDATE SET
-  platform      = coalesce(excluded.platform, sync_device.platform),
-  display_name  = coalesce(excluded.display_name, sync_device.display_name),
-  last_cursor   = greatest(excluded.last_cursor, sync_device.last_cursor),
-  last_seen_at  = excluded.last_seen_at,
-  credential_id = coalesce(excluded.credential_id, sync_device.credential_id)
-WHERE sync_device.tenant_id = current_tenant_id()
-  AND sync_device.account_id = excluded.account_id
-  AND NOT sync_device.blocked
-RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
-          created_at, credential_id
+SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+       created_at, credential_id
+FROM registered
+UNION ALL
+SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+       created_at, credential_id
+FROM contacted
 `
 
 type TouchDeviceParams struct {
@@ -3727,6 +3742,10 @@ type TouchDeviceRow struct {
 // update is the contact, and it is refused - no row comes back - when the identifier belongs to
 // another account or the device was forgotten, which the adapter then tells apart. What the
 // device said about itself replaces what stood; what it left out leaves it alone.
+//
+// Not `ON CONFLICT DO UPDATE`: the identifier is the device's own and global, and an upsert whose
+// conflict meets another workspace's row raises 42501 and aborts the transaction (known-traps.md).
+// The insert does nothing on a conflict; the update then reaches only this workspace's row.
 func (q *Queries) TouchDevice(ctx context.Context, arg TouchDeviceParams) (TouchDeviceRow, error) {
 	row := q.db.QueryRow(ctx, touchDevice,
 		arg.ID,
