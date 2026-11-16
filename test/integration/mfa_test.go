@@ -90,6 +90,43 @@ func TestAnEnrollmentIsInvisibleAndImmovableFromAnotherTenant(t *testing.T) {
 	})
 }
 
+// Two enrolments of one account at once - a double click - both land: the second waits for the
+// first and replaces its unconfirmed secret, rather than reading it as an armed enrolment.
+func TestTwoEnrolmentsAtOnceBothLand(t *testing.T) {
+	ctx := context.Background()
+	sessionFixtures(ctx, t)
+	mfa, uow := mfaStores(ctx, t)
+	account := seedAccount(ctx, t, tenantA)
+	now := time.Now().UTC()
+
+	enrolled := make(chan struct{})
+	first := make(chan error, 1)
+	go func() {
+		first <- uow.Within(ctx, persistence.Scope{TenantID: tenantA}, func(ctx context.Context) error {
+			_, err := mfa.Upsert(ctx, account, sealedSecret(), now)
+			close(enrolled)
+			if err != nil {
+				return err
+			}
+			time.Sleep(300 * time.Millisecond)
+			return nil
+		})
+	}()
+	<-enrolled
+	var fresh bool
+	inTenant(t, uow, tenantA, func(ctx context.Context) error {
+		var err error
+		fresh, err = mfa.Upsert(ctx, account, sealedSecret(), now)
+		return err
+	})
+	if err := <-first; err != nil {
+		t.Fatalf("the first enrolment: %v", err)
+	}
+	if !fresh {
+		t.Error("the second enrolment was refused as if the first were armed")
+	}
+}
+
 // Gate SG-3: Replace, Burn, Remaining.
 func TestRecoveryCodesBurnOnceAndOnlyInTheirTenant(t *testing.T) {
 	ctx := context.Background()
