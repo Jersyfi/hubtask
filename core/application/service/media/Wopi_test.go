@@ -7,11 +7,13 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/media"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/media"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -147,10 +149,17 @@ func hasAll(scopes []string, want ...string) bool {
 type probe struct {
 	answer error
 	asked  []domain.DocumentServerChoice
+	// pdf is what a conversion answers, none converting nothing; converted is what it was sent.
+	pdf       string
+	converted []wopi.Source
 }
 
-func (p *probe) ConvertToPDF(context.Context, domain.DocumentServerChoice, wopi.Source) (io.ReadCloser, error) {
-	return nil, wopi.ErrUnsupported()
+func (p *probe) ConvertToPDF(_ context.Context, _ domain.DocumentServerChoice, source wopi.Source) (io.ReadCloser, error) {
+	if p.pdf == "" {
+		return nil, wopi.ErrUnsupported()
+	}
+	p.converted = append(p.converted, source)
+	return io.NopCloser(strings.NewReader(p.pdf)), nil
 }
 
 func (p *probe) EditAction(_ context.Context, choice domain.DocumentServerChoice, _ string) (string, error) {
@@ -210,4 +219,417 @@ func TestTheAdministrationTestsADocumentServer(t *testing.T) {
 			t.Errorf("%s: the server was asked", c.name)
 		}
 	}
+}
+
+// files is the WOPI store: the workspace's choice, the lock on a file and its saves; a save gives
+// the file its new bytes, as the repository does.
+type files struct {
+	repository.Wopi
+	choice  domain.DocumentServerChoice
+	setBy   shared.ID
+	lock    *domain.Lock
+	dropped int
+	saves   []repository.Save
+	records *objects
+	saveErr error
+}
+
+func (f *files) DocumentServer(context.Context) (domain.DocumentServerChoice, error) {
+	return f.choice, nil
+}
+
+func (f *files) SetDocumentServer(_ context.Context, choice domain.DocumentServerChoice, setBy shared.ID, _ time.Time) error {
+	f.choice, f.setBy = choice, setBy
+	return nil
+}
+
+func (f *files) Lock(context.Context, shared.ID) (*domain.Lock, error) { return f.lock, nil }
+
+func (f *files) PutLock(_ context.Context, _ shared.ID, lock domain.Lock) error {
+	f.lock = &lock
+	return nil
+}
+
+func (f *files) DropLock(context.Context, shared.ID) error {
+	f.lock = nil
+	f.dropped++
+	return nil
+}
+
+func (f *files) SaveVersion(_ context.Context, mediaID shared.ID, save repository.Save) (int, error) {
+	if f.saveErr != nil {
+		return 0, f.saveErr
+	}
+	f.saves = append(f.saves, save)
+	object := f.records.stored[mediaID]
+	object.StorageKey, object.ContentType, object.ByteSize = save.StorageKey, save.ContentType, save.ByteSize
+	f.records.stored[mediaID] = object
+	return len(f.saves), nil
+}
+
+// editingHarness is a page's office file a writer of the page edits in Collabora, its bytes in
+// the store, and a write token for them.
+type editingHarness struct {
+	host   WopiHost
+	pages  *pageWriter
+	tokens *plainTokens
+	files  *files
+	bytes  *store
+	server *probe
+	token  string
+}
+
+func newEditingHarness(t *testing.T) *editingHarness {
+	t.Helper()
+	host, pages, tokens, _ := pageHeldDocument(true)
+	records := host.Read.Objects.(*objects)
+	choice, err := domain.NewDocumentServerChoice(domain.DocumentServerCollabora, "https://office.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &editingHarness{
+		pages: pages, tokens: tokens, files: &files{choice: choice, records: records}, bytes: newStore(),
+		server: &probe{pdf: "%PDF-1.7"},
+	}
+	object := records.stored[mintedID]
+	h.bytes.content[object.StorageKey] = []byte("the offer")
+	host.Wopi, host.Store, host.Server = h.files, h.bytes, h.server
+	host.Guard = &guard{judged: object.ContentType}
+	host.IDs = &ids{next: shared.MustParseID("0192f000-0000-7000-8000-0000000000e1")}
+	h.host = host
+	session, err := host.StartEditing(t.Context(), actor(mediaRead, mediaWrite), mintedID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.token = session.Token
+	return h
+}
+
+// readToken is a token that only reads the file.
+func (h *editingHarness) readToken() string {
+	return h.tokens.Issue(wopi.Grant{TenantID: tenantID, AccountID: strangerA, MediaID: mintedID, ExpiresAt: now.Add(time.Hour)})
+}
+
+// UC-MED-06 check 5: a lock is taken on an unlocked file, renewed and replaced only by the one
+// that holds it, and released by it alone; another lock is refused with the lock that holds.
+func TestTheDocumentServersLockHoldsAgainstAnother(t *testing.T) {
+	h := newEditingHarness(t)
+	steps := []struct {
+		name     string
+		request  LockRequest
+		answer   string
+		conflict *string
+	}{
+		{"nothing held", LockRequest{Op: "GET_LOCK"}, "", nil},
+		{"taken", LockRequest{Op: "LOCK", Lock: "A"}, "A", nil},
+		{"another is refused", LockRequest{Op: "LOCK", Lock: "B"}, "", ptr("A")},
+		{"renewed", LockRequest{Op: "REFRESH_LOCK", Lock: "A"}, "A", nil},
+		{"replaced by its holder", LockRequest{Op: "UNLOCK_AND_RELOCK", Old: "A", Lock: "B"}, "B", nil},
+		{"replaced by another", LockRequest{Op: "UNLOCK_AND_RELOCK", Old: "A", Lock: "C"}, "", ptr("B")},
+		{"read", LockRequest{Op: "GET_LOCK"}, "B", nil},
+		{"released by another", LockRequest{Op: "UNLOCK", Lock: "A"}, "", ptr("B")},
+		{"released", LockRequest{Op: "UNLOCK", Lock: "B"}, "", nil},
+		{"renewed once released", LockRequest{Op: "REFRESH_LOCK", Lock: "B"}, "", ptr("")},
+	}
+	for _, step := range steps {
+		answer, err := h.host.Locks(t.Context(), h.token, mintedID, step.request)
+		var conflict domain.LockConflict
+		switch {
+		case step.conflict == nil && (err != nil || answer != step.answer):
+			t.Fatalf("%s: %q, %v; want %q", step.name, answer, err, step.answer)
+		case step.conflict != nil && (!errors.As(err, &conflict) || conflict.Current != *step.conflict):
+			t.Fatalf("%s: %v, want the conflict naming %q", step.name, err, *step.conflict)
+		}
+	}
+	if h.files.lock != nil || h.files.dropped != 1 {
+		t.Fatalf("lock %+v after the release, dropped %d", h.files.lock, h.files.dropped)
+	}
+	if _, err := h.host.Locks(t.Context(), h.token, mintedID, LockRequest{Op: "STEAL"}); detail(err) != "wopi.operation_unknown" {
+		t.Fatalf("an unknown call: %v", err)
+	}
+
+	// A read token reads the lock and takes none.
+	read := h.readToken()
+	if _, err := h.host.Locks(t.Context(), read, mintedID, LockRequest{Op: "GET_LOCK"}); err != nil {
+		t.Fatalf("reading the lock with a read token: %v", err)
+	}
+	if _, err := h.host.Locks(t.Context(), read, mintedID, LockRequest{Op: "LOCK", Lock: "R"}); detail(err) != "media.edit_forbidden" {
+		t.Fatalf("locking with a read token: %v", err)
+	}
+	// Whoever lost the right to change the page takes no lock either (check 4).
+	h.pages.writes = false
+	if _, err := h.host.Locks(t.Context(), h.token, mintedID, LockRequest{Op: "LOCK", Lock: "A"}); detail(err) != "media.edit_forbidden" {
+		t.Fatalf("locking without the page's write right: %v", err)
+	}
+	if h.files.lock != nil {
+		t.Fatal("a refused call took a lock")
+	}
+}
+
+func ptr(s string) *string { return &s }
+
+// UC-MED-06 checks 5 and 6: a save under the lock that holds is a new version - the file keeps its
+// id, takes new bytes under a new key, and the bytes it had are kept as its earlier version; under
+// another lock, too large, or by a read token nothing is stored.
+func TestASaveUnderTheLockIsANewVersionKeepingTheEarlier(t *testing.T) {
+	h := newEditingHarness(t)
+	before := h.host.Read.Objects.(*objects).stored[mintedID]
+	if _, err := h.host.Locks(t.Context(), h.token, mintedID, LockRequest{Op: "LOCK", Lock: "A"}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := h.host.CheckFileInfo(t.Context(), h.token, mintedID)
+	if err != nil || !info.Write || info.PersonID != accountID {
+		t.Fatalf("CheckFileInfo %+v, %v", info, err)
+	}
+
+	refusals := []struct {
+		name  string
+		token string
+		lock  string
+		size  int64
+		check func(error) bool
+	}{
+		{"another lock", h.token, "B", 9, func(err error) bool {
+			var conflict domain.LockConflict
+			return errors.As(err, &conflict) && conflict.Current == "A"
+		}},
+		{"too large", h.token, "A", 1 << 20, func(err error) bool { return detail(err) == "media.too_large" }},
+		{"a negative size", h.token, "A", -1, func(err error) bool { return detail(err) == "media.too_large" }},
+		{"a read token", h.readToken(), "A", 9, func(err error) bool { return detail(err) == "media.edit_forbidden" }},
+		{"no token", "", "A", 9, func(err error) bool { return detail(err) == "wopi.token_invalid" }},
+	}
+	h.host.SizeLimit = 1024
+	for _, refusal := range refusals {
+		if _, err := h.host.PutFile(t.Context(), refusal.token, mintedID, refusal.lock, strings.NewReader("new offer"), refusal.size); !refusal.check(err) {
+			t.Fatalf("%s: %v", refusal.name, err)
+		}
+	}
+	if len(h.bytes.puts) != 0 || len(h.files.saves) != 0 {
+		t.Fatal("a refused save stored something")
+	}
+
+	version, err := h.host.PutFile(t.Context(), h.token, mintedID, "A", strings.NewReader("new offer"), 9)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h.files.saves) != 1 || len(h.bytes.puts) != 1 {
+		t.Fatalf("%d saves, %d puts", len(h.files.saves), len(h.bytes.puts))
+	}
+	save := h.files.saves[0]
+	if save.StorageKey == before.StorageKey || string(h.bytes.content[save.StorageKey]) != "new offer" || save.ByteSize != 9 {
+		t.Fatalf("save %+v, want the new bytes under a new key", save)
+	}
+	if save.Earlier.StorageKey != before.StorageKey || save.Earlier.ID == mintedID || save.Earlier.Usage != domain.UsageAttachment ||
+		string(h.bytes.content[before.StorageKey]) != "the offer" {
+		t.Fatalf("earlier %+v, want the bytes it had kept as an object of their own", save.Earlier)
+	}
+	if save.SavedBy != accountID || !save.SavedAt.Equal(now) {
+		t.Errorf("saved by %s at %v", save.SavedBy, save.SavedAt)
+	}
+	after, err := h.host.CheckFileInfo(t.Context(), h.token, mintedID)
+	if err != nil || after.Object.ID != mintedID || after.Version != version || version == info.Version {
+		t.Fatalf("after the save %+v (%v), version %q, before %q", after, err, version, info.Version)
+	}
+}
+
+// UC-MED-06 check 5: an unlocked file that is still empty takes a save without a lock; one with
+// bytes does not.
+func TestAnEmptyFileTakesASaveWithoutALock(t *testing.T) {
+	for _, size := range []int64{0, 32} {
+		h := newEditingHarness(t)
+		records := h.host.Read.Objects.(*objects)
+		object := records.stored[mintedID]
+		object.ByteSize = size
+		records.stored[mintedID] = object
+		_, err := h.host.PutFile(t.Context(), h.token, mintedID, "", strings.NewReader("first"), 5)
+		if size == 0 && err != nil {
+			t.Fatalf("saving into an empty file: %v", err)
+		}
+		var conflict domain.LockConflict
+		if size > 0 && !errors.As(err, &conflict) {
+			t.Fatalf("saving into a file with bytes without a lock: %v", err)
+		}
+	}
+}
+
+// A save the store refuses leaves no bytes behind: the new object is removed at once.
+func TestAFailedSaveRemovesItsBytes(t *testing.T) {
+	h := newEditingHarness(t)
+	if _, err := h.host.Locks(t.Context(), h.token, mintedID, LockRequest{Op: "LOCK", Lock: "A"}); err != nil {
+		t.Fatal(err)
+	}
+	h.files.saveErr = shared.ErrNotFound
+	_, err := h.host.PutFile(t.Context(), h.token, mintedID, "A", strings.NewReader("new offer"), 9)
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("err %v, want the file missing", err)
+	}
+	if len(h.bytes.puts) != 1 || len(h.bytes.deleted) != 1 || h.bytes.deleted[0] != h.bytes.puts[0].Key {
+		t.Fatalf("put %+v, deleted %v; want the new bytes removed", h.bytes.puts, h.bytes.deleted)
+	}
+}
+
+// UC-MED-06 check 3: GetFile answers the file's bytes for its token alone; a forged token, or one
+// for another file, opens nothing.
+func TestTheFileIsServedForItsTokenAlone(t *testing.T) {
+	h := newEditingHarness(t)
+	served, err := h.host.GetFile(t.Context(), h.token, mintedID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(served.Content)
+	_ = served.Content.Close()
+	if string(body) != "the offer" {
+		t.Fatalf("served %q", body)
+	}
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000e9")
+	for name, call := range map[string]func() error{
+		"forged":       func() error { _, err := h.host.GetFile(t.Context(), "forged", mintedID); return err },
+		"another file": func() error { _, err := h.host.GetFile(t.Context(), h.token, other); return err },
+		"empty":        func() error { _, err := h.host.CheckFileInfo(t.Context(), "", mintedID); return err },
+	} {
+		if err := call(); detail(err) != "wopi.token_invalid" {
+			t.Errorf("%s token: %v", name, err)
+		}
+	}
+}
+
+// UC-MED-05: an office file is shown as the PDF the document server converts; the server reaches
+// the bytes with a read token as short as the conversion, never a write token.
+func TestAnOfficeFileIsShownAsTheServersPDF(t *testing.T) {
+	h := newEditingHarness(t)
+	pdf, err := h.host.ConvertToPDF(t.Context(), actor(mediaRead), mintedID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := io.ReadAll(pdf)
+	_ = pdf.Close()
+	if string(body) != "%PDF-1.7" || len(h.server.converted) != 1 {
+		t.Fatalf("converted %q, %d sources", body, len(h.server.converted))
+	}
+	source := h.server.converted[0]
+	prefix := h.host.Files + mintedID.String() + "/contents?access_token="
+	if !strings.HasPrefix(source.FetchAt, prefix) || source.Name != "plan.docx" || !strings.HasPrefix(source.Key, mintedID.String()+"-") {
+		t.Fatalf("source %+v", source)
+	}
+	grant := h.tokens.issued[strings.TrimPrefix(source.FetchAt, prefix)]
+	if grant.Write || grant.MediaID != mintedID || !grant.ExpiresAt.Equal(now.Add(conversionWindow)) {
+		t.Fatalf("the conversion's token %+v, want a short read token", grant)
+	}
+
+	if _, err := h.host.ConvertToPDF(t.Context(), actor(), mintedID); err == nil {
+		t.Error("converted without the read scope")
+	}
+	records := h.host.Read.Objects.(*objects)
+	picture := records.stored[mintedID]
+	picture.FileName, picture.ContentType = "plan.png", "image/png"
+	records.stored[mintedID] = picture
+	if _, err := h.host.ConvertToPDF(t.Context(), actor(mediaRead), mintedID); detail(err) != "media.not_an_office_file" {
+		t.Errorf("a picture: %v", err)
+	}
+	if _, err := h.host.StartEditing(t.Context(), actor(mediaRead, mediaWrite), mintedID); detail(err) != "media.not_an_office_file" {
+		t.Errorf("editing a picture: %v", err)
+	}
+}
+
+// UC-MED-06 check 2: *Bearbeiten* is offered only on a ready office file, only where a server is
+// chosen, and only to whoever may change what holds it.
+func TestEditingIsOfferedOnlyWhereItCanHappen(t *testing.T) {
+	tests := []struct {
+		name    string
+		arrange func(*editingHarness, *domain.Object)
+		want    bool
+	}{
+		{"a writer of the page", func(*editingHarness, *domain.Object) {}, true},
+		{"a reader of the page", func(h *editingHarness, _ *domain.Object) { h.pages.writes = false }, false},
+		{"no server chosen", func(h *editingHarness, _ *domain.Object) { h.files.choice = domain.DocumentServerChoice{} }, false},
+		{"a picture", func(_ *editingHarness, o *domain.Object) { o.FileName, o.ContentType = "plan.png", "image/png" }, false},
+		{"a file not yet judged", func(_ *editingHarness, o *domain.Object) { o.Status = domain.StatusPending }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newEditingHarness(t)
+			object := h.host.Read.Objects.(*objects).stored[mintedID]
+			tt.arrange(h, &object)
+			got, err := h.host.Editable(t.Context(), actor(mediaRead, mediaWrite), object, reach{pages: []shared.ID{h.pages.written[0][0]}})
+			if err != nil || got != tt.want {
+				t.Fatalf("editable %v, %v; want %v", got, err, tt.want)
+			}
+		})
+	}
+
+	h := newEditingHarness(t)
+	h.files.choice = domain.DocumentServerChoice{}
+	if _, err := h.host.StartEditing(t.Context(), actor(mediaRead, mediaWrite), mintedID); detail(err) != "media.document_server_none" {
+		t.Errorf("editing without a server: %v", err)
+	}
+	if _, err := h.host.StartEditing(t.Context(), actor(mediaRead), mintedID); err == nil {
+		t.Error("editing without the write scope")
+	}
+}
+
+// UC-MED-06 check 1: every member reads the choice; the administration sets it, audited with the
+// kind and the address, and an agent never does.
+func TestTheWorkspaceChoosesItsDocumentServer(t *testing.T) {
+	store, permission, trail := &files{}, &authorizer{}, &sink{}
+	servers := DocumentServers{Wopi: store, Authorizer: permission, Audit: trail, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now)}
+	admin := actor(mediaRead, mediaWrite)
+
+	read := ReadDocumentServer{Servers: servers}.Descriptor().Handler
+	if out, err := read.Invoke(t.Context(), actor(mediaRead), usecase.Input{}); err != nil || out["kind"] != "NONE" || out["url"] != nil {
+		t.Fatalf("nothing chosen reads %+v, %v", out, err)
+	}
+	if _, err := read.Invoke(t.Context(), actor(), usecase.Input{}); err == nil {
+		t.Fatal("read without the read scope")
+	}
+
+	set := SetDocumentServer{Servers: servers}.Descriptor().Handler
+	out, err := set.Invoke(t.Context(), admin, usecase.Input{"kind": "ONLYOFFICE", "url": "https://office.example"})
+	if err != nil || out["kind"] != "ONLYOFFICE" || out["url"] != "https://office.example" {
+		t.Fatalf("set %+v, %v", out, err)
+	}
+	if store.choice.Kind != domain.DocumentServerOnlyOffice || store.setBy != accountID {
+		t.Fatalf("stored %+v by %s", store.choice, store.setBy)
+	}
+	if len(trail.entries) != 1 || trail.entries[0].Action != DocumentServerSetAction {
+		t.Fatalf("trail %+v", trail.entries)
+	}
+	kind, _ := trail.entries[0].Changes["kind"].(map[string]any)
+	if kind["to"] != "ONLYOFFICE" {
+		t.Errorf("audited %+v", trail.entries[0].Changes)
+	}
+	if out, err := read.Invoke(t.Context(), actor(mediaRead), usecase.Input{}); err != nil || out["url"] != "https://office.example" {
+		t.Fatalf("the choice reads %+v, %v", out, err)
+	}
+
+	agent := admin
+	agent.Kind = appshared.ActorAIAgent
+	for name, attempt := range map[string]struct {
+		actor appshared.ActorContext
+		kind  string
+	}{"an agent": {agent, "COLLABORA_ONLINE"}, "an unknown kind": {admin, "TYPEWRITER"}} {
+		if _, err := set.Invoke(t.Context(), attempt.actor, usecase.Input{"kind": attempt.kind, "url": "https://other.example"}); err == nil {
+			t.Errorf("%s set the server", name)
+		}
+	}
+	permission.err = shared.ErrForbidden
+	if _, err := set.Invoke(t.Context(), admin, usecase.Input{"kind": "NONE"}); !errors.Is(err, shared.ErrForbidden) {
+		t.Errorf("without STRUCTURE: %v", err)
+	}
+	if store.choice.Kind != domain.DocumentServerOnlyOffice || len(trail.entries) != 1 {
+		t.Fatal("a refused choice changed something")
+	}
+
+	permission.err = nil
+	check := CheckDocumentServer{Servers: DocumentServers{Authorizer: permission, Server: &probe{}, UnitOfWork: &unitOfWork{}}}.Descriptor().Handler
+	if out, err := check.Invoke(t.Context(), admin, usecase.Input{"kind": "ONLYOFFICE", "url": "https://office.example"}); err != nil || out["reached"] != true {
+		t.Fatalf("check %+v, %v", out, err)
+	}
+}
+
+func detail(err error) string {
+	var coded *shared.Error
+	if errors.As(err, &coded) {
+		return coded.DetailCode
+	}
+	return ""
 }
