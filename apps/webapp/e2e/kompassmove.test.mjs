@@ -240,6 +240,8 @@ async function walkMoveDialog(page, record, isPhone) {
   await dialog.getByRole('radio', { name: /^IT operations/ }).click();
   const checks = dialog.getByRole('list', { name: 'Before moving' });
   await checks.getByText('The name is taken in IT operations.', { exact: false }).waitFor();
+  // The people are named once their names are read, a moment after the line itself.
+  await checks.getByText('2 people will no longer see it: Tim Berg, Ana Ruiz.', { exact: false }).waitFor();
   const said = await checks.innerText();
   for (const words of ['Entries here use a type of Product development', '2 people will no longer see it: Tim Berg, Ana Ruiz.', 'It takes on the fields, views and rules of IT operations.', '4 entries stay in releases of Product development.']) {
     assert.ok(said.includes(words), said);
