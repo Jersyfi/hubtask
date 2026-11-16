@@ -343,8 +343,10 @@ test('offline, ticks and captures wait and are sent when the network returns (ch
   isOffline = false;
   await context.setOffline(false);
   await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('data-connection') !== 'offline', null, { timeout: 10_000 });
-  await page.waitForTimeout(2_000);
-  const mutations = pushed.flatMap((push) => push.mutations ?? []);
+  // The queue is sent after the connection returns, at the engine's pace: wait for both writes.
+  const sent = () => pushed.flatMap((push) => push.mutations ?? []);
+  for (let waited = 0; waited < 15_000 && sent().length < 2; waited += 250) await page.waitForTimeout(250);
+  const mutations = sent();
   assert.ok(
     mutations.some((mutation) => mutation.kind === 'ITEM_PATCH' && mutation.item_id === idOf('bread')),
     `no tick was pushed: ${JSON.stringify(mutations)}`,
