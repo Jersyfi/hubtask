@@ -301,6 +301,8 @@ async function walk(server, browser) {
 
   step('edit it');
   await session.click('main a', ENTRY);
+  // The head shows the title as text; its pencil opens the field.
+  await session.click('button', 'Edit title');
   const title = await session.wait('input, textarea', 'Title', { exact: false });
   // The title stays read-only until the reader's role is known (ItemView), and a driver refuses
   // to clear a read-only field.
