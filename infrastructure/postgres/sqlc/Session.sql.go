@@ -1959,19 +1959,31 @@ func (q *Queries) UpsertAuthAttempt(ctx context.Context, arg UpsertAuthAttemptPa
 
 const upsertMfaEnrollment = `-- name: UpsertMfaEnrollment :execrows
 
-INSERT INTO account_mfa
-  (account_id, tenant_id, secret_enc, secret_key_id, created_at, updated_at)
-VALUES (
-  $1, current_tenant_id(), $2,
-  $3, $4, $4
+WITH enrolled AS (
+  INSERT INTO account_mfa
+    (account_id, tenant_id, secret_enc, secret_key_id, created_at, updated_at)
+  VALUES (
+    $1, current_tenant_id(), $2,
+    $3, $4, $4
+  )
+  ON CONFLICT (account_id) DO NOTHING
+  RETURNING account_id
+), replaced AS (
+  UPDATE account_mfa
+  SET secret_enc = $2,
+      secret_key_id = $3,
+      confirmed_at = NULL,
+      last_step = NULL,
+      updated_at = $4
+  WHERE account_mfa.account_id = $1
+    AND account_mfa.tenant_id = current_tenant_id()
+    AND account_mfa.confirmed_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM enrolled)
+  RETURNING account_id
 )
-ON CONFLICT (account_id) DO UPDATE
-SET secret_enc = EXCLUDED.secret_enc,
-    secret_key_id = EXCLUDED.secret_key_id,
-    confirmed_at = NULL,
-    last_step = NULL,
-    updated_at = EXCLUDED.updated_at
-WHERE account_mfa.confirmed_at IS NULL
+SELECT account_id FROM enrolled
+UNION ALL
+SELECT account_id FROM replaced
 `
 
 type UpsertMfaEnrollmentParams struct {
@@ -1985,6 +1997,10 @@ type UpsertMfaEnrollmentParams struct {
 // A fresh enrolment, or the replacement of an unconfirmed one. An armed enrolment matches
 // nothing - zero rows is the "disable first, with the password" refusal - so a stolen session
 // cannot quietly swap the secret out from under the real authenticator.
+//
+// Not `ON CONFLICT DO UPDATE`: the account identifier is global, and an upsert whose conflict
+// meets another workspace's row raises 42501 and aborts the transaction (known-traps.md). The
+// insert does nothing on a conflict; the replacement then reaches only this workspace's row.
 func (q *Queries) UpsertMfaEnrollment(ctx context.Context, arg UpsertMfaEnrollmentParams) (int64, error) {
 	result, err := q.db.Exec(ctx, upsertMfaEnrollment,
 		arg.AccountID,

@@ -371,19 +371,35 @@ SELECT count(*) FROM (
 -- A fresh enrolment, or the replacement of an unconfirmed one. An armed enrolment matches
 -- nothing - zero rows is the "disable first, with the password" refusal - so a stolen session
 -- cannot quietly swap the secret out from under the real authenticator.
-INSERT INTO account_mfa
-  (account_id, tenant_id, secret_enc, secret_key_id, created_at, updated_at)
-VALUES (
-  sqlc.arg('account_id'), current_tenant_id(), sqlc.arg('secret_enc'),
-  sqlc.arg('secret_key_id'), sqlc.arg('now'), sqlc.arg('now')
+--
+-- Not `ON CONFLICT DO UPDATE`: the account identifier is global, and an upsert whose conflict
+-- meets another workspace's row raises 42501 and aborts the transaction (known-traps.md). The
+-- insert does nothing on a conflict; the replacement then reaches only this workspace's row.
+WITH enrolled AS (
+  INSERT INTO account_mfa
+    (account_id, tenant_id, secret_enc, secret_key_id, created_at, updated_at)
+  VALUES (
+    sqlc.arg('account_id'), current_tenant_id(), sqlc.arg('secret_enc'),
+    sqlc.arg('secret_key_id'), sqlc.arg('now'), sqlc.arg('now')
+  )
+  ON CONFLICT (account_id) DO NOTHING
+  RETURNING account_id
+), replaced AS (
+  UPDATE account_mfa
+  SET secret_enc = sqlc.arg('secret_enc'),
+      secret_key_id = sqlc.arg('secret_key_id'),
+      confirmed_at = NULL,
+      last_step = NULL,
+      updated_at = sqlc.arg('now')
+  WHERE account_mfa.account_id = sqlc.arg('account_id')
+    AND account_mfa.tenant_id = current_tenant_id()
+    AND account_mfa.confirmed_at IS NULL
+    AND NOT EXISTS (SELECT 1 FROM enrolled)
+  RETURNING account_id
 )
-ON CONFLICT (account_id) DO UPDATE
-SET secret_enc = EXCLUDED.secret_enc,
-    secret_key_id = EXCLUDED.secret_key_id,
-    confirmed_at = NULL,
-    last_step = NULL,
-    updated_at = EXCLUDED.updated_at
-WHERE account_mfa.confirmed_at IS NULL;
+SELECT account_id FROM enrolled
+UNION ALL
+SELECT account_id FROM replaced;
 
 -- name: FindMfaEnrollment :one
 SELECT account_id, secret_enc, secret_key_id, confirmed_at, last_step,

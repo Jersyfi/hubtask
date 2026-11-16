@@ -53,16 +53,21 @@ func (r MfaRepository) Upsert(
 	if err != nil {
 		return false, err
 	}
-	changed, err := queries.UpsertMfaEnrollment(ctx, sqlc.UpsertMfaEnrollmentParams{
+	params := sqlc.UpsertMfaEnrollmentParams{
 		AccountID:   id,
 		SecretEnc:   sealed.Ciphertext,
 		SecretKeyID: sealed.KeyID,
 		Now:         pgtype.Timestamptz{Time: now, Valid: true},
-	})
-	if err != nil {
-		return false, shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("writing the enrolment: %w", err))
+	}
+	var changed int64
+	// Twice at most: an enrolment that committed while the insert waited for it lies after the
+	// statement's snapshot, so only the next statement can replace it.
+	for attempt := 0; attempt < 2 && changed == 0; attempt++ {
+		if changed, err = queries.UpsertMfaEnrollment(ctx, params); err != nil {
+			return false, shared.ErrUnavailable.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("writing the enrolment: %w", err))
+		}
 	}
 	return changed > 0, nil
 }
