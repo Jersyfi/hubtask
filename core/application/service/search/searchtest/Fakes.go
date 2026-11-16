@@ -138,8 +138,13 @@ type HubReader struct {
 
 // Permitted answers per path.
 func (r HubReader) Permitted(_ context.Context, actor appshared.ActorContext, request access.Request, paths [][]identity.Scope) ([]bool, error) {
-	if err := actor.RequireScope(request.TokenScope); err != nil {
-		return nil, err
+	if !actor.IsAuthenticated() {
+		return nil, shared.ErrUnauthenticated.WithDetail("access.credential_required")
+	}
+	if request.TokenScope != "" {
+		if err := actor.RequireScope(request.TokenScope); err != nil {
+			return nil, err
+		}
 	}
 	out := make([]bool, len(paths))
 	for i, path := range paths {

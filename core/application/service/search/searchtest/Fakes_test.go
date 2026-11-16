@@ -145,8 +145,8 @@ func TestTheReaderAnswersPerPath(t *testing.T) {
 	}
 }
 
-// The token scope refuses the whole question, as access.Service.Permitted does, and an
-// anonymous caller is refused before anything.
+// The token scope refuses the whole question, as access.Service.Permitted does; a request that
+// names no scope is not refused for it, and an anonymous caller always is.
 func TestTheReaderHoldsTheTokenScopeAsTheAccessServiceDoes(t *testing.T) {
 	reader := HubReader{Workspace: true}
 	path := [][]identity.Scope{{identity.TenantScope()}}
@@ -158,7 +158,9 @@ func TestTheReaderHoldsTheTokenScopeAsTheAccessServiceDoes(t *testing.T) {
 	}{
 		{"the scope held", Actor("items:read"), "items:read", nil},
 		{"the scope missing", Actor("containers:read"), "items:read", shared.ErrForbidden},
+		{"no scope asked", Actor(), "", nil},
 		{"nobody signed in", appshared.ActorContext{}, "items:read", shared.ErrUnauthenticated},
+		{"nobody signed in, no scope asked", appshared.ActorContext{}, "", shared.ErrUnauthenticated},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
