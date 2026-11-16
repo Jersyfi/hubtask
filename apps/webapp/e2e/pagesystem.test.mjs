@@ -264,10 +264,12 @@ async function assertLadder(page, size, wanted) {
 }
 
 // The desktop and the phone side by side, each size's walks one after another in contexts of their own.
+// A suite inherits its parent's concurrency, so each size says its own: inherited, all 34 walks
+// started at once and a slower runner's first screens outlasted their wait.
 describe('page kinds', { concurrency: true }, () => {
   for (const size of [DESKTOP, PHONE]) {
     const at = `${size.width}×${size.height}`;
-    describe(at, () => {
+    describe(at, { concurrency: 1 }, () => {
 
       test(`chromium ${at}: every administration screen is exactly one page kind (UC-WRK-42 check 1)`, async (t) => {
         const browser = await sharedChromium(t);
