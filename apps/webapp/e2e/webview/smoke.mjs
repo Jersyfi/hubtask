@@ -313,7 +313,10 @@ async function walk(server, browser) {
   await until('the new title on the server', async () => (await items(server)).find((item) => item.id === created.id && item.title === EDITED));
 
   step('complete it');
-  await session.click('input[type="checkbox"], [role="checkbox"]', `Mark ${EDITED} as done`);
+  // The row's box lives in the list; where the entry took the whole window, the list is one step back.
+  const done = 'input[type="checkbox"], [role="checkbox"]';
+  if ((await session.find(done, `Mark ${EDITED} as done`)) === null) await session.script('history.back();');
+  await session.click(done, `Mark ${EDITED} as done`);
   await until('the completion on the server', async () => (await items(server)).find((item) => item.id === created.id && item.completion?.is_completed));
 
   step('sign out');
