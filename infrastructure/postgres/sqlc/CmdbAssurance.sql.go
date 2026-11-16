@@ -772,19 +772,32 @@ func (q *Queries) ListCmdbSoftwareAliases(ctx context.Context) ([]ListCmdbSoftwa
 }
 
 const upsertCmdbAsset = `-- name: UpsertCmdbAsset :execrows
-INSERT INTO cmdb_asset (ci_id, tenant_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier,
-  warranty_until, contract_id, stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at)
-VALUES ($1, current_tenant_id(), $2, $3, $4,
-  $5, $6, $7, $8,
-  $9, $10, $11, $12,
-  $13, $14, $15, $16)
-ON CONFLICT (ci_id) DO UPDATE SET
-  asset_tag = excluded.asset_tag, cost_minor = excluded.cost_minor, currency = excluded.currency,
-  purchased_on = excluded.purchased_on, supplier = excluded.supplier, warranty_until = excluded.warranty_until,
-  contract_id = excluded.contract_id, stockroom_id = excluded.stockroom_id, assigned_to = excluded.assigned_to,
-  request_id = excluded.request_id, state = excluded.state, disposal = excluded.disposal,
-  updated_by = excluded.updated_by, updated_at = excluded.updated_at, version = cmdb_asset.version + 1
-WHERE cmdb_asset.tenant_id = current_tenant_id() AND cmdb_asset.version = $17
+WITH created AS (
+  INSERT INTO cmdb_asset (ci_id, tenant_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier,
+    warranty_until, contract_id, stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at)
+  VALUES ($1, current_tenant_id(), $2, $3, $4,
+    $5, $6, $7, $8,
+    $9, $10, $11, $12,
+    $13, $14, $15, $16)
+  ON CONFLICT (ci_id) DO NOTHING
+  RETURNING ci_id
+), changed AS (
+  UPDATE cmdb_asset SET
+    asset_tag = $3, cost_minor = $4, currency = $5,
+    purchased_on = $6, supplier = $7,
+    warranty_until = $8, contract_id = $9,
+    stockroom_id = $10, assigned_to = $11,
+    request_id = $12, state = $13, disposal = $14,
+    updated_by = $15, updated_at = $16, version = cmdb_asset.version + 1
+  WHERE cmdb_asset.ci_id = $1
+    AND cmdb_asset.tenant_id = current_tenant_id()
+    AND cmdb_asset.version = $17
+    AND NOT EXISTS (SELECT 1 FROM created)
+  RETURNING ci_id
+)
+SELECT ci_id FROM created
+UNION ALL
+SELECT ci_id FROM changed
 `
 
 type UpsertCmdbAssetParams struct {
@@ -808,6 +821,10 @@ type UpsertCmdbAssetParams struct {
 }
 
 // Optimistic on a change: zero rows is an asset changed meanwhile.
+//
+// Not `ON CONFLICT DO UPDATE`: the CI identifier is global, and an upsert whose conflict meets
+// another workspace's row raises 42501 and aborts the transaction (known-traps.md). The insert
+// does nothing on a conflict; the change then reaches only this workspace's row.
 func (q *Queries) UpsertCmdbAsset(ctx context.Context, arg UpsertCmdbAssetParams) (int64, error) {
 	result, err := q.db.Exec(ctx, upsertCmdbAsset,
 		arg.CiID,
