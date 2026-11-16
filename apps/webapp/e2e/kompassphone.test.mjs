@@ -107,7 +107,9 @@ test('UC-WRK-36 check 15: every stack change is announced, every target is 44 pi
   await step(page).getByRole('link', { name: /^Queues/ }).click();
   await page.waitForFunction(() => document.querySelector('.announcement')?.textContent?.trim() === 'Queues, level 3', null, { timeout: 10_000 });
 
-  const small = async () => page.evaluate(() => {
+  // Measured once nothing moves: a target caught mid-transition measures under its size.
+  const small = async () => page.evaluate(async () => {
+    await Promise.all(document.getAnimations().map((each) => each.finished.catch(() => undefined)));
     const seen = [...document.querySelectorAll('[data-phone-bar] a, [data-phone-bar] button, nav[aria-label="Sections"] a, nav[aria-label="Sections"] button, [data-browse-step] a, [data-browse-step] button, dialog[open] a, dialog[open] button')];
     return seen
       .filter((each) => each.getClientRects().length > 0)
