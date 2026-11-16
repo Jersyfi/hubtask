@@ -214,9 +214,11 @@ func TestTheSyncLogSweepRemovesWhatIsPastTheWindowInItsOwnTenantOnly(t *testing.
 	}
 	cutoff := time.Now().Add(-90 * 24 * time.Hour)
 
-	// From the other tenant, nothing is due and nothing goes.
+	// From another tenant, nothing is due and nothing goes. One of its own rather than the shared
+	// tenant B, whose fixtures are dated `created` and age past the window as the calendar moves on.
+	stranger, _ := seedOwnTenant(ctx, t)
 	var due, removed int
-	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+	if err := write(ctx, t, stranger, func(ctx context.Context) error {
 		var err error
 		if due, err = sweeper.CountExpired(ctx, cutoff, 100); err != nil {
 			return err
