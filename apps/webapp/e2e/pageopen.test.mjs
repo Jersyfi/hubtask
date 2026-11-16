@@ -229,9 +229,12 @@ test('a page shows its writing tools only while writing; "/" on an empty line of
   await page.keyboard.press('Enter');
   await page.keyboard.type('/');
   await panel.waitFor({ timeout: 5_000 });
+  // Listening switches the browser's file choice to interception, which reaches the browser
+  // separately from the key; a round trip first keeps a fast Enter from opening it unseen.
+  const choice = page.waitForEvent('filechooser', { timeout: 5_000 });
   for (let i = 0; i < 4; i += 1) await page.keyboard.press('ArrowDown');
   assert.equal(await activeName(), 'Picture or file');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5_000 }), page.keyboard.press('Enter')]);
+  const [chooser] = await Promise.all([choice, page.keyboard.press('Enter')]);
   assert.ok(chooser, 'the file choice opened');
 
   assert.deepEqual(failures, []);
