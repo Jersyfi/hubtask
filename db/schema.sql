@@ -6653,6 +6653,7 @@ CREATE TABLE config_goal_set (
   CONSTRAINT config_goal_set_period_fkey FOREIGN KEY (tenant_id, period_id)
     REFERENCES goal_period (tenant_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
 );
+CREATE INDEX config_goal_set_period_idx ON config_goal_set (tenant_id, period_id);
 ALTER TABLE config_goal_set ENABLE ROW LEVEL SECURITY;
 ALTER TABLE config_goal_set FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON config_goal_set
@@ -8315,6 +8316,7 @@ CREATE TABLE post_reply (
 );
 CREATE INDEX post_reply_page_idx ON post_reply (tenant_id, page_id, created_at);
 CREATE INDEX post_reply_author_idx ON post_reply (tenant_id, author_id);
+CREATE INDEX post_reply_parent_idx ON post_reply (tenant_id, parent_id) WHERE parent_id IS NOT NULL;
 
 CREATE TABLE post_reaction (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
