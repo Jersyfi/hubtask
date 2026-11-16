@@ -14,8 +14,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"maps"
 	"sort"
 	"strings"
+	"sync"
 
 	"golang.org/x/text/language"
 
@@ -66,7 +68,19 @@ func LoadEnglish() (Catalogue, error) {
 //
 // The source language must be among them: it is the end of every fallback chain, and a build
 // without it has nothing to fall back to.
+//
+// They are parsed once per process: what the binary embeds cannot change while it runs, and
+// parsing and checking megabytes of catalogue on every call is what every hubctl invocation paid.
+// Each caller gets its own map over the shared, immutable catalogues.
 func LoadEmbedded() (map[string]Catalogue, error) {
+	catalogues, err := loadEmbeddedOnce()
+	if err != nil {
+		return nil, err
+	}
+	return maps.Clone(catalogues), nil
+}
+
+var loadEmbeddedOnce = sync.OnceValues(func() (map[string]Catalogue, error) {
 	catalogues, err := LoadDirectory(locales.Files)
 	if err != nil {
 		return nil, err
@@ -75,7 +89,7 @@ func LoadEmbedded() (map[string]Catalogue, error) {
 		return nil, fmt.Errorf("reading the message catalogues: the source language %s is not embedded", SourceLocale)
 	}
 	return catalogues, nil
-}
+})
 
 // LoadDirectory parses every `<tag>.json` at the root of a file system, keyed by the lower-cased
 // tag. It is what the embedded catalogues and an operator's override directory (i18n-l10n.md §1)
