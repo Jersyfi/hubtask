@@ -6,10 +6,11 @@
 // coming. Measured in a real browser, because the frame rate is the browser's: requestAnimationFrame
 // counts the frames painted while the view is carried across the board.
 //
-// `test:engines` runs this file alone, after the other walks: beside them a shared runner stalls
-// every page for 100 ms and more, at 40 objects drawn as at 2,270, and that stall is the runner's.
-// Alone it still stalls now and then, so each gesture is measured up to three times and judged by
-// its best (ci-cd.md §7): a slow board fails all three, one stall of the runner only one.
+// A measure, not a check of function: no CI job and no local gate runs it (ci-cd.md §3.1);
+// `test:performance` does, from time to time and alone - beside other walks a page stalls for
+// 100 ms and more, at 40 objects drawn as at 2,270. Even alone a machine stalls now and then, so
+// each gesture is measured up to three times and judged by its best: a slow board fails all
+// three, one stall only one.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

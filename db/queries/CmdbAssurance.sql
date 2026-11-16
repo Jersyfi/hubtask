@@ -94,19 +94,36 @@ FROM cmdb_ci_group WHERE tenant_id = current_tenant_id() AND id = sqlc.arg('id')
 
 -- name: UpsertCmdbAsset :execrows
 -- Optimistic on a change: zero rows is an asset changed meanwhile.
-INSERT INTO cmdb_asset (ci_id, tenant_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier,
-  warranty_until, contract_id, stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at)
-VALUES (sqlc.arg('ci_id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('asset_tag'), sqlc.arg('cost_minor'),
-  sqlc.arg('currency'), sqlc.narg('purchased_on'), sqlc.arg('supplier'), sqlc.narg('warranty_until'),
-  sqlc.narg('contract_id'), sqlc.narg('stockroom_id'), sqlc.narg('assigned_to'), sqlc.narg('request_id'),
-  sqlc.arg('state'), sqlc.narg('disposal'), sqlc.arg('updated_by'), sqlc.arg('at'))
-ON CONFLICT (ci_id) DO UPDATE SET
-  asset_tag = excluded.asset_tag, cost_minor = excluded.cost_minor, currency = excluded.currency,
-  purchased_on = excluded.purchased_on, supplier = excluded.supplier, warranty_until = excluded.warranty_until,
-  contract_id = excluded.contract_id, stockroom_id = excluded.stockroom_id, assigned_to = excluded.assigned_to,
-  request_id = excluded.request_id, state = excluded.state, disposal = excluded.disposal,
-  updated_by = excluded.updated_by, updated_at = excluded.updated_at, version = cmdb_asset.version + 1
-WHERE cmdb_asset.tenant_id = current_tenant_id() AND cmdb_asset.version = sqlc.arg('expected_version');
+--
+-- Not `ON CONFLICT DO UPDATE`: the CI identifier is global, and an upsert whose conflict meets
+-- another workspace's row raises 42501 and aborts the transaction (known-traps.md). The insert
+-- does nothing on a conflict; the change then reaches only this workspace's row.
+WITH created AS (
+  INSERT INTO cmdb_asset (ci_id, tenant_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier,
+    warranty_until, contract_id, stockroom_id, assigned_to, request_id, state, disposal, updated_by, updated_at)
+  VALUES (sqlc.arg('ci_id'), current_tenant_id(), sqlc.arg('hub_id'), sqlc.arg('asset_tag'), sqlc.arg('cost_minor'),
+    sqlc.arg('currency'), sqlc.narg('purchased_on'), sqlc.arg('supplier'), sqlc.narg('warranty_until'),
+    sqlc.narg('contract_id'), sqlc.narg('stockroom_id'), sqlc.narg('assigned_to'), sqlc.narg('request_id'),
+    sqlc.arg('state'), sqlc.narg('disposal'), sqlc.arg('updated_by'), sqlc.arg('at'))
+  ON CONFLICT (ci_id) DO NOTHING
+  RETURNING ci_id
+), changed AS (
+  UPDATE cmdb_asset SET
+    asset_tag = sqlc.arg('asset_tag'), cost_minor = sqlc.arg('cost_minor'), currency = sqlc.arg('currency'),
+    purchased_on = sqlc.narg('purchased_on'), supplier = sqlc.arg('supplier'),
+    warranty_until = sqlc.narg('warranty_until'), contract_id = sqlc.narg('contract_id'),
+    stockroom_id = sqlc.narg('stockroom_id'), assigned_to = sqlc.narg('assigned_to'),
+    request_id = sqlc.narg('request_id'), state = sqlc.arg('state'), disposal = sqlc.narg('disposal'),
+    updated_by = sqlc.arg('updated_by'), updated_at = sqlc.arg('at'), version = cmdb_asset.version + 1
+  WHERE cmdb_asset.ci_id = sqlc.arg('ci_id')
+    AND cmdb_asset.tenant_id = current_tenant_id()
+    AND cmdb_asset.version = sqlc.arg('expected_version')
+    AND NOT EXISTS (SELECT 1 FROM created)
+  RETURNING ci_id
+)
+SELECT ci_id FROM created
+UNION ALL
+SELECT ci_id FROM changed;
 
 -- name: FindCmdbAsset :one
 SELECT ci_id, hub_id, asset_tag, cost_minor, currency, purchased_on, supplier, warranty_until, contract_id,
