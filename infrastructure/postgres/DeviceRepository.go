@@ -47,37 +47,45 @@ func (r DeviceRepository) Touch(ctx context.Context, contact domain.Contact) (do
 		lastSeq = &contact.LastSeq
 	}
 
-	row, err := queries.TouchDevice(ctx, sqlc.TouchDeviceParams{
+	params := sqlc.TouchDeviceParams{
 		ID: id, AccountID: account,
 		Platform: optionalText(contact.Platform), DisplayName: optionalText(contact.DisplayName),
 		LastCursor: lastSeq, Now: timestampOf(contact.Now), CredentialID: credential,
-	})
-	if err == nil {
-		return deviceFrom(sqlc.FindDeviceRow(row))
 	}
-	if !IsNoRows(err) {
-		return domain.Device{}, shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("touching the device: %w", err))
-	}
+	for attempt := 0; ; attempt++ {
+		row, err := queries.TouchDevice(ctx, params)
+		if err == nil {
+			return deviceFrom(sqlc.FindDeviceRow(row))
+		}
+		if !IsNoRows(err) {
+			return domain.Device{}, shared.ErrUnavailable.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("touching the device: %w", err))
+		}
 
-	// The update was refused. The row says why - forgotten, or somebody else's - and a row this
-	// workspace cannot see at all is somebody else's too: the identifier exists (the insert hit
-	// it) and it is not this account's.
-	existing, err := queries.FindDevice(ctx, id)
-	switch {
-	case err == nil && existing.Blocked:
-		return domain.Device{}, shared.ErrForbidden.
-			WithDetail("sync.device_revoked").
-			WithFields(shared.FieldError{Path: "/device_id", Code: "sync.device_revoked"})
-	case err == nil, IsNoRows(err):
-		return domain.Device{}, shared.ErrForbidden.
-			WithDetail("sync.device_foreign").
-			WithFields(shared.FieldError{Path: "/device_id", Code: "sync.device_foreign"})
-	default:
-		return domain.Device{}, shared.ErrUnavailable.
-			WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("reading the device: %w", err))
+		// The update was refused. The row says why - forgotten, or somebody else's - and a row
+		// this workspace cannot see at all is somebody else's too: the identifier exists (the
+		// insert hit it) and it is not this account's.
+		existing, err := queries.FindDevice(ctx, id)
+		switch {
+		case err == nil && existing.Blocked:
+			return domain.Device{}, shared.ErrForbidden.
+				WithDetail("sync.device_revoked").
+				WithFields(shared.FieldError{Path: "/device_id", Code: "sync.device_revoked"})
+		case err == nil && existing.AccountID == account && attempt == 0:
+			// This account's live device after all: a registration that committed while the
+			// insert waited for it, after the statement's snapshot was taken. The next
+			// statement sees it.
+			continue
+		case err == nil, IsNoRows(err):
+			return domain.Device{}, shared.ErrForbidden.
+				WithDetail("sync.device_foreign").
+				WithFields(shared.FieldError{Path: "/device_id", Code: "sync.device_foreign"})
+		default:
+			return domain.Device{}, shared.ErrUnavailable.
+				WithDetail("postgres.query_failed").
+				WithCause(fmt.Errorf("reading the device: %w", err))
+		}
 	}
 }
 

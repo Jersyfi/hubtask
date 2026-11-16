@@ -43,25 +43,44 @@ SELECT coalesce(max(seq), 0)::bigint FROM change_log WHERE tenant_id = current_t
 -- update is the contact, and it is refused - no row comes back - when the identifier belongs to
 -- another account or the device was forgotten, which the adapter then tells apart. What the
 -- device said about itself replaces what stood; what it left out leaves it alone.
-INSERT INTO sync_device (
-  id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, credential_id,
-  created_at
-) VALUES (
-  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'),
-  sqlc.narg('platform'), sqlc.narg('display_name'), sqlc.narg('last_cursor'),
-  sqlc.arg('now'), sqlc.narg('credential_id'), sqlc.arg('now')
+--
+-- Not `ON CONFLICT DO UPDATE`: the identifier is the device's own and global, and an upsert whose
+-- conflict meets another workspace's row raises 42501 and aborts the transaction (known-traps.md).
+-- The insert does nothing on a conflict; the update then reaches only this workspace's row.
+WITH registered AS (
+  INSERT INTO sync_device (
+    id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, credential_id,
+    created_at
+  ) VALUES (
+    sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'),
+    sqlc.narg('platform'), sqlc.narg('display_name'), sqlc.narg('last_cursor'),
+    sqlc.arg('now'), sqlc.narg('credential_id'), sqlc.arg('now')
+  )
+  ON CONFLICT (id) DO NOTHING
+  RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+            created_at, credential_id
+), contacted AS (
+  UPDATE sync_device SET
+    platform      = coalesce(sqlc.narg('platform'), sync_device.platform),
+    display_name  = coalesce(sqlc.narg('display_name'), sync_device.display_name),
+    last_cursor   = greatest(sqlc.narg('last_cursor'), sync_device.last_cursor),
+    last_seen_at  = sqlc.arg('now'),
+    credential_id = coalesce(sqlc.narg('credential_id'), sync_device.credential_id)
+  WHERE sync_device.id = sqlc.arg('id')
+    AND sync_device.tenant_id = current_tenant_id()
+    AND sync_device.account_id = sqlc.arg('account_id')
+    AND NOT sync_device.blocked
+    AND NOT EXISTS (SELECT 1 FROM registered)
+  RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+            created_at, credential_id
 )
-ON CONFLICT (id) DO UPDATE SET
-  platform      = coalesce(excluded.platform, sync_device.platform),
-  display_name  = coalesce(excluded.display_name, sync_device.display_name),
-  last_cursor   = greatest(excluded.last_cursor, sync_device.last_cursor),
-  last_seen_at  = excluded.last_seen_at,
-  credential_id = coalesce(excluded.credential_id, sync_device.credential_id)
-WHERE sync_device.tenant_id = current_tenant_id()
-  AND sync_device.account_id = excluded.account_id
-  AND NOT sync_device.blocked
-RETURNING id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
-          created_at, credential_id;
+SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+       created_at, credential_id
+FROM registered
+UNION ALL
+SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
+       created_at, credential_id
+FROM contacted;
 
 -- name: FindDevice :one
 SELECT id, tenant_id, account_id, platform, display_name, last_cursor, last_seen_at, blocked,
