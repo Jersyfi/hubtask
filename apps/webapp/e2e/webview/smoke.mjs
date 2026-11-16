@@ -307,7 +307,8 @@ async function walk(server, browser) {
   // The title stays read-only until the reader's role is known (ItemView), and a driver refuses
   // to clear a read-only field.
   await until('the title to take typing', () => title.editable());
-  await title.clear();
+  // A clear blurs the field, and the head's title field closes when it loses focus.
+  await title.select();
   await title.type(EDITED + ENTER);
   await until('the new title on the server', async () => (await items(server)).find((item) => item.id === created.id && item.title === EDITED));
 

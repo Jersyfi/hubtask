@@ -159,6 +159,11 @@ export class Element {
     return this.session.elementCall('POST', this.id, '/clear', {});
   }
 
+  /** Selects the field's text, so typing replaces it without the blur a clear ends with. */
+  select() {
+    return this.session.script('arguments[0].focus(); arguments[0].select();', { [ELEMENT]: this.id });
+  }
+
   /** Whether the field takes typing: not read-only, not disabled. */
   editable() {
     return this.session.script('return !arguments[0].readOnly && !arguments[0].disabled;', { [ELEMENT]: this.id });
